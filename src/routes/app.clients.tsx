@@ -3,7 +3,7 @@ import { useState } from "react";
 import { PageHeader, Button, Table, Th, Td, Badge, Modal, Input, Label } from "@/components/ui-bits";
 import { clients } from "@/lib/mock-data";
 import { Plus } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/app/clients")({
   component: ClientsPage,
@@ -11,8 +11,8 @@ export const Route = createFileRoute("/app/clients")({
 
 function ClientsPage() {
   const [open, setOpen] = useState(false);
-  const session = typeof window !== "undefined" ? getSession() : null;
-  const canCreate = session?.role === "super_admin" || session?.role === "admin";
+  const { role } = useAuth();
+  const canCreate = role === "super_admin" || role === "admin";
 
   return (
     <div>
