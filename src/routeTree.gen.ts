@@ -9,38 +9,219 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppUsersRouteImport } from './routes/app.users'
+import { Route as AppTrackingRouteImport } from './routes/app.tracking'
+import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
+import { Route as AppPromptsRouteImport } from './routes/app.prompts'
+import { Route as AppOutputsRouteImport } from './routes/app.outputs'
+import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
+import { Route as AppHistoryRouteImport } from './routes/app.history'
+import { Route as AppFormsRouteImport } from './routes/app.forms'
+import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppClientsRouteImport } from './routes/app.clients'
+import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AgentTokenRouteImport } from './routes/agent.$token'
+import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrackingRoute = AppTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReviewQueueRoute = AppReviewQueueRouteImport.update({
+  id: '/review-queue',
+  path: '/review-queue',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPromptsRoute = AppPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOutputsRoute = AppOutputsRouteImport.update({
+  id: '/outputs',
+  path: '/outputs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNewCaseRoute = AppNewCaseRouteImport.update({
+  id: '/new-case',
+  path: '/new-case',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsRoute = AppFormsRouteImport.update({
+  id: '/forms',
+  path: '/forms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientsRoute = AppClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AgentTokenRoute = AgentTokenRouteImport.update({
+  id: '/agent/$token',
+  path: '/agent/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppReviewIdRoute = AppReviewIdRouteImport.update({
+  id: '/review/$id',
+  path: '/review/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/agent/$token': typeof AgentTokenRoute
+  '/app/cases': typeof AppCasesRoute
+  '/app/clients': typeof AppClientsRoute
+  '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms': typeof AppFormsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/new-case': typeof AppNewCaseRoute
+  '/app/outputs': typeof AppOutputsRoute
+  '/app/prompts': typeof AppPromptsRoute
+  '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tracking': typeof AppTrackingRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/agent/$token': typeof AgentTokenRoute
+  '/app/cases': typeof AppCasesRoute
+  '/app/clients': typeof AppClientsRoute
+  '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms': typeof AppFormsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/new-case': typeof AppNewCaseRoute
+  '/app/outputs': typeof AppOutputsRoute
+  '/app/prompts': typeof AppPromptsRoute
+  '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tracking': typeof AppTrackingRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/agent/$token': typeof AgentTokenRoute
+  '/app/cases': typeof AppCasesRoute
+  '/app/clients': typeof AppClientsRoute
+  '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms': typeof AppFormsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/new-case': typeof AppNewCaseRoute
+  '/app/outputs': typeof AppOutputsRoute
+  '/app/prompts': typeof AppPromptsRoute
+  '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tracking': typeof AppTrackingRoute
+  '/app/users': typeof AppUsersRoute
+  '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/agent/$token'
+    | '/app/cases'
+    | '/app/clients'
+    | '/app/dashboard'
+    | '/app/forms'
+    | '/app/history'
+    | '/app/new-case'
+    | '/app/outputs'
+    | '/app/prompts'
+    | '/app/review-queue'
+    | '/app/tracking'
+    | '/app/users'
+    | '/app/review/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/app'
+    | '/agent/$token'
+    | '/app/cases'
+    | '/app/clients'
+    | '/app/dashboard'
+    | '/app/forms'
+    | '/app/history'
+    | '/app/new-case'
+    | '/app/outputs'
+    | '/app/prompts'
+    | '/app/review-queue'
+    | '/app/tracking'
+    | '/app/users'
+    | '/app/review/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/agent/$token'
+    | '/app/cases'
+    | '/app/clients'
+    | '/app/dashboard'
+    | '/app/forms'
+    | '/app/history'
+    | '/app/new-case'
+    | '/app/outputs'
+    | '/app/prompts'
+    | '/app/review-queue'
+    | '/app/tracking'
+    | '/app/users'
+    | '/app/review/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AgentTokenRoute: typeof AgentTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +229,137 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/users': {
+      id: '/app/users'
+      path: '/users'
+      fullPath: '/app/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tracking': {
+      id: '/app/tracking'
+      path: '/tracking'
+      fullPath: '/app/tracking'
+      preLoaderRoute: typeof AppTrackingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/review-queue': {
+      id: '/app/review-queue'
+      path: '/review-queue'
+      fullPath: '/app/review-queue'
+      preLoaderRoute: typeof AppReviewQueueRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prompts': {
+      id: '/app/prompts'
+      path: '/prompts'
+      fullPath: '/app/prompts'
+      preLoaderRoute: typeof AppPromptsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/outputs': {
+      id: '/app/outputs'
+      path: '/outputs'
+      fullPath: '/app/outputs'
+      preLoaderRoute: typeof AppOutputsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/new-case': {
+      id: '/app/new-case'
+      path: '/new-case'
+      fullPath: '/app/new-case'
+      preLoaderRoute: typeof AppNewCaseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/history': {
+      id: '/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/forms': {
+      id: '/app/forms'
+      path: '/forms'
+      fullPath: '/app/forms'
+      preLoaderRoute: typeof AppFormsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/dashboard': {
+      id: '/app/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/clients': {
+      id: '/app/clients'
+      path: '/clients'
+      fullPath: '/app/clients'
+      preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/cases': {
+      id: '/app/cases'
+      path: '/cases'
+      fullPath: '/app/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/agent/$token': {
+      id: '/agent/$token'
+      path: '/agent/$token'
+      fullPath: '/agent/$token'
+      preLoaderRoute: typeof AgentTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/review/$id': {
+      id: '/app/review/$id'
+      path: '/review/$id'
+      fullPath: '/app/review/$id'
+      preLoaderRoute: typeof AppReviewIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppCasesRoute: typeof AppCasesRoute
+  AppClientsRoute: typeof AppClientsRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppFormsRoute: typeof AppFormsRoute
+  AppHistoryRoute: typeof AppHistoryRoute
+  AppNewCaseRoute: typeof AppNewCaseRoute
+  AppOutputsRoute: typeof AppOutputsRoute
+  AppPromptsRoute: typeof AppPromptsRoute
+  AppReviewQueueRoute: typeof AppReviewQueueRoute
+  AppTrackingRoute: typeof AppTrackingRoute
+  AppUsersRoute: typeof AppUsersRoute
+  AppReviewIdRoute: typeof AppReviewIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppCasesRoute: AppCasesRoute,
+  AppClientsRoute: AppClientsRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppFormsRoute: AppFormsRoute,
+  AppHistoryRoute: AppHistoryRoute,
+  AppNewCaseRoute: AppNewCaseRoute,
+  AppOutputsRoute: AppOutputsRoute,
+  AppPromptsRoute: AppPromptsRoute,
+  AppReviewQueueRoute: AppReviewQueueRoute,
+  AppTrackingRoute: AppTrackingRoute,
+  AppUsersRoute: AppUsersRoute,
+  AppReviewIdRoute: AppReviewIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AgentTokenRoute: AgentTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
