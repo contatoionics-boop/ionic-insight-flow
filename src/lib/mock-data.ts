@@ -123,14 +123,47 @@ export const forms: FormDef[] = [
   },
 ];
 
-export const aiPrompts = {
-  validacao_imagem:
-    "Analise a imagem enviada e verifique se ela corresponde ao item solicitado. Retorne aprovação ou solicitação de reenvio com justificativa.",
-  transcricao_audio:
-    "Transcreva o áudio em português brasileiro com pontuação. Identifique termos técnicos de telemetria veicular.",
-  geracao_relatorio:
-    "Gere um relatório técnico estruturado a partir das respostas, fotos e transcrições. Use linguagem objetiva.",
+export type PromptDef = {
+  key: string;
+  name: string;
+  description: string;
+  content: string;
 };
+
+export const aiPrompts: PromptDef[] = [
+  {
+    key: "validacao_imagem",
+    name: "Validação de imagem",
+    description:
+      "Usado pela IA para analisar cada foto enviada pelo agente técnico e determinar se ela é utilizável para o laudo. Define os critérios de aprovação e reprovação.",
+    content:
+      "Você é um especialista em análise de imagens técnicas. Avalie a foto enviada e determine se ela é adequada para compor um laudo técnico. Critérios de reprovação: foto desfocada, muito escura, muito clara, ângulo que não permite identificar o equipamento, objeto principal fora do enquadramento. Retorne: status (aprovada/reprovada) e motivo em uma frase curta e direta para o agente técnico.",
+  },
+  {
+    key: "feedback_agente",
+    name: "Feedback para o agente",
+    description:
+      "Mensagem que a IA exibe para orientar o agente durante o preenchimento de cada etapa. Deve ser curta, clara e no tom de um assistente prestativo.",
+    content:
+      "Você é um assistente de campo da IONICS. Sua função é orientar o agente técnico durante o preenchimento do roteiro. Seja direto, use linguagem simples. Quando pedir áudio, explique exatamente o que ele deve descrever nessa etapa. Máximo 2 frases por orientação.",
+  },
+  {
+    key: "transcricao_tecnica",
+    name: "Transcrição para linguagem técnica",
+    description:
+      "Transforma o relato de áudio do agente (linguagem simples, de campo) em texto técnico e profissional para compor o laudo. O conteúdo original é preservado, apenas o tom e a estrutura mudam.",
+    content:
+      "Você receberá a transcrição de um relato de um agente técnico de campo. Sua função é reescrever esse relato em linguagem técnica e profissional, adequada para um laudo de mapeamento. Preserve todas as informações originais. Não invente dados. Corrija apenas o tom, a gramática e a estrutura. Use terminologia técnica de instalação veicular quando aplicável.",
+  },
+  {
+    key: "geracao_laudo",
+    name: "Geração do laudo",
+    description:
+      "Prompt principal usado para gerar o relatório final a partir de todas as informações coletadas (fotos aprovadas, transcrições, respostas de texto). O laudo gerado será revisado pelo especialista antes do envio.",
+    content:
+      "Você é um especialista em mapeamento técnico de frotas veiculares. Com base nas informações coletadas em campo (fotos, transcrições de áudio e respostas do roteiro), gere um laudo técnico completo e estruturado seguindo o template padrão IONICS. O laudo deve ser claro, objetivo e profissional. Organize as informações por seção conforme o roteiro preenchido. Destaque pendências ou inconsistências encontradas.",
+  },
+];
 
 export const outputConfig = {
   email: { enabled: true, recipients: ["operacoes@ionics.com.br", "qa@ionics.com.br"] },
