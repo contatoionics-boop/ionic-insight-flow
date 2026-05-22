@@ -1,40 +1,16 @@
-export type Role = "super_admin" | "admin" | "specialist";
-
-export type Session = {
-  name: string;
-  email: string;
-  role: Role;
-};
-
-const KEY = "ionics_session";
+export type Role = "super_admin" | "admin" | "especialista" | "agente_tecnico";
 
 export const roleLabels: Record<Role, string> = {
   super_admin: "Super Admin",
   admin: "Admin Comercial",
-  specialist: "Especialista",
+  especialista: "Especialista",
+  agente_tecnico: "Agente Técnico",
 };
 
-export const mockUsers: Record<Role, { name: string; email: string }> = {
-  super_admin: { name: "Cledir", email: "cledir@ionics.com.br" },
-  admin: { name: "Yan Silva", email: "yan@ionics.com.br" },
-  specialist: { name: "Pablo Costa", email: "pablo@ionics.com.br" },
-};
-
-export function getSession(): Session | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function setSession(s: Session) {
-  localStorage.setItem(KEY, JSON.stringify(s));
-}
-
-export function clearSession() {
-  localStorage.removeItem(KEY);
+export function routeForRole(role: Role | null): string {
+  if (role === "especialista") return "/app/review-queue";
+  // super_admin e admin → dashboard. admin não tem dashboard na nav, mas pode ver clients.
+  if (role === "admin") return "/app/clients";
+  if (role === "super_admin") return "/app/dashboard";
+  return "/";
 }
