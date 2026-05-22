@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const roleEnum = z.enum(["super_admin", "admin", "especialista", "agente_tecnico"]);
 
-async function assertSuperAdmin(supabase: ReturnType<typeof supabaseAdmin.from> extends never ? never : any, userId: string) {
+async function assertSuperAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
@@ -30,13 +30,10 @@ export const adminCreateUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
 
-    const redirectTo = `${process.env.SUPABASE_URL ? "" : ""}`; // placeholder; redirect handled by client below
     // Envia convite por e-mail (primeiro acesso). O usuário define a senha pelo link.
     const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       data.email,
-      {
-        data: { nome: data.nome },
-      },
+      { data: { nome: data.nome } },
     );
     if (inviteError || !invited?.user) {
       throw new Error(inviteError?.message ?? "Falha ao convidar usuário.");
