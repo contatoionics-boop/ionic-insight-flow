@@ -17,7 +17,9 @@ import {
   X,
 } from "lucide-react";
 import logo from "@/assets/ionics-logo.png";
-import { clearSession, getSession, roleLabels, type Role, type Session } from "@/lib/auth";
+import { roleLabels, type Role } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -36,43 +38,47 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/new-case", label: "Novo caso", icon: PlusCircle },
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
-  specialist: [
+  especialista: [
     { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/history", label: "Histórico", icon: History },
   ],
+  agente_tecnico: [],
 };
 
 export function AppLayout() {
   const navigate = useNavigate();
-  const [session, setSessionState] = useState<Session | null>(null);
+  const auth = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) {
+    if (auth.status === "unauthenticated") {
       navigate({ to: "/" });
-      return;
     }
-    setSessionState(s);
-  }, [navigate]);
+  }, [auth.status, navigate]);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  if (!session) return null;
+  if (auth.status !== "authenticated" || !auth.role) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
-  const nav = navByRole[session.role];
+  const nav = navByRole[auth.role];
+  const displayName = auth.profile?.nome || auth.email || "Usuário";
 
-  const handleLogout = () => {
-    clearSession();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate({ to: "/" });
   };
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-sidebar text-sidebar-foreground transition-transform md:relative md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -113,15 +119,10 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-3">
-            <button
-              className="md:hidden"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menu"
-            >
+            <button className="md:hidden" onClick={() => setMobileOpen(true)} aria-label="Abrir menu">
               <Menu className="h-5 w-5" />
             </button>
             <div>
@@ -131,15 +132,17 @@ export function AppLayout() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-medium text-foreground">{session.name}</p>
-              <p className="text-xs text-muted-foreground">{roleLabels[session.role]}</p>
+              <p className="text-sm font-medium text-foreground">{displayName}</p>
+              <p className="text-xs text-muted-foreground">{roleLabels[auth.role]}</p>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-              {session.name
+              {displayName
                 .split(" ")
                 .map((p) => p[0])
+                .filter(Boolean)
                 .slice(0, 2)
-                .join("")}
+                .join("")
+                .toUpperCase()}
             </div>
             <button
               onClick={handleLogout}

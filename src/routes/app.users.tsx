@@ -1,15 +1,96 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Button, Table, Th, Td, Badge, Modal, Input, Select, Label } from "@/components/ui-bits";
-import { users } from "@/lib/mock-data";
-import { Plus } from "lucide-react";
+import { Plus, KeyRound } from "lucide-react";
+import { adminCreateUser, adminListUsers, adminToggleActive } from "@/lib/admin-users.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { roleLabels, type Role } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/users")({
   component: UsersPage,
 });
 
+type Row = {
+  id: string;
+  nome: string;
+  email: string;
+  ativo: boolean;
+  role: string | null;
+  criado_em: string;
+};
+
 function UsersPage() {
+  const listUsers = useServerFn(adminListUsers);
+  const createUser = useServerFn(adminCreateUser);
+  const toggleActive = useServerFn(adminToggleActive);
+
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("admin");
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listUsers();
+      setRows(data as Row[]);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao carregar usuários.");
+    } finally {
+      setLoading(false);
+    }
+  }, [listUsers]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await createUser({ data: { nome, email, role } });
+      setOpen(false);
+      setNome("");
+      setEmail("");
+      setRole("admin");
+      showToast("Usuário criado. E-mail de primeiro acesso enviado ✓");
+      refresh();
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao criar usuário.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReset = async (userEmail: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    showToast("E-mail de redefinição enviado ✓");
+  };
+
+  const handleToggle = async (row: Row) => {
+    await toggleActive({ data: { userId: row.id, ativo: !row.ativo } });
+    refresh();
+  };
 
   return (
     <div>
@@ -23,6 +104,17 @@ function UsersPage() {
         }
       />
 
+      {toast && (
+        <div className="mb-4 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+          {toast}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       <Table>
         <thead>
           <tr>
@@ -30,54 +122,92 @@ function UsersPage() {
             <Th>E-mail</Th>
             <Th>Perfil</Th>
             <Th>Status</Th>
+            <Th>Ações</Th>
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
-            <tr key={u.id}>
-              <Td className="font-medium">{u.name}</Td>
-              <Td>{u.email}</Td>
-              <Td>{u.role}</Td>
-              <Td>
-                <Badge
-                  className={u.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}
-                >
-                  {u.active ? "Ativo" : "Inativo"}
-                </Badge>
+          {loading ? (
+            <tr>
+              <Td colSpan={5} className="text-center text-muted-foreground">
+                Carregando...
               </Td>
             </tr>
-          ))}
+          ) : rows.length === 0 ? (
+            <tr>
+              <Td colSpan={5} className="text-center text-muted-foreground">
+                Nenhum usuário cadastrado. Clique em "Novo usuário".
+              </Td>
+            </tr>
+          ) : (
+            rows.map((u) => (
+              <tr key={u.id}>
+                <Td className="font-medium">{u.nome || "—"}</Td>
+                <Td>{u.email}</Td>
+                <Td>{u.role ? roleLabels[u.role as Role] : "—"}</Td>
+                <Td>
+                  <Badge className={u.ativo ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}>
+                    {u.ativo ? "Ativo" : "Inativo"}
+                  </Badge>
+                </Td>
+                <Td>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReset(u.email)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <KeyRound className="h-3 w-3" /> Resetar senha
+                    </button>
+                    <button
+                      onClick={() => handleToggle(u)}
+                      className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      {u.ativo ? "Desativar" : "Ativar"}
+                    </button>
+                  </div>
+                </Td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Novo usuário">
-        <div className="space-y-4">
+        <form onSubmit={handleCreate} className="space-y-4">
           <div>
             <Label>Nome</Label>
-            <Input placeholder="Nome completo" />
+            <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
           </div>
           <div>
             <Label>E-mail</Label>
-            <Input type="email" placeholder="email@ionics.com.br" />
+            <Input
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@ionics.com.br"
+            />
           </div>
           <div>
             <Label>Perfil</Label>
-            <Select>
-              <option>Super Admin</option>
-              <option>Admin</option>
-              <option>Especialista</option>
-              <option>Agente Técnico</option>
+            <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              <option value="super_admin">Super Admin</option>
+              <option value="admin">Admin Comercial</option>
+              <option value="especialista">Especialista</option>
+              <option value="agente_tecnico">Agente Técnico</option>
             </Select>
-          </div>
-          <div>
-            <Label>Senha temporária</Label>
-            <Input type="text" placeholder="ionics-2026" />
+            <p className="mt-1 text-xs text-muted-foreground">
+              O usuário receberá um e-mail para definir a senha de primeiro acesso.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={() => setOpen(false)}>Criar usuário</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Criando..." : "Criar e enviar convite"}
+            </Button>
           </div>
-        </div>
+        </form>
       </Modal>
     </div>
   );

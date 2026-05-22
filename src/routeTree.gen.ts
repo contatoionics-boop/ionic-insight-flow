@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/app.users'
@@ -25,6 +26,11 @@ import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -104,6 +110,7 @@ const AppReviewIdRoute = AppReviewIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/reset-password'
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
+    | '/reset-password'
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/reset-password'
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
@@ -210,11 +222,19 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
@@ -358,8 +378,19 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
