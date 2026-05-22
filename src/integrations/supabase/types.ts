@@ -107,6 +107,124 @@ export type Database = {
           },
         ]
       }
+      formularios: {
+        Row: {
+          ativo: boolean
+          cliente_id: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_id: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formularios_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opcoes_pergunta: {
+        Row: {
+          id: string
+          ordem: number | null
+          pergunta_id: string
+          texto: string
+        }
+        Insert: {
+          id?: string
+          ordem?: number | null
+          pergunta_id: string
+          texto: string
+        }
+        Update: {
+          id?: string
+          ordem?: number | null
+          pergunta_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opcoes_pergunta_pergunta_id_fkey"
+            columns: ["pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perguntas: {
+        Row: {
+          contexto_ia: string | null
+          criado_em: string
+          id: string
+          instrucao_agente: string | null
+          obrigatoria: boolean
+          ordem: number
+          secao_id: string
+          texto: string
+          tipo: Database["public"]["Enums"]["pergunta_tipo"]
+        }
+        Insert: {
+          contexto_ia?: string | null
+          criado_em?: string
+          id?: string
+          instrucao_agente?: string | null
+          obrigatoria?: boolean
+          ordem: number
+          secao_id: string
+          texto: string
+          tipo: Database["public"]["Enums"]["pergunta_tipo"]
+        }
+        Update: {
+          contexto_ia?: string | null
+          criado_em?: string
+          id?: string
+          instrucao_agente?: string | null
+          obrigatoria?: boolean
+          ordem?: number
+          secao_id?: string
+          texto?: string
+          tipo?: Database["public"]["Enums"]["pergunta_tipo"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perguntas_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "secoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ativo: boolean
@@ -134,6 +252,41 @@ export type Database = {
         }
         Relationships: []
       }
+      secoes: {
+        Row: {
+          criado_em: string
+          descricao: string | null
+          formulario_id: string
+          id: string
+          ordem: number
+          titulo: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao?: string | null
+          formulario_id: string
+          id?: string
+          ordem: number
+          titulo: string
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string | null
+          formulario_id?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "secoes_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "formularios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           criado_em: string
@@ -160,6 +313,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_pode_ver_formulario: {
+        Args: { _formulario_id: string; _user_id: string }
+        Returns: boolean
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -185,6 +342,7 @@ export type Database = {
         | "em_analise"
         | "aguardando_revisao"
         | "aprovado"
+      pergunta_tipo: "texto" | "foto" | "audio" | "checkbox" | "numero"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -320,6 +478,7 @@ export const Constants = {
         "aguardando_revisao",
         "aprovado",
       ],
+      pergunta_tipo: ["texto", "foto", "audio", "checkbox", "numero"],
     },
   },
 } as const
