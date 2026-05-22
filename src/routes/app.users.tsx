@@ -128,15 +128,15 @@ function UsersPage() {
         <tbody>
           {loading ? (
             <tr>
-              <Td colSpan={5} className="text-center text-muted-foreground">
+              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Carregando...
-              </Td>
+              </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <Td colSpan={5} className="text-center text-muted-foreground">
+              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Nenhum usuário cadastrado. Clique em "Novo usuário".
-              </Td>
+              </td>
             </tr>
           ) : (
             rows.map((u) => (
