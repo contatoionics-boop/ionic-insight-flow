@@ -19,7 +19,7 @@ function HistoryPage() {
             <Th>Agente</Th>
             <Th>Aprovado em</Th>
             <Th>Status</Th>
-            <Th></Th>
+            <Th>{" "}</Th>
           </tr>
         </thead>
         <tbody>
