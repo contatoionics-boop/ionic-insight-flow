@@ -107,6 +107,33 @@ export type Database = {
           },
         ]
       }
+      configuracoes_saida: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          chave: string
+          config: Json
+          destinatarios: string[]
+          id: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave: string
+          config?: Json
+          destinatarios?: string[]
+          id?: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave?: string
+          config?: Json
+          destinatarios?: string[]
+          id?: string
+        }
+        Relationships: []
+      }
       formularios: {
         Row: {
           ativo: boolean
@@ -249,6 +276,36 @@ export type Database = {
           id?: string
           nome?: string
           permissoes_extras?: string[]
+        }
+        Relationships: []
+      }
+      prompts_ia: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          conteudo: string
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          conteudo: string
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          conteudo?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
