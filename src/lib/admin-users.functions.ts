@@ -30,7 +30,6 @@ export const adminCreateUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
 
-    // Envia convite por e-mail (primeiro acesso). O usuário define a senha pelo link.
     const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       data.email,
       { data: { nome: data.nome } },
@@ -41,14 +40,12 @@ export const adminCreateUser = createServerFn({ method: "POST" })
 
     const userId = invited.user.id;
 
-    // Atualiza profile (trigger já criou um registro básico)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .update({ nome: data.nome })
       .eq("id", userId);
     if (profileError) throw new Error(profileError.message);
 
-    // Atribui role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: userId, role: data.role });
@@ -76,7 +73,7 @@ export const adminListUsers = createServerFn({ method: "GET" })
     const roleByUser = new Map<string, string>();
     for (const r of roles ?? []) roleByUser.set(r.user_id, r.role);
 
-    return (profiles ?? []).map((p) => ({
+    return (profiles ?? []).map((p: any) => ({
       id: p.id,
       nome: p.nome,
       email: p.email,
@@ -97,6 +94,56 @@ export const adminToggleActive = createServerFn({ method: "POST" })
       .from("profiles")
       .update({ ativo: data.ativo })
       .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminUpdateUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        nome: z.string().min(1).max(120),
+        role: roleEnum,
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context.supabase, context.userId);
+
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({ nome: data.nome })
+      .eq("id", data.userId);
+    if (profileError) throw new Error(profileError.message);
+
+    // Substitui role: apaga as antigas e insere a nova
+    const { error: delError } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", data.userId);
+    if (delError) throw new Error(delError.message);
+
+    const { error: insError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: data.userId, role: data.role });
+    if (insError) throw new Error(insError.message);
+
+    return { ok: true };
+  });
+
+export const adminDeleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) {
+      throw new Error("Você não pode excluir o próprio usuário.");
+    }
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

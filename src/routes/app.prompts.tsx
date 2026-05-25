@@ -1,12 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Card, Textarea, Button } from "@/components/ui-bits";
-import { aiPrompts } from "@/lib/mock-data";
-import type { PromptDef } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/prompts")({
   component: PromptsPage,
 });
+
+type Prompt = {
+  id: string;
+  chave: string;
+  nome: string;
+  descricao: string | null;
+  conteudo: string;
+};
 
 function PromptCard({
   prompt,
@@ -14,20 +21,22 @@ function PromptCard({
   onChange,
   onSave,
   saved,
+  saving,
 }: {
-  prompt: PromptDef;
+  prompt: Prompt;
   value: string;
   onChange: (v: string) => void;
   onSave: () => void;
   saved: boolean;
+  saving: boolean;
 }) {
   return (
     <Card className="flex flex-col gap-4">
       <div>
-        <h3 className="text-base font-semibold text-foreground">{prompt.name}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {prompt.description}
-        </p>
+        <h3 className="text-base font-semibold text-foreground">{prompt.nome}</h3>
+        {prompt.descricao && (
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{prompt.descricao}</p>
+        )}
       </div>
       <Textarea
         rows={8}
@@ -36,43 +45,69 @@ function PromptCard({
         className="resize-y leading-relaxed"
       />
       <div className="flex items-center justify-end gap-3">
-        {saved && (
-          <span className="text-sm font-medium text-success">Prompt salvo com sucesso ✓</span>
-        )}
-        <Button onClick={onSave}>Salvar</Button>
+        {saved && <span className="text-sm font-medium text-success">Prompt salvo com sucesso ✓</span>}
+        <Button onClick={onSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
       </div>
     </Card>
   );
 }
 
 function PromptsPage() {
-  const initial = Object.fromEntries(
-    aiPrompts.map((p) => [p.key, p.content])
-  ) as Record<string, string>;
-
-  const [values, setValues] = useState(initial);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const update = useCallback((key: string, v: string) => {
-    setValues((s) => ({ ...s, [key]: v }));
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("prompts_ia")
+        .select("id, chave, nome, descricao, conteudo")
+        .order("nome");
+      if (error) setError(error.message);
+      else {
+        const list = (data ?? []) as Prompt[];
+        setPrompts(list);
+        setValues(Object.fromEntries(list.map((p) => [p.id, p.conteudo])));
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const update = useCallback((id: string, v: string) => {
+    setValues((s) => ({ ...s, [id]: v }));
     setSavedKeys((prev) => {
       const next = new Set(prev);
-      next.delete(key);
+      next.delete(id);
       return next;
     });
   }, []);
 
-  const handleSave = useCallback((key: string) => {
-    setSavedKeys((prev) => new Set(prev).add(key));
-    // auto-hide after 2.5s
-    setTimeout(() => {
-      setSavedKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }, 2500);
-  }, []);
+  const handleSave = useCallback(
+    async (id: string) => {
+      setSavingKey(id);
+      const { error } = await supabase
+        .from("prompts_ia")
+        .update({ conteudo: values[id] })
+        .eq("id", id);
+      setSavingKey(null);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setSavedKeys((prev) => new Set(prev).add(id));
+      setTimeout(() => {
+        setSavedKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 2500);
+    },
+    [values],
+  );
 
   return (
     <div>
@@ -80,18 +115,28 @@ function PromptsPage() {
         title="Configuração de Prompts de IA"
         description="Estes prompts controlam o comportamento da inteligência artificial em cada etapa do processo."
       />
-      <div className="space-y-6">
-        {aiPrompts.map((prompt) => (
-          <PromptCard
-            key={prompt.key}
-            prompt={prompt}
-            value={values[prompt.key]}
-            onChange={(v) => update(prompt.key, v)}
-            onSave={() => handleSave(prompt.key)}
-            saved={savedKeys.has(prompt.key)}
-          />
-        ))}
-      </div>
+      {error && (
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      {loading ? (
+        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
+      ) : (
+        <div className="space-y-6">
+          {prompts.map((prompt) => (
+            <PromptCard
+              key={prompt.id}
+              prompt={prompt}
+              value={values[prompt.id] ?? ""}
+              onChange={(v) => update(prompt.id, v)}
+              onSave={() => handleSave(prompt.id)}
+              saved={savedKeys.has(prompt.id)}
+              saving={savingKey === prompt.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

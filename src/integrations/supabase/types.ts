@@ -22,6 +22,7 @@ export type Database = {
           codigo: string
           criado_em: string
           criado_por: string | null
+          formulario_id: string | null
           id: string
           status: Database["public"]["Enums"]["caso_status"]
         }
@@ -32,6 +33,7 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          formulario_id?: string | null
           id?: string
           status?: Database["public"]["Enums"]["caso_status"]
         }
@@ -42,6 +44,7 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          formulario_id?: string | null
           id?: string
           status?: Database["public"]["Enums"]["caso_status"]
         }
@@ -175,6 +178,41 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      links_agente: {
+        Row: {
+          caso_id: string
+          criado_em: string
+          expira_em: string | null
+          id: string
+          token: string
+          utilizado_em: string | null
+        }
+        Insert: {
+          caso_id: string
+          criado_em?: string
+          expira_em?: string | null
+          id?: string
+          token: string
+          utilizado_em?: string | null
+        }
+        Update: {
+          caso_id?: string
+          criado_em?: string
+          expira_em?: string | null
+          id?: string
+          token?: string
+          utilizado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "links_agente_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
             referencedColumns: ["id"]
           },
         ]
