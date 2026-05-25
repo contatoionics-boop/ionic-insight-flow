@@ -1,13 +1,37 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PageHeader, Table, Th, Td, Badge } from "@/components/ui-bits";
-import { cases, statusTones, statusLabels } from "@/lib/mock-data";
+import { statusLabels, statusTones } from "@/lib/casos";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/history")({
   component: HistoryPage,
 });
 
+type Caso = {
+  id: string;
+  codigo: string;
+  criado_em: string;
+  cliente: { nome: string } | null;
+  agente: { nome: string } | null;
+};
+
 function HistoryPage() {
-  const approved = cases.filter((c) => c.status === "aprovado");
+  const [rows, setRows] = useState<Caso[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("casos")
+        .select("id, codigo, criado_em, cliente:clientes(nome), agente:profiles!agente_id(nome)")
+        .eq("status", "aprovado")
+        .order("atualizado_em", { ascending: false });
+      setRows((data ?? []) as unknown as Caso[]);
+      setLoading(false);
+    })();
+  }, []);
+
   return (
     <div>
       <PageHeader title="Histórico" description="Casos aprovados e relatórios finalizados." />
@@ -19,24 +43,24 @@ function HistoryPage() {
             <Th>Agente</Th>
             <Th>Aprovado em</Th>
             <Th>Status</Th>
-            <Th>{" "}</Th>
           </tr>
         </thead>
         <tbody>
-          {approved.map((c) => (
-            <tr key={c.id}>
-              <Td className="font-mono text-xs">{c.id}</Td>
-              <Td className="font-medium">{c.clientName}</Td>
-              <Td>{c.agent}</Td>
-              <Td>{new Date(c.date).toLocaleDateString("pt-BR")}</Td>
-              <Td><Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge></Td>
-              <Td>
-                <a href="#" className="text-xs font-medium text-primary hover:underline">
-                  Ver relatório
-                </a>
-              </Td>
-            </tr>
-          ))}
+          {loading ? (
+            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+          ) : rows.length === 0 ? (
+            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum caso aprovado ainda.</td></tr>
+          ) : (
+            rows.map((c) => (
+              <tr key={c.id}>
+                <Td className="font-mono text-xs">{c.codigo}</Td>
+                <Td className="font-medium">{c.cliente?.nome ?? "—"}</Td>
+                <Td>{c.agente?.nome ?? "—"}</Td>
+                <Td>{new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
+                <Td><Badge className={statusTones["aprovado"]}>{statusLabels["aprovado"]}</Badge></Td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
     </div>
