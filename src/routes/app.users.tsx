@@ -1,11 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Button, Table, Th, Td, Badge, Modal, Input, Select, Label } from "@/components/ui-bits";
-import { Plus, KeyRound } from "lucide-react";
-import { adminCreateUser, adminListUsers, adminToggleActive } from "@/lib/admin-users.functions";
+import {
+  PageHeader,
+  Button,
+  Table,
+  Th,
+  Td,
+  Badge,
+  Modal,
+  Input,
+  Select,
+  Label,
+} from "@/components/ui-bits";
+import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
+import {
+  adminCreateUser,
+  adminListUsers,
+  adminToggleActive,
+  adminUpdateUser,
+  adminDeleteUser,
+} from "@/lib/admin-users.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { roleLabels, type Role } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/app/users")({
   component: UsersPage,
@@ -21,20 +39,26 @@ type Row = {
 };
 
 function UsersPage() {
+  const { userId: currentUserId } = useAuth();
   const listUsers = useServerFn(adminListUsers);
   const createUser = useServerFn(adminCreateUser);
   const toggleActive = useServerFn(adminToggleActive);
+  const updateUser = useServerFn(adminUpdateUser);
+  const deleteUser = useServerFn(adminDeleteUser);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("admin");
   const [submitting, setSubmitting] = useState(false);
+
+  const [toDelete, setToDelete] = useState<Row | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -58,19 +82,38 @@ function UsersPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const openCreate = () => {
+    setEditing(null);
+    setNome("");
+    setEmail("");
+    setRole("admin");
+    setModalOpen(true);
+  };
+
+  const openEdit = (u: Row) => {
+    setEditing(u);
+    setNome(u.nome ?? "");
+    setEmail(u.email);
+    setRole((u.role as Role) ?? "admin");
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
-      await createUser({ data: { nome, email, role } });
-      setOpen(false);
-      setNome("");
-      setEmail("");
-      setRole("admin");
-      showToast("Usuário criado. E-mail de primeiro acesso enviado ✓");
+      if (editing) {
+        await updateUser({ data: { userId: editing.id, nome, role } });
+        showToast("Usuário atualizado ✓");
+      } else {
+        await createUser({ data: { nome, email, role } });
+        showToast("Usuário criado. E-mail de primeiro acesso enviado ✓");
+      }
+      setModalOpen(false);
       refresh();
     } catch (e: any) {
-      setError(e?.message ?? "Erro ao criar usuário.");
+      setError(e?.message ?? "Erro ao salvar usuário.");
     } finally {
       setSubmitting(false);
     }
@@ -92,13 +135,25 @@ function UsersPage() {
     refresh();
   };
 
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    try {
+      await deleteUser({ data: { userId: toDelete.id } });
+      showToast("Usuário excluído ✓");
+      refresh();
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao excluir.");
+    }
+    setToDelete(null);
+  };
+
   return (
     <div>
       <PageHeader
         title="Usuários"
         description="Gerencie todos os usuários e perfis da plataforma."
         actions={
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4" /> Novo usuário
           </Button>
         }
@@ -145,12 +200,22 @@ function UsersPage() {
                 <Td>{u.email}</Td>
                 <Td>{u.role ? roleLabels[u.role as Role] : "—"}</Td>
                 <Td>
-                  <Badge className={u.ativo ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}>
+                  <Badge
+                    className={
+                      u.ativo ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                    }
+                  >
                     {u.ativo ? "Ativo" : "Inativo"}
                   </Badge>
                 </Td>
                 <Td>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Pencil className="h-3 w-3" /> Editar
+                    </button>
                     <button
                       onClick={() => handleReset(u.email)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
@@ -163,6 +228,14 @@ function UsersPage() {
                     >
                       {u.ativo ? "Desativar" : "Ativar"}
                     </button>
+                    {u.id !== currentUserId && (
+                      <button
+                        onClick={() => setToDelete(u)}
+                        className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3 w-3" /> Excluir
+                      </button>
+                    )}
                   </div>
                 </Td>
               </tr>
@@ -171,11 +244,20 @@ function UsersPage() {
         </tbody>
       </Table>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Novo usuário">
-        <form onSubmit={handleCreate} className="space-y-4">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editing ? "Editar usuário" : "Novo usuário"}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label>Nome</Label>
-            <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
+            <Input
+              required
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Nome completo"
+            />
           </div>
           <div>
             <Label>E-mail</Label>
@@ -185,7 +267,13 @@ function UsersPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@ionics.com.br"
+              disabled={!!editing}
             />
+            {editing && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                O e-mail não pode ser alterado. Crie um novo usuário se precisar.
+              </p>
+            )}
           </div>
           <div>
             <Label>Perfil</Label>
@@ -195,19 +283,45 @@ function UsersPage() {
               <option value="especialista">Especialista</option>
               <option value="agente_tecnico">Agente Técnico</option>
             </Select>
-            <p className="mt-1 text-xs text-muted-foreground">
-              O usuário receberá um e-mail para definir a senha de primeiro acesso.
-            </p>
+            {!editing && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                O usuário receberá um e-mail para definir a senha de primeiro acesso.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModalOpen(false)}
+              disabled={submitting}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Criando..." : "Criar e enviar convite"}
+              {submitting
+                ? "Salvando..."
+                : editing
+                  ? "Salvar alterações"
+                  : "Criar e enviar convite"}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!toDelete} onClose={() => setToDelete(null)} title="Excluir usuário">
+        <p className="text-sm text-foreground">
+          Tem certeza que deseja excluir <strong>{toDelete?.nome || toDelete?.email}</strong>?
+          Esta ação remove o usuário definitivamente e não pode ser desfeita.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setToDelete(null)}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleDelete}>
+            Excluir
+          </Button>
+        </div>
       </Modal>
     </div>
   );
