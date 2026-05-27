@@ -347,6 +347,60 @@ export type Database = {
         }
         Relationships: []
       }
+      respostas_agente: {
+        Row: {
+          arquivo_path: string | null
+          caso_id: string
+          criado_em: string
+          ia_aprovado: boolean | null
+          ia_motivo: string | null
+          id: string
+          pergunta_id: string
+          tipo: Database["public"]["Enums"]["pergunta_tipo"]
+          transcricao: string | null
+          valor_texto: string | null
+        }
+        Insert: {
+          arquivo_path?: string | null
+          caso_id: string
+          criado_em?: string
+          ia_aprovado?: boolean | null
+          ia_motivo?: string | null
+          id?: string
+          pergunta_id: string
+          tipo: Database["public"]["Enums"]["pergunta_tipo"]
+          transcricao?: string | null
+          valor_texto?: string | null
+        }
+        Update: {
+          arquivo_path?: string | null
+          caso_id?: string
+          criado_em?: string
+          ia_aprovado?: boolean | null
+          ia_motivo?: string | null
+          id?: string
+          pergunta_id?: string
+          tipo?: Database["public"]["Enums"]["pergunta_tipo"]
+          transcricao?: string | null
+          valor_texto?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respostas_agente_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respostas_agente_pergunta_id_fkey"
+            columns: ["pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       secoes: {
         Row: {
           criado_em: string

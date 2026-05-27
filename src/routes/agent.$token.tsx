@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import logo from "@/assets/ionics-logo.png";
 import { Button, Textarea, Card } from "@/components/ui-bits";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Camera,
   Image as ImageIcon,
@@ -13,136 +14,203 @@ import {
   ArrowRight,
   Send,
   Trash2,
-  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/agent/$token")({
   component: AgentPage,
 });
 
-type StepType = "foto" | "audio" | "texto";
+type TipoPergunta = "texto" | "numero" | "foto" | "audio" | "checkbox";
 
-type Step = {
+type Pergunta = {
   id: string;
-  section: string;
-  type: StepType;
-  title: string;
-  instruction: string;
-  aiGuidance?: string;
-  // mock IA: sequência alternada de aprovações para fotos
-  photoVerdicts?: ("ok" | "fail")[];
-  failReason?: string;
-  mockTranscription?: string;
+  texto: string;
+  tipo: TipoPergunta;
+  obrigatoria: boolean;
+  ordem: number;
+  instrucao_agente: string | null;
+  contexto_ia: string | null;
+  secao_titulo: string;
 };
 
-const steps: Step[] = [
-  {
-    id: "s1",
-    section: "Identificação do veículo",
-    type: "foto",
-    title: "Foto frontal do veículo",
-    instruction:
-      "Posicione-se a aproximadamente 2 metros da frente do veículo. Capture a placa de forma legível e o veículo inteiro no enquadramento.",
-    photoVerdicts: ["fail", "ok"],
-    failReason: "Foto desfocada. Tente novamente com melhor iluminação e mantenha a câmera firme.",
-  },
-  {
-    id: "s2",
-    section: "Identificação do veículo",
-    type: "texto",
-    title: "Placa do veículo",
-    instruction: "Digite a placa exatamente como aparece no veículo (ex: ABC1D23).",
-  },
-  {
-    id: "s3",
-    section: "Equipamento instalado",
-    type: "foto",
-    title: "Foto do equipamento instalado",
-    instruction:
-      "Mostre o equipamento de rastreamento já instalado, com a fiação visível.",
-    photoVerdicts: ["ok"],
-  },
-  {
-    id: "s4",
-    section: "Equipamento instalado",
-    type: "audio",
-    title: "Áudio descritivo da instalação",
-    instruction: "Grave um áudio explicando como o equipamento foi instalado.",
-    aiGuidance:
-      "Descreva a localização exata do equipamento e o estado da fiação (organizada, isolada, etc.).",
-    mockTranscription:
-      "O equipamento foi instalado atrás do painel, próximo à coluna do motorista. A fiação está organizada com abraçadeiras e isolada com fita autofusão.",
-  },
-  {
-    id: "s5",
-    section: "Equipamento instalado",
-    type: "foto",
-    title: "Foto do chicote elétrico",
-    instruction: "Capture uma foto aproximada do chicote conectado ao equipamento.",
-    photoVerdicts: ["fail", "fail", "ok"],
-    failReason: "Não foi possível identificar o chicote. Aproxime mais a câmera do ponto de conexão.",
-  },
-  {
-    id: "s6",
-    section: "Condições do local",
-    type: "foto",
-    title: "Foto geral do local de instalação",
-    instruction: "Tire uma foto ampla mostrando o ambiente onde a instalação foi feita.",
-    photoVerdicts: ["ok"],
-  },
-  {
-    id: "s7",
-    section: "Condições do local",
-    type: "audio",
-    title: "Observações do ambiente",
-    instruction: "Grave suas observações sobre o local.",
-    aiGuidance:
-      "Comente sobre iluminação, organização do local e qualquer condição que possa ter afetado a instalação.",
-    mockTranscription:
-      "O local está bem iluminado e organizado. Não houve obstruções durante a instalação e o cliente acompanhou todo o processo.",
-  },
-  {
-    id: "s8",
-    section: "Condições do local",
-    type: "texto",
-    title: "Observações finais",
-    instruction:
-      "Descreva qualquer observação adicional relevante sobre a vistoria. Deixe em branco apenas se não houver nada a relatar.",
-  },
-];
+type Contexto = {
+  casoId: string;
+  clienteNome: string;
+  formularioNome: string;
+  perguntas: Pergunta[];
+};
 
-type Photo = { id: string; verdict: "ok" | "fail"; reason?: string };
-
-type StepState = {
-  photos?: Photo[];
-  audioRecorded?: boolean;
+type Resposta = {
+  text?: string;
+  files?: { id: string; path: string; name: string }[];
+  audioPath?: string;
   transcription?: string;
   transcriptionConfirmed?: boolean;
-  text?: string;
 };
 
 function AgentPage() {
+  const { token } = Route.useParams();
+  const [ctx, setCtx] = useState<Contexto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState(0);
-  const [state, setState] = useState<Record<string, StepState>>({});
+  const [state, setState] = useState<Record<string, Resposta>>({});
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const step = steps[current];
-  const total = steps.length;
-  const progress = Math.round(((current + (isStepComplete(step, state[step.id]) ? 1 : 0)) / total) * 100);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: link, error: lErr } = await supabase
+          .from("links_agente")
+          .select("caso_id, expira_em")
+          .eq("token", token)
+          .maybeSingle();
+        if (lErr) throw lErr;
+        if (!link) throw new Error("Link inválido ou expirado.");
+        if (link.expira_em && new Date(link.expira_em) < new Date())
+          throw new Error("Link expirado.");
 
-  const stepState = state[step.id] ?? {};
-  const canAdvance = isStepComplete(step, stepState);
+        const { data: caso, error: cErr } = await supabase
+          .from("casos")
+          .select("id, formulario_id, cliente:clientes(nome)")
+          .eq("id", link.caso_id)
+          .maybeSingle();
+        if (cErr) throw cErr;
+        if (!caso || !caso.formulario_id)
+          throw new Error("Caso sem formulário associado.");
+
+        const { data: formulario } = await supabase
+          .from("formularios")
+          .select("nome")
+          .eq("id", caso.formulario_id)
+          .maybeSingle();
+
+        const { data: secoes, error: sErr } = await supabase
+          .from("secoes")
+          .select("id, titulo, ordem")
+          .eq("formulario_id", caso.formulario_id)
+          .order("ordem");
+        if (sErr) throw sErr;
+
+        const secoesIds = (secoes ?? []).map((s) => s.id);
+        const { data: perguntas, error: pErr } = secoesIds.length
+          ? await supabase
+              .from("perguntas")
+              .select("id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia")
+              .in("secao_id", secoesIds)
+              .order("ordem")
+          : { data: [], error: null };
+        if (pErr) throw pErr;
+
+        const tituloPorSecao = new Map((secoes ?? []).map((s) => [s.id, s.titulo]));
+        const lista: Pergunta[] = (perguntas ?? []).map((p) => ({
+          id: p.id,
+          texto: p.texto,
+          tipo: p.tipo as TipoPergunta,
+          obrigatoria: p.obrigatoria,
+          ordem: p.ordem,
+          instrucao_agente: p.instrucao_agente,
+          contexto_ia: p.contexto_ia,
+          secao_titulo: tituloPorSecao.get(p.secao_id) ?? "",
+        }));
+
+        setCtx({
+          casoId: caso.id,
+          clienteNome: caso.cliente?.nome ?? "",
+          formularioNome: formulario?.nome ?? "",
+          perguntas: lista,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro ao carregar link.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
+
+  const total = ctx?.perguntas.length ?? 0;
+  const pergunta = ctx?.perguntas[current];
+  const respostaAtual = pergunta ? state[pergunta.id] ?? {} : {};
+  const canAdvance = pergunta ? isComplete(pergunta, respostaAtual) : false;
   const isLast = current === total - 1;
+  const progress = total === 0 ? 0 : Math.round(((current + (canAdvance ? 1 : 0)) / total) * 100);
 
-  const update = (patch: StepState) =>
-    setState((s) => ({ ...s, [step.id]: { ...s[step.id], ...patch } }));
-
-  const next = () => {
-    if (isLast) setSubmitted(true);
-    else setCurrent((c) => c + 1);
+  const update = (patch: Resposta) => {
+    if (!pergunta) return;
+    setState((s) => ({ ...s, [pergunta.id]: { ...s[pergunta.id], ...patch } }));
   };
 
+  const next = async () => {
+    if (isLast) {
+      await submitAll();
+    } else {
+      setCurrent((c) => c + 1);
+    }
+  };
+
+  const submitAll = async () => {
+    if (!ctx) return;
+    setSubmitting(true);
+    try {
+      const rows = ctx.perguntas.map((p) => {
+        const r = state[p.id] ?? {};
+        const arquivo_path =
+          p.tipo === "foto" ? r.files?.[0]?.path ?? null : p.tipo === "audio" ? r.audioPath ?? null : null;
+        return {
+          caso_id: ctx.casoId,
+          pergunta_id: p.id,
+          tipo: p.tipo,
+          valor_texto: r.text ?? null,
+          arquivo_path,
+          transcricao: p.tipo === "audio" ? r.transcription ?? null : null,
+          ia_aprovado: null,
+          ia_motivo: null,
+        };
+      });
+      const { error: insErr } = await supabase.from("respostas_agente").insert(rows);
+      if (insErr) throw insErr;
+      await supabase.from("links_agente").update({ utilizado_em: new Date().toISOString() }).eq("token", token);
+      setSubmitted(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao enviar respostas.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error && !ctx) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white p-6">
+        <Card className="max-w-md text-center">
+          <X className="mx-auto h-10 w-10 text-destructive" />
+          <h2 className="mt-3 text-lg font-semibold text-foreground">Não foi possível abrir o link</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (submitted) return <SuccessScreen />;
+
+  if (!ctx || !pergunta) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white p-6">
+        <Card className="max-w-md text-center">
+          <p className="text-sm text-muted-foreground">Este formulário ainda não possui perguntas configuradas.</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -151,14 +219,11 @@ function AgentPage() {
           <img src={logo} alt="IONICS" className="h-7 w-auto" />
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</p>
-            <p className="text-sm font-semibold text-foreground">TransLog Brasil</p>
+            <p className="text-sm font-semibold text-foreground">{ctx.clienteNome || "—"}</p>
           </div>
         </div>
         <div className="h-1.5 w-full bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-2 text-xs">
           <span className="font-medium text-foreground">
@@ -169,39 +234,33 @@ function AgentPage() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-32">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          {step.section}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold text-foreground">{step.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{step.instruction}</p>
-
-        {step.aiGuidance && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <p className="text-sm text-foreground">
-              <span className="font-medium">Orientação da IA: </span>
-              {step.aiGuidance}
-            </p>
-          </div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">{pergunta.secao_titulo}</p>
+        <h1 className="mt-1 text-2xl font-semibold text-foreground">{pergunta.texto}</h1>
+        {pergunta.instrucao_agente && (
+          <p className="mt-2 text-sm text-muted-foreground">{pergunta.instrucao_agente}</p>
         )}
 
         <div className="mt-6">
-          {step.type === "foto" && (
-            <PhotoStep step={step} stepState={stepState} update={update} />
+          {pergunta.tipo === "foto" && (
+            <PhotoStep casoId={ctx.casoId} resposta={respostaAtual} update={update} />
           )}
-          {step.type === "audio" && <AudioStep step={step} stepState={stepState} update={update} />}
-          {step.type === "texto" && <TextStep stepState={stepState} update={update} />}
+          {pergunta.tipo === "audio" && (
+            <AudioStep casoId={ctx.casoId} resposta={respostaAtual} update={update} />
+          )}
+          {(pergunta.tipo === "texto" || pergunta.tipo === "numero" || pergunta.tipo === "checkbox") && (
+            <TextStep tipo={pergunta.tipo} resposta={respostaAtual} update={update} />
+          )}
         </div>
+
+        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-white">
         <div className="mx-auto max-w-2xl px-4 py-4">
-          <Button
-            onClick={next}
-            disabled={!canAdvance}
-            className="h-12 w-full text-base"
-          >
-            {isLast ? (
+          <Button onClick={next} disabled={!canAdvance || submitting} className="h-12 w-full text-base">
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isLast ? (
               <>
                 <Send className="h-4 w-4" /> Enviar informações
               </>
@@ -211,52 +270,56 @@ function AgentPage() {
               </>
             )}
           </Button>
-          {!canAdvance && (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              {step.type === "foto" && "Envie pelo menos uma foto aprovada para continuar."}
-              {step.type === "audio" && "Grave o áudio e confirme a transcrição para continuar."}
-              {step.type === "texto" && "Preencha o campo para continuar."}
-            </p>
-          )}
         </div>
       </footer>
     </div>
   );
 }
 
-function isStepComplete(step: Step, s: StepState | undefined): boolean {
-  if (!s) return false;
-  if (step.type === "foto") return !!s.photos?.some((p) => p.verdict === "ok");
-  if (step.type === "audio")
-    return !!s.audioRecorded && !!s.transcriptionConfirmed && !!s.transcription?.trim();
-  if (step.type === "texto") return !!s.text?.trim();
-  return false;
+function isComplete(p: Pergunta, r: Resposta): boolean {
+  if (!p.obrigatoria) return true;
+  if (p.tipo === "foto") return !!r.files && r.files.length > 0;
+  if (p.tipo === "audio") return !!r.audioPath && !!r.transcriptionConfirmed && !!r.transcription?.trim();
+  return !!r.text?.trim();
 }
 
 function PhotoStep({
-  step,
-  stepState,
+  casoId,
+  resposta,
   update,
 }: {
-  step: Step;
-  stepState: StepState;
-  update: (p: StepState) => void;
+  casoId: string;
+  resposta: Resposta;
+  update: (p: Resposta) => void;
 }) {
-  const photos = stepState.photos ?? [];
-  const verdicts = step.photoVerdicts ?? ["ok"];
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const files = resposta.files ?? [];
 
-  const addPhoto = () => {
-    const verdict = verdicts[photos.length % verdicts.length];
-    const newPhoto: Photo = {
-      id: `p-${Date.now()}`,
-      verdict,
-      reason: verdict === "fail" ? step.failReason : undefined,
-    };
-    update({ photos: [...photos, newPhoto] });
+  const onFiles = async (list: FileList | null) => {
+    if (!list || !list.length) return;
+    setUploading(true);
+    setErr(null);
+    try {
+      const novos: { id: string; path: string; name: string }[] = [];
+      for (const f of Array.from(list)) {
+        const ext = f.name.split(".").pop() || "jpg";
+        const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from("agente-uploads").upload(path, f, { upsert: false });
+        if (error) throw error;
+        novos.push({ id: path, path, name: f.name });
+      }
+      update({ files: [...files, ...novos] });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro ao enviar foto.");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   };
 
-  const removePhoto = (id: string) =>
-    update({ photos: photos.filter((p) => p.id !== id) });
+  const remove = (path: string) => update({ files: files.filter((f) => f.path !== path) });
 
   return (
     <div className="space-y-4">
@@ -264,56 +327,50 @@ function PhotoStep({
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Camera className="h-8 w-8" />
         </div>
-        <p className="mt-3 text-center text-sm text-muted-foreground">
-          Capture ou importe uma foto para esta etapa
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Button onClick={addPhoto} className="h-11">
-            <Camera className="h-4 w-4" /> Tirar foto
-          </Button>
-          <Button onClick={addPhoto} variant="outline" className="h-11">
-            <ImageIcon className="h-4 w-4" /> Galeria
-          </Button>
-        </div>
+        <p className="mt-3 text-center text-sm text-muted-foreground">Capture ou importe uma foto</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          className="hidden"
+          onChange={(e) => onFiles(e.target.files)}
+        />
+        <Button
+          onClick={() => inputRef.current?.click()}
+          className="mt-5 h-11 w-full"
+          disabled={uploading}
+        >
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Camera className="h-4 w-4" /> Adicionar foto</>}
+        </Button>
+        {err && <p className="mt-2 text-center text-xs text-destructive">{err}</p>}
       </div>
 
-      {photos.length > 0 && (
+      {files.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Fotos enviadas ({photos.length})
+            Fotos enviadas ({files.length})
           </p>
-          {photos.map((p, i) => (
-            <div
-              key={p.id}
-              className="flex gap-3 rounded-lg border border-border bg-card p-3"
-            >
+          {files.map((f, i) => (
+            <div key={f.path} className="flex gap-3 rounded-lg border border-border bg-card p-3">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 <ImageIcon className="h-7 w-7" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Foto #{i + 1}
-                  </p>
+                  <p className="truncate text-sm font-medium text-foreground">Foto #{i + 1}</p>
                   <button
-                    onClick={() => removePhoto(p.id)}
+                    onClick={() => remove(f.path)}
                     className="text-muted-foreground hover:text-destructive"
                     aria-label="Remover"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                {p.verdict === "ok" ? (
-                  <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-success/10 px-2 py-1.5 text-xs text-success">
-                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="font-medium">Aprovada pela IA</span>
-                  </div>
-                ) : (
-                  <div className="mt-1.5 flex items-start gap-1.5 rounded-md bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                    <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{p.reason ?? "Foto reprovada pela IA."}</span>
-                  </div>
-                )}
+                <p className="mt-1 flex items-center gap-1 text-xs text-success">
+                  <Check className="h-3.5 w-3.5" /> Enviada
+                </p>
               </div>
             </div>
           ))}
@@ -324,22 +381,26 @@ function PhotoStep({
 }
 
 function AudioStep({
-  step,
-  stepState,
+  casoId,
+  resposta,
   update,
 }: {
-  step: Step;
-  stepState: StepState;
-  update: (p: StepState) => void;
+  casoId: string;
+  resposta: Resposta;
+  update: (p: Resposta) => void;
 }) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (recording) {
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else if (timerRef.current) {
+    if (recording) timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    else if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
@@ -348,31 +409,57 @@ function AudioStep({
     };
   }, [recording]);
 
-  const startRecording = () => {
-    setSeconds(0);
-    setRecording(true);
+  const uploadBlob = async (blob: Blob, ext: string) => {
+    setUploading(true);
+    try {
+      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("agente-uploads").upload(path, blob, { upsert: false });
+      if (error) throw error;
+      update({ audioPath: path, transcription: "", transcriptionConfirmed: false });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro ao enviar áudio.");
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const stopRecording = () => {
+  const start = async () => {
+    setErr(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        await uploadBlob(blob, "webm");
+      };
+      recorderRef.current = rec;
+      setSeconds(0);
+      rec.start();
+      setRecording(true);
+    } catch (e) {
+      setErr("Permissão de microfone negada ou indisponível.");
+    }
+  };
+
+  const stop = () => {
+    recorderRef.current?.stop();
     setRecording(false);
-    update({
-      audioRecorded: true,
-      transcription: step.mockTranscription ?? "",
-      transcriptionConfirmed: false,
-    });
   };
 
-  const importAudio = () => {
-    update({
-      audioRecorded: true,
-      transcription: step.mockTranscription ?? "",
-      transcriptionConfirmed: false,
-    });
+  const onFile = async (list: FileList | null) => {
+    if (!list || !list[0]) return;
+    const f = list[0];
+    const ext = f.name.split(".").pop() || "m4a";
+    await uploadBlob(f, ext);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
-  if (!stepState.audioRecorded) {
+  if (!resposta.audioPath) {
     return (
       <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-8">
         {recording ? (
@@ -380,15 +467,9 @@ function AudioStep({
             <div className="mx-auto flex h-16 w-16 animate-pulse items-center justify-center rounded-full bg-destructive/10 text-destructive">
               <Mic className="h-8 w-8" />
             </div>
-            <p className="mt-3 text-center font-mono text-2xl font-semibold text-foreground">
-              {mmss}
-            </p>
+            <p className="mt-3 text-center font-mono text-2xl font-semibold text-foreground">{mmss}</p>
             <p className="text-center text-xs text-muted-foreground">Gravando…</p>
-            <Button
-              onClick={stopRecording}
-              variant="destructive"
-              className="mt-5 h-11 w-full"
-            >
+            <Button onClick={stop} variant="destructive" className="mt-5 h-11 w-full">
               <Square className="h-4 w-4" /> Parar gravação
             </Button>
           </>
@@ -397,19 +478,30 @@ function AudioStep({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Mic className="h-8 w-8" />
             </div>
-            <p className="mt-3 text-center text-sm text-muted-foreground">
-              Grave um áudio ou importe um arquivo
-            </p>
+            <p className="mt-3 text-center text-sm text-muted-foreground">Grave um áudio ou importe um arquivo</p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => onFile(e.target.files)}
+            />
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <Button onClick={startRecording} className="h-11">
-                <Mic className="h-4 w-4" /> Gravar agora
+              <Button onClick={start} className="h-11" disabled={uploading}>
+                <Mic className="h-4 w-4" /> Gravar
               </Button>
-              <Button onClick={importAudio} variant="outline" className="h-11">
-                <ImageIcon className="h-4 w-4" /> Importar
+              <Button
+                onClick={() => inputRef.current?.click()}
+                variant="outline"
+                className="h-11"
+                disabled={uploading}
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ImageIcon className="h-4 w-4" /> Importar</>}
               </Button>
             </div>
           </>
         )}
+        {err && <p className="mt-2 text-center text-xs text-destructive">{err}</p>}
       </div>
     );
   }
@@ -418,26 +510,25 @@ function AudioStep({
     <div className="space-y-4">
       <div className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/10 p-3">
         <Check className="h-4 w-4 text-success" />
-        <p className="text-sm font-medium text-success">Áudio recebido com sucesso.</p>
+        <p className="text-sm font-medium text-success">Áudio enviado com sucesso.</p>
       </div>
 
       <div>
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Transcrição automática (revise se necessário)
+          Transcrição (digite ou cole)
         </label>
         <Textarea
           rows={5}
-          value={stepState.transcription ?? ""}
-          onChange={(e) =>
-            update({ transcription: e.target.value, transcriptionConfirmed: false })
-          }
+          placeholder="Descreva por escrito o conteúdo do áudio…"
+          value={resposta.transcription ?? ""}
+          onChange={(e) => update({ transcription: e.target.value, transcriptionConfirmed: false })}
         />
       </div>
 
       <label className="flex items-start gap-2 text-sm text-foreground">
         <input
           type="checkbox"
-          checked={!!stepState.transcriptionConfirmed}
+          checked={!!resposta.transcriptionConfirmed}
           onChange={(e) => update({ transcriptionConfirmed: e.target.checked })}
           className="mt-0.5 h-4 w-4"
         />
@@ -445,7 +536,7 @@ function AudioStep({
       </label>
 
       <button
-        onClick={() => update({ audioRecorded: false, transcription: "", transcriptionConfirmed: false })}
+        onClick={() => update({ audioPath: undefined, transcription: "", transcriptionConfirmed: false })}
         className="text-xs font-medium text-primary hover:underline"
       >
         Regravar áudio
@@ -455,22 +546,26 @@ function AudioStep({
 }
 
 function TextStep({
-  stepState,
+  tipo,
+  resposta,
   update,
 }: {
-  stepState: StepState;
-  update: (p: StepState) => void;
+  tipo: TipoPergunta;
+  resposta: Resposta;
+  update: (p: Resposta) => void;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center gap-2 text-muted-foreground">
         <TypeIcon className="h-4 w-4" />
-        <span className="text-xs font-medium uppercase tracking-wider">Resposta em texto</span>
+        <span className="text-xs font-medium uppercase tracking-wider">
+          {tipo === "numero" ? "Resposta numérica" : tipo === "checkbox" ? "Confirmação" : "Resposta em texto"}
+        </span>
       </div>
       <Textarea
         rows={4}
         placeholder="Digite sua resposta aqui…"
-        value={stepState.text ?? ""}
+        value={resposta.text ?? ""}
         onChange={(e) => update({ text: e.target.value })}
       />
     </div>
@@ -484,12 +579,8 @@ function SuccessScreen() {
         <div className="success-check mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success">
           <Check className="h-10 w-10" strokeWidth={3} />
         </div>
-        <h2 className="mt-6 text-2xl font-semibold text-foreground">
-          Informações enviadas com sucesso.
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Obrigado! Você já pode fechar esta página.
-        </p>
+        <h2 className="mt-6 text-2xl font-semibold text-foreground">Informações enviadas com sucesso.</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Obrigado! Você já pode fechar esta página.</p>
       </div>
       <style>{`
         @keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
