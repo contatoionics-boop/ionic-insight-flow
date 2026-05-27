@@ -12,9 +12,10 @@ export const Route = createFileRoute("/app/forms")({
 type Cliente = { id: string; nome: string };
 type Form = { id: string; nome: string; descricao: string | null; cliente_id: string; cliente: { nome: string } | null };
 type Secao = { id: string; titulo: string; ordem: number };
-type Pergunta = { id: string; secao_id: string; texto: string; tipo: string; obrigatoria: boolean; ordem: number };
+type TipoPergunta = "texto" | "numero" | "foto" | "audio" | "checkbox";
+type Pergunta = { id: string; secao_id: string; texto: string; tipo: TipoPergunta; obrigatoria: boolean; ordem: number };
 
-const tipos = ["texto", "numero", "foto", "audio", "checkbox"];
+const tipos: TipoPergunta[] = ["texto", "numero", "foto", "audio", "checkbox"];
 
 function FormsPage() {
   const { userId } = useAuth();
