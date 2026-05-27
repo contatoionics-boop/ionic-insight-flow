@@ -74,12 +74,18 @@ function AgentPage() {
 
         const { data: caso, error: cErr } = await supabase
           .from("casos")
-          .select("id, formulario_id, cliente:clientes(nome), formulario:formularios(nome)")
+          .select("id, formulario_id, cliente:clientes(nome)")
           .eq("id", link.caso_id)
           .maybeSingle();
         if (cErr) throw cErr;
         if (!caso || !caso.formulario_id)
           throw new Error("Caso sem formulário associado.");
+
+        const { data: formulario } = await supabase
+          .from("formularios")
+          .select("nome")
+          .eq("id", caso.formulario_id)
+          .maybeSingle();
 
         const { data: secoes, error: sErr } = await supabase
           .from("secoes")
@@ -113,7 +119,7 @@ function AgentPage() {
         setCtx({
           casoId: caso.id,
           clienteNome: caso.cliente?.nome ?? "",
-          formularioNome: caso.formulario?.nome ?? "",
+          formularioNome: formulario?.nome ?? "",
           perguntas: lista,
         });
       } catch (e) {
