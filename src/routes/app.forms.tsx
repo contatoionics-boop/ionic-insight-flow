@@ -178,7 +178,7 @@ function FormsPage() {
         <Modal open={pergModal} onClose={() => setPergModal(false)} title="Nova pergunta">
           <form onSubmit={savePerg} className="space-y-4">
             <div><Label>Texto da pergunta</Label><Input required value={pTexto} onChange={(e) => setPTexto(e.target.value)} /></div>
-            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value)}>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}</Select></div>
+            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value as TipoPergunta)}>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}</Select></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pObrig} onChange={(e) => setPObrig(e.target.checked)} /> Obrigatória</label>
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPergModal(false)}>Cancelar</Button><Button type="submit">Adicionar</Button></div>
           </form>
