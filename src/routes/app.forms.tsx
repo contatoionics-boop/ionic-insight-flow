@@ -12,9 +12,10 @@ export const Route = createFileRoute("/app/forms")({
 type Cliente = { id: string; nome: string };
 type Form = { id: string; nome: string; descricao: string | null; cliente_id: string; cliente: { nome: string } | null };
 type Secao = { id: string; titulo: string; ordem: number };
-type Pergunta = { id: string; secao_id: string; texto: string; tipo: string; obrigatoria: boolean; ordem: number };
+type TipoPergunta = "texto" | "numero" | "foto" | "audio" | "checkbox";
+type Pergunta = { id: string; secao_id: string; texto: string; tipo: TipoPergunta; obrigatoria: boolean; ordem: number };
 
-const tipos = ["texto", "numero", "foto", "audio", "checkbox"];
+const tipos: TipoPergunta[] = ["texto", "numero", "foto", "audio", "checkbox"];
 
 function FormsPage() {
   const { userId } = useAuth();
@@ -39,7 +40,7 @@ function FormsPage() {
   const [pergModal, setPergModal] = useState(false);
   const [pSecao, setPSecao] = useState("");
   const [pTexto, setPTexto] = useState("");
-  const [pTipo, setPTipo] = useState("texto");
+  const [pTipo, setPTipo] = useState<TipoPergunta>("texto");
   const [pObrig, setPObrig] = useState(true);
 
   const refreshForms = useCallback(async () => {
@@ -177,7 +178,7 @@ function FormsPage() {
         <Modal open={pergModal} onClose={() => setPergModal(false)} title="Nova pergunta">
           <form onSubmit={savePerg} className="space-y-4">
             <div><Label>Texto da pergunta</Label><Input required value={pTexto} onChange={(e) => setPTexto(e.target.value)} /></div>
-            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value)}>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}</Select></div>
+            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value as TipoPergunta)}>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}</Select></div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pObrig} onChange={(e) => setPObrig(e.target.checked)} /> Obrigatória</label>
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPergModal(false)}>Cancelar</Button><Button type="submit">Adicionar</Button></div>
           </form>
