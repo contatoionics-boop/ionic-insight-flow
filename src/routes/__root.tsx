@@ -82,6 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
       { name: "twitter:description", content: "Fleet Vision Pro manages fleet technical mapping post-inspection with AI." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e9fa7772-b6d9-4315-bfee-2449a2749353/id-preview-454f7092--f7e6b65a-9f86-4fe2-94b7-329a03be7de6.lovable.app-1779885668474.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e9fa7772-b6d9-4315-bfee-2449a2749353/id-preview-454f7092--f7e6b65a-9f86-4fe2-94b7-329a03be7de6.lovable.app-1779885668474.png" },
     ],
     links: [
       {
