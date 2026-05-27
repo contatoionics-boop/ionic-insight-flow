@@ -40,7 +40,7 @@ function FormsPage() {
   const [pergModal, setPergModal] = useState(false);
   const [pSecao, setPSecao] = useState("");
   const [pTexto, setPTexto] = useState("");
-  const [pTipo, setPTipo] = useState("texto");
+  const [pTipo, setPTipo] = useState<TipoPergunta>("texto");
   const [pObrig, setPObrig] = useState(true);
 
   const refreshForms = useCallback(async () => {
