@@ -14,6 +14,54 @@ import {
 import { Button, Card, Textarea } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
+import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
+
+function MicButton({
+  token,
+  current,
+  onText,
+  disabled,
+}: {
+  token: string;
+  current: string;
+  onText: (texto: string) => void;
+  disabled?: boolean;
+}) {
+  const { recording, transcrevendo, erro, start, stop, mmss } = useGravacaoVoz({
+    token,
+    onTranscricao: (txt) => {
+      if (!txt) return;
+      const base = (current ?? "").trim();
+      onText(base ? `${base} ${txt}` : txt);
+    },
+  });
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={recording ? stop : start}
+        disabled={disabled || transcrevendo}
+        title={recording ? "Parar gravação" : "Gravar voz"}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition ${
+          recording
+            ? "border-destructive bg-destructive/10 text-destructive animate-pulse"
+            : "border-border bg-background text-muted-foreground hover:bg-muted"
+        } ${transcrevendo ? "opacity-60" : ""}`}
+      >
+        {transcrevendo ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : recording ? (
+          <Square className="h-4 w-4" />
+        ) : (
+          <Mic className="h-4 w-4" />
+        )}
+      </button>
+      {recording && <span className="font-mono text-[10px] text-destructive">{mmss}</span>}
+      {transcrevendo && <span className="text-[10px] text-muted-foreground">transcrevendo…</span>}
+      {erro && <span className="text-[10px] text-destructive">{erro}</span>}
+    </div>
+  );
+}
 
 export type TipoPergunta =
   | "texto"
