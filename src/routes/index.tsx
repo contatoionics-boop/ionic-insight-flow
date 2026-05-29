@@ -62,7 +62,7 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
-        <img src={logo} alt="IONICS" className="h-9 w-auto" />
+        <span className="text-2xl font-bold tracking-tight text-sidebar-foreground">IONIX</span>
         <div>
           <h2 className="text-3xl font-semibold leading-tight">
             Mapeamento técnico pós-vistoria com IA.
