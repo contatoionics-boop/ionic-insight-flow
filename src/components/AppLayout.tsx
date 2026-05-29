@@ -14,11 +14,13 @@ import {
   History,
   LogOut,
   Menu,
+  Settings,
   X,
 } from "lucide-react";
 
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
+import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { supabase } from "@/integrations/supabase/client";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -32,6 +34,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/forms", label: "Formulários", icon: FileText },
     { to: "/app/prompts", label: "Prompts de IA", icon: Sparkles },
     { to: "/app/outputs", label: "Saídas", icon: Send },
+    { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
   admin: [
     { to: "/app/clients", label: "Clientes", icon: Building2 },
@@ -48,8 +51,10 @@ const navByRole: Record<Role, NavItem[]> = {
 export function AppLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
+  const { config } = useConfiguracoesEmpresa();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const nomeEmpresa = config?.nome_empresa || "Ionics";
 
   useEffect(() => {
     if (auth.status === "unauthenticated") {
@@ -85,7 +90,12 @@ export function AppLayout() {
         }`}
       >
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
-          <span className="text-lg font-bold tracking-tight text-sidebar-foreground">IONIX</span>
+          <div className="flex items-center gap-2">
+            {config?.logo_url && (
+              <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
+            )}
+            <span className="text-lg font-bold tracking-tight text-sidebar-foreground">{nomeEmpresa}</span>
+          </div>
           <button
             className="text-sidebar-foreground md:hidden"
             onClick={() => setMobileOpen(false)}
@@ -115,7 +125,7 @@ export function AppLayout() {
           })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-sidebar-border p-4 text-xs text-sidebar-foreground/60">
-          IONICS Pós-Vistoria · v0.1
+          Ionics · v0.1
         </div>
       </aside>
 
@@ -126,8 +136,7 @@ export function AppLayout() {
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-sm font-semibold text-foreground">Pós-Vistoria</h1>
-              <p className="text-xs text-muted-foreground">Plataforma interna IONICS</p>
+              <h1 className="text-sm font-semibold text-foreground">{nomeEmpresa}</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
