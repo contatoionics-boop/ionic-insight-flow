@@ -8,17 +8,24 @@ import {
   type FormRunnerCtx,
   type FormRunnerSecao,
 } from "@/components/agent/FormRunner";
+import { FormChat } from "@/components/agent/FormChat";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarEnvio } from "@/lib/agent-ai.functions";
 import { Check, Loader2, X } from "lucide-react";
 
+type AgentSearch = { mode?: "chat" | "stepper" };
+
 export const Route = createFileRoute("/agent/$token")({
+  validateSearch: (search: Record<string, unknown>): AgentSearch => ({
+    mode: search.mode === "chat" ? "chat" : "stepper",
+  }),
   component: AgentPage,
 });
 
 function AgentPage() {
   const { token } = Route.useParams();
+  const { mode: chatMode } = Route.useSearch();
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
   const [loading, setLoading] = useState(true);
@@ -212,6 +219,21 @@ function AgentPage() {
           </p>
         </Card>
       </div>
+    );
+  }
+
+  if (chatMode === "chat") {
+    return (
+      <FormChat
+        ctx={ctx}
+        token={token}
+        state={state}
+        setState={setState}
+        onAdvanceSection={saveSection}
+        onSubmit={submitAll}
+        submitting={submitting}
+        errorMessage={error}
+      />
     );
   }
 
