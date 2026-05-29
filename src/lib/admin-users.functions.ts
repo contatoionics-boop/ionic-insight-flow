@@ -24,6 +24,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
         nome: z.string().min(1).max(120),
         email: z.string().email(),
         role: roleEnum,
+        redirectTo: z.string().url().optional(),
       })
       .parse(input),
   )
