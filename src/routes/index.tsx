@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import logo from "@/assets/ionics-logo.png";
+
 import { roleLabels, routeForRole, type Role } from "@/lib/auth";
 import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
