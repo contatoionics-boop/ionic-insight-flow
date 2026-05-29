@@ -185,7 +185,7 @@ export type Database = {
       formularios: {
         Row: {
           ativo: boolean
-          cliente_id: string
+          cliente_id: string | null
           criado_em: string
           criado_por: string | null
           descricao: string | null
@@ -194,7 +194,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          cliente_id: string
+          cliente_id?: string | null
           criado_em?: string
           criado_por?: string | null
           descricao?: string | null
@@ -203,7 +203,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          cliente_id?: string
+          cliente_id?: string | null
           criado_em?: string
           criado_por?: string | null
           descricao?: string | null
