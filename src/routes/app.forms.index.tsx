@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -124,7 +124,13 @@ function FormsPage() {
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
-              <div className="mt-3 flex gap-2 border-t border-border pt-3">
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                <button
+                  onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id: f.id } })}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  <Eye className="h-3 w-3" /> Visualizar
+                </button>
                 <button
                   onClick={() => navigate({ to: "/app/forms/$id", params: { id: f.id } })}
                   className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
