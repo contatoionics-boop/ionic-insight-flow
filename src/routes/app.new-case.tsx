@@ -48,24 +48,15 @@ function NewCasePage() {
     setWorking(true);
     setError(null);
     try {
-      const { data: caso, error: casoErr } = await supabase.from("casos").insert({
-        cliente_id: clientId,
-        formulario_id: formId,
-        agente_id: agentId,
-        criado_por: userId,
-        status: "rascunho",
-      }).select("id").single();
-      if (casoErr) throw casoErr;
-
-      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-      const { error: linkErr } = await supabase.from("links_agente").insert({
-        token,
-        caso_id: caso.id,
+      const { criarCasoELink } = await import("@/lib/agent-link");
+      const url = await criarCasoELink({
+        clienteId: clientId,
+        formId,
+        agenteId: agentId,
+        userId: userId!,
+        mode: linkMode,
       });
-      if (linkErr) throw linkErr;
-
-      const qs = linkMode === "chat" ? "?mode=chat" : "";
-      setLink(`${window.location.origin}/agent/${token}${qs}`);
+      setLink(url);
     } catch (err: any) {
       setError(err?.message ?? "Erro ao gerar link.");
     } finally {
