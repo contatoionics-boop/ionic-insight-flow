@@ -1,50 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { Button, Card } from "@/components/ui-bits";
+import { Card } from "@/components/ui-bits";
 import {
-  PerguntaBloco,
-  isComplete,
-  type Pergunta,
-  type Resposta,
-  type TipoPergunta,
-} from "@/components/agent/FormFields";
-import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+  FormRunner,
+  type FormRunnerCtx,
+  type FormRunnerSecao,
+} from "@/components/agent/FormRunner";
+import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarEnvio } from "@/lib/agent-ai.functions";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  Pencil,
-  Send,
-  X,
-} from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 
 export const Route = createFileRoute("/agent/$token")({
   component: AgentPage,
 });
 
-type Secao = { id: string; titulo: string; ordem: number; descricao: string | null };
-
-type Contexto = {
-  casoId: string;
-  clienteNome: string;
-  formularioNome: string;
-  secoes: Secao[];
-  perguntasPorSecao: Record<string, Pergunta[]>;
-};
-
 function AgentPage() {
   const { token } = Route.useParams();
-  const { config } = useConfiguracoesEmpresa();
-  const [ctx, setCtx] = useState<Contexto | null>(null);
+  const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
+  const [state, setState] = useState<Record<string, Resposta>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
-  const [state, setState] = useState<Record<string, Resposta>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -82,7 +60,7 @@ function AgentPage() {
           .eq("formulario_id", caso.formulario_id)
           .order("ordem");
         if (sErr) throw sErr;
-        const secoes = (secoesData ?? []) as Secao[];
+        const secoes = (secoesData ?? []) as FormRunnerSecao[];
 
         const secoesIds = secoes.map((s) => s.id);
         const { data: perguntas } = secoesIds.length
@@ -156,19 +134,6 @@ function AgentPage() {
     })();
   }, [token]);
 
-  const totalSteps = (ctx?.secoes.length ?? 0) + 1;
-  const isReview = ctx ? step >= ctx.secoes.length : false;
-  const secaoAtual = ctx && !isReview ? ctx.secoes[step] : null;
-  const perguntasAtuais = secaoAtual ? ctx?.perguntasPorSecao[secaoAtual.id] ?? [] : [];
-  const progress = Math.round(((step + 1) / Math.max(totalSteps, 1)) * 100);
-
-  const update = useCallback(
-    (perguntaId: string, patch: Partial<Resposta>) => {
-      setState((s) => ({ ...s, [perguntaId]: { ...s[perguntaId], ...patch } }));
-    },
-    [],
-  );
-
   const saveSection = useCallback(
     async (perguntas: Pergunta[]) => {
       if (!ctx) return;
@@ -198,17 +163,6 @@ function AgentPage() {
     [ctx, state],
   );
 
-  const advance = async () => {
-    if (!ctx) return;
-    if (isReview) {
-      await submitAll();
-      return;
-    }
-    await saveSection(perguntasAtuais);
-    setStep((s) => s + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   const finalizarFn = useServerFn(finalizarEnvio);
 
   const submitAll = async () => {
@@ -226,10 +180,6 @@ function AgentPage() {
       setSubmitting(false);
     }
   };
-
-  const sectionComplete = useMemo(() => {
-    return perguntasAtuais.every((p) => isComplete(p, state[p.id] ?? {}, "live"));
-  }, [perguntasAtuais, state]);
 
   if (loading) {
     return (
@@ -257,198 +207,27 @@ function AgentPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white p-6">
         <Card className="max-w-md text-center">
-          <p className="text-sm text-muted-foreground">Este formulário ainda não possui seções configuradas.</p>
+          <p className="text-sm text-muted-foreground">
+            Este formulário ainda não possui seções configuradas.
+          </p>
         </Card>
       </div>
     );
   }
 
-  const nomeEmpresa = config?.nome_empresa || "Ionics";
-
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <header className="sticky top-0 z-20 border-b border-border bg-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            {config?.logo_url && (
-              <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
-            )}
-            <span className="text-lg font-bold tracking-tight text-primary">{nomeEmpresa}</span>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</p>
-            <p className="text-sm font-semibold text-foreground">{ctx.clienteNome || "—"}</p>
-          </div>
-        </div>
-        <div className="h-1.5 w-full bg-muted">
-          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-2 text-xs">
-          <span className="font-medium text-foreground">
-            {isReview ? "Revisão final" : `Seção ${step + 1} de ${ctx.secoes.length}`}
-          </span>
-          <span className="text-muted-foreground">{progress}%</span>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-32">
-        {isReview ? (
-          <ReviewStep
-            ctx={ctx}
-            state={state}
-            onEditar={(idx) => setStep(idx)}
-          />
-        ) : (
-          secaoAtual && (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Seção {step + 1}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold text-foreground">{secaoAtual.titulo}</h1>
-              {secaoAtual.descricao && (
-                <p className="mt-2 text-sm text-muted-foreground">{secaoAtual.descricao}</p>
-              )}
-
-              <div className="mt-6 space-y-6">
-                {perguntasAtuais.map((p) => (
-                  <PerguntaBloco
-                    key={p.id}
-                    pergunta={p}
-                    casoId={ctx.casoId}
-                    token={token}
-                    resposta={state[p.id] ?? {}}
-                    update={(patch) => update(p.id, patch)}
-                    mode="live"
-                  />
-                ))}
-              </div>
-            </>
-          )
-        )}
-
-        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
-      </main>
-
-      <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-white">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-4">
-          {step > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => setStep((s) => s - 1)}
-              disabled={submitting}
-              className="h-12"
-            >
-              <ArrowLeft className="h-4 w-4" /> Voltar
-            </Button>
-          )}
-          <Button
-            onClick={advance}
-            disabled={(!isReview && !sectionComplete) || submitting}
-            className="h-12 flex-1 text-base"
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isReview ? (
-              <>
-                <Send className="h-4 w-4" /> Enviar ao especialista
-              </>
-            ) : step === ctx.secoes.length - 1 ? (
-              <>
-                Revisar respostas <ArrowRight className="h-4 w-4" />
-              </>
-            ) : (
-              <>
-                Próxima seção <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-      </footer>
-    </div>
+    <FormRunner
+      ctx={ctx}
+      token={token}
+      mode="live"
+      state={state}
+      setState={setState}
+      onAdvanceSection={saveSection}
+      onSubmit={submitAll}
+      submitting={submitting}
+      errorMessage={error}
+    />
   );
-}
-
-function ReviewStep({
-  ctx,
-  state,
-  onEditar,
-}: {
-  ctx: Contexto;
-  state: Record<string, Resposta>;
-  onEditar: (idx: number) => void;
-}) {
-  return (
-    <>
-      <h1 className="text-2xl font-semibold text-foreground">Revisão final</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Confira tudo antes de enviar ao especialista.</p>
-
-      <div className="mt-6 space-y-4">
-        {ctx.secoes.map((s, i) => {
-          const perguntas = ctx.perguntasPorSecao[s.id] ?? [];
-          return (
-            <Card key={s.id}>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">{s.titulo}</h3>
-                <button
-                  onClick={() => onEditar(i)}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  <Pencil className="h-3 w-3" /> Editar
-                </button>
-              </div>
-              <ul className="divide-y divide-border">
-                {perguntas.map((p) => {
-                  const r = state[p.id] ?? {};
-                  return (
-                    <li key={p.id} className="py-3">
-                      <p className="text-xs font-medium text-muted-foreground">{p.texto}</p>
-                      <div className="mt-1">{renderResumo(p, r)}</div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
-function renderResumo(p: Pergunta, r: Resposta) {
-  if (p.tipo === "foto") {
-    return r.filePath ? (
-      <div className="flex items-center gap-2 text-sm">
-        {r.filePreview && <img src={r.filePreview} alt="" className="h-12 w-12 rounded object-cover" />}
-        {r.ia && (
-          <span
-            className={`rounded px-2 py-0.5 text-xs ${
-              r.ia.status === "aprovada"
-                ? "bg-success/15 text-success"
-                : r.ia.status === "parcial"
-                ? "bg-warning/15 text-warning-foreground"
-                : "bg-destructive/15 text-destructive"
-            }`}
-          >
-            {r.ia.status === "aprovada" ? "Aprovada" : r.ia.status === "parcial" ? "Parcial" : "Incorreta"}
-          </span>
-        )}
-      </div>
-    ) : (
-      <span className="text-xs text-muted-foreground">Sem foto.</span>
-    );
-  }
-  if (p.tipo === "audio") {
-    return r.transcription ? (
-      <p className="text-sm text-foreground">{r.transcription}</p>
-    ) : (
-      <span className="text-xs text-muted-foreground">Sem áudio.</span>
-    );
-  }
-  if (p.tipo === "toggle") {
-    return <p className="text-sm text-foreground">{r.text === "sim" ? "Sim" : r.text === "nao" ? "Não" : "—"}</p>;
-  }
-  return <p className="text-sm text-foreground">{r.text?.trim() || "—"}</p>;
 }
 
 function SuccessScreen() {
