@@ -12,10 +12,27 @@ export const Route = createFileRoute("/app/forms")({
 type Cliente = { id: string; nome: string };
 type Form = { id: string; nome: string; descricao: string | null; cliente_id: string; cliente: { nome: string } | null };
 type Secao = { id: string; titulo: string; ordem: number };
-type TipoPergunta = "texto" | "numero" | "foto" | "audio" | "checkbox";
+type TipoPergunta =
+  | "texto"
+  | "numero"
+  | "foto"
+  | "audio"
+  | "checkbox"
+  | "data"
+  | "selecao_unica"
+  | "toggle";
 type Pergunta = { id: string; secao_id: string; texto: string; tipo: TipoPergunta; obrigatoria: boolean; ordem: number };
 
-const tipos: TipoPergunta[] = ["texto", "numero", "foto", "audio", "checkbox"];
+const tipos: { value: TipoPergunta; label: string }[] = [
+  { value: "texto", label: "Texto" },
+  { value: "numero", label: "Número" },
+  { value: "data", label: "Data" },
+  { value: "selecao_unica", label: "Seleção única" },
+  { value: "toggle", label: "Sim / Não" },
+  { value: "checkbox", label: "Confirmação" },
+  { value: "foto", label: "Foto (com IA)" },
+  { value: "audio", label: "Áudio (com transcrição)" },
+];
 
 function FormsPage() {
   const { userId } = useAuth();
@@ -42,6 +59,8 @@ function FormsPage() {
   const [pTexto, setPTexto] = useState("");
   const [pTipo, setPTipo] = useState<TipoPergunta>("texto");
   const [pObrig, setPObrig] = useState(true);
+  const [pContexto, setPContexto] = useState("");
+  const [pOpcoes, setPOpcoes] = useState("");
 
   const refreshForms = useCallback(async () => {
     const { data, error } = await supabase
@@ -108,12 +127,24 @@ function FormsPage() {
     if (selected) refreshDetail(selected.id);
   };
 
-  const openAddPerg = (secaoId: string) => { setPSecao(secaoId); setPTexto(""); setPTipo("texto"); setPObrig(true); setPergModal(true); };
+  const openAddPerg = (secaoId: string) => { setPSecao(secaoId); setPTexto(""); setPTipo("texto"); setPObrig(true); setPContexto(""); setPOpcoes(""); setPergModal(true); };
 
   const savePerg = async (e: React.FormEvent) => {
     e.preventDefault();
     const ord = perguntas.filter((p) => p.secao_id === pSecao).length + 1;
-    await supabase.from("perguntas").insert({ secao_id: pSecao, texto: pTexto, tipo: pTipo, obrigatoria: pObrig, ordem: ord });
+    const { data: nova, error } = await supabase
+      .from("perguntas")
+      .insert({ secao_id: pSecao, texto: pTexto, tipo: pTipo, obrigatoria: pObrig, ordem: ord, contexto_ia: pContexto || null })
+      .select("id")
+      .single();
+    if (!error && nova && pTipo === "selecao_unica") {
+      const opcoes = pOpcoes.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (opcoes.length) {
+        await supabase.from("opcoes_pergunta").insert(
+          opcoes.map((texto, i) => ({ pergunta_id: nova.id, texto, ordem: i + 1 })),
+        );
+      }
+    }
     setPergModal(false);
     if (selected) refreshDetail(selected.id);
   };
@@ -178,7 +209,20 @@ function FormsPage() {
         <Modal open={pergModal} onClose={() => setPergModal(false)} title="Nova pergunta">
           <form onSubmit={savePerg} className="space-y-4">
             <div><Label>Texto da pergunta</Label><Input required value={pTexto} onChange={(e) => setPTexto(e.target.value)} /></div>
-            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value as TipoPergunta)}>{tipos.map((t) => <option key={t} value={t}>{t}</option>)}</Select></div>
+            <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value as TipoPergunta)}>{tipos.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</Select></div>
+            {pTipo === "foto" && (
+              <div>
+                <Label>Contexto para a IA</Label>
+                <Input value={pContexto} onChange={(e) => setPContexto(e.target.value)} placeholder="Ex: foto frontal do disjuntor mostrando o número do modelo" />
+                <p className="mt-1 text-xs text-muted-foreground">Usado pela IA para validar se a foto atende ao pedido.</p>
+              </div>
+            )}
+            {pTipo === "selecao_unica" && (
+              <div>
+                <Label>Opções (uma por linha)</Label>
+                <textarea required value={pOpcoes} onChange={(e) => setPOpcoes(e.target.value)} rows={4} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder={"Opção 1\nOpção 2\nOpção 3"} />
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pObrig} onChange={(e) => setPObrig(e.target.checked)} /> Obrigatória</label>
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPergModal(false)}>Cancelar</Button><Button type="submit">Adicionar</Button></div>
           </form>

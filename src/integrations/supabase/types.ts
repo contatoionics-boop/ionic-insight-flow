@@ -491,7 +491,15 @@ export type Database = {
         | "em_analise"
         | "aguardando_revisao"
         | "aprovado"
-      pergunta_tipo: "texto" | "foto" | "audio" | "checkbox" | "numero"
+      pergunta_tipo:
+        | "texto"
+        | "foto"
+        | "audio"
+        | "checkbox"
+        | "numero"
+        | "data"
+        | "selecao_unica"
+        | "toggle"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -627,7 +635,16 @@ export const Constants = {
         "aguardando_revisao",
         "aprovado",
       ],
-      pergunta_tipo: ["texto", "foto", "audio", "checkbox", "numero"],
+      pergunta_tipo: [
+        "texto",
+        "foto",
+        "audio",
+        "checkbox",
+        "numero",
+        "data",
+        "selecao_unica",
+        "toggle",
+      ],
     },
   },
 } as const
