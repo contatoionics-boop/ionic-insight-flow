@@ -206,7 +206,168 @@ export function PerguntaBloco({
       {pergunta.tipo === "audio" && (
         <CampoAudio casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} />
       )}
+
+      {pergunta.tipo === "cep" && (
+        <CampoCep resposta={resposta} update={update} />
+      )}
+
+      {pergunta.tipo === "cnpj" && (
+        <CampoCnpj resposta={resposta} update={update} />
+      )}
     </Card>
+  );
+}
+
+function CampoCep({
+  resposta,
+  update,
+}: {
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+}) {
+  const [valor, setValor] = useState(resposta.text ?? "");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [endereco, setEndereco] = useState<string | null>(null);
+
+  const buscar = async () => {
+    setLoading(true);
+    setMsg(null);
+    setEndereco(null);
+    try {
+      const { consultarCep, maskCep } = await import("@/lib/cep");
+      const d = await consultarCep(valor);
+      const v = maskCep(d.cep);
+      setValor(v);
+      const linha = `${d.logradouro}, ${d.bairro} — ${d.cidade}/${d.estado}`;
+      setEndereco(linha);
+      update({ text: `${v} — ${linha}` });
+      setMsg("✓ Endereço encontrado.");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Falha ao buscar CEP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          inputMode="numeric"
+          className="flex-1 rounded-md border border-border bg-background px-3 py-3 text-base"
+          placeholder="00000-000"
+          value={valor}
+          onChange={(e) => {
+            const masked = e.target.value
+              .replace(/\D/g, "")
+              .slice(0, 8)
+              .replace(/^(\d{5})(\d{1,3}).*$/, "$1-$2");
+            setValor(masked);
+            update({ text: masked });
+          }}
+        />
+        <Button type="button" variant="outline" onClick={buscar} disabled={loading || !valor}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🔍"} Buscar
+        </Button>
+      </div>
+      {endereco && (
+        <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          {endereco}
+        </div>
+      )}
+      {msg && !endereco && <p className="text-xs text-destructive">{msg}</p>}
+      <p className="text-xs text-muted-foreground">
+        Se preferir, digite o endereço manualmente abaixo:
+      </p>
+      <Textarea
+        rows={2}
+        placeholder="Endereço completo (livre)"
+        value={resposta.text ?? ""}
+        onChange={(e) => update({ text: e.target.value })}
+      />
+    </div>
+  );
+}
+
+function CampoCnpj({
+  resposta,
+  update,
+}: {
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+}) {
+  const [valor, setValor] = useState(resposta.text ?? "");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const buscar = async () => {
+    setLoading(true);
+    setMsg(null);
+    setInfo(null);
+    try {
+      const { consultarCnpj, maskCnpj } = await import("@/lib/cnpj");
+      const d = await consultarCnpj(valor);
+      const v = maskCnpj(d.cnpj);
+      setValor(v);
+      const linha = d.nome_fantasia
+        ? `${d.razao_social} — ${d.nome_fantasia}`
+        : d.razao_social;
+      setInfo(linha);
+      update({ text: `${v} — ${linha}` });
+      setMsg("✓ CNPJ encontrado.");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Falha ao consultar CNPJ.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          inputMode="numeric"
+          className="flex-1 rounded-md border border-border bg-background px-3 py-3 text-base"
+          placeholder="00.000.000/0000-00"
+          value={valor}
+          onChange={(e) => {
+            const d = e.target.value.replace(/\D/g, "").slice(0, 14);
+            const p1 = d.slice(0, 2);
+            const p2 = d.slice(2, 5);
+            const p3 = d.slice(5, 8);
+            const p4 = d.slice(8, 12);
+            const p5 = d.slice(12, 14);
+            let out = p1;
+            if (d.length > 2) out += `.${p2}`;
+            if (d.length > 5) out += `.${p3}`;
+            if (d.length > 8) out += `/${p4}`;
+            if (d.length > 12) out += `-${p5}`;
+            setValor(out);
+            update({ text: out });
+          }}
+        />
+        <Button type="button" variant="outline" onClick={buscar} disabled={loading || !valor}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🔍"} Consultar
+        </Button>
+      </div>
+      {info && (
+        <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          {info}
+        </div>
+      )}
+      {msg && !info && <p className="text-xs text-destructive">{msg}</p>}
+      <p className="text-xs text-muted-foreground">
+        Se a consulta falhar, digite o nome do cliente manualmente:
+      </p>
+      <Textarea
+        rows={2}
+        placeholder="Nome do cliente (livre)"
+        value={resposta.text ?? ""}
+        onChange={(e) => update({ text: e.target.value })}
+      />
+    </div>
   );
 }
 
