@@ -50,6 +50,8 @@ function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -107,8 +109,9 @@ function UsersPage() {
         await updateUser({ data: { userId: editing.id, nome, role } });
         showToast("Usuário atualizado ✓");
       } else {
-        await createUser({ data: { nome, email, role } });
-        showToast("Usuário criado. E-mail de primeiro acesso enviado ✓");
+        const res = await createUser({ data: { nome, email, role } });
+        showToast("Usuário criado ✓");
+        setRecoveryLink((res as any)?.recoveryLink ?? null);
       }
       setModalOpen(false);
       refresh();
