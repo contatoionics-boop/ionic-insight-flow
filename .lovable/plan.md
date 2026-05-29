@@ -1,98 +1,74 @@
-## Decisões confirmadas
-1. **Enum**: adicionar `data`, `selecao_unica`, `toggle` via migration.
-2. **IA**: Lovable AI Gateway (Gemini) com `LOVABLE_API_KEY` já configurado.
-3. **Revisão**: último "passo" do stepper em `/agent/$token`, não rota separada.
-4. **`contexto_ia` da pergunta** alimenta o prompt do Gemini diretamente (sem hardcode).
+## Builder de formulário — tela dedicada
 
-## Implementação
+Hoje `app.forms.tsx` mistura listagem + edição inline de seções/perguntas via modais. Vou separar em duas telas e enriquecer o editor.
 
-### 1. Migration (SQL)
-- `ALTER TYPE pergunta_tipo ADD VALUE IF NOT EXISTS 'data';`
-- `ALTER TYPE pergunta_tipo ADD VALUE IF NOT EXISTS 'selecao_unica';`
-- `ALTER TYPE pergunta_tipo ADD VALUE IF NOT EXISTS 'toggle';`
-- (As opções de `selecao_unica` já têm tabela `opcoes_pergunta`.)
+### 1. Nova rota dedicada
+- Arquivo: `src/routes/app.forms.$id.tsx` (URL `/app/forms/$id`).
+- Layout em 2 colunas (md+): esquerda = estrutura, direita = painel de propriedades. No mobile, painel vira sheet/drawer ao selecionar um campo.
+- Header da tela: nome do formulário, cliente, botão **"Editar info"** (abre o modal atual de Nome/Descrição/Cliente) e botão **"Voltar"**.
 
-### 2. Helper Lovable AI Gateway
-- `src/lib/ai-gateway.server.ts` — `createLovableAiGatewayProvider` (padrão do stack).
-- Dependências: `bun add ai @ai-sdk/openai-compatible`.
+### 2. Listagem (`app.forms.tsx`) — simplificar
+- Remover a visualização inline de seções/perguntas (todo bloco "if (selected)").
+- Botão "Editar" no card passa a navegar para `/app/forms/$id` em vez de abrir modal.
+- Manter modal de criar formulário e modal de excluir.
+- Manter o modal "Editar info" reaproveitado pela tela dedicada (export do componente ou duplicar mínimo).
 
-### 3. Server functions (sem `requireSupabaseAuth`; validam token público)
-- `src/lib/agent-ai.functions.ts`:
-  - `validarFoto({ token, perguntaId, imagemBase64, mime })`
-    - Valida `links_agente.token` (não expirado).
-    - Lê `perguntas.contexto_ia` correspondente.
-    - Chama Gemini multimodal (`google/gemini-3-flash-preview`) com `Output.object` e schema Zod: `{ status: "aprovada" | "parcial" | "incorreta", descricao_encontrada, problemas[], orientacao }`.
-    - Retorna o JSON. (Não persiste — persistência ocorre no envio final.)
-  - `transcreverAudio({ token, audioBase64, mime })`
-    - Valida token.
-    - Chama Gemini com `inlineData` áudio + prompt PT-BR.
-    - Retorna `{ transcricao }`.
-- Erros: tratar 429/402 e retornar mensagens claras.
+### 3. Estrutura (coluna esquerda)
+- Lista de **seções** em ordem (campo `ordem`), cada uma com:
+  - Handle de drag, título editável inline, botão excluir.
+  - Lista de **perguntas** dentro, cada uma com handle, label, badge do tipo, botão excluir.
+  - Clicar numa pergunta → seleciona e abre painel à direita.
+  - Botão **"+ Adicionar campo"** ao final da seção (cria pergunta tipo `texto` placeholder e já seleciona).
+- Botão **"+ Adicionar seção"** ao final da lista.
+- Drag-and-drop com `@dnd-kit/core` + `@dnd-kit/sortable` (instalar via `bun add`):
+  - Reordenar seções entre si.
+  - Reordenar perguntas dentro da mesma seção. (Mover entre seções fica fora de escopo desta iteração.)
+  - Persistência: ao soltar, atualizar `ordem` em batch (`update` por id) na tabela correspondente.
 
-### 4. Atualizar tipos no front
-- `TipoPergunta` em `agent.$token.tsx`: `"texto" | "numero" | "foto" | "audio" | "checkbox" | "data" | "selecao_unica" | "toggle"`.
-- Atualizar `app.forms.tsx` para exibir os 3 novos tipos no select de tipo de pergunta (e mostrar editor de opções quando `selecao_unica`).
+### 4. Painel de propriedades (coluna direita)
+Aparece quando há pergunta selecionada. Campos:
+- **Título / Label** — input texto (`perguntas.texto`).
+- **Tipo** — select com: `texto`, `numero`, `data`, `selecao_unica`, `toggle`, `audio`, `foto` (enum já estendido).
+- **Obrigatório** — Switch (`perguntas.obrigatoria`).
+- **Contexto IA** — Textarea, visível só se tipo ∈ {`foto`, `audio`} (`perguntas.contexto_ia`).
+  - Para `foto`: "o que deve aparecer na imagem".
+  - Para `audio`: "o que o vistoriador deve descrever".
+- **Opções** — visível só se tipo = `selecao_unica`. Lista editável (input por linha + botão remover + botão "+ adicionar opção"). Persiste em `opcoes_pergunta` (insert/update/delete diff + `ordem`).
+- Botão **"Salvar campo"** — faz update na pergunta e sincroniza opções. Toast de confirmação.
+- Botão **"Excluir campo"** — confirma e remove (com cascata de opções).
 
-### 5. Reescrita do `agent.$token.tsx` em **stepper por seção**
-Mudança chave: hoje o stepper avança pergunta a pergunta — passar a avançar **seção a seção**, renderizando todas as perguntas da seção atual numa lista.
+Estado: o painel mantém um "draft" local; mudar de campo sem salvar mostra confirmação ("Descartar alterações?").
 
-Componentes de campo:
-- `CampoTexto` (textarea)
-- `CampoNumero` (`<input type="number">`)
-- `CampoData` (`<input type="date">`)
-- `CampoSelecaoUnica` — radio cards lendo `opcoes_pergunta`
-- `CampoToggle` — switch Sim/Não (grava `"sim"`/`"nao"` em `valor_texto`)
-- `CampoCheckbox` (mantido)
-- `CampoAudio` (`audio_ou_texto`) — refatorado:
-  - Modo gravar: MediaRecorder + cronômetro pulsante + player + "Regravar".
-  - Modo "Prefiro digitar": textarea.
-  - Após upload, chama `transcreverAudio` automaticamente e preenche o textarea de transcrição (editável + confirmação).
-- `CampoFoto` (`upload_imagem`) — refatorado:
-  - 1 arquivo por campo (substitui o anterior em vez de adicionar).
-  - Preview + spinner "Analisando imagem com IA…".
-  - Chama `validarFoto` passando `perguntaId` (que já carrega `contexto_ia`).
-  - Badge ✅ verde / ⚠️ amarelo / ❌ vermelho + `orientacao`.
-  - ❌ bloqueia avanço da seção; ⚠️ exige confirmação ("Avançar mesmo assim").
-  - "Reenviar foto" sempre disponível.
+### 5. Persistência (sem schema novo)
+Usa tabelas existentes: `secoes`, `perguntas`, `opcoes_pergunta`. Nenhuma migration necessária.
 
-Fluxo do stepper:
-- Carrega `secoes` ordenadas + perguntas agrupadas.
-- Estado: `current` agora = índice da seção.
-- Header mostra "Seção X de N" + barra de progresso + título da seção.
-- Botão "Próxima seção" só habilita se todos campos obrigatórios da seção estão completos e não há foto ❌ não confirmada.
-- Auto-save: ao concluir uma seção, faz **upsert** em `respostas_agente` para aquelas perguntas (chave: `caso_id` + `pergunta_id` — criar índice único se não existir; ver migration).
-- Recarregar o link → estado de rascunho é hidratado do banco.
+Operações:
+- Criar seção: insert com `ordem = max+1`.
+- Criar pergunta: insert tipo `texto`, obrigatória `true`, `ordem = max+1` dentro da seção.
+- Reordenar: array de `{ id, ordem }` → `update` em batch.
+- Salvar campo: `update perguntas`; para opções fazer diff (insert novas, update existentes, delete removidas).
+- Excluir: deletar opções → deletar pergunta/seção (já é o padrão atual).
 
-Passo final = **Revisão**:
-- Listagem por seção: texto, foto (thumb + badge IA), áudio (player + transcrição editável).
-- Botões "Editar seção X" voltam ao passo correspondente.
-- Botão "Confirmar e enviar ao especialista":
-  - Marca `links_agente.utilizado_em`.
-  - Atualiza `casos.status = 'aguardando_revisao'`.
-  - Grava `ia_aprovado`/`ia_motivo` das fotos com base no último resultado IA.
+### 6. Dependências novas
+- `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` (via `bun add`).
 
-### 6. Auto-save (ajuste de schema)
-Adicionar à migration:
-- Índice único `UNIQUE (caso_id, pergunta_id)` em `respostas_agente` para suportar `upsert`. (Validar antes que não há duplicatas existentes — projeto novo, tabela vazia.)
-
-### 7. UX mobile
-- Botões 48px+, `capture="environment"` em fotos.
-- Stepper sticky no topo com progresso e seção atual.
-- Footer fixo com "Voltar" / "Próxima seção" / "Enviar".
-
-### 8. Não tocar
-- `AppLayout`, dashboard, usuários, clientes, autenticação, lógica de cadastro de formulário (apenas adicionar tipos novos ao select).
-
-## Arquivos a criar/editar
+### 7. Arquivos
 **Criar:**
-- `supabase/migrations/<ts>_extend_pergunta_tipo.sql`
-- `src/lib/ai-gateway.server.ts`
-- `src/lib/agent-ai.functions.ts`
-- `src/start.ts` — garantir `attachSupabaseAuth` permanece (sem mudanças se já existe). *Não necessário se as funções de IA não usam `requireSupabaseAuth`* — confirmarei na implementação.
+- `src/routes/app.forms.$id.tsx` — tela builder completa.
+- `src/components/forms/SortableSection.tsx`
+- `src/components/forms/SortableQuestion.tsx`
+- `src/components/forms/FieldPropertiesPanel.tsx`
 
 **Editar:**
-- `src/routes/agent.$token.tsx` — reescrita do stepper + campos novos + IA + revisão.
-- `src/routes/app.forms.tsx` — incluir os 3 novos tipos no editor.
-- `package.json` (via `bun add`) — `ai`, `@ai-sdk/openai-compatible`.
+- `src/routes/app.forms.tsx` — remover modo "selected" inline, fazer card "Editar" navegar para `/app/forms/$id`. Manter modais de criar/excluir formulário e o modal "Editar info" reutilizável.
+- `package.json` (via `bun add`).
 
-Pronto para implementar — basta aprovar.
+### 8. Não tocar
+- `AppLayout`, menu lateral, autenticação, dashboard, clientes, casos, tela do agente (`agent.$token.tsx`), tabelas e RLS.
+
+### Notas técnicas
+- Tipo `TipoPergunta` já cobre os 7 tipos (após a migration aprovada anteriormente).
+- Server-side: tudo via `supabase` client autenticado (RLS já cobre admin). Sem `createServerFn` necessário.
+- Mobile: estrutura ocupa tela inteira; clicar num campo abre Sheet com o painel de propriedades.
+
+Após sua aprovação, implemento e te chamo para o print antes de partir para popular o FR-12-10.

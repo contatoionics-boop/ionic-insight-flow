@@ -25,6 +25,7 @@ import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
+import { Route as AppFormsIdRouteImport } from './routes/app.forms.$id'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -106,6 +107,11 @@ const AppReviewIdRoute = AppReviewIdRouteImport.update({
   path: '/review/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFormsIdRoute = AppFormsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppFormsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,7 +121,7 @@ export interface FileRoutesByFullPath {
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/forms': typeof AppFormsRoute
+  '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/forms/$id': typeof AppFormsIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRoutesByTo {
@@ -133,7 +140,7 @@ export interface FileRoutesByTo {
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/forms': typeof AppFormsRoute
+  '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/forms/$id': typeof AppFormsIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRoutesById {
@@ -152,7 +160,7 @@ export interface FileRoutesById {
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/forms': typeof AppFormsRoute
+  '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/forms/$id': typeof AppFormsIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
 }
 export interface FileRouteTypes {
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/forms/$id'
     | '/app/review/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/forms/$id'
     | '/app/review/$id'
   id:
     | '__root__'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/forms/$id'
     | '/app/review/$id'
   fileRoutesById: FileRoutesById
 }
@@ -340,14 +352,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/forms/$id': {
+      id: '/app/forms/$id'
+      path: '/$id'
+      fullPath: '/app/forms/$id'
+      preLoaderRoute: typeof AppFormsIdRouteImport
+      parentRoute: typeof AppFormsRoute
+    }
   }
 }
+
+interface AppFormsRouteChildren {
+  AppFormsIdRoute: typeof AppFormsIdRoute
+}
+
+const AppFormsRouteChildren: AppFormsRouteChildren = {
+  AppFormsIdRoute: AppFormsIdRoute,
+}
+
+const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
+  AppFormsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRoute
   AppDashboardRoute: typeof AppDashboardRoute
-  AppFormsRoute: typeof AppFormsRoute
+  AppFormsRoute: typeof AppFormsRouteWithChildren
   AppHistoryRoute: typeof AppHistoryRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
   AppOutputsRoute: typeof AppOutputsRoute
@@ -362,7 +393,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRoute,
   AppDashboardRoute: AppDashboardRoute,
-  AppFormsRoute: AppFormsRoute,
+  AppFormsRoute: AppFormsRouteWithChildren,
   AppHistoryRoute: AppHistoryRoute,
   AppNewCaseRoute: AppNewCaseRoute,
   AppOutputsRoute: AppOutputsRoute,
