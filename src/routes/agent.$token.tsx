@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button, Textarea, Card } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
-import { validarFoto, transcreverAudio } from "@/lib/agent-ai.functions";
+import { validarFoto, transcreverAudio, finalizarEnvio } from "@/lib/agent-ai.functions";
 import {
   Camera,
   Mic,
