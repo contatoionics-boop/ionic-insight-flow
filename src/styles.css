@@ -43,7 +43,7 @@
 :root {
   --radius: 0.5rem;
 
-  /* Brand: IONICS deep blue */
+  /* Brand: Ionics deep blue */
   --background: oklch(0.985 0.003 250);
   --foreground: oklch(0.18 0.04 250);
 
@@ -78,7 +78,7 @@
   --input: oklch(0.92 0.01 250);
   --ring: oklch(0.42 0.18 255);
 
-  /* Sidebar — escuro, conforme logo IONICS */
+  /* Sidebar — escuro, conforme logo Ionics */
   --sidebar: oklch(0.22 0.07 255);
   --sidebar-foreground: oklch(0.92 0.01 250);
   --sidebar-accent: oklch(0.28 0.08 255);

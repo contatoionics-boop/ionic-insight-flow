@@ -62,17 +62,12 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
-        <span className="text-2xl font-bold tracking-tight text-sidebar-foreground">IONIX</span>
+        <span className="text-2xl font-bold tracking-tight text-sidebar-foreground">Ionics</span>
         <div>
-          <h2 className="text-3xl font-semibold leading-tight">
-            Mapeamento técnico pós-vistoria com IA.
-          </h2>
-          <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">
-            Plataforma interna IONICS para gerenciar casos, revisar relatórios e acompanhar
-            agentes técnicos em campo.
-          </p>
+          <h2 className="text-3xl font-semibold leading-tight">Ionics</h2>
+          <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">Ionics</p>
         </div>
-        <p className="text-xs text-sidebar-foreground/50">© 2026 IONICS · Pioneirismo consagrado</p>
+        <p className="text-xs text-sidebar-foreground/50">© 2026 Ionics</p>
       </div>
 
       <div className="flex items-center justify-center bg-background p-6">
@@ -81,7 +76,7 @@ function LoginPage() {
           className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm"
         >
           <div className="mb-6 flex justify-center md:hidden">
-            <span className="text-2xl font-bold tracking-tight text-primary">IONIX</span>
+            <span className="text-2xl font-bold tracking-tight text-primary">Ionics</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground">
             {mode === "login" ? "Entrar na plataforma" : "Redefinir senha"}
