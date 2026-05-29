@@ -142,3 +142,20 @@ export const transcreverAudio = createServerFn({ method: "POST" })
       throw new Error("Falha ao transcrever o áudio: " + msg);
     }
   });
+
+const FinalizarInput = z.object({ token: z.string().min(1) });
+
+export const finalizarEnvio = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => FinalizarInput.parse(input))
+  .handler(async ({ data }) => {
+    const casoId = await validarToken(data.token);
+    await supabaseAdmin
+      .from("links_agente")
+      .update({ utilizado_em: new Date().toISOString() })
+      .eq("token", data.token);
+    await supabaseAdmin
+      .from("casos")
+      .update({ status: "aguardando_revisao" })
+      .eq("id", casoId);
+    return { ok: true };
+  });
