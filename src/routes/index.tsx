@@ -81,7 +81,7 @@ function LoginPage() {
           className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm"
         >
           <div className="mb-6 flex justify-center md:hidden">
-            <img src={logo} alt="IONICS" className="h-9 w-auto rounded-md bg-sidebar p-2" />
+            <span className="text-2xl font-bold tracking-tight text-primary">IONIX</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground">
             {mode === "login" ? "Entrar na plataforma" : "Redefinir senha"}
