@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/app/forms")({
+export const Route = createFileRoute("/app/forms/")({
   component: FormsPage,
 });
 
