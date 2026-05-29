@@ -12,10 +12,27 @@ export const Route = createFileRoute("/app/forms")({
 type Cliente = { id: string; nome: string };
 type Form = { id: string; nome: string; descricao: string | null; cliente_id: string; cliente: { nome: string } | null };
 type Secao = { id: string; titulo: string; ordem: number };
-type TipoPergunta = "texto" | "numero" | "foto" | "audio" | "checkbox";
+type TipoPergunta =
+  | "texto"
+  | "numero"
+  | "foto"
+  | "audio"
+  | "checkbox"
+  | "data"
+  | "selecao_unica"
+  | "toggle";
 type Pergunta = { id: string; secao_id: string; texto: string; tipo: TipoPergunta; obrigatoria: boolean; ordem: number };
 
-const tipos: TipoPergunta[] = ["texto", "numero", "foto", "audio", "checkbox"];
+const tipos: { value: TipoPergunta; label: string }[] = [
+  { value: "texto", label: "Texto" },
+  { value: "numero", label: "Número" },
+  { value: "data", label: "Data" },
+  { value: "selecao_unica", label: "Seleção única" },
+  { value: "toggle", label: "Sim / Não" },
+  { value: "checkbox", label: "Confirmação" },
+  { value: "foto", label: "Foto (com IA)" },
+  { value: "audio", label: "Áudio (com transcrição)" },
+];
 
 function FormsPage() {
   const { userId } = useAuth();
