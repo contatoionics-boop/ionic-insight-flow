@@ -16,7 +16,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import logo from "@/assets/ionics-logo.png";
+
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,7 +85,7 @@ export function AppLayout() {
         }`}
       >
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
-          <img src={logo} alt="IONICS" className="h-7 w-auto" />
+          <span className="text-lg font-bold tracking-tight text-sidebar-foreground">IONIX</span>
           <button
             className="text-sidebar-foreground md:hidden"
             onClick={() => setMobileOpen(false)}

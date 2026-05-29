@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import logo from "@/assets/ionics-logo.png";
+
 import { roleLabels, routeForRole, type Role } from "@/lib/auth";
 import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +62,7 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
-        <img src={logo} alt="IONICS" className="h-9 w-auto" />
+        <span className="text-2xl font-bold tracking-tight text-sidebar-foreground">IONIX</span>
         <div>
           <h2 className="text-3xl font-semibold leading-tight">
             Mapeamento técnico pós-vistoria com IA.
@@ -81,7 +81,7 @@ function LoginPage() {
           className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm"
         >
           <div className="mb-6 flex justify-center md:hidden">
-            <img src={logo} alt="IONICS" className="h-9 w-auto rounded-md bg-sidebar p-2" />
+            <span className="text-2xl font-bold tracking-tight text-primary">IONIX</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground">
             {mode === "login" ? "Entrar na plataforma" : "Redefinir senha"}
