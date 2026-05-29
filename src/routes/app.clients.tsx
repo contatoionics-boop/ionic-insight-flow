@@ -10,9 +10,11 @@ import {
   Input,
   Label,
 } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { consultarCep, maskCep } from "@/lib/cep";
+import { consultarCnpj, maskCnpj } from "@/lib/cnpj";
 
 export const Route = createFileRoute("/app/clients")({
   component: ClientsPage,
@@ -22,8 +24,15 @@ type Cliente = {
   id: string;
   nome: string;
   cnpj: string | null;
+  nome_fantasia: string | null;
   email: string | null;
   telefone: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
   criado_em: string;
 };
 
@@ -38,11 +47,25 @@ function ClientsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
+
+  // form state
   const [nome, setNome] = useState("");
+  const [nomeFantasia, setNomeFantasia] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [cep, setCep] = useState("");
+  const [logradouro, setLogradouro] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [estado, setEstado] = useState("");
+
   const [saving, setSaving] = useState(false);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [cnpjMsg, setCnpjMsg] = useState<string | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepMsg, setCepMsg] = useState<string | null>(null);
 
   const [toDelete, setToDelete] = useState<Cliente | null>(null);
 
@@ -50,7 +73,9 @@ function ClientsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("clientes")
-      .select("id, nome, cnpj, email, telefone, criado_em")
+      .select(
+        "id, nome, cnpj, nome_fantasia, email, telefone, cep, logradouro, numero, bairro, cidade, estado, criado_em",
+      )
       .order("criado_em", { ascending: false });
     if (error) setError(error.message);
     else setRows((data ?? []) as Cliente[]);
@@ -66,21 +91,85 @@ function ClientsPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const openCreate = () => {
-    setEditing(null);
+  const resetForm = () => {
     setNome("");
+    setNomeFantasia("");
     setCnpj("");
     setEmail("");
     setTelefone("");
+    setCep("");
+    setLogradouro("");
+    setNumero("");
+    setBairro("");
+    setCidade("");
+    setEstado("");
+    setCnpjMsg(null);
+    setCepMsg(null);
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    resetForm();
     setModalOpen(true);
   };
   const openEdit = (c: Cliente) => {
     setEditing(c);
     setNome(c.nome);
+    setNomeFantasia(c.nome_fantasia ?? "");
     setCnpj(c.cnpj ?? "");
     setEmail(c.email ?? "");
     setTelefone(c.telefone ?? "");
+    setCep(c.cep ?? "");
+    setLogradouro(c.logradouro ?? "");
+    setNumero(c.numero ?? "");
+    setBairro(c.bairro ?? "");
+    setCidade(c.cidade ?? "");
+    setEstado(c.estado ?? "");
+    setCnpjMsg(null);
+    setCepMsg(null);
     setModalOpen(true);
+  };
+
+  const handleConsultarCnpj = async () => {
+    setCnpjLoading(true);
+    setCnpjMsg(null);
+    try {
+      const d = await consultarCnpj(cnpj);
+      setCnpj(d.cnpj);
+      if (!nome) setNome(d.razao_social);
+      if (!nomeFantasia) setNomeFantasia(d.nome_fantasia);
+      if (!email) setEmail(d.email);
+      if (!telefone) setTelefone(d.telefone);
+      if (!cep) setCep(d.cep);
+      if (!logradouro) setLogradouro(d.logradouro);
+      if (!numero) setNumero(d.numero);
+      if (!bairro) setBairro(d.bairro);
+      if (!cidade) setCidade(d.cidade);
+      if (!estado) setEstado(d.estado);
+      setCnpjMsg("✓ Dados preenchidos. Edite o que precisar.");
+    } catch (e: any) {
+      setCnpjMsg(e?.message ?? "Falha ao consultar CNPJ.");
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
+
+  const handleConsultarCep = async () => {
+    setCepLoading(true);
+    setCepMsg(null);
+    try {
+      const d = await consultarCep(cep);
+      setCep(d.cep);
+      setLogradouro(d.logradouro);
+      setBairro(d.bairro);
+      setCidade(d.cidade);
+      setEstado(d.estado);
+      setCepMsg("✓ Endereço encontrado.");
+    } catch (e: any) {
+      setCepMsg(e?.message ?? "Falha ao consultar CEP.");
+    } finally {
+      setCepLoading(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -88,26 +177,27 @@ function ClientsPage() {
     setSaving(true);
     setError(null);
     try {
+      const payload = {
+        nome,
+        nome_fantasia: nomeFantasia || null,
+        cnpj: cnpj || null,
+        email: email || null,
+        telefone: telefone || null,
+        cep: cep || null,
+        logradouro: logradouro || null,
+        numero: numero || null,
+        bairro: bairro || null,
+        cidade: cidade || null,
+        estado: estado || null,
+      };
       if (editing) {
-        const { error } = await supabase
-          .from("clientes")
-          .update({
-            nome,
-            cnpj: cnpj || null,
-            email: email || null,
-            telefone: telefone || null,
-          })
-          .eq("id", editing.id);
+        const { error } = await supabase.from("clientes").update(payload).eq("id", editing.id);
         if (error) throw error;
         showToast("Cliente atualizado ✓");
       } else {
-        const { error } = await supabase.from("clientes").insert({
-          nome,
-          cnpj: cnpj || null,
-          email: email || null,
-          telefone: telefone || null,
-          criado_por: userId,
-        });
+        const { error } = await supabase
+          .from("clientes")
+          .insert({ ...payload, criado_por: userId });
         if (error) throw error;
         showToast("Cliente cadastrado ✓");
       }
@@ -163,6 +253,7 @@ function ClientsPage() {
             <Th>CNPJ</Th>
             <Th>E-mail</Th>
             <Th>Telefone</Th>
+            <Th>Cidade/UF</Th>
             <Th>Cadastro</Th>
             {canWrite && <Th>Ações</Th>}
           </tr>
@@ -170,13 +261,13 @@ function ClientsPage() {
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+              <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Carregando...
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+              <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Nenhum cliente cadastrado ainda.
               </td>
             </tr>
@@ -187,6 +278,7 @@ function ClientsPage() {
                 <Td>{c.cnpj ?? "—"}</Td>
                 <Td>{c.email ?? "—"}</Td>
                 <Td>{c.telefone ?? "—"}</Td>
+                <Td>{[c.cidade, c.estado].filter(Boolean).join("/") || "—"}</Td>
                 <Td>{new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
                 {canWrite && (
                   <Td>
@@ -219,6 +311,33 @@ function ClientsPage() {
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
+            <Label>CNPJ</Label>
+            <div className="flex gap-2">
+              <Input
+                value={cnpj}
+                onChange={(e) => setCnpj(maskCnpj(e.target.value))}
+                placeholder="00.000.000/0000-00"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleConsultarCnpj}
+                disabled={cnpjLoading || !cnpj}
+              >
+                {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Consultar
+              </Button>
+            </div>
+            {cnpjMsg && (
+              <p
+                className={`mt-1 text-xs ${cnpjMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}
+              >
+                {cnpjMsg}
+              </p>
+            )}
+          </div>
+
+          <div>
             <Label>Razão social</Label>
             <Input
               required
@@ -227,23 +346,94 @@ function ClientsPage() {
               placeholder="Nome da empresa"
             />
           </div>
+
           <div>
-            <Label>CNPJ</Label>
-            <Input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
-          </div>
-          <div>
-            <Label>E-mail de contato</Label>
+            <Label>Nome fantasia</Label>
             <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="contato@empresa.com"
+              value={nomeFantasia}
+              onChange={(e) => setNomeFantasia(e.target.value)}
+              placeholder="Nome fantasia"
             />
           </div>
-          <div>
-            <Label>Telefone</Label>
-            <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>E-mail de contato</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="contato@empresa.com"
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
           </div>
+
+          <div>
+            <Label>CEP</Label>
+            <div className="flex gap-2">
+              <Input
+                value={cep}
+                onChange={(e) => setCep(maskCep(e.target.value))}
+                placeholder="00000-000"
+                className="max-w-[160px]"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleConsultarCep}
+                disabled={cepLoading || !cep}
+              >
+                {cepLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Buscar endereço
+              </Button>
+            </div>
+            {cepMsg && (
+              <p
+                className={`mt-1 text-xs ${cepMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}
+              >
+                {cepMsg}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-[1fr,120px] gap-3">
+            <div>
+              <Label>Logradouro</Label>
+              <Input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} />
+            </div>
+            <div>
+              <Label>Número</Label>
+              <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr,1fr,90px] gap-3">
+            <div>
+              <Label>Bairro</Label>
+              <Input value={bairro} onChange={(e) => setBairro(e.target.value)} />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input value={cidade} onChange={(e) => setCidade(e.target.value)} />
+            </div>
+            <div>
+              <Label>UF</Label>
+              <Input
+                value={estado}
+                onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))}
+                maxLength={2}
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>
               Cancelar
@@ -255,11 +445,7 @@ function ClientsPage() {
         </form>
       </Modal>
 
-      <Modal
-        open={!!toDelete}
-        onClose={() => setToDelete(null)}
-        title="Excluir cliente"
-      >
+      <Modal open={!!toDelete} onClose={() => setToDelete(null)} title="Excluir cliente">
         <p className="text-sm text-foreground">
           Tem certeza que deseja excluir <strong>{toDelete?.nome}</strong>? Esta ação não pode ser desfeita.
         </p>
