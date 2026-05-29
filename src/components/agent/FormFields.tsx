@@ -351,9 +351,11 @@ function CampoCep({
 function CampoCnpj({
   resposta,
   update,
+  token,
 }: {
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
+  token: string;
 }) {
   const [valor, setValor] = useState(resposta.text ?? "");
   const [loading, setLoading] = useState(false);
