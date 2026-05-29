@@ -210,6 +210,19 @@ function FormsPage() {
           <form onSubmit={savePerg} className="space-y-4">
             <div><Label>Texto da pergunta</Label><Input required value={pTexto} onChange={(e) => setPTexto(e.target.value)} /></div>
             <div><Label>Tipo</Label><Select value={pTipo} onChange={(e) => setPTipo(e.target.value as TipoPergunta)}>{tipos.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</Select></div>
+            {pTipo === "foto" && (
+              <div>
+                <Label>Contexto para a IA</Label>
+                <Input value={pContexto} onChange={(e) => setPContexto(e.target.value)} placeholder="Ex: foto frontal do disjuntor mostrando o número do modelo" />
+                <p className="mt-1 text-xs text-muted-foreground">Usado pela IA para validar se a foto atende ao pedido.</p>
+              </div>
+            )}
+            {pTipo === "selecao_unica" && (
+              <div>
+                <Label>Opções (uma por linha)</Label>
+                <textarea required value={pOpcoes} onChange={(e) => setPOpcoes(e.target.value)} rows={4} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder={"Opção 1\nOpção 2\nOpção 3"} />
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pObrig} onChange={(e) => setPObrig(e.target.checked)} /> Obrigatória</label>
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPergModal(false)}>Cancelar</Button><Button type="submit">Adicionar</Button></div>
           </form>
