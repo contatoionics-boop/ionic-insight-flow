@@ -30,29 +30,55 @@ export const adminCreateUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context.supabase, context.userId);
 
-    const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      data.email,
-      { data: { nome: data.nome } },
-    );
-    if (inviteError || !invited?.user) {
-      throw new Error(inviteError?.message ?? "Falha ao convidar usuário.");
+    const tempPassword = crypto.randomUUID() + "Aa1!";
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { nome: data.nome },
+    });
+    if (createError || !created?.user) {
+      console.error("[adminCreateUser] createUser failed", createError);
+      throw new Error(createError?.message ?? "Falha ao criar usuário.");
     }
 
-    const userId = invited.user.id;
+    const userId = created.user.id;
 
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .update({ nome: data.nome })
       .eq("id", userId);
-    if (profileError) throw new Error(profileError.message);
+    if (profileError) {
+      console.error("[adminCreateUser] profile update failed", profileError);
+      throw new Error(profileError.message);
+    }
 
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: userId, role: data.role });
-    if (roleError) throw new Error(roleError.message);
+    if (roleError) {
+      console.error("[adminCreateUser] role insert failed", roleError);
+      throw new Error(roleError.message);
+    }
 
-    return { ok: true, userId };
+    let recoveryLink: string | null = null;
+    try {
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email: data.email,
+      });
+      if (linkError) {
+        console.error("[adminCreateUser] generateLink failed", linkError);
+      } else {
+        recoveryLink = (linkData as any)?.properties?.action_link ?? null;
+      }
+    } catch (e) {
+      console.error("[adminCreateUser] generateLink threw", e);
+    }
+
+    return { ok: true, userId, recoveryLink };
   });
+
 
 export const adminListUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

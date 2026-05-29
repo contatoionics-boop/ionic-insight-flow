@@ -50,6 +50,8 @@ function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -107,8 +109,9 @@ function UsersPage() {
         await updateUser({ data: { userId: editing.id, nome, role } });
         showToast("Usuário atualizado ✓");
       } else {
-        await createUser({ data: { nome, email, role } });
-        showToast("Usuário criado. E-mail de primeiro acesso enviado ✓");
+        const res = await createUser({ data: { nome, email, role } });
+        showToast("Usuário criado ✓");
+        setRecoveryLink((res as any)?.recoveryLink ?? null);
       }
       setModalOpen(false);
       refresh();
@@ -162,6 +165,35 @@ function UsersPage() {
       {toast && (
         <div className="mb-4 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
           {toast}
+        </div>
+      )}
+      {recoveryLink && (
+        <div className="mb-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-3 text-sm">
+          <p className="font-semibold text-foreground">Link de primeiro acesso</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Envie este link ao novo usuário para que ele defina a senha. Ele expira em pouco tempo.
+          </p>
+          <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 font-mono text-xs">
+            <span className="flex-1 truncate">{recoveryLink}</span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(recoveryLink);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 1500);
+              }}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {linkCopied ? "Copiado" : "Copiar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecoveryLink(null)}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Fechar
+            </button>
+          </div>
         </div>
       )}
       {error && (
