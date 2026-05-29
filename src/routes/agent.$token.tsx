@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import logo from "@/assets/ionics-logo.png";
+
 import { Button, Textarea, Card } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import {
