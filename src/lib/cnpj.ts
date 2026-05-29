@@ -37,7 +37,15 @@ export async function consultarCnpj(cnpj: string): Promise<DadosCnpj> {
   const res = await fetch(`https://publica.cnpj.ws/cnpj/${d}`);
   if (res.status === 429) throw new Error("Muitas consultas. Tente novamente em instantes.");
   if (res.status === 404) throw new Error("CNPJ não encontrado.");
-  if (!res.ok) throw new Error("Falha ao consultar CNPJ.");
+  if (!res.ok) {
+    let motivo = "Falha ao consultar CNPJ.";
+    try {
+      const err = await res.json();
+      if (err?.detalhes) motivo = String(err.detalhes);
+      else if (err?.titulo) motivo = String(err.titulo);
+    } catch {}
+    throw new Error(motivo);
+  }
   const j = await res.json();
   const est = j?.estabelecimento ?? {};
   const tel = Array.isArray(est?.telefones) && est.telefones[0]
