@@ -136,16 +136,16 @@ function ClientsPage() {
     try {
       const d = await consultarCnpj(cnpj);
       setCnpj(d.cnpj);
-      if (!nome) setNome(d.razao_social);
-      if (!nomeFantasia) setNomeFantasia(d.nome_fantasia);
-      if (!email) setEmail(d.email);
-      if (!telefone) setTelefone(d.telefone);
-      if (!cep) setCep(d.cep);
-      if (!logradouro) setLogradouro(d.logradouro);
-      if (!numero) setNumero(d.numero);
-      if (!bairro) setBairro(d.bairro);
-      if (!cidade) setCidade(d.cidade);
-      if (!estado) setEstado(d.estado);
+      if (d.razao_social) setNome(d.razao_social);
+      if (d.nome_fantasia) setNomeFantasia(d.nome_fantasia);
+      if (d.email) setEmail(d.email);
+      if (d.telefone) setTelefone(d.telefone);
+      if (d.cep) setCep(d.cep);
+      if (d.logradouro) setLogradouro(d.logradouro);
+      if (d.numero) setNumero(d.numero);
+      if (d.bairro) setBairro(d.bairro);
+      if (d.cidade) setCidade(d.cidade);
+      if (d.estado) setEstado(d.estado);
       setCnpjMsg("✓ Dados preenchidos. Edite o que precisar.");
     } catch (e: any) {
       setCnpjMsg(e?.message ?? "Falha ao consultar CNPJ.");
