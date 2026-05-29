@@ -169,12 +169,16 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "texto" && (
-        <Textarea
-          rows={3}
-          placeholder="Digite sua resposta…"
-          value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
-        />
+        <div className="flex items-start gap-2">
+          <Textarea
+            rows={3}
+            placeholder="Digite ou grave por voz…"
+            value={resposta.text ?? ""}
+            onChange={(e) => update({ text: e.target.value })}
+            className="flex-1"
+          />
+          <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+        </div>
       )}
 
       {pergunta.tipo === "numero" && (
