@@ -25,6 +25,7 @@ export const Route = createFileRoute("/agent/$token")({
 
 function AgentPage() {
   const { token } = Route.useParams();
+  const { mode: chatMode } = Route.useSearch();
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
   const [loading, setLoading] = useState(true);
