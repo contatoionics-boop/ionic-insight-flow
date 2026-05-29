@@ -14,6 +14,54 @@ import {
 import { Button, Card, Textarea } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
+import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
+
+function MicButton({
+  token,
+  current,
+  onText,
+  disabled,
+}: {
+  token: string;
+  current: string;
+  onText: (texto: string) => void;
+  disabled?: boolean;
+}) {
+  const { recording, transcrevendo, erro, start, stop, mmss } = useGravacaoVoz({
+    token,
+    onTranscricao: (txt) => {
+      if (!txt) return;
+      const base = (current ?? "").trim();
+      onText(base ? `${base} ${txt}` : txt);
+    },
+  });
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={recording ? stop : start}
+        disabled={disabled || transcrevendo}
+        title={recording ? "Parar gravação" : "Gravar voz"}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition ${
+          recording
+            ? "border-destructive bg-destructive/10 text-destructive animate-pulse"
+            : "border-border bg-background text-muted-foreground hover:bg-muted"
+        } ${transcrevendo ? "opacity-60" : ""}`}
+      >
+        {transcrevendo ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : recording ? (
+          <Square className="h-4 w-4" />
+        ) : (
+          <Mic className="h-4 w-4" />
+        )}
+      </button>
+      {recording && <span className="font-mono text-[10px] text-destructive">{mmss}</span>}
+      {transcrevendo && <span className="text-[10px] text-muted-foreground">transcrevendo…</span>}
+      {erro && <span className="text-[10px] text-destructive">{erro}</span>}
+    </div>
+  );
+}
 
 export type TipoPergunta =
   | "texto"
@@ -121,12 +169,16 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "texto" && (
-        <Textarea
-          rows={3}
-          placeholder="Digite sua resposta…"
-          value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
-        />
+        <div className="flex items-start gap-2">
+          <Textarea
+            rows={3}
+            placeholder="Digite ou grave por voz…"
+            value={resposta.text ?? ""}
+            onChange={(e) => update({ text: e.target.value })}
+            className="flex-1"
+          />
+          <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+        </div>
       )}
 
       {pergunta.tipo === "numero" && (
@@ -208,11 +260,11 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "cep" && (
-        <CampoCep resposta={resposta} update={update} />
+        <CampoCep resposta={resposta} update={update} token={token} />
       )}
 
       {pergunta.tipo === "cnpj" && (
-        <CampoCnpj resposta={resposta} update={update} />
+        <CampoCnpj resposta={resposta} update={update} token={token} />
       )}
     </Card>
   );
@@ -221,9 +273,11 @@ export function PerguntaBloco({
 function CampoCep({
   resposta,
   update,
+  token,
 }: {
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
+  token: string;
 }) {
   const [valor, setValor] = useState(resposta.text ?? "");
   const [loading, setLoading] = useState(false);
@@ -280,12 +334,16 @@ function CampoCep({
       <p className="text-xs text-muted-foreground">
         Se preferir, digite o endereço manualmente abaixo:
       </p>
-      <Textarea
-        rows={2}
-        placeholder="Endereço completo (livre)"
-        value={resposta.text ?? ""}
-        onChange={(e) => update({ text: e.target.value })}
-      />
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={2}
+          placeholder="Endereço completo (livre ou por voz)"
+          value={resposta.text ?? ""}
+          onChange={(e) => update({ text: e.target.value })}
+          className="flex-1"
+        />
+        <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+      </div>
     </div>
   );
 }
@@ -293,9 +351,11 @@ function CampoCep({
 function CampoCnpj({
   resposta,
   update,
+  token,
 }: {
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
+  token: string;
 }) {
   const [valor, setValor] = useState(resposta.text ?? "");
   const [loading, setLoading] = useState(false);
@@ -361,12 +421,16 @@ function CampoCnpj({
       <p className="text-xs text-muted-foreground">
         Se a consulta falhar, digite o nome do cliente manualmente:
       </p>
-      <Textarea
-        rows={2}
-        placeholder="Nome do cliente (livre)"
-        value={resposta.text ?? ""}
-        onChange={(e) => update({ text: e.target.value })}
-      />
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={2}
+          placeholder="Nome do cliente (livre ou por voz)"
+          value={resposta.text ?? ""}
+          onChange={(e) => update({ text: e.target.value })}
+          className="flex-1"
+        />
+        <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+      </div>
     </div>
   );
 }
