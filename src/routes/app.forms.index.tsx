@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Link2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { criarCasoELink, type LinkMode } from "@/lib/agent-link";
 
 export const Route = createFileRoute("/app/forms/")({
   component: FormsPage,
@@ -32,6 +33,17 @@ function FormsPage() {
   const [fDesc, setFDesc] = useState("");
   const [fCli, setFCli] = useState("");
   const [toDelForm, setToDelForm] = useState<Form | null>(null);
+
+  // "Gerar link" modal
+  const [linkFormTarget, setLinkFormTarget] = useState<Form | null>(null);
+  const [linkClienteId, setLinkClienteId] = useState("");
+  const [linkAgenteId, setLinkAgenteId] = useState("");
+  const [linkMode, setLinkMode] = useState<LinkMode>("stepper");
+  const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
+  const [linkWorking, setLinkWorking] = useState(false);
+  const [linkResult, setLinkResult] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const refreshForms = useCallback(async () => {
     const { data, error } = await supabase
