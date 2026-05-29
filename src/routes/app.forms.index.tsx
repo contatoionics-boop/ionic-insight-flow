@@ -178,7 +178,7 @@ function FormsPage() {
     <div>
       <PageHeader
         title="Formulários"
-        description="Roteiros de vistoria por cliente."
+        description="Roteiros de vistoria reutilizáveis. Um formulário pode servir como template para várias empresas."
         actions={
           <Button onClick={openCreateForm}>
             <Plus className="h-4 w-4" /> Novo formulário
@@ -204,7 +204,9 @@ function FormsPage() {
               >
                 <div>
                   <p className="text-sm font-semibold text-foreground">{f.nome}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{f.cliente?.nome ?? "—"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {f.cliente?.nome ?? "Template (sem cliente)"}
+                  </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -215,6 +217,14 @@ function FormsPage() {
                 >
                   <Eye className="h-3 w-3" /> Visualizar
                 </button>
+                <a
+                  href={`/preview/forms/${f.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  <ExternalLink className="h-3 w-3" /> Tela cheia
+                </a>
                 <button
                   onClick={() => navigate({ to: "/app/forms/$id", params: { id: f.id } })}
                   className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
@@ -226,6 +236,12 @@ function FormsPage() {
                   className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
                 >
                   <Pencil className="h-3 w-3" /> Editar info
+                </button>
+                <button
+                  onClick={() => duplicarForm(f)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  <Copy className="h-3 w-3" /> Duplicar
                 </button>
                 <button
                   onClick={() => setToDelForm(f)}
@@ -244,11 +260,14 @@ function FormsPage() {
           <div><Label>Nome</Label><Input required value={fNome} onChange={(e) => setFNome(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={fDesc} onChange={(e) => setFDesc(e.target.value)} /></div>
           <div>
-            <Label>Cliente</Label>
-            <Select required value={fCli} onChange={(e) => setFCli(e.target.value)}>
-              <option value="">Selecione</option>
+            <Label>Cliente (opcional)</Label>
+            <Select value={fCli} onChange={(e) => setFCli(e.target.value)}>
+              <option value="">Template (sem cliente)</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deixe sem cliente para criar um template reutilizável.
+            </p>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setFormModal(false)}>Cancelar</Button>
