@@ -57,8 +57,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
 
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({ nome: data.nome })
-      .eq("id", userId);
+      .upsert({ id: userId, nome: data.nome, email: data.email }, { onConflict: "id" });
     if (profileError) {
       console.error("[adminCreateUser] profile update failed", profileError);
       throw new Error(profileError.message);
