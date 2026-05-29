@@ -1,19 +1,21 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, Loader2, X } from "lucide-react";
+import { ArrowLeft, Loader2, X } from "lucide-react";
 
 import { Button, Card } from "@/components/ui-bits";
 import { FormRunner, type FormRunnerCtx, type FormRunnerSecao } from "@/components/agent/FormRunner";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/app/forms/$id/preview")({
-  component: FormPreviewPage,
+export const Route = createFileRoute("/preview/forms/$id")({
+  component: FullscreenPreviewPage,
 });
 
-function FormPreviewPage() {
+function FullscreenPreviewPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const auth = useAuth();
 
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
@@ -21,6 +23,13 @@ function FormPreviewPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (auth.status === "unauthenticated") {
+      navigate({ to: "/" });
+    }
+  }, [auth.status, navigate]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated") return;
     (async () => {
       try {
         const { data: f, error: fErr } = await supabase
@@ -76,7 +85,7 @@ function FormPreviewPage() {
 
         setCtx({
           casoId: "preview",
-          clienteNome: (f as any).cliente?.nome ?? "",
+          clienteNome: (f as any).cliente?.nome ?? "Preview",
           formularioNome: f.nome,
           secoes,
           perguntasPorSecao,
@@ -87,9 +96,9 @@ function FormPreviewPage() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, auth.status]);
 
-  if (loading) {
+  if (auth.status === "loading" || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -103,6 +112,9 @@ function FormPreviewPage() {
         <Card className="max-w-md text-center">
           <X className="mx-auto h-10 w-10 text-destructive" />
           <p className="mt-2 text-sm text-destructive">{error ?? "Formulário não encontrado."}</p>
+          <div className="mt-4">
+            <Button variant="outline" onClick={() => window.close()}>Fechar</Button>
+          </div>
         </Card>
       </div>
     );
@@ -124,30 +136,13 @@ function FormPreviewPage() {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button variant="outline" onClick={() => navigate({ to: "/app/forms/$id", params: { id } })}>
-          <ArrowLeft className="h-4 w-4" /> Voltar ao builder
-        </Button>
-        <a
-          href={`/preview/forms/${id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-muted"
-        >
-          <ExternalLink className="h-4 w-4" /> Abrir em tela cheia
-        </a>
-      </div>
-      <div className="overflow-hidden rounded-lg border border-border bg-white">
-        <FormRunner
-          ctx={ctx}
-          token="preview"
-          mode="preview"
-          state={state}
-          setState={setState}
-          onSubmit={() => navigate({ to: "/app/forms/$id", params: { id } })}
-        />
-      </div>
-    </div>
+    <FormRunner
+      ctx={ctx}
+      token="preview"
+      mode="preview"
+      state={state}
+      setState={setState}
+      onSubmit={() => window.close()}
+    />
   );
 }
