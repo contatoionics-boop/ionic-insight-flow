@@ -334,13 +334,16 @@ function CampoCep({
       <p className="text-xs text-muted-foreground">
         Se preferir, digite o endereço manualmente abaixo:
       </p>
-      <Textarea
-        rows={2}
-        placeholder="Endereço completo (livre)"
-        value={resposta.text ?? ""}
-        onChange={(e) => update({ text: e.target.value })}
-      />
-    </div>
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={2}
+          placeholder="Endereço completo (livre ou por voz)"
+          value={resposta.text ?? ""}
+          onChange={(e) => update({ text: e.target.value })}
+          className="flex-1"
+        />
+        <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+      </div>
   );
 }
 
