@@ -222,6 +222,21 @@ function AgentPage() {
     );
   }
 
+  if (chatMode === "chat") {
+    return (
+      <FormChat
+        ctx={ctx}
+        token={token}
+        state={state}
+        setState={setState}
+        onAdvanceSection={saveSection}
+        onSubmit={submitAll}
+        submitting={submitting}
+        errorMessage={error}
+      />
+    );
+  }
+
   return (
     <FormRunner
       ctx={ctx}
