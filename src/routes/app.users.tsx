@@ -22,7 +22,6 @@ import {
   adminUpdateUser,
   adminDeleteUser,
 } from "@/lib/admin-users.functions";
-import { supabase } from "@/integrations/supabase/client";
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 
