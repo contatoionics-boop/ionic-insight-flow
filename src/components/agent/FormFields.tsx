@@ -23,7 +23,9 @@ export type TipoPergunta =
   | "checkbox"
   | "data"
   | "selecao_unica"
-  | "toggle";
+  | "toggle"
+  | "cep"
+  | "cnpj";
 
 export type Pergunta = {
   id: string;
