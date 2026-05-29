@@ -76,10 +76,35 @@ export function FormChat({
     setSavingIdx(idx);
     try {
       await onAdvanceSection?.([it.pergunta]);
+
+      // Auto-preenchimento pós-CEP: se a pergunta atual é um CEP com endereço encontrado,
+      // tenta preencher as próximas perguntas da mesma seção que correspondam a logradouro,
+      // bairro, cidade, estado, cidade/estado. Para no primeiro item sem match (ex.: número).
+      let autoAdvanced = 0;
+      if (it.pergunta.tipo === "cep") {
+        const endereco = parseEnderecoFromCepText(r.text ?? "");
+        if (endereco) {
+          for (let j = idx + 1; j < items.length; j++) {
+            const next = items[j];
+            if (next.secaoIdx !== it.secaoIdx) break;
+            const ja = state[next.pergunta.id] ?? {};
+            if ((ja.text ?? "").trim()) {
+              autoAdvanced++;
+              continue;
+            }
+            const valor = matchEnderecoCampo(next.pergunta.texto, endereco);
+            if (!valor) break;
+            setState((s) => ({ ...s, [next.pergunta.id]: { ...s[next.pergunta.id], text: valor } }));
+            await onAdvanceSection?.([next.pergunta]);
+            autoAdvanced++;
+          }
+        }
+      }
+
       if (editing === idx) {
         setEditing(null);
       } else {
-        setCursor((c) => Math.max(c, idx + 1));
+        setCursor((c) => Math.max(c, idx + 1 + autoAdvanced));
       }
     } finally {
       setSavingIdx(null);
