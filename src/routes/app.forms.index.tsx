@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -14,7 +14,7 @@ type Form = {
   id: string;
   nome: string;
   descricao: string | null;
-  cliente_id: string;
+  cliente_id: string | null;
   cliente: { nome: string } | null;
 };
 
@@ -63,7 +63,7 @@ function FormsPage() {
     setEditingForm(f);
     setFNome(f.nome);
     setFDesc(f.descricao ?? "");
-    setFCli(f.cliente_id);
+    setFCli(f.cliente_id ?? "");
     setFormModal(true);
   };
 
@@ -72,12 +72,12 @@ function FormsPage() {
     if (editingForm) {
       await supabase
         .from("formularios")
-        .update({ nome: fNome, descricao: fDesc || null, cliente_id: fCli })
+        .update({ nome: fNome, descricao: fDesc || null, cliente_id: fCli || null })
         .eq("id", editingForm.id);
     } else {
       await supabase
         .from("formularios")
-        .insert({ nome: fNome, descricao: fDesc || null, cliente_id: fCli, criado_por: userId });
+        .insert({ nome: fNome, descricao: fDesc || null, cliente_id: fCli || null, criado_por: userId });
     }
     setFormModal(false);
     refreshForms();
@@ -88,6 +88,90 @@ function FormsPage() {
     await supabase.from("formularios").delete().eq("id", toDelForm.id);
     setToDelForm(null);
     refreshForms();
+  };
+
+  const duplicarForm = async (f: Form) => {
+    const novoNome = prompt("Nome do novo formulário:", `${f.nome} (cópia)`);
+    if (!novoNome) return;
+    try {
+      // 1. cria novo formulário (sem cliente — template)
+      const { data: novo, error: e1 } = await supabase
+        .from("formularios")
+        .insert({
+          nome: novoNome,
+          descricao: f.descricao,
+          cliente_id: null,
+          criado_por: userId,
+        })
+        .select("id")
+        .single();
+      if (e1 || !novo) throw e1 ?? new Error("Falha ao criar formulário");
+
+      // 2. busca seções originais
+      const { data: secs } = await supabase
+        .from("secoes")
+        .select("id, titulo, descricao, ordem")
+        .eq("formulario_id", f.id)
+        .order("ordem");
+      const secaoIdMap = new Map<string, string>();
+      for (const s of secs ?? []) {
+        const { data: ns } = await supabase
+          .from("secoes")
+          .insert({ formulario_id: novo.id, titulo: s.titulo, descricao: s.descricao, ordem: s.ordem })
+          .select("id")
+          .single();
+        if (ns) secaoIdMap.set(s.id, ns.id);
+      }
+
+      // 3. perguntas
+      if (secaoIdMap.size) {
+        const { data: ps } = await supabase
+          .from("perguntas")
+          .select("id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia")
+          .in("secao_id", Array.from(secaoIdMap.keys()));
+        const perguntaIdMap = new Map<string, string>();
+        for (const p of ps ?? []) {
+          const novaSecaoId = secaoIdMap.get(p.secao_id);
+          if (!novaSecaoId) continue;
+          const { data: np } = await supabase
+            .from("perguntas")
+            .insert({
+              secao_id: novaSecaoId,
+              texto: p.texto,
+              tipo: p.tipo,
+              obrigatoria: p.obrigatoria,
+              ordem: p.ordem,
+              instrucao_agente: p.instrucao_agente,
+              contexto_ia: p.contexto_ia,
+            })
+            .select("id")
+            .single();
+          if (np) perguntaIdMap.set(p.id, np.id);
+        }
+
+        // 4. opções
+        if (perguntaIdMap.size) {
+          const { data: ops } = await supabase
+            .from("opcoes_pergunta")
+            .select("pergunta_id, texto, ordem")
+            .in("pergunta_id", Array.from(perguntaIdMap.keys()));
+          const opsParaInserir = (ops ?? [])
+            .map((o) => ({
+              pergunta_id: perguntaIdMap.get(o.pergunta_id)!,
+              texto: o.texto,
+              ordem: o.ordem,
+            }))
+            .filter((o) => o.pergunta_id);
+          if (opsParaInserir.length) {
+            await supabase.from("opcoes_pergunta").insert(opsParaInserir);
+          }
+        }
+      }
+
+      await refreshForms();
+    } catch (err: any) {
+      setError(err?.message ?? "Erro ao duplicar formulário.");
+    }
   };
 
   return (
