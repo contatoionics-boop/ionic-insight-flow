@@ -74,30 +74,51 @@ export type Database = {
       }
       clientes: {
         Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
           criado_em: string
           criado_por: string | null
           email: string | null
+          estado: string | null
           id: string
+          logradouro: string | null
           nome: string
+          nome_fantasia: string | null
+          numero: string | null
           telefone: string | null
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          estado?: string | null
           id?: string
+          logradouro?: string | null
           nome: string
+          nome_fantasia?: string | null
+          numero?: string | null
           telefone?: string | null
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           criado_em?: string
           criado_por?: string | null
           email?: string | null
+          estado?: string | null
           id?: string
+          logradouro?: string | null
           nome?: string
+          nome_fantasia?: string | null
+          numero?: string | null
           telefone?: string | null
         }
         Relationships: [
@@ -545,6 +566,8 @@ export type Database = {
         | "data"
         | "selecao_unica"
         | "toggle"
+        | "cep"
+        | "cnpj"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -689,6 +712,8 @@ export const Constants = {
         "data",
         "selecao_unica",
         "toggle",
+        "cep",
+        "cnpj",
       ],
     },
   },
