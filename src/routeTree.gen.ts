@@ -19,6 +19,7 @@ import { Route as AppPromptsRouteImport } from './routes/app.prompts'
 import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
+import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
@@ -77,6 +78,11 @@ const AppHistoryRoute = AppHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFormsRoute = AppFormsRouteImport.update({
+  id: '/forms',
+  path: '/forms',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -98,9 +104,9 @@ const AgentTokenRoute = AgentTokenRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
-  id: '/forms/',
-  path: '/forms/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppFormsRoute,
 } as any)
 const AppReviewIdRoute = AppReviewIdRouteImport.update({
   id: '/review/$id',
@@ -108,9 +114,9 @@ const AppReviewIdRoute = AppReviewIdRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppFormsIdRoute = AppFormsIdRouteImport.update({
-  id: '/forms/$id',
-  path: '/forms/$id',
-  getParentRoute: () => AppRoute,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppFormsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
@@ -160,6 +167,7 @@ export interface FileRoutesById {
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
@@ -181,6 +189,7 @@ export interface FileRouteTypes {
     | '/app/cases'
     | '/app/clients'
     | '/app/dashboard'
+    | '/app/forms'
     | '/app/history'
     | '/app/new-case'
     | '/app/outputs'
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/app/cases'
     | '/app/clients'
     | '/app/dashboard'
+    | '/app/forms'
     | '/app/history'
     | '/app/new-case'
     | '/app/outputs'
@@ -310,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHistoryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/forms': {
+      id: '/app/forms'
+      path: '/forms'
+      fullPath: '/app/forms'
+      preLoaderRoute: typeof AppFormsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/dashboard': {
       id: '/app/dashboard'
       path: '/dashboard'
@@ -340,10 +357,10 @@ declare module '@tanstack/react-router' {
     }
     '/app/forms/': {
       id: '/app/forms/'
-      path: '/forms'
+      path: '/'
       fullPath: '/app/forms/'
       preLoaderRoute: typeof AppFormsIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFormsRoute
     }
     '/app/review/$id': {
       id: '/app/review/$id'
@@ -354,18 +371,33 @@ declare module '@tanstack/react-router' {
     }
     '/app/forms/$id': {
       id: '/app/forms/$id'
-      path: '/forms/$id'
+      path: '/$id'
       fullPath: '/app/forms/$id'
       preLoaderRoute: typeof AppFormsIdRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFormsRoute
     }
   }
 }
+
+interface AppFormsRouteChildren {
+  AppFormsIdRoute: typeof AppFormsIdRoute
+  AppFormsIndexRoute: typeof AppFormsIndexRoute
+}
+
+const AppFormsRouteChildren: AppFormsRouteChildren = {
+  AppFormsIdRoute: AppFormsIdRoute,
+  AppFormsIndexRoute: AppFormsIndexRoute,
+}
+
+const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
+  AppFormsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppFormsRoute: typeof AppFormsRouteWithChildren
   AppHistoryRoute: typeof AppHistoryRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
   AppOutputsRoute: typeof AppOutputsRoute
@@ -373,15 +405,14 @@ interface AppRouteChildren {
   AppReviewQueueRoute: typeof AppReviewQueueRoute
   AppTrackingRoute: typeof AppTrackingRoute
   AppUsersRoute: typeof AppUsersRoute
-  AppFormsIdRoute: typeof AppFormsIdRoute
   AppReviewIdRoute: typeof AppReviewIdRoute
-  AppFormsIndexRoute: typeof AppFormsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppFormsRoute: AppFormsRouteWithChildren,
   AppHistoryRoute: AppHistoryRoute,
   AppNewCaseRoute: AppNewCaseRoute,
   AppOutputsRoute: AppOutputsRoute,
@@ -389,9 +420,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReviewQueueRoute: AppReviewQueueRoute,
   AppTrackingRoute: AppTrackingRoute,
   AppUsersRoute: AppUsersRoute,
-  AppFormsIdRoute: AppFormsIdRoute,
   AppReviewIdRoute: AppReviewIdRoute,
-  AppFormsIndexRoute: AppFormsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
