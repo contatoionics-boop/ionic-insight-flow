@@ -64,7 +64,8 @@ function NewCasePage() {
       });
       if (linkErr) throw linkErr;
 
-      setLink(`${window.location.origin}/agent/${token}`);
+      const qs = linkMode === "chat" ? "?mode=chat" : "";
+      setLink(`${window.location.origin}/agent/${token}${qs}`);
     } catch (err: any) {
       setError(err?.message ?? "Erro ao gerar link.");
     } finally {
