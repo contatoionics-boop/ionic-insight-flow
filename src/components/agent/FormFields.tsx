@@ -260,11 +260,11 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "cep" && (
-        <CampoCep resposta={resposta} update={update} />
+        <CampoCep resposta={resposta} update={update} token={token} />
       )}
 
       {pergunta.tipo === "cnpj" && (
-        <CampoCnpj resposta={resposta} update={update} />
+        <CampoCnpj resposta={resposta} update={update} token={token} />
       )}
     </Card>
   );
