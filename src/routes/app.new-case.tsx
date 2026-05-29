@@ -114,6 +114,29 @@ function NewCasePage() {
             </Select>
             {agents.length === 0 && <p className="mt-1 text-xs text-muted-foreground">Nenhum agente técnico cadastrado ainda.</p>}
           </div>
+          <div>
+            <Label>Modo de preenchimento</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {([
+                { v: "stepper", t: "Stepper", d: "Preenchimento por etapas" },
+                { v: "chat", t: "Chat", d: "Conversa pergunta a pergunta" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setLinkMode(opt.v)}
+                  className={`rounded-md border px-3 py-2 text-left text-sm transition ${
+                    linkMode === opt.v
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <div className="font-semibold text-foreground">{opt.t}</div>
+                  <div className="text-xs text-muted-foreground">{opt.d}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex justify-end">
             <Button type="submit" disabled={working}>{working ? "Gerando..." : "Gerar link de acesso"}</Button>
           </div>
