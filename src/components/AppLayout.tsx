@@ -16,7 +16,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import logo from "@/assets/ionics-logo.png";
+
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
