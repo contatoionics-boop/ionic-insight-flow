@@ -1,63 +1,52 @@
-## O que vamos resolver
+## Objetivo
 
-1. **Não aparece opção de modo Chat / link nos formulários** — hoje o modo Chat e a geração de link só existem em `/app/new-case`. Vamos colocar um botão "Gerar link" em cada card da lista de Formulários, com escolha de cliente, agente e modo (Stepper / Chat), reaproveitando a lógica existente.
-2. **Não dá pra criar usuário** — o log do Supabase mostra `POST /invite → 401 no_authorization`. Isso indica que a chamada `auth.admin.inviteUserByEmail` está saindo sem o token de service role anexado (provavelmente um problema com `inviteUserByEmail` neste setup). Vamos trocar para um fluxo mais robusto que **funciona com o que já temos**, sem depender de SMTP novo.
+Tornar o modo chat da vistoria mais conversacional:
 
----
+1. Quando o agente responder o CEP, o chat **pula automaticamente** as perguntas de endereço que o CEP já retornou (logradouro, bairro, cidade, estado / "cidade-estado"), deixando o agente responder só o que falta (tipicamente **número** e complemento).
+2. Adicionar **gravar voz** como alternativa ao teclado em perguntas de texto (`texto`, `numero`, `cep` manual, `cnpj` manual), com transcrição automática inserida no campo — igual ao que já existe na pergunta tipo `audio`, mas disponível como botão de microfone ao lado do input.
 
-## 1. Botão "Gerar link" nos cards de Formulários
+Escopo: somente UX do chat de vistoria. Sem mudanças no modelo de dados, no editor de formulários, nem no fluxo do especialista.
 
-Em `src/routes/app.forms.index.tsx`:
+## Mudanças
 
-- Adicionar botão **"Gerar link"** (ícone `Link2`) no rodapé de cada card, ao lado de Duplicar/Excluir.
-- Ao clicar, abrir um Modal com:
-  - Select **Cliente** (carrega `clientes`; se o form já tem `cliente_id` vem pré-selecionado e travado).
-  - Select **Agente técnico** (carrega `user_roles` onde `role = agente_tecnico`).
-  - Toggle **Modo de preenchimento**: Stepper / Chat (mesmo componente visual de `app.new-case.tsx`).
-  - Botão **Gerar link** → cria `casos` + `links_agente` e exibe o link copiável (`/agent/<token>` ou `/agent/<token>?mode=chat`).
-- Reutilizar exatamente a lógica de `generate` que já existe em `app.new-case.tsx` (extraída para `src/lib/agent-link.ts` para evitar duplicação).
+### 1. Auto-preenchimento pós-CEP (`src/components/agent/FormChat.tsx`)
 
-O fluxo de `/app/new-case` continua como está — agora existe nos dois lugares.
+- Ao confirmar uma pergunta do tipo `cep` com endereço encontrado, varrer as perguntas seguintes **da mesma seção** que ainda não foram respondidas.
+- Para cada uma, comparar o `texto` da pergunta (normalizado — sem acento, lowercase) com um dicionário de sinônimos:
+  - `logradouro` / `rua` / `endereco` / `endereço` → `logradouro` do CEP
+  - `numero` / `número` / `nº` / `n.` → **não preencher** (é o que o usuário precisa informar)
+  - `complemento` → **não preencher**
+  - `bairro` → `bairro`
+  - `cidade` (sozinho) → `cidade`
+  - `estado` / `uf` → `estado`
+  - `cidade/estado` / `cidade e estado` / `municipio/uf` → `${cidade}/${estado}`
+- Para cada match: gravar a resposta via `onAdvanceSection([pergunta])`, marcar como confirmada e mover o cursor para frente, igualzinho ao fluxo do botão Confirmar. Os itens preenchidos aparecem no histórico como bolhas normais com legenda **"Preenchido pelo CEP — Corrigir"**, permitindo edição manual se a base do ViaCEP estiver desatualizada.
+- O parsing do endereço é feito a partir do próprio `resposta.text` do CEP (formato já gravado: `00000-000 — Rua X, Bairro — Cidade/UF`), então não precisa mudar `CampoCep`.
 
----
+### 2. Gravar voz em perguntas de texto (`src/components/agent/FormFields.tsx`)
 
-## 2. Correção da criação de usuário
+- Criar um componente interno `MicInline` reaproveitando a lógica de gravação/transcrição já existente em `CampoAudio` (extrair para `useGravacaoVoz` em `src/components/agent/use-gravacao-voz.ts` para não duplicar — `MediaRecorder` + `transcreverAudio` server fn + upload opcional no storage).
+- Adicionar o botão de microfone:
+  - Ao lado do `<Textarea>` da pergunta `texto`
+  - Ao lado do `<input number>` da pergunta `numero`
+  - Dentro do `CampoCep` e `CampoCnpj`, na área "digite manualmente"
+- Comportamento: ao parar a gravação, transcreve e **concatena** ao `resposta.text` (ou substitui se vazio). Mostra o tempo da gravação enquanto grava (ícone pulsante) e um spinner curto durante a transcrição.
+- Reutiliza a server function `transcreverAudio` que já existe em `@/lib/agent-ai.functions` — sem mudanças no backend.
 
-Problema identificado nos logs Supabase Auth:
-```
-POST /invite → 401 "This endpoint requires a valid Bearer token"
-```
-A função `adminCreateUser` chama `supabaseAdmin.auth.admin.inviteUserByEmail`, mas o endpoint `/invite` está rejeitando — provavelmente porque exige SMTP configurado e/ou o cliente está mandando a request sem o header de service role nesse caminho.
+### 3. Detalhes técnicos
 
-Vamos trocar `inviteUserByEmail` por um fluxo equivalente que **não depende** do endpoint `/invite`:
+- Helper `normalizar(s: string)` em `FormChat.tsx`: remove diacríticos com `normalize("NFD").replace(/\p{Diacritic}/gu, "")` e baixa caixa.
+- Helper `parseEnderecoFromCepText(text)`: regex `^(\d{5}-\d{3})\s*—\s*(.+?),\s*(.+?)\s*—\s*(.+?)\/(\w{2})$` retornando `{ logradouro, bairro, cidade, estado }` ou `null`.
+- O auto-preenchimento roda dentro de `confirmar()` em `FormChat.tsx`, após o `onAdvanceSection` do CEP, em loop sequencial até bater numa pergunta sem match (ex.: "número") — onde o cursor para naturalmente.
+- Para o microfone, áudio fica só local (não precisa salvar em `audioPath`) — o resultado importa é o texto transcrito.
 
-Em `src/lib/admin-users.functions.ts` → `adminCreateUser.handler`:
+### 4. Não muda
 
-1. Gerar senha temporária aleatória (`crypto.randomUUID()`).
-2. Chamar `supabaseAdmin.auth.admin.createUser({ email, password: tempPwd, email_confirm: true, user_metadata: { nome } })` — endpoint `/admin/users`, que funciona com service role e não depende de SMTP.
-3. Atualizar `profiles.nome` e inserir `user_roles` como já faz hoje.
-4. Em seguida chamar `supabaseAdmin.auth.admin.generateLink({ type: 'recovery', email })` para obter um link de definição de senha e retornar esse link junto com `{ ok, userId, recoveryLink }`.
-5. No front (`app.users.tsx`), após criar com sucesso, mostrar o `recoveryLink` em um banner copiável: *"Envie este link de primeiro acesso para o usuário"*. Assim funciona mesmo sem SMTP configurado.
-6. O botão **Resetar senha** continua usando `resetPasswordForEmail` (público). Adicionar fallback: se quiser, também usar `generateLink` no servidor para gerar manualmente.
+- Schema do banco, server functions, editor de formulários (`app.forms.$id.tsx`), modo preview, fluxo de envio ao especialista.
+- O fluxo continua funcionando se o formulário **não** tiver perguntas de endereço separadas — o CEP é confirmado normalmente e segue para a próxima pergunta real.
 
-Logging extra: registrar `console.error` com a mensagem original do Supabase em caso de falha, para diagnóstico futuro nos worker logs.
+## Arquivos afetados
 
----
-
-## Arquivos a alterar
-
-- **Criar** `src/lib/agent-link.ts` — helper `criarCasoELink({ clienteId, formId, agenteId, userId, mode })` retornando o URL.
-- **Editar** `src/routes/app.forms.index.tsx` — botão + modal "Gerar link".
-- **Editar** `src/routes/app.new-case.tsx` — usar o helper novo (refactor mínimo).
-- **Editar** `src/lib/admin-users.functions.ts` — trocar `inviteUserByEmail` por `createUser` + `generateLink`.
-- **Editar** `src/routes/app.users.tsx` — exibir link de primeiro acesso retornado após criar.
-
-Sem mudanças de schema/migration.
-
----
-
-## Como testar depois
-
-1. Em **Formulários**, clicar em "Gerar link" num card → escolher Cliente + Agente + **Chat** → confirmar que o link gerado termina com `?mode=chat` e abre o `FormChat`.
-2. Em **Usuários**, clicar em "Novo usuário" → preencher → confirmar que o usuário aparece na lista e o link de primeiro acesso é exibido para copiar.
-3. Abrir o link de primeiro acesso em aba anônima → cair em `/reset-password` → definir senha → logar.
+- `src/components/agent/FormChat.tsx` — auto-preenchimento pós-CEP
+- `src/components/agent/FormFields.tsx` — botão de microfone em `texto`/`numero`/`cep`/`cnpj`
+- `src/components/agent/use-gravacao-voz.ts` — **novo**, hook extraído de `CampoAudio`
