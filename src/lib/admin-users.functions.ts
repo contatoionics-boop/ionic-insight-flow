@@ -24,6 +24,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
         nome: z.string().min(1).max(120),
         email: z.string().email(),
         role: roleEnum,
+        redirectTo: z.string().url().optional(),
       })
       .parse(input),
   )
@@ -66,6 +67,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email: data.email,
+        options: data.redirectTo ? { redirectTo: data.redirectTo } : undefined,
       });
       if (linkError) {
         console.error("[adminCreateUser] generateLink failed", linkError);
