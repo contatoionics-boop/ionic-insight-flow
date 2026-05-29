@@ -22,6 +22,7 @@ function NewCasePage() {
   const [clientId, setClientId] = useState("");
   const [formId, setFormId] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [linkMode, setLinkMode] = useState<"stepper" | "chat">("stepper");
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
