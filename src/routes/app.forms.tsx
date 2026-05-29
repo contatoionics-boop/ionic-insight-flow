@@ -59,6 +59,8 @@ function FormsPage() {
   const [pTexto, setPTexto] = useState("");
   const [pTipo, setPTipo] = useState<TipoPergunta>("texto");
   const [pObrig, setPObrig] = useState(true);
+  const [pContexto, setPContexto] = useState("");
+  const [pOpcoes, setPOpcoes] = useState("");
 
   const refreshForms = useCallback(async () => {
     const { data, error } = await supabase
@@ -125,12 +127,24 @@ function FormsPage() {
     if (selected) refreshDetail(selected.id);
   };
 
-  const openAddPerg = (secaoId: string) => { setPSecao(secaoId); setPTexto(""); setPTipo("texto"); setPObrig(true); setPergModal(true); };
+  const openAddPerg = (secaoId: string) => { setPSecao(secaoId); setPTexto(""); setPTipo("texto"); setPObrig(true); setPContexto(""); setPOpcoes(""); setPergModal(true); };
 
   const savePerg = async (e: React.FormEvent) => {
     e.preventDefault();
     const ord = perguntas.filter((p) => p.secao_id === pSecao).length + 1;
-    await supabase.from("perguntas").insert({ secao_id: pSecao, texto: pTexto, tipo: pTipo, obrigatoria: pObrig, ordem: ord });
+    const { data: nova, error } = await supabase
+      .from("perguntas")
+      .insert({ secao_id: pSecao, texto: pTexto, tipo: pTipo, obrigatoria: pObrig, ordem: ord, contexto_ia: pContexto || null })
+      .select("id")
+      .single();
+    if (!error && nova && pTipo === "selecao_unica") {
+      const opcoes = pOpcoes.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (opcoes.length) {
+        await supabase.from("opcoes_pergunta").insert(
+          opcoes.map((texto, i) => ({ pergunta_id: nova.id, texto, ordem: i + 1 })),
+        );
+      }
+    }
     setPergModal(false);
     if (selected) refreshDetail(selected.id);
   };
