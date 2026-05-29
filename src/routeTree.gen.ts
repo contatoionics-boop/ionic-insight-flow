@@ -21,12 +21,14 @@ import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 import { Route as AppFormsIdRouteImport } from './routes/app.forms.$id'
+import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -88,6 +90,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientsRoute = AppClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -118,6 +125,11 @@ const AppFormsIdRoute = AppFormsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppFormsRoute,
 } as any)
+const AppFormsIdPreviewRoute = AppFormsIdPreviewRouteImport.update({
+  id: '/preview',
+  path: '/preview',
+  getParentRoute: () => AppFormsIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -126,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
@@ -135,9 +148,10 @@ export interface FileRoutesByFullPath {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRoute
+  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
+  '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -146,6 +160,7 @@ export interface FileRoutesByTo {
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/history': typeof AppHistoryRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -154,9 +169,10 @@ export interface FileRoutesByTo {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRoute
+  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/forms': typeof AppFormsIndexRoute
+  '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,6 +182,7 @@ export interface FileRoutesById {
   '/agent/$token': typeof AgentTokenRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
@@ -175,9 +192,10 @@ export interface FileRoutesById {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRoute
+  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
+  '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,6 +206,7 @@ export interface FileRouteTypes {
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
+    | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
@@ -200,6 +219,7 @@ export interface FileRouteTypes {
     | '/app/forms/$id'
     | '/app/review/$id'
     | '/app/forms/'
+    | '/app/forms/$id/preview'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -208,6 +228,7 @@ export interface FileRouteTypes {
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
+    | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/history'
     | '/app/new-case'
@@ -219,6 +240,7 @@ export interface FileRouteTypes {
     | '/app/forms/$id'
     | '/app/review/$id'
     | '/app/forms'
+    | '/app/forms/$id/preview'
   id:
     | '__root__'
     | '/'
@@ -227,6 +249,7 @@ export interface FileRouteTypes {
     | '/agent/$token'
     | '/app/cases'
     | '/app/clients'
+    | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
@@ -239,6 +262,7 @@ export interface FileRouteTypes {
     | '/app/forms/$id'
     | '/app/review/$id'
     | '/app/forms/'
+    | '/app/forms/$id/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -334,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/configuracoes': {
+      id: '/app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/clients': {
       id: '/app/clients'
       path: '/clients'
@@ -376,16 +407,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFormsIdRouteImport
       parentRoute: typeof AppFormsRoute
     }
+    '/app/forms/$id/preview': {
+      id: '/app/forms/$id/preview'
+      path: '/preview'
+      fullPath: '/app/forms/$id/preview'
+      preLoaderRoute: typeof AppFormsIdPreviewRouteImport
+      parentRoute: typeof AppFormsIdRoute
+    }
   }
 }
 
+interface AppFormsIdRouteChildren {
+  AppFormsIdPreviewRoute: typeof AppFormsIdPreviewRoute
+}
+
+const AppFormsIdRouteChildren: AppFormsIdRouteChildren = {
+  AppFormsIdPreviewRoute: AppFormsIdPreviewRoute,
+}
+
+const AppFormsIdRouteWithChildren = AppFormsIdRoute._addFileChildren(
+  AppFormsIdRouteChildren,
+)
+
 interface AppFormsRouteChildren {
-  AppFormsIdRoute: typeof AppFormsIdRoute
+  AppFormsIdRoute: typeof AppFormsIdRouteWithChildren
   AppFormsIndexRoute: typeof AppFormsIndexRoute
 }
 
 const AppFormsRouteChildren: AppFormsRouteChildren = {
-  AppFormsIdRoute: AppFormsIdRoute,
+  AppFormsIdRoute: AppFormsIdRouteWithChildren,
   AppFormsIndexRoute: AppFormsIndexRoute,
 }
 
@@ -396,6 +446,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 interface AppRouteChildren {
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
   AppHistoryRoute: typeof AppHistoryRoute
@@ -411,6 +462,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
   AppHistoryRoute: AppHistoryRoute,
@@ -434,3 +486,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -1,49 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Button, Textarea, Card } from "@/components/ui-bits";
-import { supabase } from "@/integrations/supabase/client";
-import { validarFoto, transcreverAudio, finalizarEnvio } from "@/lib/agent-ai.functions";
+import { Button, Card } from "@/components/ui-bits";
 import {
-  Camera,
-  Mic,
-  Square,
-  Check,
-  X,
-  ArrowRight,
+  PerguntaBloco,
+  isComplete,
+  type Pergunta,
+  type Resposta,
+  type TipoPergunta,
+} from "@/components/agent/FormFields";
+import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+import { supabase } from "@/integrations/supabase/client";
+import { finalizarEnvio } from "@/lib/agent-ai.functions";
+import {
   ArrowLeft,
-  Send,
+  ArrowRight,
+  Check,
   Loader2,
-  AlertTriangle,
   Pencil,
+  Send,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/agent/$token")({
   component: AgentPage,
 });
-
-type TipoPergunta =
-  | "texto"
-  | "numero"
-  | "foto"
-  | "audio"
-  | "checkbox"
-  | "data"
-  | "selecao_unica"
-  | "toggle";
-
-type Pergunta = {
-  id: string;
-  secao_id: string;
-  texto: string;
-  tipo: TipoPergunta;
-  obrigatoria: boolean;
-  ordem: number;
-  instrucao_agente: string | null;
-  contexto_ia: string | null;
-  opcoes?: { id: string; texto: string }[];
-};
 
 type Secao = { id: string; titulo: string; ordem: number; descricao: string | null };
 
@@ -55,42 +37,13 @@ type Contexto = {
   perguntasPorSecao: Record<string, Pergunta[]>;
 };
 
-type IaResultado = {
-  status: "aprovada" | "parcial" | "incorreta";
-  descricao_encontrada: string;
-  problemas: string[];
-  orientacao: string;
-};
-
-type Resposta = {
-  text?: string;
-  filePath?: string;
-  fileName?: string;
-  filePreview?: string;
-  ia?: IaResultado;
-  iaConfirmada?: boolean;
-  audioPath?: string;
-  transcription?: string;
-  transcriptionConfirmed?: boolean;
-};
-
-async function fileToBase64(file: Blob): Promise<string> {
-  const buf = await file.arrayBuffer();
-  let bin = "";
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(bin);
-}
-
 function AgentPage() {
   const { token } = Route.useParams();
+  const { config } = useConfiguracoesEmpresa();
   const [ctx, setCtx] = useState<Contexto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState(0); // 0..(secoes.length-1) seções, último = revisão
+  const [step, setStep] = useState(0);
   const [state, setState] = useState<Record<string, Resposta>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -172,7 +125,6 @@ function AgentPage() {
           (perguntasPorSecao[p.secao_id] ??= []).push(item);
         }
 
-        // Hidratar rascunho existente
         const { data: rascunho } = await supabase
           .from("respostas_agente")
           .select("pergunta_id, valor_texto, arquivo_path, transcricao, ia_aprovado, ia_motivo")
@@ -204,7 +156,7 @@ function AgentPage() {
     })();
   }, [token]);
 
-  const totalSteps = (ctx?.secoes.length ?? 0) + 1; // +1 revisão
+  const totalSteps = (ctx?.secoes.length ?? 0) + 1;
   const isReview = ctx ? step >= ctx.secoes.length : false;
   const secaoAtual = ctx && !isReview ? ctx.secoes[step] : null;
   const perguntasAtuais = secaoAtual ? ctx?.perguntasPorSecao[secaoAtual.id] ?? [] : [];
@@ -276,7 +228,7 @@ function AgentPage() {
   };
 
   const sectionComplete = useMemo(() => {
-    return perguntasAtuais.every((p) => isComplete(p, state[p.id] ?? {}));
+    return perguntasAtuais.every((p) => isComplete(p, state[p.id] ?? {}, "live"));
   }, [perguntasAtuais, state]);
 
   if (loading) {
@@ -311,11 +263,18 @@ function AgentPage() {
     );
   }
 
+  const nomeEmpresa = config?.nome_empresa || "Ionics";
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="sticky top-0 z-20 border-b border-border bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <span className="text-lg font-bold tracking-tight text-primary">IONIX</span>
+          <div className="flex items-center gap-2">
+            {config?.logo_url && (
+              <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
+            )}
+            <span className="text-lg font-bold tracking-tight text-primary">{nomeEmpresa}</span>
+          </div>
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</p>
             <p className="text-sm font-semibold text-foreground">{ctx.clienteNome || "—"}</p>
@@ -359,6 +318,7 @@ function AgentPage() {
                     token={token}
                     resposta={state[p.id] ?? {}}
                     update={(patch) => update(p.id, patch)}
+                    mode="live"
                   />
                 ))}
               </div>
@@ -404,431 +364,6 @@ function AgentPage() {
           </Button>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function isComplete(p: Pergunta, r: Resposta): boolean {
-  if (!p.obrigatoria) return true;
-  switch (p.tipo) {
-    case "foto":
-      if (!r.filePath || !r.ia) return false;
-      if (r.ia.status === "incorreta") return false;
-      if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
-      return true;
-    case "audio":
-      return !!r.audioPath && !!r.transcription?.trim() && !!r.transcriptionConfirmed;
-    case "checkbox":
-    case "toggle":
-    case "selecao_unica":
-    case "data":
-    case "numero":
-    case "texto":
-    default:
-      return !!r.text?.trim();
-  }
-}
-
-function PerguntaBloco({
-  pergunta,
-  casoId,
-  token,
-  resposta,
-  update,
-}: {
-  pergunta: Pergunta;
-  casoId: string;
-  token: string;
-  resposta: Resposta;
-  update: (patch: Partial<Resposta>) => void;
-}) {
-  return (
-    <Card>
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold text-foreground">
-          {pergunta.texto}
-          {pergunta.obrigatoria && <span className="ml-1 text-destructive">*</span>}
-        </h3>
-      </div>
-      {pergunta.instrucao_agente && (
-        <p className="mb-3 text-xs text-muted-foreground">{pergunta.instrucao_agente}</p>
-      )}
-
-      {pergunta.tipo === "texto" && (
-        <Textarea
-          rows={3}
-          placeholder="Digite sua resposta…"
-          value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
-        />
-      )}
-
-      {pergunta.tipo === "numero" && (
-        <input
-          type="number"
-          inputMode="decimal"
-          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
-          placeholder="0"
-          value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
-        />
-      )}
-
-      {pergunta.tipo === "data" && (
-        <input
-          type="date"
-          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
-          value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
-        />
-      )}
-
-      {pergunta.tipo === "toggle" && (
-        <div className="grid grid-cols-2 gap-3">
-          {(["sim", "nao"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => update({ text: v })}
-              className={`h-12 rounded-md border text-sm font-semibold transition ${
-                resposta.text === v
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
-            >
-              {v === "sim" ? "Sim" : "Não"}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {pergunta.tipo === "selecao_unica" && (
-        <div className="space-y-2">
-          {(pergunta.opcoes ?? []).map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => update({ text: o.texto })}
-              className={`block w-full rounded-md border px-4 py-3 text-left text-sm transition ${
-                resposta.text === o.texto
-                  ? "border-primary bg-primary/5 text-foreground"
-                  : "border-border bg-background hover:bg-muted"
-              }`}
-            >
-              {o.texto}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {pergunta.tipo === "checkbox" && (
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={resposta.text === "sim"}
-            onChange={(e) => update({ text: e.target.checked ? "sim" : "" })}
-            className="mt-0.5 h-4 w-4"
-          />
-          <span>Confirmo</span>
-        </label>
-      )}
-
-      {pergunta.tipo === "foto" && (
-        <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} />
-      )}
-
-      {pergunta.tipo === "audio" && (
-        <CampoAudio casoId={casoId} token={token} resposta={resposta} update={update} />
-      )}
-    </Card>
-  );
-}
-
-function CampoFoto({
-  pergunta,
-  casoId,
-  token,
-  resposta,
-  update,
-}: {
-  pergunta: Pergunta;
-  casoId: string;
-  token: string;
-  resposta: Resposta;
-  update: (patch: Partial<Resposta>) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [analisando, setAnalisando] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const validarFn = useServerFn(validarFoto);
-
-  const enviar = async (file: File) => {
-    setErr(null);
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false });
-      if (error) throw error;
-      const preview = URL.createObjectURL(file);
-      update({ filePath: path, fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: false });
-      setUploading(false);
-
-      setAnalisando(true);
-      const base64 = await fileToBase64(file);
-      const ia = (await validarFn({
-        data: { token, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
-      })) as IaResultado;
-      update({ ia, iaConfirmada: ia.status === "aprovada" });
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Erro ao processar foto.");
-    } finally {
-      setUploading(false);
-      setAnalisando(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  };
-
-  const ia = resposta.ia;
-  const badge =
-    ia?.status === "aprovada"
-      ? { color: "bg-success/15 text-success border-success/30", icon: <Check className="h-4 w-4" />, label: "Foto aprovada pela IA" }
-      : ia?.status === "parcial"
-      ? { color: "bg-warning/15 text-warning-foreground border-warning/30", icon: <AlertTriangle className="h-4 w-4" />, label: "Atenção — revisar" }
-      : ia?.status === "incorreta"
-      ? { color: "bg-destructive/15 text-destructive border-destructive/30", icon: <X className="h-4 w-4" />, label: "Foto não atende" }
-      : null;
-
-  return (
-    <div className="space-y-3">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])}
-      />
-
-      {!resposta.filePath ? (
-        <Button onClick={() => inputRef.current?.click()} className="h-12 w-full" disabled={uploading}>
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Camera className="h-4 w-4" /> Tirar / enviar foto</>}
-        </Button>
-      ) : (
-        <>
-          {resposta.filePreview && (
-            <img src={resposta.filePreview} alt="Foto enviada" className="w-full rounded-md border border-border object-cover" />
-          )}
-          {analisando && (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Analisando imagem com IA…
-            </div>
-          )}
-          {badge && (
-            <div className={`rounded-md border px-3 py-2 text-sm ${badge.color}`}>
-              <div className="flex items-center gap-2 font-medium">
-                {badge.icon} {badge.label}
-              </div>
-              {ia && ia.orientacao && <p className="mt-1 text-xs">{ia.orientacao}</p>}
-              {ia && ia.problemas.length > 0 && (
-                <ul className="mt-1 list-disc pl-4 text-xs">
-                  {ia.problemas.map((p, i) => <li key={i}>{p}</li>)}
-                </ul>
-              )}
-              {ia?.status === "parcial" && !resposta.iaConfirmada && (
-                <button
-                  onClick={() => update({ iaConfirmada: true })}
-                  className="mt-2 text-xs font-semibold underline"
-                >
-                  Avançar mesmo assim
-                </button>
-              )}
-            </div>
-          )}
-          <Button variant="outline" onClick={() => inputRef.current?.click()} className="h-10 w-full" disabled={uploading || analisando}>
-            <Camera className="h-4 w-4" /> Reenviar foto
-          </Button>
-        </>
-      )}
-      {err && <p className="text-xs text-destructive">{err}</p>}
-    </div>
-  );
-}
-
-function CampoAudio({
-  casoId,
-  token,
-  resposta,
-  update,
-}: {
-  casoId: string;
-  token: string;
-  resposta: Resposta;
-  update: (patch: Partial<Resposta>) => void;
-}) {
-  const [modo, setModo] = useState<"gravar" | "texto">(resposta.transcription && !resposta.audioPath ? "texto" : "gravar");
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [transcrevendo, setTranscrevendo] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const transcreverFn = useServerFn(transcreverAudio);
-
-  useEffect(() => {
-    if (recording) timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [recording]);
-
-  const enviarBlob = async (blob: Blob, ext: string) => {
-    setUploading(true);
-    setErr(null);
-    try {
-      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("agente-uploads").upload(path, blob, { upsert: false });
-      if (error) throw error;
-      update({ audioPath: path, transcription: "", transcriptionConfirmed: false });
-      setUploading(false);
-
-      setTranscrevendo(true);
-      const base64 = await fileToBase64(blob);
-      try {
-        const r = (await transcreverFn({
-          data: { token, audioBase64: base64, mime: blob.type || `audio/${ext}` },
-        })) as { transcricao: string };
-        update({ transcription: r.transcricao });
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Falha na transcrição. Você pode digitar manualmente.");
-      }
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Erro ao enviar áudio.");
-    } finally {
-      setUploading(false);
-      setTranscrevendo(false);
-    }
-  };
-
-  const start = async () => {
-    setErr(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        await enviarBlob(blob, "webm");
-      };
-      recorderRef.current = rec;
-      setSeconds(0);
-      rec.start();
-      setRecording(true);
-    } catch {
-      setErr("Permissão de microfone negada ou indisponível.");
-    }
-  };
-
-  const stop = () => {
-    recorderRef.current?.stop();
-    setRecording(false);
-  };
-
-  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setModo("gravar")}
-          className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
-            modo === "gravar" ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
-          }`}
-        >
-          <Mic className="mr-1 inline h-3.5 w-3.5" /> Gravar áudio
-        </button>
-        <button
-          type="button"
-          onClick={() => setModo("texto")}
-          className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
-            modo === "texto" ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
-          }`}
-        >
-          <Pencil className="mr-1 inline h-3.5 w-3.5" /> Prefiro digitar
-        </button>
-      </div>
-
-      {modo === "gravar" ? (
-        <>
-          {!resposta.audioPath && !recording && (
-            <Button onClick={start} className="h-12 w-full" disabled={uploading}>
-              <Mic className="h-4 w-4" /> Iniciar gravação
-            </Button>
-          )}
-          {recording && (
-            <div className="rounded-md border-2 border-destructive/30 bg-destructive/5 p-4 text-center">
-              <div className="mx-auto flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-destructive/20 text-destructive">
-                <Mic className="h-6 w-6" />
-              </div>
-              <p className="mt-2 font-mono text-xl font-semibold">{mmss}</p>
-              <p className="text-xs text-muted-foreground">Gravando…</p>
-              <Button onClick={stop} variant="destructive" className="mt-3 h-10 w-full">
-                <Square className="h-4 w-4" /> Parar
-              </Button>
-            </div>
-          )}
-          {resposta.audioPath && !recording && (
-            <>
-              {transcrevendo && (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Transcrevendo com IA…
-                </div>
-              )}
-              <Textarea
-                rows={4}
-                placeholder="Transcrição (edite se necessário)…"
-                value={resposta.transcription ?? ""}
-                onChange={(e) => update({ transcription: e.target.value, transcriptionConfirmed: false })}
-              />
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!resposta.transcriptionConfirmed}
-                  onChange={(e) => update({ transcriptionConfirmed: e.target.checked })}
-                  className="mt-0.5 h-4 w-4"
-                />
-                <span>Confirmo que a transcrição está correta.</span>
-              </label>
-              <button
-                onClick={() => update({ audioPath: undefined, transcription: "", transcriptionConfirmed: false })}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Regravar
-              </button>
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          <Textarea
-            rows={4}
-            placeholder="Digite a descrição…"
-            value={resposta.transcription ?? ""}
-            onChange={(e) => update({ transcription: e.target.value, audioPath: undefined, transcriptionConfirmed: true })}
-          />
-        </>
-      )}
-      {err && <p className="text-xs text-destructive">{err}</p>}
     </div>
   );
 }
