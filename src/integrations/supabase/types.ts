@@ -110,6 +110,51 @@ export type Database = {
           },
         ]
       }
+      configuracoes_empresa: {
+        Row: {
+          atualizado_em: string
+          cidade_estado: string | null
+          cnpj: string | null
+          email_contato: string | null
+          endereco: string | null
+          id: string
+          logo_url: string | null
+          nome_empresa: string | null
+          singleton: boolean
+          site: string | null
+          telefone: string | null
+          texto_rodape: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cidade_estado?: string | null
+          cnpj?: string | null
+          email_contato?: string | null
+          endereco?: string | null
+          id?: string
+          logo_url?: string | null
+          nome_empresa?: string | null
+          singleton?: boolean
+          site?: string | null
+          telefone?: string | null
+          texto_rodape?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cidade_estado?: string | null
+          cnpj?: string | null
+          email_contato?: string | null
+          endereco?: string | null
+          id?: string
+          logo_url?: string | null
+          nome_empresa?: string | null
+          singleton?: boolean
+          site?: string | null
+          telefone?: string | null
+          texto_rodape?: string | null
+        }
+        Relationships: []
+      }
       configuracoes_saida: {
         Row: {
           ativo: boolean

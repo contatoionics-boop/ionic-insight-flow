@@ -54,7 +54,7 @@ function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm">
-        <div className="mx-auto mb-6 text-center text-2xl font-bold tracking-tight text-primary">IONIX</div>
+        <div className="mx-auto mb-6 text-center text-2xl font-bold tracking-tight text-primary">Ionics</div>
         <h1 className="text-xl font-semibold text-foreground">Defina sua senha</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Crie uma senha de pelo menos 8 caracteres para acessar a plataforma.

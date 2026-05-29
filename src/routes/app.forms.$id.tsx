@@ -17,6 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
+  Eye,
   GripVertical,
   Pencil,
   Plus,
@@ -268,6 +269,12 @@ function FormBuilderPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id } })}
+          >
+            <Eye className="h-4 w-4" /> Visualizar formulário
+          </Button>
           <Button variant="outline" onClick={openInfo}>
             <Pencil className="h-4 w-4" /> Editar info
           </Button>
