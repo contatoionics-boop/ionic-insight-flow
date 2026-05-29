@@ -257,19 +257,16 @@ function AgentPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const finalizarFn = useServerFn(finalizarEnvio);
+
   const submitAll = async () => {
     if (!ctx) return;
     setSubmitting(true);
     setError(null);
     try {
-      // Salva tudo de novo por garantia
       const todas = Object.values(ctx.perguntasPorSecao).flat();
       await saveSection(todas);
-      await supabase
-        .from("links_agente")
-        .update({ utilizado_em: new Date().toISOString() })
-        .eq("token", token);
-      await supabase.from("casos").update({ status: "aguardando_revisao" }).eq("id", ctx.casoId);
+      await finalizarFn({ data: { token } });
       setSubmitted(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao enviar respostas.");
