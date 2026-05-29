@@ -437,3 +437,41 @@ function ReviewCards({
     </div>
   );
 }
+
+function normalizar(s: string): string {
+  return (s ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+type EnderecoParsed = { logradouro: string; bairro: string; cidade: string; estado: string };
+
+function parseEnderecoFromCepText(text: string): EnderecoParsed | null {
+  if (!text) return null;
+  // Formato gravado por CampoCep: "00000-000 — Logradouro, Bairro — Cidade/UF"
+  const m = text.match(/^\s*\d{5}-\d{3}\s*[—-]\s*(.+?),\s*(.+?)\s*[—-]\s*(.+?)\/([A-Za-z]{2})\s*$/);
+  if (!m) return null;
+  return {
+    logradouro: m[1].trim(),
+    bairro: m[2].trim(),
+    cidade: m[3].trim(),
+    estado: m[4].trim().toUpperCase(),
+  };
+}
+
+function matchEnderecoCampo(perguntaTexto: string, e: EnderecoParsed): string | null {
+  const n = normalizar(perguntaTexto);
+  // Não preencher número / complemento — são do agente.
+  if (/\b(numero|n[º°.]|nro|complemento)\b/.test(n)) return null;
+  if (/(cidade.*estado|cidade\s*\/\s*estado|cidade\s*e\s*estado|municipio.*uf)/.test(n)) {
+    return `${e.cidade}/${e.estado}`;
+  }
+  if (/\b(logradouro|endereco|rua|avenida|av\.?)\b/.test(n)) return e.logradouro;
+  if (/\bbairro\b/.test(n)) return e.bairro;
+  if (/\bcidade\b|\bmunicipio\b/.test(n)) return e.cidade;
+  if (/\bestado\b|\buf\b/.test(n)) return e.estado;
+  return null;
+}
+
