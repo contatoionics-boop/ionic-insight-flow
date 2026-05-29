@@ -26,6 +26,7 @@ import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
+import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 import { Route as AppFormsIdRouteImport } from './routes/app.forms.$id'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
@@ -115,6 +116,11 @@ const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppFormsRoute,
 } as any)
+const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
+  id: '/preview/forms/$id',
+  path: '/preview/forms/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppReviewIdRoute = AppReviewIdRouteImport.update({
   id: '/review/$id',
   path: '/review/$id',
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/app/users': typeof AppUsersRoute
   '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
+  '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/app/users': typeof AppUsersRoute
   '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
+  '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/app/users': typeof AppUsersRoute
   '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
+  '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
 }
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app/forms/$id'
     | '/app/review/$id'
+    | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app/forms/$id'
     | '/app/review/$id'
+    | '/preview/forms/$id'
     | '/app/forms'
     | '/app/forms/$id/preview'
   id:
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app/forms/$id'
     | '/app/review/$id'
+    | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
   fileRoutesById: FileRoutesById
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
+  PreviewFormsIdRoute: typeof PreviewFormsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFormsIndexRouteImport
       parentRoute: typeof AppFormsRoute
     }
+    '/preview/forms/$id': {
+      id: '/preview/forms/$id'
+      path: '/preview/forms/$id'
+      fullPath: '/preview/forms/$id'
+      preLoaderRoute: typeof PreviewFormsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/review/$id': {
       id: '/app/review/$id'
       path: '/review/$id'
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
+  PreviewFormsIdRoute: PreviewFormsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

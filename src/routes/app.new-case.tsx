@@ -10,7 +10,7 @@ export const Route = createFileRoute("/app/new-case")({
 });
 
 type Cliente = { id: string; nome: string };
-type Form = { id: string; nome: string; cliente_id: string };
+type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
 function NewCasePage() {
@@ -31,7 +31,7 @@ function NewCasePage() {
     (async () => {
       const [c, f, ag] = await Promise.all([
         supabase.from("clientes").select("id, nome").order("nome"),
-        supabase.from("formularios").select("id, nome, cliente_id").eq("ativo", true).order("nome"),
+        supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
         supabase.from("user_roles").select("user_id, profile:profiles!user_id(id, nome)").eq("role", "agente_tecnico"),
       ]);
       setClients((c.data ?? []) as Cliente[]);
@@ -40,7 +40,7 @@ function NewCasePage() {
     })();
   }, []);
 
-  const availableForms = forms.filter((f) => !clientId || f.cliente_id === clientId);
+  const availableForms = forms;
 
   const generate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +102,7 @@ function NewCasePage() {
               <option value="">Selecione o formulário</option>
               {availableForms.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
             </Select>
-            {availableForms.length === 0 && <p className="mt-1 text-xs text-muted-foreground">Nenhum formulário disponível para este cliente.</p>}
+            {availableForms.length === 0 && <p className="mt-1 text-xs text-muted-foreground">Nenhum formulário disponível.</p>}
           </div>
           <div>
             <Label>Agente técnico</Label>

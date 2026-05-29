@@ -17,6 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
+  ExternalLink,
   Eye,
   GripVertical,
   Pencil,
@@ -56,7 +57,7 @@ type Form = {
   id: string;
   nome: string;
   descricao: string | null;
-  cliente_id: string;
+  cliente_id: string | null;
   cliente: { nome: string } | null;
 };
 type Cliente = { id: string; nome: string };
@@ -139,14 +140,14 @@ function FormBuilderPage() {
     if (!form) return;
     setINome(form.nome);
     setIDesc(form.descricao ?? "");
-    setICli(form.cliente_id);
+    setICli(form.cliente_id ?? "");
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     await supabase
       .from("formularios")
-      .update({ nome: iNome, descricao: iDesc || null, cliente_id: iCli })
+      .update({ nome: iNome, descricao: iDesc || null, cliente_id: iCli || null })
       .eq("id", id);
     setInfoOpen(false);
     load();
@@ -264,17 +265,25 @@ function FormBuilderPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">{form.nome}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cliente: {form.cliente?.nome ?? "—"}
+            {form.cliente?.nome ? `Cliente: ${form.cliente.nome}` : "Template (sem cliente)"}
             {form.descricao ? ` · ${form.descricao}` : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id } })}
           >
-            <Eye className="h-4 w-4" /> Visualizar formulário
+            <Eye className="h-4 w-4" /> Visualizar no app
           </Button>
+          <a
+            href={`/preview/forms/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-muted"
+          >
+            <ExternalLink className="h-4 w-4" /> Preview em nova aba
+          </a>
           <Button variant="outline" onClick={openInfo}>
             <Pencil className="h-4 w-4" /> Editar info
           </Button>
@@ -341,9 +350,9 @@ function FormBuilderPage() {
           <div><Label>Nome</Label><Input required value={iNome} onChange={(e) => setINome(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={iDesc} onChange={(e) => setIDesc(e.target.value)} /></div>
           <div>
-            <Label>Cliente</Label>
-            <Select required value={iCli} onChange={(e) => setICli(e.target.value)}>
-              <option value="">Selecione</option>
+            <Label>Cliente (opcional)</Label>
+            <Select value={iCli} onChange={(e) => setICli(e.target.value)}>
+              <option value="">Template (sem cliente)</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
           </div>
