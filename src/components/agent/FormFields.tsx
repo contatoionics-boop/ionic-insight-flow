@@ -421,12 +421,16 @@ function CampoCnpj({
       <p className="text-xs text-muted-foreground">
         Se a consulta falhar, digite o nome do cliente manualmente:
       </p>
-      <Textarea
-        rows={2}
-        placeholder="Nome do cliente (livre)"
-        value={resposta.text ?? ""}
-        onChange={(e) => update({ text: e.target.value })}
-      />
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={2}
+          placeholder="Nome do cliente (livre ou por voz)"
+          value={resposta.text ?? ""}
+          onChange={(e) => update({ text: e.target.value })}
+          className="flex-1"
+        />
+        <MicButton token={token} current={resposta.text ?? ""} onText={(t) => update({ text: t })} />
+      </div>
     </div>
   );
 }
