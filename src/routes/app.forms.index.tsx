@@ -62,7 +62,49 @@ function FormsPage() {
       .select("id, nome")
       .order("nome")
       .then(({ data }) => setClients((data ?? []) as Cliente[]));
+    supabase
+      .from("user_roles")
+      .select("user_id, profile:profiles!user_id(id, nome)")
+      .eq("role", "agente_tecnico")
+      .then(({ data }) =>
+        setAgentes(
+          ((data ?? []) as any[])
+            .map((r) => ({ id: r.profile?.id, nome: r.profile?.nome ?? "(sem nome)" }))
+            .filter((a) => a.id),
+        ),
+      );
   }, [refreshForms]);
+
+  const openLinkModal = (f: Form) => {
+    setLinkFormTarget(f);
+    setLinkClienteId(f.cliente_id ?? "");
+    setLinkAgenteId("");
+    setLinkMode("stepper");
+    setLinkResult(null);
+    setLinkError(null);
+    setLinkCopied(false);
+  };
+
+  const handleGerarLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkFormTarget || !userId) return;
+    setLinkWorking(true);
+    setLinkError(null);
+    try {
+      const url = await criarCasoELink({
+        clienteId: linkClienteId,
+        formId: linkFormTarget.id,
+        agenteId: linkAgenteId,
+        userId,
+        mode: linkMode,
+      });
+      setLinkResult(url);
+    } catch (err: any) {
+      setLinkError(err?.message ?? "Erro ao gerar link.");
+    } finally {
+      setLinkWorking(false);
+    }
+  };
 
   const openCreateForm = () => {
     setEditingForm(null);
