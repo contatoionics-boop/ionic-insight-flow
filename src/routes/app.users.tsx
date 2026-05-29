@@ -109,7 +109,14 @@ function UsersPage() {
         await updateUser({ data: { userId: editing.id, nome, role } });
         showToast("Usuário atualizado ✓");
       } else {
-        const res = await createUser({ data: { nome, email, role } });
+        const res = await createUser({
+          data: {
+            nome,
+            email,
+            role,
+            redirectTo: `${window.location.origin}/reset-password`,
+          },
+        });
         showToast("Usuário criado ✓");
         setRecoveryLink((res as any)?.recoveryLink ?? null);
       }
