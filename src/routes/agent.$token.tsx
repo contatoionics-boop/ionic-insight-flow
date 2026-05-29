@@ -216,7 +216,7 @@ function AgentPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <header className="sticky top-0 z-20 border-b border-border bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <img src={logo} alt="IONICS" className="h-7 w-auto" />
+          <span className="text-lg font-bold tracking-tight text-primary">IONIX</span>
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</p>
             <p className="text-sm font-semibold text-foreground">{ctx.clienteNome || "—"}</p>
