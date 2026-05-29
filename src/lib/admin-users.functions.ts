@@ -16,6 +16,16 @@ async function assertSuperAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Apenas super admins podem executar esta ação.");
 }
 
+async function assertCanSelectAgents(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["super_admin", "admin"]);
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Apenas admins podem selecionar agentes técnicos.");
+}
+
 export const adminCreateUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -47,8 +57,7 @@ export const adminCreateUser = createServerFn({ method: "POST" })
 
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({ nome: data.nome })
-      .eq("id", userId);
+      .upsert({ id: userId, nome: data.nome, email: data.email }, { onConflict: "id" });
     if (profileError) {
       console.error("[adminCreateUser] profile update failed", profileError);
       throw new Error(profileError.message);
@@ -108,6 +117,57 @@ export const adminListUsers = createServerFn({ method: "GET" })
       ativo: p.ativo,
       criado_em: p.criado_em,
       role: roleByUser.get(p.id) ?? null,
+    }));
+  });
+
+export const adminGenerateRecoveryLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: z.string().uuid(), redirectTo: z.string().url().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context.supabase, context.userId);
+
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+    const email = userData?.user?.email;
+    if (userError || !email) throw new Error(userError?.message ?? "Usuário sem e-mail cadastrado.");
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: data.redirectTo ? { redirectTo: data.redirectTo } : undefined,
+    });
+    if (linkError) throw new Error(linkError.message);
+
+    return { ok: true, recoveryLink: (linkData as any)?.properties?.action_link ?? null };
+  });
+
+export const listTechnicalAgents = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertCanSelectAgents(context.supabase, context.userId);
+
+    const { data: roles, error: rolesError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "agente_tecnico");
+    if (rolesError) throw new Error(rolesError.message);
+
+    const ids = [...new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, nome, email, ativo")
+      .in("id", ids)
+      .eq("ativo", true)
+      .order("nome", { ascending: true });
+    if (profilesError) throw new Error(profilesError.message);
+
+    return (profiles ?? []).map((p: any) => ({
+      id: p.id,
+      user_id: p.id,
+      nome: p.nome || p.email || "(sem nome)",
     }));
   });
 

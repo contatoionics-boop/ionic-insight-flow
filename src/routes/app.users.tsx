@@ -17,11 +17,11 @@ import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
 import {
   adminCreateUser,
   adminListUsers,
+  adminGenerateRecoveryLink,
   adminToggleActive,
   adminUpdateUser,
   adminDeleteUser,
 } from "@/lib/admin-users.functions";
-import { supabase } from "@/integrations/supabase/client";
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -42,6 +42,7 @@ function UsersPage() {
   const { userId: currentUserId } = useAuth();
   const listUsers = useServerFn(adminListUsers);
   const createUser = useServerFn(adminCreateUser);
+  const generateRecoveryLink = useServerFn(adminGenerateRecoveryLink);
   const toggleActive = useServerFn(adminToggleActive);
   const updateUser = useServerFn(adminUpdateUser);
   const deleteUser = useServerFn(adminDeleteUser);
@@ -129,15 +130,16 @@ function UsersPage() {
     }
   };
 
-  const handleReset = async (userEmail: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) {
-      setError(error.message);
-      return;
+  const handleReset = async (userId: string) => {
+    try {
+      const res = await generateRecoveryLink({
+        data: { userId, redirectTo: `${window.location.origin}/reset-password` },
+      });
+      setRecoveryLink((res as any)?.recoveryLink ?? null);
+      showToast("Novo link gerado ✓");
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao gerar link.");
     }
-    showToast("E-mail de redefinição enviado ✓");
   };
 
   const handleToggle = async (row: Row) => {
@@ -256,10 +258,10 @@ function UsersPage() {
                       <Pencil className="h-3 w-3" /> Editar
                     </button>
                     <button
-                      onClick={() => handleReset(u.email)}
+                      onClick={() => handleReset(u.id)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                     >
-                      <KeyRound className="h-3 w-3" /> Resetar senha
+                      <KeyRound className="h-3 w-3" /> Gerar link
                     </button>
                     <button
                       onClick={() => handleToggle(u)}

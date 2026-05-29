@@ -5,6 +5,8 @@ import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Link2, Che
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { criarCasoELink, type LinkMode } from "@/lib/agent-link";
+import { listTechnicalAgents } from "@/lib/admin-users.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/forms/")({
   component: FormsPage,
@@ -21,6 +23,7 @@ type Form = {
 
 function FormsPage() {
   const { userId } = useAuth();
+  const loadAgents = useServerFn(listTechnicalAgents);
   const navigate = useNavigate();
   const [forms, setForms] = useState<Form[]>([]);
   const [clients, setClients] = useState<Cliente[]>([]);
@@ -62,18 +65,8 @@ function FormsPage() {
       .select("id, nome")
       .order("nome")
       .then(({ data }) => setClients((data ?? []) as Cliente[]));
-    supabase
-      .from("user_roles")
-      .select("user_id, profile:profiles!user_id(id, nome)")
-      .eq("role", "agente_tecnico")
-      .then(({ data }) =>
-        setAgentes(
-          ((data ?? []) as any[])
-            .map((r) => ({ id: r.profile?.id, nome: r.profile?.nome ?? "(sem nome)" }))
-            .filter((a) => a.id),
-        ),
-      );
-  }, [refreshForms]);
+    loadAgents().then((data) => setAgentes((data ?? []) as { id: string; nome: string }[]));
+  }, [refreshForms, loadAgents]);
 
   const openLinkModal = (f: Form) => {
     setLinkFormTarget(f);

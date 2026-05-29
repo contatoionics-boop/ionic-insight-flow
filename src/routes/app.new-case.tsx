@@ -4,6 +4,8 @@ import { PageHeader, Card, Label, Select, Button } from "@/components/ui-bits";
 import { Copy, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { listTechnicalAgents } from "@/lib/admin-users.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
@@ -15,6 +17,7 @@ type Agente = { id: string; nome: string; user_id: string };
 
 function NewCasePage() {
   const { userId } = useAuth();
+  const loadAgents = useServerFn(listTechnicalAgents);
   const [clients, setClients] = useState<Cliente[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
   const [agents, setAgents] = useState<Agente[]>([]);
@@ -33,13 +36,13 @@ function NewCasePage() {
       const [c, f, ag] = await Promise.all([
         supabase.from("clientes").select("id, nome").order("nome"),
         supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
-        supabase.from("user_roles").select("user_id, profile:profiles!user_id(id, nome)").eq("role", "agente_tecnico"),
+        loadAgents(),
       ]);
       setClients((c.data ?? []) as Cliente[]);
       setForms((f.data ?? []) as Form[]);
-      setAgents(((ag.data ?? []) as any[]).map((r) => ({ id: r.profile?.id, nome: r.profile?.nome, user_id: r.user_id })).filter((a) => a.id));
+      setAgents((ag ?? []) as Agente[]);
     })();
-  }, []);
+  }, [loadAgents]);
 
   const availableForms = forms;
 
