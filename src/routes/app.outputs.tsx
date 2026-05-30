@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Toggle, Input, Label, Button, Badge } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
