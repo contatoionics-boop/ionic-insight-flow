@@ -112,6 +112,7 @@ function PromptsPage() {
 
   return (
     <div>
+      <ConfiguracoesNav />
       <PageHeader
         title="Configuração de Prompts de IA"
         description="Estes prompts controlam o comportamento da inteligência artificial em cada etapa do processo."
