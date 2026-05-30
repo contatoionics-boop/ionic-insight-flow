@@ -138,6 +138,7 @@ function ConfiguracoesPage() {
 
   return (
     <div className="max-w-3xl">
+      <ConfiguracoesNav />
       <div className="mb-6">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Configurações da empresa</h2>
         <p className="mt-1 text-sm text-muted-foreground">
