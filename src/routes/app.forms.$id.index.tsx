@@ -28,7 +28,7 @@ import {
 import { Badge, Button, Card, Input, Label, Modal, Select } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/app/forms/$id")({
+export const Route = createFileRoute("/app/forms/$id/")({
   component: FormBuilderPage,
 });
 

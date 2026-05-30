@@ -28,7 +28,7 @@ import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
-import { Route as AppFormsIdRouteImport } from './routes/app.forms.$id'
+import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -126,15 +126,15 @@ const AppReviewIdRoute = AppReviewIdRouteImport.update({
   path: '/review/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFormsIdRoute = AppFormsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
+const AppFormsIdIndexRoute = AppFormsIdIndexRouteImport.update({
+  id: '/$id/',
+  path: '/$id/',
   getParentRoute: () => AppFormsRoute,
 } as any)
 const AppFormsIdPreviewRoute = AppFormsIdPreviewRouteImport.update({
-  id: '/preview',
-  path: '/preview',
-  getParentRoute: () => AppFormsIdRoute,
+  id: '/$id/preview',
+  path: '/$id/preview',
+  getParentRoute: () => AppFormsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -154,11 +154,11 @@ export interface FileRoutesByFullPath {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
+  '/app/forms/$id/': typeof AppFormsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -176,11 +176,11 @@ export interface FileRoutesByTo {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
+  '/app/forms/$id': typeof AppFormsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -200,11 +200,11 @@ export interface FileRoutesById {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
-  '/app/forms/$id': typeof AppFormsIdRouteWithChildren
   '/app/review/$id': typeof AppReviewIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
+  '/app/forms/$id/': typeof AppFormsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -225,11 +225,11 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
-    | '/app/forms/$id'
     | '/app/review/$id'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
+    | '/app/forms/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -247,11 +247,11 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
-    | '/app/forms/$id'
     | '/app/review/$id'
     | '/preview/forms/$id'
     | '/app/forms'
     | '/app/forms/$id/preview'
+    | '/app/forms/$id'
   id:
     | '__root__'
     | '/'
@@ -270,11 +270,11 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
-    | '/app/forms/$id'
     | '/app/review/$id'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
+    | '/app/forms/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -420,43 +420,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/forms/$id': {
-      id: '/app/forms/$id'
+    '/app/forms/$id/': {
+      id: '/app/forms/$id/'
       path: '/$id'
-      fullPath: '/app/forms/$id'
-      preLoaderRoute: typeof AppFormsIdRouteImport
+      fullPath: '/app/forms/$id/'
+      preLoaderRoute: typeof AppFormsIdIndexRouteImport
       parentRoute: typeof AppFormsRoute
     }
     '/app/forms/$id/preview': {
       id: '/app/forms/$id/preview'
-      path: '/preview'
+      path: '/$id/preview'
       fullPath: '/app/forms/$id/preview'
       preLoaderRoute: typeof AppFormsIdPreviewRouteImport
-      parentRoute: typeof AppFormsIdRoute
+      parentRoute: typeof AppFormsRoute
     }
   }
 }
 
-interface AppFormsIdRouteChildren {
-  AppFormsIdPreviewRoute: typeof AppFormsIdPreviewRoute
-}
-
-const AppFormsIdRouteChildren: AppFormsIdRouteChildren = {
-  AppFormsIdPreviewRoute: AppFormsIdPreviewRoute,
-}
-
-const AppFormsIdRouteWithChildren = AppFormsIdRoute._addFileChildren(
-  AppFormsIdRouteChildren,
-)
-
 interface AppFormsRouteChildren {
-  AppFormsIdRoute: typeof AppFormsIdRouteWithChildren
   AppFormsIndexRoute: typeof AppFormsIndexRoute
+  AppFormsIdPreviewRoute: typeof AppFormsIdPreviewRoute
+  AppFormsIdIndexRoute: typeof AppFormsIdIndexRoute
 }
 
 const AppFormsRouteChildren: AppFormsRouteChildren = {
-  AppFormsIdRoute: AppFormsIdRouteWithChildren,
   AppFormsIndexRoute: AppFormsIndexRoute,
+  AppFormsIdPreviewRoute: AppFormsIdPreviewRoute,
+  AppFormsIdIndexRoute: AppFormsIdIndexRoute,
 }
 
 const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
@@ -507,3 +497,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
