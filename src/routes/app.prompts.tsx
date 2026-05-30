@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Card, Textarea, Button } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/prompts")({
