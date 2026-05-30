@@ -162,6 +162,7 @@ function UsersPage() {
 
   return (
     <div>
+      <ConfiguracoesNav />
       <PageHeader
         title="Usuários"
         description="Gerencie todos os usuários e perfis da plataforma."
