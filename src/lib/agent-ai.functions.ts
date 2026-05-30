@@ -117,15 +117,15 @@ export const transcreverAudio = createServerFn({ method: "POST" })
     const model = provider("google/gemini-3-flash-preview");
 
     try {
-      const format = data.mime.includes("wav")
-        ? "wav"
+      const mediaType = data.mime.includes("wav")
+        ? "audio/wav"
         : data.mime.includes("mp3") || data.mime.includes("mpeg")
-        ? "mp3"
+        ? "audio/mpeg"
         : data.mime.includes("mp4") || data.mime.includes("m4a") || data.mime.includes("aac")
-        ? "mp4"
+        ? "audio/mp4"
         : data.mime.includes("ogg") || data.mime.includes("opus")
-        ? "ogg"
-        : "wav";
+        ? "audio/ogg"
+        : "audio/wav";
 
       const { text } = await generateText({
         model,
@@ -139,10 +139,7 @@ export const transcreverAudio = createServerFn({ method: "POST" })
             role: "user",
             content: [
               { type: "text", text: "Transcreva este áudio:" },
-              {
-                type: "input_audio",
-                input_audio: { data: data.audioBase64, format },
-              } as any,
+              { type: "file", data: data.audioBase64, mediaType },
             ],
           },
         ],
