@@ -13,6 +13,7 @@ import {
   Select,
   Label,
 } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
 import {
   adminCreateUser,
