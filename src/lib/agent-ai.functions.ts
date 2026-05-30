@@ -113,6 +113,16 @@ export const transcreverAudio = createServerFn({ method: "POST" })
     const model = provider("google/gemini-3-flash-preview");
 
     try {
+      const format = data.mime.includes("wav")
+        ? "wav"
+        : data.mime.includes("mp3") || data.mime.includes("mpeg")
+        ? "mp3"
+        : data.mime.includes("mp4") || data.mime.includes("m4a") || data.mime.includes("aac")
+        ? "mp4"
+        : data.mime.includes("ogg") || data.mime.includes("opus")
+        ? "ogg"
+        : "wav";
+
       const { text } = await generateText({
         model,
         messages: [
@@ -126,15 +136,15 @@ export const transcreverAudio = createServerFn({ method: "POST" })
             content: [
               { type: "text", text: "Transcreva este áudio:" },
               {
-                type: "file",
-                data: `data:${data.mime};base64,${data.audioBase64}`,
-                mediaType: data.mime,
+                type: "input_audio",
+                input_audio: { data: data.audioBase64, format },
               } as any,
             ],
           },
         ],
       });
       return { transcricao: text.trim() };
+
     } catch (e: any) {
       const msg = String(e?.message ?? e);
       if (msg.includes("429")) throw new Error("Limite de uso da IA atingido. Tente novamente em instantes.");
