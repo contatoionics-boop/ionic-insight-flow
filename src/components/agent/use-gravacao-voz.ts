@@ -102,12 +102,13 @@ export function useGravacaoVoz({
       rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
       rec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const raw = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         setTranscrevendo(true);
         try {
-          const base64 = await blobToBase64(blob);
+          const wav = await blobToWav(raw);
+          const base64 = await blobToBase64(wav);
           const r = (await transcreverFn({
-            data: { token, audioBase64: base64, mime: blob.type || "audio/webm" },
+            data: { token, audioBase64: base64, mime: "audio/wav" },
           })) as { transcricao: string };
           onTranscricao((r.transcricao || "").trim());
         } catch (e) {
