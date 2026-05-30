@@ -28,12 +28,9 @@ type NavItem = { to: string; label: string; icon: React.ComponentType<{ classNam
 const navByRole: Record<Role, NavItem[]> = {
   super_admin: [
     { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/app/users", label: "Usuários", icon: Users },
     { to: "/app/clients", label: "Clientes", icon: Building2 },
     { to: "/app/cases", label: "Casos", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
-    { to: "/app/prompts", label: "Prompts de IA", icon: Sparkles },
-    { to: "/app/outputs", label: "Saídas", icon: Send },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
   admin: [
