@@ -5,6 +5,7 @@ import { Loader2, Save, Upload } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui-bits";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 
 export const Route = createFileRoute("/app/configuracoes")({
   component: ConfiguracoesPage,
