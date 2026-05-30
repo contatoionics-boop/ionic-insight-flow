@@ -5,6 +5,7 @@ import { Loader2, Save, Upload } from "lucide-react";
 import { Button, Card, Input, Label } from "@/components/ui-bits";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 
 export const Route = createFileRoute("/app/configuracoes")({
   component: ConfiguracoesPage,
@@ -137,6 +138,7 @@ function ConfiguracoesPage() {
 
   return (
     <div className="max-w-3xl">
+      <ConfiguracoesNav />
       <div className="mb-6">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Configurações da empresa</h2>
         <p className="mt-1 text-sm text-muted-foreground">

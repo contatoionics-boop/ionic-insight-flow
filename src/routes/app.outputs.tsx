@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Toggle, Input, Label, Button, Badge } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -44,6 +45,7 @@ function OutputsPage() {
 
   return (
     <div>
+      <ConfiguracoesNav />
       <PageHeader title="Configuração de saída" description="Defina onde os relatórios finais serão entregues." />
       {error && (
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>

@@ -13,6 +13,7 @@ import {
   Select,
   Label,
 } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
 import {
   adminCreateUser,
@@ -161,6 +162,7 @@ function UsersPage() {
 
   return (
     <div>
+      <ConfiguracoesNav />
       <PageHeader
         title="Usuários"
         description="Gerencie todos os usuários e perfis da plataforma."

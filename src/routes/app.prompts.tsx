@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Card, Textarea, Button } from "@/components/ui-bits";
+import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/prompts")({
@@ -111,6 +112,7 @@ function PromptsPage() {
 
   return (
     <div>
+      <ConfiguracoesNav />
       <PageHeader
         title="Configuração de Prompts de IA"
         description="Estes prompts controlam o comportamento da inteligência artificial em cada etapa do processo."
