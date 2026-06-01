@@ -405,6 +405,37 @@ function UsersPage() {
           </Button>
         </div>
       </Modal>
+
+      <Modal open={!!pwTarget} onClose={() => setPwTarget(null)} title="Definir nova senha">
+        <form onSubmit={handleSetPassword} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Definir uma nova senha para <strong>{pwTarget?.nome || pwTarget?.email}</strong>.
+            Compartilhe a senha por um canal seguro — o usuário poderá alterá-la depois.
+          </p>
+          <div>
+            <Label>Nova senha</Label>
+            <Input
+              type="text"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+            />
+          </div>
+          {pwError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{pwError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPwTarget(null)} disabled={pwSubmitting}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pwSubmitting}>
+              {pwSubmitting ? "Salvando..." : "Salvar senha"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
