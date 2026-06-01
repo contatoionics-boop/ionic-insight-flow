@@ -26,7 +26,7 @@ export const createFormFromDraft = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const userId = context.userId;
-    await assertAdmin(null, userId);
+    await assertAdmin(userId);
 
     const draft: FormDraft = data.draft;
 
