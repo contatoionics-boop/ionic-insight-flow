@@ -293,6 +293,12 @@ function UsersPage() {
                       <Pencil className="h-3 w-3" /> Editar
                     </button>
                     <button
+                      onClick={() => openSetPassword(u)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Lock className="h-3 w-3" /> Definir senha
+                    </button>
+                    <button
                       onClick={() => handleReset(u.id)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                     >
