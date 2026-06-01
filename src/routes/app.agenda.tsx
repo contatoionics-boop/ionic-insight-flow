@@ -89,7 +89,18 @@ function AgendaPage() {
 
   return (
     <div>
-      <PageHeader title="Agenda" description="Vistorias agendadas no mês." />
+      <PageHeader
+        title="Agenda"
+        description="Vistorias agendadas no mês."
+        actions={
+          <Link to="/app/new-case">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Agendar vistoria
+            </Button>
+          </Link>
+        }
+      />
 
       <Card className="mb-4">
         <div className="flex flex-wrap items-end gap-4">
