@@ -106,7 +106,7 @@ export function AppLayout() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex flex-col gap-1 px-3 py-4">
+        <nav className="flex flex-col gap-0.5 px-3 py-4">
           {nav.map((item) => {
             const active = pathname.startsWith(item.to);
             const Icon = item.icon;
@@ -114,14 +114,20 @@ export function AppLayout() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all ${
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <span
+                  className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-sidebar-active transition-opacity ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
+                  aria-hidden
+                />
+                <Icon className={`h-4 w-4 shrink-0 transition-colors ${active ? "text-sidebar-active" : "text-sidebar-foreground/60 group-hover:text-sidebar-accent-foreground"}`} />
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
