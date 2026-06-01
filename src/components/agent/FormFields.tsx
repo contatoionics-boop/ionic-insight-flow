@@ -193,11 +193,9 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "data" && (
-        <input
-          type="date"
-          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+        <DatePicker
           value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
+          onChange={(v) => update({ text: v })}
         />
       )}
 
