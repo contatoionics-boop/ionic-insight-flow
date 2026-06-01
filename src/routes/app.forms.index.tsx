@@ -227,9 +227,14 @@ function FormsPage() {
         title="Formulários"
         description="Roteiros de vistoria reutilizáveis. Um formulário pode servir como template para várias empresas."
         actions={
-          <Button onClick={openCreateForm}>
-            <Plus className="h-4 w-4" /> Novo formulário
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => navigate({ to: "/app/forms-assistant" })}>
+              <Sparkles className="h-4 w-4" /> Criar com IA
+            </Button>
+            <Button onClick={openCreateForm}>
+              <Plus className="h-4 w-4" /> Novo formulário
+            </Button>
+          </>
         }
       />
       {error && (
