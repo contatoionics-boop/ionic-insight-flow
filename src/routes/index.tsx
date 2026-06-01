@@ -14,6 +14,7 @@ export const Route = createFileRoute("/")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { redirect: redirectTo } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -21,14 +22,23 @@ function LoginPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const goAfterLogin = async () => {
+    if (redirectTo && redirectTo.startsWith("/")) {
+      window.location.assign(redirectTo);
+      return;
+    }
+    const { data: roleData } = await supabase.rpc("current_user_role");
+    navigate({ to: routeForRole((roleData as Role | null) ?? null) });
+  };
+
   // Redireciona se já estiver logado
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
-      const { data: roleData } = await supabase.rpc("current_user_role");
-      navigate({ to: routeForRole((roleData as Role | null) ?? null) });
+      await goAfterLogin();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
