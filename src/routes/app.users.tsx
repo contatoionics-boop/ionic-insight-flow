@@ -45,6 +45,7 @@ function UsersPage() {
   const listUsers = useServerFn(adminListUsers);
   const createUser = useServerFn(adminCreateUser);
   const generateRecoveryLink = useServerFn(adminGenerateRecoveryLink);
+  const setPasswordFn = useServerFn(adminSetPassword);
   const toggleActive = useServerFn(adminToggleActive);
   const updateUser = useServerFn(adminUpdateUser);
   const deleteUser = useServerFn(adminDeleteUser);
