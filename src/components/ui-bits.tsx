@@ -86,7 +86,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2 ${props.className ?? ""}`}
+      className={`flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
     />
   );
 }
@@ -95,7 +95,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring focus:ring-2 ${props.className ?? ""}`}
+      className={`flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ""}`}
     />
   );
 }
@@ -104,15 +104,29 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...props}
-      className={`w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none ring-ring placeholder:text-muted-foreground focus:ring-2 ${props.className ?? ""}`}
+      className={`flex min-h-[80px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
     />
   );
 }
 
-export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
+export function Label({
+  children,
+  htmlFor,
+  required,
+  hint,
+}: {
+  children: ReactNode;
+  htmlFor?: string;
+  required?: boolean;
+  hint?: string;
+}) {
   return (
-    <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-foreground">
-      {children}
+    <label htmlFor={htmlFor} className="mb-1.5 flex items-baseline justify-between gap-2 text-xs font-medium text-foreground">
+      <span>
+        {children}
+        {required && <span className="ml-0.5 text-destructive">*</span>}
+      </span>
+      {hint && <span className="text-[11px] font-normal text-muted-foreground">{hint}</span>}
     </label>
   );
 }
