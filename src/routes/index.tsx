@@ -148,7 +148,7 @@ function LoginPage() {
           </button>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Agentes técnicos não fazem login — acessam via link público enviado por e-mail.
+            Agentes técnicos fazem login com as credenciais recebidas por e-mail.
           </p>
           <p className="mt-2 text-center text-[10px] text-muted-foreground/70">
             Perfis: {Object.values(roleLabels).join(" · ")}
