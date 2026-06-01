@@ -20,12 +20,14 @@ import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
 import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
+import { Route as AppFormsAssistantRouteImport } from './routes/app.forms-assistant'
 import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
@@ -89,6 +91,11 @@ const AppHistoryRoute = AppHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFormsAssistantRoute = AppFormsAssistantRouteImport.update({
+  id: '/forms-assistant',
+  path: '/forms-assistant',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFormsRoute = AppFormsRouteImport.update({
   id: '/forms',
   path: '/forms',
@@ -118,6 +125,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
+  id: '/api/forms-assistant',
+  path: '/api/forms-assistant',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
   id: '/agent/$token',
@@ -160,12 +172,14 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -186,11 +200,13 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -212,12 +228,14 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -240,12 +258,14 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -266,11 +286,13 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -291,12 +313,14 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -318,6 +342,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
+  ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
 }
 
@@ -400,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHistoryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/forms-assistant': {
+      id: '/app/forms-assistant'
+      path: '/forms-assistant'
+      fullPath: '/app/forms-assistant'
+      preLoaderRoute: typeof AppFormsAssistantRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/forms': {
       id: '/app/forms'
       path: '/forms'
@@ -441,6 +473,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/agenda'
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/forms-assistant': {
+      id: '/api/forms-assistant'
+      path: '/api/forms-assistant'
+      fullPath: '/api/forms-assistant'
+      preLoaderRoute: typeof ApiFormsAssistantRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/agent/$token': {
       id: '/agent/$token'
@@ -517,6 +556,7 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
+  AppFormsAssistantRoute: typeof AppFormsAssistantRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMinhasVistoriasRoute: typeof AppMinhasVistoriasRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
@@ -536,6 +576,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
+  AppFormsAssistantRoute: AppFormsAssistantRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMinhasVistoriasRoute: AppMinhasVistoriasRoute,
   AppNewCaseRoute: AppNewCaseRoute,
@@ -555,6 +596,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
+  ApiFormsAssistantRoute: ApiFormsAssistantRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,
 }
 export const routeTree = rootRouteImport
