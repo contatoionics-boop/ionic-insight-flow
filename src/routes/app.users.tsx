@@ -14,11 +14,12 @@ import {
   Label,
 } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
-import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
+import { Plus, KeyRound, Lock, Pencil, Trash2 } from "lucide-react";
 import {
   adminCreateUser,
   adminListUsers,
   adminGenerateRecoveryLink,
+  adminSetPassword,
   adminToggleActive,
   adminUpdateUser,
   adminDeleteUser,
