@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Link2, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Link2, Check, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { criarCasoELink, type LinkMode } from "@/lib/agent-link";
