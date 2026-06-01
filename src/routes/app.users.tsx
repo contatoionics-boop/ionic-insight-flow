@@ -65,6 +65,37 @@ function UsersPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [pwTarget, setPwTarget] = useState<Row | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const openSetPassword = (row: Row) => {
+    setPwTarget(row);
+    setNewPassword("");
+    setPwError(null);
+  };
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pwTarget) return;
+    setPwError(null);
+    if (newPassword.length < 8) {
+      setPwError("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    setPwSubmitting(true);
+    try {
+      await setPasswordFn({ data: { userId: pwTarget.id, password: newPassword } });
+      showToast("Senha definida ✓ — envie ao usuário.");
+      setPwTarget(null);
+      setNewPassword("");
+    } catch (e: any) {
+      setPwError(e?.message ?? "Erro ao definir senha.");
+    } finally {
+      setPwSubmitting(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     setLoading(true);
