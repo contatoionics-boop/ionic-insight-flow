@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Label, Input, Select, Button } from "@/components/ui-bits";
 import { Copy, Check } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarVistoria } from "@/lib/casos.functions";
@@ -142,7 +143,7 @@ function NewCasePage() {
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Data</Label>
-                <Input type="date" value={data} onChange={(e) => setData(e.target.value)} required />
+                <DatePicker value={data} onChange={setData} />
               </div>
               <div>
                 <Label>Hora</Label>

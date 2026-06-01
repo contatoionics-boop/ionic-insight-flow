@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button, Card, Textarea } from "@/components/ui-bits";
+import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
@@ -193,11 +194,9 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "data" && (
-        <input
-          type="date"
-          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+        <DatePicker
           value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
+          onChange={(v: string) => update({ text: v })}
         />
       )}
 
