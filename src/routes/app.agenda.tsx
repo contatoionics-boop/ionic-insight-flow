@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarAgendaAdmin, cancelarVistoria } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, User2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2 } from "lucide-react";
 
 export const Route = createFileRoute("/app/agenda")({
   component: AgendaPage,
