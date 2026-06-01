@@ -2,12 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  Users,
   Building2,
   FolderKanban,
   FileText,
-  Sparkles,
-  Send,
   PlusCircle,
   ListChecks,
   ClipboardCheck,
@@ -15,6 +12,8 @@ import {
   LogOut,
   Menu,
   Settings,
+  CalendarDays,
+  ClipboardList,
   X,
 } from "lucide-react";
 
@@ -29,20 +28,24 @@ const navByRole: Record<Role, NavItem[]> = {
   super_admin: [
     { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/app/clients", label: "Clientes", icon: Building2 },
+    { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/cases", label: "Casos", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
   admin: [
     { to: "/app/clients", label: "Clientes", icon: Building2 },
-    { to: "/app/new-case", label: "Novo caso", icon: PlusCircle },
+    { to: "/app/new-case", label: "Agendar vistoria", icon: PlusCircle },
+    { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
   especialista: [
     { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/history", label: "Histórico", icon: History },
   ],
-  agente_tecnico: [],
+  agente_tecnico: [
+    { to: "/app/minhas-vistorias", label: "Minhas vistorias", icon: ClipboardList },
+  ],
 };
 
 export function AppLayout() {

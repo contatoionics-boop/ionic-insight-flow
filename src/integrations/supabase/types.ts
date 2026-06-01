@@ -16,36 +16,48 @@ export type Database = {
     Tables: {
       casos: {
         Row: {
+          agendado_em: string | null
           agente_id: string | null
           atualizado_em: string
           cliente_id: string
           codigo: string
           criado_em: string
           criado_por: string | null
+          duracao_min: number
+          endereco_vistoria: string | null
           formulario_id: string | null
           id: string
+          observacoes_agendamento: string | null
           status: Database["public"]["Enums"]["caso_status"]
         }
         Insert: {
+          agendado_em?: string | null
           agente_id?: string | null
           atualizado_em?: string
           cliente_id: string
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          duracao_min?: number
+          endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
         }
         Update: {
+          agendado_em?: string | null
           agente_id?: string | null
           atualizado_em?: string
           cliente_id?: string
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          duracao_min?: number
+          endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
         }
         Relationships: [

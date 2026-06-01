@@ -18,15 +18,18 @@ import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
 import { Route as AppPromptsRouteImport } from './routes/app.prompts'
 import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
+import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
+import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
@@ -76,6 +79,11 @@ const AppNewCaseRoute = AppNewCaseRouteImport.update({
   path: '/new-case',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMinhasVistoriasRoute = AppMinhasVistoriasRouteImport.update({
+  id: '/minhas-vistorias',
+  path: '/minhas-vistorias',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHistoryRoute = AppHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -106,6 +114,11 @@ const AppCasesRoute = AppCasesRouteImport.update({
   path: '/cases',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgendaRoute = AppAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AppRoute,
+} as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
   id: '/agent/$token',
   path: '/agent/$token',
@@ -120,6 +133,11 @@ const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
   id: '/preview/forms/$id',
   path: '/preview/forms/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppVistoriaCasoIdRoute = AppVistoriaCasoIdRouteImport.update({
+  id: '/vistoria/$casoId',
+  path: '/vistoria/$casoId',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppReviewIdRoute = AppReviewIdRouteImport.update({
   id: '/review/$id',
@@ -142,12 +160,14 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -155,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -165,11 +186,13 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -177,6 +200,7 @@ export interface FileRoutesByTo {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -188,12 +212,14 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -201,6 +227,7 @@ export interface FileRoutesById {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -213,12 +240,14 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -226,6 +255,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
@@ -236,11 +266,13 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -248,6 +280,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms'
     | '/app/forms/$id/preview'
@@ -258,12 +291,14 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -271,6 +306,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
@@ -350,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNewCaseRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/minhas-vistorias': {
+      id: '/app/minhas-vistorias'
+      path: '/minhas-vistorias'
+      fullPath: '/app/minhas-vistorias'
+      preLoaderRoute: typeof AppMinhasVistoriasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/history': {
       id: '/app/history'
       path: '/history'
@@ -392,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCasesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agenda': {
+      id: '/app/agenda'
+      path: '/agenda'
+      fullPath: '/app/agenda'
+      preLoaderRoute: typeof AppAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/agent/$token': {
       id: '/agent/$token'
       path: '/agent/$token'
@@ -412,6 +462,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/preview/forms/$id'
       preLoaderRoute: typeof PreviewFormsIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/vistoria/$casoId': {
+      id: '/app/vistoria/$casoId'
+      path: '/vistoria/$casoId'
+      fullPath: '/app/vistoria/$casoId'
+      preLoaderRoute: typeof AppVistoriaCasoIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/review/$id': {
       id: '/app/review/$id'
@@ -454,12 +511,14 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAgendaRoute: typeof AppAgendaRoute
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
   AppHistoryRoute: typeof AppHistoryRoute
+  AppMinhasVistoriasRoute: typeof AppMinhasVistoriasRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
   AppOutputsRoute: typeof AppOutputsRoute
   AppPromptsRoute: typeof AppPromptsRoute
@@ -467,15 +526,18 @@ interface AppRouteChildren {
   AppTrackingRoute: typeof AppTrackingRoute
   AppUsersRoute: typeof AppUsersRoute
   AppReviewIdRoute: typeof AppReviewIdRoute
+  AppVistoriaCasoIdRoute: typeof AppVistoriaCasoIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAgendaRoute: AppAgendaRoute,
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
   AppHistoryRoute: AppHistoryRoute,
+  AppMinhasVistoriasRoute: AppMinhasVistoriasRoute,
   AppNewCaseRoute: AppNewCaseRoute,
   AppOutputsRoute: AppOutputsRoute,
   AppPromptsRoute: AppPromptsRoute,
@@ -483,6 +545,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackingRoute: AppTrackingRoute,
   AppUsersRoute: AppUsersRoute,
   AppReviewIdRoute: AppReviewIdRoute,
+  AppVistoriaCasoIdRoute: AppVistoriaCasoIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
