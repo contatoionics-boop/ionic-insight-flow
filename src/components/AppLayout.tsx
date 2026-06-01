@@ -91,11 +91,11 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-sidebar text-sidebar-foreground transition-transform md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col bg-sidebar text-sidebar-foreground transition-transform md:relative md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
           <div className="flex items-center gap-2">
             {config?.logo_url && (
               <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
@@ -110,7 +110,7 @@ export function AppLayout() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex flex-col gap-0.5 px-3 py-4">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
           {nav.map((item) => {
             const active = pathname.startsWith(item.to);
             const Icon = item.icon;
@@ -136,8 +136,29 @@ export function AppLayout() {
             );
           })}
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 border-t border-sidebar-border p-4 text-xs text-sidebar-foreground/60">
-          Ionics · v0.1
+        <div className="shrink-0 border-t border-sidebar-border p-3">
+          <div className="flex items-center gap-3 rounded-md px-2 py-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-sm font-semibold text-sidebar-accent-foreground">
+              {displayName
+                .split(" ")
+                .map((p) => p[0])
+                .filter(Boolean)
+                .slice(0, 2)
+                .join("")
+                .toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</p>
+              <p className="truncate text-xs text-sidebar-foreground/60">{roleLabels[auth.role]}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -151,26 +172,14 @@ export function AppLayout() {
               <h1 className="text-sm font-semibold text-foreground">{nomeEmpresa}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-medium text-foreground">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{roleLabels[auth.role]}</p>
-            </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-              {displayName
-                .split(" ")
-                .map((p) => p[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
-            </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              onClick={toggleTheme}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-muted"
+              aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              title={theme === "dark" ? "Tema claro" : "Tema escuro"}
             >
-              <LogOut className="h-3.5 w-3.5" />
-              Sair
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           </div>
         </header>
