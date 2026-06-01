@@ -557,6 +557,10 @@ export type Database = {
         | "em_analise"
         | "aguardando_revisao"
         | "aprovado"
+        | "agendado"
+        | "em_andamento"
+        | "concluido"
+        | "cancelado"
       pergunta_tipo:
         | "texto"
         | "foto"
@@ -702,6 +706,10 @@ export const Constants = {
         "em_analise",
         "aguardando_revisao",
         "aprovado",
+        "agendado",
+        "em_andamento",
+        "concluido",
+        "cancelado",
       ],
       pergunta_tipo: [
         "texto",
