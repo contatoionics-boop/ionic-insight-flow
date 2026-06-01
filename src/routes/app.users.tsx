@@ -14,11 +14,12 @@ import {
   Label,
 } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
-import { Plus, KeyRound, Pencil, Trash2 } from "lucide-react";
+import { Plus, KeyRound, Lock, Pencil, Trash2 } from "lucide-react";
 import {
   adminCreateUser,
   adminListUsers,
   adminGenerateRecoveryLink,
+  adminSetPassword,
   adminToggleActive,
   adminUpdateUser,
   adminDeleteUser,
@@ -44,6 +45,7 @@ function UsersPage() {
   const listUsers = useServerFn(adminListUsers);
   const createUser = useServerFn(adminCreateUser);
   const generateRecoveryLink = useServerFn(adminGenerateRecoveryLink);
+  const setPasswordFn = useServerFn(adminSetPassword);
   const toggleActive = useServerFn(adminToggleActive);
   const updateUser = useServerFn(adminUpdateUser);
   const deleteUser = useServerFn(adminDeleteUser);
@@ -63,6 +65,37 @@ function UsersPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [pwTarget, setPwTarget] = useState<Row | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const openSetPassword = (row: Row) => {
+    setPwTarget(row);
+    setNewPassword("");
+    setPwError(null);
+  };
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pwTarget) return;
+    setPwError(null);
+    if (newPassword.length < 8) {
+      setPwError("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    setPwSubmitting(true);
+    try {
+      await setPasswordFn({ data: { userId: pwTarget.id, password: newPassword } });
+      showToast("Senha definida ✓ — envie ao usuário.");
+      setPwTarget(null);
+      setNewPassword("");
+    } catch (e: any) {
+      setPwError(e?.message ?? "Erro ao definir senha.");
+    } finally {
+      setPwSubmitting(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -260,6 +293,12 @@ function UsersPage() {
                       <Pencil className="h-3 w-3" /> Editar
                     </button>
                     <button
+                      onClick={() => openSetPassword(u)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <Lock className="h-3 w-3" /> Definir senha
+                    </button>
+                    <button
                       onClick={() => handleReset(u.id)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                     >
@@ -365,6 +404,37 @@ function UsersPage() {
             Excluir
           </Button>
         </div>
+      </Modal>
+
+      <Modal open={!!pwTarget} onClose={() => setPwTarget(null)} title="Definir nova senha">
+        <form onSubmit={handleSetPassword} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Definir uma nova senha para <strong>{pwTarget?.nome || pwTarget?.email}</strong>.
+            Compartilhe a senha por um canal seguro — o usuário poderá alterá-la depois.
+          </p>
+          <div>
+            <Label>Nova senha</Label>
+            <Input
+              type="text"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+            />
+          </div>
+          {pwError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{pwError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPwTarget(null)} disabled={pwSubmitting}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pwSubmitting}>
+              {pwSubmitting ? "Salvando..." : "Salvar senha"}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
