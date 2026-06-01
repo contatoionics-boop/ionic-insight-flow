@@ -26,6 +26,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
@@ -119,6 +120,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
+  id: '/api/forms-assistant',
+  path: '/api/forms-assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
   id: '/agent/$token',
   path: '/agent/$token',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRoute
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
@@ -318,6 +330,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
+  ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
 }
 
@@ -442,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/forms-assistant': {
+      id: '/api/forms-assistant'
+      path: '/api/forms-assistant'
+      fullPath: '/api/forms-assistant'
+      preLoaderRoute: typeof ApiFormsAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agent/$token': {
       id: '/agent/$token'
       path: '/agent/$token'
@@ -555,6 +575,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
+  ApiFormsAssistantRoute: ApiFormsAssistantRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,
 }
 export const routeTree = rootRouteImport
