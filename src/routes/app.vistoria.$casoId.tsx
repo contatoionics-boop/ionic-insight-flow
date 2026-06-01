@@ -236,7 +236,7 @@ function VistoriaPage() {
     return (
       <FormChat
         ctx={ctx}
-        token={ctx.casoId}
+        token="preview"
         state={state}
         setState={setState}
         onAdvanceSection={saveSection}
@@ -250,7 +250,7 @@ function VistoriaPage() {
   return (
     <FormRunner
       ctx={ctx}
-      token={ctx.casoId}
+      token="preview"
       mode="live"
       state={state}
       setState={setState}

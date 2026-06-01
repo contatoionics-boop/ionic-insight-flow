@@ -27,6 +27,7 @@ import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
+import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
@@ -121,6 +122,11 @@ const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
   path: '/preview/forms/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppVistoriaCasoIdRoute = AppVistoriaCasoIdRouteImport.update({
+  id: '/vistoria/$casoId',
+  path: '/vistoria/$casoId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReviewIdRoute = AppReviewIdRouteImport.update({
   id: '/review/$id',
   path: '/review/$id',
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/review/$id': typeof AppReviewIdRoute
+  '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms'
     | '/app/forms/$id/preview'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/app/tracking'
     | '/app/users'
     | '/app/review/$id'
+    | '/app/vistoria/$casoId'
     | '/preview/forms/$id'
     | '/app/forms/'
     | '/app/forms/$id/preview'
@@ -413,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewFormsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/vistoria/$casoId': {
+      id: '/app/vistoria/$casoId'
+      path: '/vistoria/$casoId'
+      fullPath: '/app/vistoria/$casoId'
+      preLoaderRoute: typeof AppVistoriaCasoIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/review/$id': {
       id: '/app/review/$id'
       path: '/review/$id'
@@ -467,6 +486,7 @@ interface AppRouteChildren {
   AppTrackingRoute: typeof AppTrackingRoute
   AppUsersRoute: typeof AppUsersRoute
   AppReviewIdRoute: typeof AppReviewIdRoute
+  AppVistoriaCasoIdRoute: typeof AppVistoriaCasoIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -483,6 +503,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTrackingRoute: AppTrackingRoute,
   AppUsersRoute: AppUsersRoute,
   AppReviewIdRoute: AppReviewIdRoute,
+  AppVistoriaCasoIdRoute: AppVistoriaCasoIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
