@@ -6,11 +6,15 @@ import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { redirect: redirectTo } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -18,14 +22,23 @@ function LoginPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const goAfterLogin = async () => {
+    if (redirectTo && redirectTo.startsWith("/")) {
+      window.location.assign(redirectTo);
+      return;
+    }
+    const { data: roleData } = await supabase.rpc("current_user_role");
+    navigate({ to: routeForRole((roleData as Role | null) ?? null) });
+  };
+
   // Redireciona se já estiver logado
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
-      const { data: roleData } = await supabase.rpc("current_user_role");
-      navigate({ to: routeForRole((roleData as Role | null) ?? null) });
+      await goAfterLogin();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +50,8 @@ function LoginPage() {
       setError(error?.message ?? "Não foi possível entrar.");
       return;
     }
-    const { data: roleData } = await supabase.rpc("current_user_role");
-    const role = (roleData as Role | null) ?? null;
     setLoading(false);
-    navigate({ to: routeForRole(role) });
+    await goAfterLogin();
   };
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -137,7 +148,7 @@ function LoginPage() {
           </button>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Agentes técnicos não fazem login — acessam via link público enviado por e-mail.
+            Agentes técnicos fazem login com as credenciais recebidas por e-mail.
           </p>
           <p className="mt-2 text-center text-[10px] text-muted-foreground/70">
             Perfis: {Object.values(roleLabels).join(" · ")}

@@ -87,9 +87,9 @@ function NewCasePage() {
           mode: linkMode,
         },
       });
-      if (res.token) {
-        const qs = res.mode === "chat" ? "?mode=chat" : "";
-        setLink(`${window.location.origin}/agent/${res.token}${qs}`);
+      if (res.casoId && gerarLink) {
+        const qs = linkMode === "chat" ? "?mode=chat" : "";
+        setLink(`${window.location.origin}/app/vistoria/${res.casoId}${qs}`);
       } else {
         navigate({ to: "/app/agenda" });
       }
@@ -172,7 +172,7 @@ function NewCasePage() {
           <div className="rounded-md border border-border bg-muted/30 p-3">
             <label className="flex items-center gap-2 text-sm font-medium">
               <input type="checkbox" checked={gerarLink} onChange={(e) => setGerarLink(e.target.checked)} />
-              Também gerar link único (vistoriador pode acessar sem login)
+              Também gerar link da vistoria (o vistoriador precisa fazer login)
             </label>
             {gerarLink && (
               <div className="mt-3 grid grid-cols-2 gap-2">

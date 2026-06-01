@@ -59,9 +59,10 @@ export function AppLayout() {
 
   useEffect(() => {
     if (auth.status === "unauthenticated") {
-      navigate({ to: "/" });
+      const target = pathname && pathname !== "/" ? pathname + (window.location.search || "") : undefined;
+      navigate({ to: "/", search: target ? { redirect: target } : undefined });
     }
-  }, [auth.status, navigate]);
+  }, [auth.status, navigate, pathname]);
 
   useEffect(() => {
     setMobileOpen(false);
