@@ -56,6 +56,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { config } = useConfiguracoesEmpresa();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nomeEmpresa = config?.nome_empresa || "Ionics";
