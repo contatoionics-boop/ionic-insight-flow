@@ -11,7 +11,9 @@ import {
   History,
   LogOut,
   Menu,
+  Moon,
   Settings,
+  Sun,
   CalendarDays,
   ClipboardList,
   X,
@@ -20,6 +22,7 @@ import {
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
