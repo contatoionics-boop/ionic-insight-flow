@@ -50,10 +50,8 @@ function LoginPage() {
       setError(error?.message ?? "Não foi possível entrar.");
       return;
     }
-    const { data: roleData } = await supabase.rpc("current_user_role");
-    const role = (roleData as Role | null) ?? null;
     setLoading(false);
-    navigate({ to: routeForRole(role) });
+    await goAfterLogin();
   };
 
   const handleForgot = async (e: React.FormEvent) => {
