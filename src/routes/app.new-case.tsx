@@ -87,9 +87,9 @@ function NewCasePage() {
           mode: linkMode,
         },
       });
-      if (res.token) {
-        const qs = res.mode === "chat" ? "?mode=chat" : "";
-        setLink(`${window.location.origin}/agent/${res.token}${qs}`);
+      if (res.casoId && gerarLink) {
+        const qs = linkMode === "chat" ? "?mode=chat" : "";
+        setLink(`${window.location.origin}/app/vistoria/${res.casoId}${qs}`);
       } else {
         navigate({ to: "/app/agenda" });
       }
