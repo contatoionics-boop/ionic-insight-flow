@@ -10,6 +10,7 @@ import { createFormFromDraft } from "@/lib/form-assistant.functions";
 import { draftSchema, type FormDraft } from "@/lib/form-assistant-schema";
 
 export const Route = createFileRoute("/app/forms-assistant")({
+  ssr: false,
   component: FormAssistantPage,
 });
 
