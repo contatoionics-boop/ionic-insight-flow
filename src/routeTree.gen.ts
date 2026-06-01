@@ -20,6 +20,7 @@ import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
 import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
+import { Route as AppFormsAssistantRouteImport } from './routes/app.forms-assistant'
 import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
@@ -88,6 +89,11 @@ const AppMinhasVistoriasRoute = AppMinhasVistoriasRouteImport.update({
 const AppHistoryRoute = AppHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsAssistantRoute = AppFormsAssistantRouteImport.update({
+  id: '/forms-assistant',
+  path: '/forms-assistant',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFormsRoute = AppFormsRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/app/clients': typeof AppClientsRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
+  '/app/forms-assistant': typeof AppFormsAssistantRoute
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms'
+    | '/app/forms-assistant'
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
@@ -411,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/app/history'
       preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/forms-assistant': {
+      id: '/app/forms-assistant'
+      path: '/forms-assistant'
+      fullPath: '/app/forms-assistant'
+      preLoaderRoute: typeof AppFormsAssistantRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/forms': {
@@ -537,6 +556,7 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
+  AppFormsAssistantRoute: typeof AppFormsAssistantRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMinhasVistoriasRoute: typeof AppMinhasVistoriasRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
@@ -556,6 +576,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
+  AppFormsAssistantRoute: AppFormsAssistantRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMinhasVistoriasRoute: AppMinhasVistoriasRoute,
   AppNewCaseRoute: AppNewCaseRoute,
@@ -581,13 +602,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
