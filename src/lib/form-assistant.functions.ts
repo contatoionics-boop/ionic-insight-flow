@@ -9,7 +9,7 @@ const inputSchema = z.object({
   cliente_id: z.string().uuid().nullable().optional(),
 });
 
-async function assertAdmin(supabase: ReturnType<typeof supabaseAdmin.auth.admin.listUsers> extends unknown ? any : any, userId: string) {
+async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
