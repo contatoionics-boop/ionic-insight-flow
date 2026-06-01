@@ -48,7 +48,7 @@ function MinhasVistoriasPage() {
 
   const agora = Date.now();
   const pendentes = rows.filter(
-    (r) => (r.status === "agendado" || r.status === "em_andamento" || r.status === "rascunho") && r.status !== "cancelado",
+    (r) => r.status === "agendado" || r.status === "em_andamento" || r.status === "rascunho",
   );
   const concluidas = rows.filter((r) => ["aguardando_revisao", "aprovado", "concluido"].includes(r.status));
   const futuras = pendentes

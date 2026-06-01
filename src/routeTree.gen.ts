@@ -18,6 +18,7 @@ import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
 import { Route as AppPromptsRouteImport } from './routes/app.prompts'
 import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
+import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
@@ -75,6 +76,11 @@ const AppOutputsRoute = AppOutputsRouteImport.update({
 const AppNewCaseRoute = AppNewCaseRouteImport.update({
   id: '/new-case',
   path: '/new-case',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMinhasVistoriasRoute = AppMinhasVistoriasRouteImport.update({
+  id: '/minhas-vistorias',
+  path: '/minhas-vistorias',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHistoryRoute = AppHistoryRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
   '/app/history': typeof AppHistoryRoute
+  '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/forms'
     | '/app/history'
+    | '/app/minhas-vistorias'
     | '/app/new-case'
     | '/app/outputs'
     | '/app/prompts'
@@ -360,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/new-case'
       fullPath: '/app/new-case'
       preLoaderRoute: typeof AppNewCaseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/minhas-vistorias': {
+      id: '/app/minhas-vistorias'
+      path: '/minhas-vistorias'
+      fullPath: '/app/minhas-vistorias'
+      preLoaderRoute: typeof AppMinhasVistoriasRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/history': {
@@ -479,6 +498,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
   AppHistoryRoute: typeof AppHistoryRoute
+  AppMinhasVistoriasRoute: typeof AppMinhasVistoriasRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
   AppOutputsRoute: typeof AppOutputsRoute
   AppPromptsRoute: typeof AppPromptsRoute
@@ -496,6 +516,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
   AppHistoryRoute: AppHistoryRoute,
+  AppMinhasVistoriasRoute: AppMinhasVistoriasRoute,
   AppNewCaseRoute: AppNewCaseRoute,
   AppOutputsRoute: AppOutputsRoute,
   AppPromptsRoute: AppPromptsRoute,
