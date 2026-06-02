@@ -1,57 +1,34 @@
-## Objetivo
+# Renomear "Casos" → "Vistorias" e permitir ver/aprovar o andamento
 
-Polimento visual rápido e de baixo risco nos formulários e na navegação, mantendo a stack atual (shadcn + Tailwind + tokens do sistema). Sem adotar `@base-ui/react`, sem gradient menu, sem refator estrutural.
+## 1. Renomear no sidebar e na página
+- `src/components/AppLayout.tsx`: trocar label `"Casos"` por `"Vistorias"` no item `/app/cases` (super_admin).
+- `src/routes/app.cases.tsx`: `PageHeader` passa a `title="Vistorias"` e `description="Todas as vistorias da plataforma."`; mensagens vazias/loading usam "vistoria".
+- Manter a rota `/app/cases` (apenas o label muda).
 
-## Por que NÃO usar o Base UI Field
+## 2. Linhas da tabela clicáveis
+Em `app.cases.tsx`, cada `<tr>` ganha `hover:bg-muted/50 cursor-pointer` e `onClick` que navega para `/app/vistorias/$id` via `useNavigate`.
 
-Já existe `src/components/ui/form.tsx` (shadcn `Form` + `FormField` + `FormLabel` + `FormMessage`) e `src/components/ui-bits.tsx`. Trazer `@base-ui/react` duplicaria primitivos, exigiria reescrever todos os formulários e abriria espaço para regressão visual (ex.: `text-destructive-foreground` no snippet é a cor do texto **sobre** destructive, não a cor do erro). O mesmo resultado de UX é alcançável padronizando o que já temos.
+## 3. Nova rota: detalhes da vistoria
+Criar `src/routes/app.vistorias.$id.tsx` para admin/super_admin verem o andamento e o que já foi respondido.
 
-## Escopo
+Conteúdo:
+- **Cabeçalho**: código, status (badge), cliente, agente, formulário, agendado_em, endereço, observações, criado_em.
+- **Progresso**: `respondidas / total_perguntas` com `Progress`.
+- **Respostas por seção/pergunta**: lista `secoes` → `perguntas` do `formulario_id` ordenadas; para cada pergunta mostra texto/tipo/obrigatória + resposta de `respostas_agente` (`valor_texto`, transcrição, preview de `arquivo_path` via signed URL do bucket `agente-uploads`, badge `ia_aprovado`/`ia_motivo`), ou estado "Sem resposta" (mostra onde a vistoria parou).
+- **Ações**: "Voltar" → `/app/cases`. Se o usuário for **super_admin** e o status estiver em revisão/aprovado, link "Abrir na revisão" → `/app/review/$id` para edição/aprovação (admin comum não tem acesso a essa fila).
 
-1. **Tokens de formulário em `src/styles.css`**
-   - Revisar `--ring`, `--input`, `--border`, `--destructive` para foco mais visível e erro com contraste correto em light/dark.
-   - Adicionar `--field-gap` e `--field-radius` para consistência.
+## 4. Acesso de super_admin ao fluxo de revisão
+Hoje `/app/review/$id` e `/app/review-queue` são usadas pelo especialista e as RLS de `casos` para UPDATE em status de revisão exigem `has_role('especialista')`. Para o super_admin também poder editar/aprovar pelo mesmo fluxo:
+- Migration adicionando policy `casos super admin select revisao`/`update revisao` já é coberta pela policy existente `casos super admin all` (super_admin já pode tudo), então **não há mudança de RLS necessária**.
+- O mesmo vale para `respostas_agente` (já tem `respostas super admin all`).
+- Apenas garantir no componente `ReviewCasePage` que super_admin não é bloqueado (hoje carrega via `supabase.from("casos")` direto, sem checar role — funciona). E exibir o link "Abrir na revisão" do passo 3 quando `role === "super_admin"`.
 
-2. **Padronizar primitivos** (`src/components/ui/input.tsx`, `textarea.tsx`, `select.tsx`, `label.tsx`)
-   - Altura, padding e raio iguais entre Input/Textarea/Select/DatePicker.
-   - Estado de foco com `ring-2 ring-ring/40` consistente.
-   - Estado `aria-invalid` com borda destructive + mensagem padronizada.
-   - Placeholder com cor `muted-foreground` em todos.
-
-3. **`ui-bits.tsx`** (usado pelo app)
-   - Alinhar `Input/Select/Textarea/Label` com os primitivos shadcn (mesmo tamanho, foco, erro).
-   - `Label` ganha suporte a `required` (asterisco discreto) e `hint`.
-   - `Modal` com largura responsiva, sticky footer opcional e fechamento por ESC.
-
-4. **FormRunner / FormChat / FormFields** (vistoriador)
-   - Hierarquia: título da seção + descrição + progresso (já existe) com mais respiro.
-   - Cada pergunta vira um bloco com label forte, descrição, controle e mensagem de validação no mesmo padrão.
-   - Estados de áudio/foto/IA com badges e ícones consistentes (success/warning/destructive já existentes).
-   - Botões de navegação fixos no rodapé em mobile (sticky), com loading state claro.
-
-5. **Formulários internos** (`app.new-case.tsx`, `app.clients.tsx`, `app.configuracoes.tsx`, `app.users.tsx`, builder em `app.forms.*`)
-   - Aplicar o mesmo padrão de Label/Input/erro.
-   - Agrupar campos relacionados com espaçamento consistente (`space-y-4` em grupos, `space-y-6` entre grupos).
-   - Botões primários/secundários alinhados à direita com ordem consistente (Cancelar → Salvar).
-
-6. **AppLayout (sidebar atual — só polir)**
-   - Densidade: padding vertical dos itens uniforme.
-   - Item ativo com contraste melhor (fundo `accent` + texto `accent-foreground`).
-   - Hover sutil, ícones com tamanho fixo, divisores de grupo mais discretos.
-   - Header com altura consistente e breadcrumbs/título com hierarquia clara.
-   - Sem trocar componente, sem mexer em rotas.
+## 5. Detalhes técnicos
+- Rota TanStack: `createFileRoute("/app/vistorias/$id")` com `errorComponent` e `notFoundComponent`.
+- Carregamento paralelo via Supabase browser client: caso + joins, secoes/perguntas/opcoes do `formulario_id`, respostas_agente por `caso_id`. RLS atual já cobre admin (próprios casos) e super_admin (tudo).
+- Signed URLs para arquivos privados: `supabase.storage.from("agente-uploads").createSignedUrl(path, 3600)`.
 
 ## Fora de escopo
-
-- Adotar `@base-ui/react` ou refatorar para `Field` primitives.
-- Gradient menu.
-- Mudanças de layout estrutural (grid, sidebar collapsível nova, etc.).
-- Mudanças de comportamento, validação ou regra de negócio.
-
-## Riscos
-
-Baixos. Mudanças concentradas em CSS, props visuais e composição de classes. Sem mexer em loaders, server functions, schemas ou navegação.
-
-## Entrega
-
-Tudo em frontend, mantendo as cores e tokens já definidos em `src/styles.css`.
+- Mudanças no fluxo do especialista além de permitir reuso por super_admin.
+- Renomear a rota `/app/cases` (só o label muda).
+- Polimento visual além do hover clicável da tabela.
