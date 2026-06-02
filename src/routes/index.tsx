@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 
 import { roleLabels, routeForRole, type Role } from "@/lib/auth";
 import { Button, Input, Label } from "@/components/ui-bits";
@@ -21,6 +22,7 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const goAfterLogin = async () => {
     if (redirectTo && redirectTo.startsWith("/")) {
@@ -31,7 +33,6 @@ function LoginPage() {
     navigate({ to: routeForRole((roleData as Role | null) ?? null) });
   };
 
-  // Redireciona se já estiver logado
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return;
@@ -51,7 +52,11 @@ function LoginPage() {
       return;
     }
     setLoading(false);
-    await goAfterLogin();
+    setSuccess(true);
+    // Aguarda a animação concluir antes de redirecionar
+    setTimeout(() => {
+      goAfterLogin();
+    }, 1100);
   };
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -71,23 +76,70 @@ function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-screen md:grid-cols-2">
-      <div className="relative hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
-        <span className="text-2xl font-bold tracking-tight text-sidebar-foreground">Ionics</span>
-        <div>
-          <h2 className="text-3xl font-semibold leading-tight">Ionics</h2>
-          <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">Ionics</p>
+    <div className="relative grid min-h-screen overflow-hidden md:grid-cols-2">
+      {/* Painel lateral de marca */}
+      <div
+        className={`relative z-20 hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground transition-all duration-[900ms] ease-in-out md:flex ${
+          success ? "md:col-span-2" : ""
+        }`}
+      >
+        {/* Glow decorativo */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary/20 blur-3xl transition-all duration-[900ms] ease-in-out ${
+            success ? "scale-150 opacity-100" : "opacity-60"
+          }`}
+        />
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl transition-all duration-[900ms] ease-in-out ${
+            success ? "scale-150 opacity-100" : "opacity-50"
+          }`}
+        />
+
+        <span className="relative text-2xl font-bold tracking-tight text-sidebar-foreground">
+          IONICS
+        </span>
+
+        <div
+          className={`relative transition-all duration-[900ms] ease-in-out ${
+            success ? "translate-x-8 opacity-0" : "translate-x-0 opacity-100"
+          }`}
+        >
+          <h2 className="text-3xl font-semibold leading-tight">Portal de Inspeções IONICS</h2>
+          <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">
+            Acesse sua conta para registrar e acompanhar as inspeções técnicas de campo.
+          </p>
         </div>
-        <p className="text-xs text-sidebar-foreground/50">© 2026 Ionics</p>
+
+        {/* Mensagem de sucesso que aparece centralizada quando autenticado */}
+        <div
+          className={`pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 transition-all duration-[700ms] ease-out ${
+            success ? "translate-y-0 opacity-100 delay-300" : "translate-y-4 opacity-0"
+          }`}
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 ring-1 ring-primary/40">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-lg font-semibold">Bem-vindo de volta</p>
+          <p className="text-sm text-sidebar-foreground/70">Entrando na plataforma...</p>
+        </div>
+
+        <p className="relative text-xs text-sidebar-foreground/50">© 2026 IONICS</p>
       </div>
 
-      <div className="flex items-center justify-center bg-background p-6">
+      {/* Painel do formulário */}
+      <div
+        className={`relative z-10 flex items-center justify-center bg-background p-6 transition-all duration-[900ms] ease-in-out ${
+          success ? "translate-x-full opacity-0" : "translate-x-0 opacity-100"
+        }`}
+      >
         <form
           onSubmit={mode === "login" ? handleLogin : handleForgot}
           className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm"
         >
           <div className="mb-6 flex justify-center md:hidden">
-            <span className="text-2xl font-bold tracking-tight text-primary">Ionics</span>
+            <span className="text-2xl font-bold tracking-tight text-primary">IONICS</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground">
             {mode === "login" ? "Entrar na plataforma" : "Redefinir senha"}
@@ -131,7 +183,7 @@ function LoginPage() {
             )}
           </div>
 
-          <Button type="submit" className="mt-6 w-full" disabled={loading}>
+          <Button type="submit" className="mt-6 w-full" disabled={loading || success}>
             {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Enviar link"}
           </Button>
 
