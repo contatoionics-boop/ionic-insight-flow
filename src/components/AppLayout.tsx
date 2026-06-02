@@ -33,7 +33,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/clients", label: "Clientes", icon: Building2 },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/new-case", label: "Agendar vistoria", icon: PlusCircle },
-    { to: "/app/cases", label: "Casos", icon: FolderKanban },
+    { to: "/app/cases", label: "Vistorias", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
