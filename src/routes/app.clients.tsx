@@ -197,8 +197,8 @@ function ClientsPage() {
                 <Td>{e.unidades_count ?? 0}</Td>
                 <Td>{new Date(e.criado_em).toLocaleDateString("pt-BR")}</Td>
                 {canWrite && (
-                  <Td onClick={(ev) => ev.stopPropagation()}>
-                    <div className="flex gap-2">
+                  <Td>
+                    <div className="flex gap-2" onClick={(ev) => ev.stopPropagation()}>
                       <button
                         onClick={() => openEdit(e)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
