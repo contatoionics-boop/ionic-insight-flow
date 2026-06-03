@@ -27,7 +27,7 @@ type Caso = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   formulario_id: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
 };
@@ -84,7 +84,7 @@ function VistoriaDetalhesPage() {
       const { data: casoData } = await supabase
         .from("casos")
         .select(
-          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, cliente:clientes(nome), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -204,7 +204,7 @@ function VistoriaDetalhesPage() {
 
       <PageHeader
         title={`Mapeamento ${caso.codigo}`}
-        description={caso.cliente?.nome ?? undefined}
+        description={caso.unidade?.matriz?.empresa?.nome ?? undefined}
         actions={
           podeAbrirRevisao ? (
             <Link to="/app/review/$id" params={{ id: caso.id }}>
@@ -223,7 +223,8 @@ function VistoriaDetalhesPage() {
           <span className="text-xs text-muted-foreground">Criado em {fmtData(caso.criado_em)}</span>
         </div>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <Info icon={Building2} label="Cliente" value={caso.cliente?.nome ?? "—"} />
+          <Info icon={Building2} label="Empresa" value={caso.unidade?.matriz?.empresa?.nome ?? "—"} />
+          <Info icon={Building2} label="Unidade" value={caso.unidade?.nome ?? "—"} />
           <Info icon={User} label="Agente" value={caso.agente?.nome ?? "—"} />
           <Info icon={FileText} label="Formulário" value={caso.formulario?.nome ?? "—"} />
           <Info

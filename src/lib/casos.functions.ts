@@ -60,7 +60,7 @@ async function checarConflito(opts: {
 }
 
 const AgendarInput = z.object({
-  clienteId: z.string().uuid(),
+  unidadeId: z.string().uuid(),
   formId: z.string().uuid(),
   agenteId: z.string().uuid(),
   agendadoEm: z.string().min(1),
@@ -85,7 +85,7 @@ export const agendarVistoria = createServerFn({ method: "POST" })
     const { data: caso, error } = await supabaseAdmin
       .from("casos")
       .insert({
-        cliente_id: data.clienteId,
+        unidade_id: data.unidadeId,
         formulario_id: data.formId,
         agente_id: data.agenteId,
         criado_por: context.userId,
@@ -176,7 +176,7 @@ export const listarMinhasVistorias = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, cliente:clientes(nome), formulario:formularios(nome)",
+        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), formulario:formularios(nome)",
       )
       .eq("agente_id", context.userId)
       .order("agendado_em", { ascending: true, nullsFirst: false });
@@ -233,7 +233,7 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("casos")
       .select(
-        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, cliente:clientes(nome), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
       )
       .not("agendado_em", "is", null)
       .gte("agendado_em", data.inicio)

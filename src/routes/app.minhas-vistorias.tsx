@@ -18,7 +18,7 @@ type Vistoria = {
   duracao_min: number | null;
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   formulario: { nome: string } | null;
 };
 
@@ -145,7 +145,7 @@ function VistoriaCard({ v }: { v: Vistoria }) {
           <span className="font-mono text-xs text-muted-foreground">{v.codigo}</span>
           <Badge className={statusTones[v.status]}>{statusLabels[v.status]}</Badge>
         </div>
-        <p className="mt-1 text-base font-semibold text-foreground">{v.cliente?.nome ?? "—"}</p>
+        <p className="mt-1 text-base font-semibold text-foreground">{v.unidade?.matriz?.empresa?.nome ?? "—"}{v.unidade?.nome ? <span className="ml-1 text-sm font-normal text-muted-foreground">· {v.unidade.nome}</span> : null}</p>
         <p className="text-sm text-muted-foreground">{v.formulario?.nome ?? "—"}</p>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {fmtData(v.agendado_em)}{v.duracao_min ? ` · ${v.duracao_min} min` : ""}</span>

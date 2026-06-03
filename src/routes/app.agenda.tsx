@@ -20,7 +20,7 @@ type Evento = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   agente_id: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
 };
@@ -144,7 +144,7 @@ function AgendaPage() {
                       onClick={() => setSel(e)}
                       className="block w-full truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
                     >
-                      {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.cliente?.nome ?? ""}
+                      {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
                     </button>
                   ))}
                   {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3}</div>}
@@ -164,7 +164,7 @@ function AgendaPage() {
                 <span className="font-mono text-xs text-muted-foreground">{sel.codigo}</span>
                 <Badge className={statusTones[sel.status]}>{statusLabels[sel.status]}</Badge>
               </div>
-              <h3 className="mt-2 text-lg font-semibold">{sel.cliente?.nome}</h3>
+              <h3 className="mt-2 text-lg font-semibold">{sel.unidade?.matriz?.empresa?.nome}{sel.unidade?.nome ? <span className="ml-1 text-sm font-normal text-muted-foreground">· {sel.unidade.nome}</span> : null}</h3>
               <p className="text-sm text-muted-foreground">{sel.formulario?.nome}</p>
               <div className="mt-3 space-y-1 text-sm">
                 <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {new Date(sel.agendado_em).toLocaleString("pt-BR")} · {sel.duracao_min} min</p>

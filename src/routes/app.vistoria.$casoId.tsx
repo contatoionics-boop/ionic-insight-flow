@@ -41,7 +41,7 @@ function VistoriaPage() {
       try {
         const { data: caso, error: cErr } = await supabase
           .from("casos")
-          .select("id, formulario_id, cliente:clientes(nome)")
+          .select("id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome)))")
           .eq("id", casoId)
           .maybeSingle();
         if (cErr) throw cErr;
@@ -121,7 +121,7 @@ function VistoriaPage() {
 
         setCtx({
           casoId: caso.id,
-          clienteNome: caso.cliente?.nome ?? "",
+          clienteNome: (caso as any).unidade?.matriz?.empresa?.nome ?? "",
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,

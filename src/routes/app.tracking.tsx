@@ -14,7 +14,7 @@ type Caso = {
   codigo: string;
   status: CaseStatus;
   criado_em: string;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
 };
 
@@ -28,7 +28,7 @@ function TrackingPage() {
     (async () => {
       const { data } = await supabase
         .from("casos")
-        .select("id, codigo, status, criado_em, cliente:clientes(nome), agente:profiles!agente_id(nome)")
+        .select("id, codigo, status, criado_em, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
         .eq("criado_por", userId)
         .order("criado_em", { ascending: false });
       setRows((data ?? []) as unknown as Caso[]);
@@ -61,7 +61,7 @@ function TrackingPage() {
             rows.map((c) => (
               <tr key={c.id}>
                 <Td className="font-mono text-xs">{c.codigo}</Td>
-                <Td className="font-medium">{c.cliente?.nome ?? "—"}</Td>
+                <Td className="font-medium">{c.unidade?.matriz?.empresa?.nome ?? "—"}{c.unidade?.nome ? <span className="ml-1 text-xs text-muted-foreground">· {c.unidade.nome}</span> : null}</Td>
                 <Td>{c.agente?.nome ?? "—"}</Td>
                 <Td><Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge></Td>
                 <Td>{new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>

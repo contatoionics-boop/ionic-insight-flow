@@ -34,7 +34,7 @@ function FullscreenPreviewPage() {
       try {
         const { data: f, error: fErr } = await supabase
           .from("formularios")
-          .select("nome, cliente:clientes(nome)")
+          .select("nome, empresa:empresas(nome)")
           .eq("id", id)
           .single();
         if (fErr) throw fErr;
@@ -85,7 +85,7 @@ function FullscreenPreviewPage() {
 
         setCtx({
           casoId: "preview",
-          clienteNome: (f as any).cliente?.nome ?? "Preview",
+          clienteNome: (f as any).empresa?.nome ?? "Preview",
           formularioNome: f.nome,
           secoes,
           perguntasPorSecao,
