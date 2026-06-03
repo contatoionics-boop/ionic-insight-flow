@@ -310,7 +310,7 @@ function UsersPage() {
             <Label>Perfil</Label>
             <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
               <option value="super_admin">Super Admin</option>
-              <option value="admin">Admin Comercial</option>
+              <option value="admin">IAN</option>
               <option value="especialista">Especialista</option>
               <option value="agente_tecnico">Agente Técnico</option>
             </Select>
