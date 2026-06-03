@@ -27,7 +27,7 @@ type Caso = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   formulario_id: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
 };
@@ -84,7 +84,7 @@ function VistoriaDetalhesPage() {
       const { data: casoData } = await supabase
         .from("casos")
         .select(
-          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, cliente:clientes(nome), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
         )
         .eq("id", id)
         .maybeSingle();

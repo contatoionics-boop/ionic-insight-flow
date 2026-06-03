@@ -25,7 +25,7 @@ function FormPreviewPage() {
       try {
         const { data: f, error: fErr } = await supabase
           .from("formularios")
-          .select("nome, cliente:clientes(nome)")
+          .select("nome, empresa:empresas(nome)")
           .eq("id", id)
           .single();
         if (fErr) throw fErr;
@@ -76,7 +76,7 @@ function FormPreviewPage() {
 
         setCtx({
           casoId: "preview",
-          clienteNome: (f as any).cliente?.nome ?? "",
+          clienteNome: (f as any).empresa?.nome ?? "",
           formularioNome: f.nome,
           secoes,
           perguntasPorSecao,

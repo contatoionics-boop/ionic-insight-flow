@@ -13,7 +13,7 @@ type Recent = {
   codigo: string;
   status: CaseStatus;
   criado_em: string;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
 };
 
 function DashboardPage() {
@@ -26,7 +26,7 @@ function DashboardPage() {
       const [{ data: casos }, agentes] = await Promise.all([
         supabase
           .from("casos")
-          .select("id, codigo, status, criado_em, cliente:clientes(nome)")
+          .select("id, codigo, status, criado_em, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome)))")
           .order("criado_em", { ascending: false }),
         supabase.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role", "agente_tecnico"),
       ]);

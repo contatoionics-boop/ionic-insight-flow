@@ -18,7 +18,7 @@ type Vistoria = {
   duracao_min: number | null;
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   formulario: { nome: string } | null;
 };
 

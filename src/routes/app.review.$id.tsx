@@ -12,7 +12,7 @@ type Caso = {
   id: string;
   codigo: string;
   status: string;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
 };
 
@@ -30,7 +30,7 @@ function ReviewCasePage() {
     (async () => {
       const { data } = await supabase
         .from("casos")
-        .select("id, codigo, status, cliente:clientes(nome), agente:profiles!agente_id(nome)")
+        .select("id, codigo, status, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
         .eq("id", id)
         .maybeSingle();
       setCaseData((data as unknown as Caso) ?? null);
@@ -78,7 +78,7 @@ function ReviewCasePage() {
 
       <PageHeader
         title={`Revisão ${caseData.codigo}`}
-        description={`${caseData.cliente?.nome ?? "—"} · Agente ${caseData.agente?.nome ?? "—"}`}
+        description={`${caseData.unidade?.matriz?.empresa?.nome ?? "—"}${caseData.unidade?.nome ? ` · ${caseData.unidade.nome}` : ""} · Agente ${caseData.agente?.nome ?? "—"}`}
         actions={
           <>
             <Button variant="outline" onClick={() => setReopenOpen(true)}>

@@ -20,7 +20,7 @@ type Evento = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   agente_id: string | null;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
 };
