@@ -13,7 +13,7 @@ type Caso = {
   codigo: string;
   status: CaseStatus;
   criado_em: string;
-  cliente: { nome: string } | null;
+  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
 };
 
@@ -26,7 +26,7 @@ function CasesPage() {
     (async () => {
       const { data } = await supabase
         .from("casos")
-        .select("id, codigo, status, criado_em, cliente:clientes(nome), agente:profiles!agente_id(nome)")
+        .select("id, codigo, status, criado_em, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
         .order("criado_em", { ascending: false });
       setRows((data ?? []) as unknown as Caso[]);
       setLoading(false);
