@@ -19,7 +19,6 @@ export type Database = {
           agendado_em: string | null
           agente_id: string | null
           atualizado_em: string
-          cliente_id: string
           codigo: string
           criado_em: string
           criado_por: string | null
@@ -29,12 +28,12 @@ export type Database = {
           id: string
           observacoes_agendamento: string | null
           status: Database["public"]["Enums"]["caso_status"]
+          unidade_id: string
         }
         Insert: {
           agendado_em?: string | null
           agente_id?: string | null
           atualizado_em?: string
-          cliente_id: string
           codigo?: string
           criado_em?: string
           criado_por?: string | null
@@ -44,12 +43,12 @@ export type Database = {
           id?: string
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
+          unidade_id: string
         }
         Update: {
           agendado_em?: string | null
           agente_id?: string | null
           atualizado_em?: string
-          cliente_id?: string
           codigo?: string
           criado_em?: string
           criado_por?: string | null
@@ -59,6 +58,7 @@ export type Database = {
           id?: string
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
+          unidade_id?: string
         }
         Relationships: [
           {
@@ -66,13 +66,6 @@ export type Database = {
             columns: ["agente_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "casos_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
@@ -89,63 +82,11 @@ export type Database = {
             referencedRelation: "formularios"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      clientes: {
-        Row: {
-          bairro: string | null
-          cep: string | null
-          cidade: string | null
-          cnpj: string | null
-          criado_em: string
-          criado_por: string | null
-          email: string | null
-          estado: string | null
-          id: string
-          logradouro: string | null
-          nome: string
-          nome_fantasia: string | null
-          numero: string | null
-          telefone: string | null
-        }
-        Insert: {
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          cnpj?: string | null
-          criado_em?: string
-          criado_por?: string | null
-          email?: string | null
-          estado?: string | null
-          id?: string
-          logradouro?: string | null
-          nome: string
-          nome_fantasia?: string | null
-          numero?: string | null
-          telefone?: string | null
-        }
-        Update: {
-          bairro?: string | null
-          cep?: string | null
-          cidade?: string | null
-          cnpj?: string | null
-          criado_em?: string
-          criado_por?: string | null
-          email?: string | null
-          estado?: string | null
-          id?: string
-          logradouro?: string | null
-          nome?: string
-          nome_fantasia?: string | null
-          numero?: string | null
-          telefone?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "clientes_criado_por_fkey"
-            columns: ["criado_por"]
+            foreignKeyName: "casos_unidade_id_fkey"
+            columns: ["unidade_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "unidades"
             referencedColumns: ["id"]
           },
         ]
@@ -222,42 +163,56 @@ export type Database = {
         }
         Relationships: []
       }
+      empresas: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       formularios: {
         Row: {
           ativo: boolean
-          cliente_id: string | null
           criado_em: string
           criado_por: string | null
           descricao: string | null
+          empresa_id: string | null
           id: string
           nome: string
         }
         Insert: {
           ativo?: boolean
-          cliente_id?: string | null
           criado_em?: string
           criado_por?: string | null
           descricao?: string | null
+          empresa_id?: string | null
           id?: string
           nome: string
         }
         Update: {
           ativo?: boolean
-          cliente_id?: string | null
           criado_em?: string
           criado_por?: string | null
           descricao?: string | null
+          empresa_id?: string | null
           id?: string
           nome?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "formularios_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "formularios_criado_por_fkey"
             columns: ["criado_por"]
@@ -298,6 +253,68 @@ export type Database = {
             columns: ["caso_id"]
             isOneToOne: false
             referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matrizes: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          criado_em: string
+          criado_por: string | null
+          email: string | null
+          empresa_id: string
+          estado: string | null
+          id: string
+          logradouro: string | null
+          nome: string
+          numero: string | null
+          razao_social: string | null
+          telefone: string | null
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          empresa_id: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          nome: string
+          numero?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          empresa_id?: string
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          nome?: string
+          numero?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matrizes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]
@@ -517,6 +534,62 @@ export type Database = {
             columns: ["formulario_id"]
             isOneToOne: false
             referencedRelation: "formularios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unidades: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          criado_em: string
+          criado_por: string | null
+          email: string | null
+          estado: string | null
+          id: string
+          logradouro: string | null
+          matriz_id: string
+          nome: string
+          numero: string | null
+          telefone: string | null
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          matriz_id: string
+          nome: string
+          numero?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          logradouro?: string | null
+          matriz_id?: string
+          nome?: string
+          numero?: string | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidades_matriz_id_fkey"
+            columns: ["matriz_id"]
+            isOneToOne: false
+            referencedRelation: "matrizes"
             referencedColumns: ["id"]
           },
         ]
