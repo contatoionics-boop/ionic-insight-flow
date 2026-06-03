@@ -265,7 +265,7 @@ function FormBuilderPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">{form.nome}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {form.cliente?.nome ? `Cliente: ${form.cliente.nome}` : "Template (sem cliente)"}
+            {form.empresa?.nome ? `Empresa: ${form.empresa.nome}` : "Template (sem empresa)"}
             {form.descricao ? ` · ${form.descricao}` : ""}
           </p>
         </div>
