@@ -6,7 +6,7 @@ import { draftSchema, type FormDraft } from "./form-assistant-schema";
 
 const inputSchema = z.object({
   draft: draftSchema,
-  cliente_id: z.string().uuid().nullable().optional(),
+  empresa_id: z.string().uuid().nullable().optional(),
 });
 
 async function assertAdmin(userId: string) {
@@ -35,7 +35,7 @@ export const createFormFromDraft = createServerFn({ method: "POST" })
       .insert({
         nome: draft.nome,
         descricao: draft.descricao ?? null,
-        cliente_id: data.cliente_id ?? null,
+        empresa_id: data.empresa_id ?? null,
         criado_por: userId,
         ativo: true,
       })

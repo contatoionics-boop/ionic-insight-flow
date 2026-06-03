@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type LinkMode = "stepper" | "chat";
 
 export async function criarCasoELink(opts: {
-  clienteId: string;
+  unidadeId: string;
   formId: string;
   agenteId: string;
   userId: string;
@@ -12,7 +12,7 @@ export async function criarCasoELink(opts: {
   const { data: caso, error: casoErr } = await supabase
     .from("casos")
     .insert({
-      cliente_id: opts.clienteId,
+      unidade_id: opts.unidadeId,
       formulario_id: opts.formId,
       agente_id: opts.agenteId,
       criado_por: opts.userId,
