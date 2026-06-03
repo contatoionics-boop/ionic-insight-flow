@@ -66,7 +66,7 @@ function DashboardPage() {
                 <li key={c.id} className="flex items-center justify-between py-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {c.codigo} · {c.cliente?.nome ?? "—"}
+                      {c.codigo} · {c.unidade?.matriz?.empresa?.nome ?? "—"}{c.unidade?.nome ? ` · ${c.unidade.nome}` : ""}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(c.criado_em).toLocaleDateString("pt-BR")}

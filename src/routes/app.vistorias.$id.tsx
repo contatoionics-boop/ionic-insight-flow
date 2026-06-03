@@ -204,7 +204,7 @@ function VistoriaDetalhesPage() {
 
       <PageHeader
         title={`Mapeamento ${caso.codigo}`}
-        description={caso.cliente?.nome ?? undefined}
+        description={caso.unidade?.matriz?.empresa?.nome ?? undefined}
         actions={
           podeAbrirRevisao ? (
             <Link to="/app/review/$id" params={{ id: caso.id }}>
@@ -223,7 +223,8 @@ function VistoriaDetalhesPage() {
           <span className="text-xs text-muted-foreground">Criado em {fmtData(caso.criado_em)}</span>
         </div>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <Info icon={Building2} label="Cliente" value={caso.cliente?.nome ?? "—"} />
+          <Info icon={Building2} label="Empresa" value={caso.unidade?.matriz?.empresa?.nome ?? "—"} />
+          <Info icon={Building2} label="Unidade" value={caso.unidade?.nome ?? "—"} />
           <Info icon={User} label="Agente" value={caso.agente?.nome ?? "—"} />
           <Info icon={FileText} label="Formulário" value={caso.formulario?.nome ?? "—"} />
           <Info
