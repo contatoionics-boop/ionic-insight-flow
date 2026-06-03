@@ -10,10 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/app/vistorias/$id")({
   component: VistoriaDetalhesPage,
   errorComponent: ({ error }) => (
-    <div className="p-6 text-sm text-destructive">Erro ao carregar vistoria: {error.message}</div>
+    <div className="p-6 text-sm text-destructive">Erro ao carregar mapeamento: {error.message}</div>
   ),
   notFoundComponent: () => (
-    <div className="p-6 text-sm text-muted-foreground">Vistoria não encontrada.</div>
+    <div className="p-6 text-sm text-muted-foreground">Mapeamento não encontrado.</div>
   ),
 });
 
@@ -189,7 +189,7 @@ function VistoriaDetalhesPage() {
         <Button variant="ghost" onClick={() => navigate({ to: "/app/cases" })}>
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
-        <p className="mt-4 text-sm text-muted-foreground">Vistoria não encontrada.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Mapeamento não encontrado.</p>
       </div>
     );
   }
@@ -198,12 +198,12 @@ function VistoriaDetalhesPage() {
     <div>
       <div className="mb-4">
         <Link to="/app/cases" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Voltar para vistorias
+          <ArrowLeft className="h-4 w-4" /> Voltar para mapeamentos
         </Link>
       </div>
 
       <PageHeader
-        title={`Vistoria ${caso.codigo}`}
+        title={`Mapeamento ${caso.codigo}`}
         description={caso.cliente?.nome ?? undefined}
         actions={
           podeAbrirRevisao ? (
@@ -251,7 +251,7 @@ function VistoriaDetalhesPage() {
       </Card>
 
       {secoes.length === 0 ? (
-        <Card><p className="text-sm text-muted-foreground">Esta vistoria não tem formulário associado.</p></Card>
+        <Card><p className="text-sm text-muted-foreground">Este mapeamento não tem formulário associado.</p></Card>
       ) : (
         <div className="space-y-5">
           {secoes.map((s) => {

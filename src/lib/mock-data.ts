@@ -81,7 +81,7 @@ export type FormDef = {
 export const forms: FormDef[] = [
   {
     id: "f1",
-    name: "Vistoria padrão — Frota leve",
+    name: "Mapeamento padrão — Frota leve",
     clientId: "c1",
     clientName: "TransLog Brasil",
     sections: [
@@ -107,7 +107,7 @@ export const forms: FormDef[] = [
   },
   {
     id: "f2",
-    name: "Vistoria pesada — Caminhões",
+    name: "Mapeamento pesado — Caminhões",
     clientId: "c2",
     clientName: "Rodofrota S.A.",
     sections: [
