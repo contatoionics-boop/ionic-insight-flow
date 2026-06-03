@@ -57,10 +57,10 @@ type Form = {
   id: string;
   nome: string;
   descricao: string | null;
-  cliente_id: string | null;
-  cliente: { nome: string } | null;
+  empresa_id: string | null;
+  empresa: { nome: string } | null;
 };
-type Cliente = { id: string; nome: string };
+type Empresa = { id: string; nome: string };
 type Secao = { id: string; titulo: string; ordem: number };
 type Pergunta = {
   id: string;
@@ -86,16 +86,16 @@ function FormBuilderPage() {
 
   // Info modal
   const [infoOpen, setInfoOpen] = useState(false);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [iNome, setINome] = useState("");
   const [iDesc, setIDesc] = useState("");
-  const [iCli, setICli] = useState("");
+  const [iEmp, setIEmp] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data: f, error: e1 } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, cliente_id, cliente:clientes(nome)")
+      .select("id, nome, descricao, empresa_id, empresa:empresas(nome)")
       .eq("id", id)
       .single();
     if (e1) {
@@ -130,24 +130,24 @@ function FormBuilderPage() {
 
   useEffect(() => {
     supabase
-      .from("clientes")
+      .from("empresas")
       .select("id, nome")
       .order("nome")
-      .then(({ data }) => setClientes((data ?? []) as Cliente[]));
+      .then(({ data }) => setEmpresas((data ?? []) as Empresa[]));
   }, []);
 
   const openInfo = () => {
     if (!form) return;
     setINome(form.nome);
     setIDesc(form.descricao ?? "");
-    setICli(form.cliente_id ?? "");
+    setIEmp(form.empresa_id ?? "");
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     await supabase
       .from("formularios")
-      .update({ nome: iNome, descricao: iDesc || null, cliente_id: iCli || null })
+      .update({ nome: iNome, descricao: iDesc || null, empresa_id: iEmp || null })
       .eq("id", id);
     setInfoOpen(false);
     load();
@@ -350,10 +350,10 @@ function FormBuilderPage() {
           <div><Label>Nome</Label><Input required value={iNome} onChange={(e) => setINome(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={iDesc} onChange={(e) => setIDesc(e.target.value)} /></div>
           <div>
-            <Label>Cliente (opcional)</Label>
-            <Select value={iCli} onChange={(e) => setICli(e.target.value)}>
-              <option value="">Template (sem cliente)</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            <Label>Empresa (opcional)</Label>
+            <Select value={iEmp} onChange={(e) => setIEmp(e.target.value)}>
+              <option value="">Template (sem empresa)</option>
+              {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
           </div>
           <div className="flex justify-end gap-2">

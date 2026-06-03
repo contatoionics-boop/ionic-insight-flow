@@ -14,7 +14,7 @@ export const Route = createFileRoute("/app/forms-assistant")({
   component: FormAssistantPage,
 });
 
-type Cliente = { id: string; nome: string };
+type Empresa = { id: string; nome: string };
 
 type Attachment = {
   id: string;
@@ -56,8 +56,8 @@ function extractLatestDraft(messages: UIMessage[]): FormDraft | null {
 function FormAssistantPage() {
   const navigate = useNavigate();
   const createForm = useServerFn(createFormFromDraft);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [clienteId, setClienteId] = useState<string>("");
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresaId, setEmpresaId] = useState<string>("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -70,10 +70,10 @@ function FormAssistantPage() {
 
   useEffect(() => {
     supabase
-      .from("clientes")
+      .from("empresas")
       .select("id, nome")
       .order("nome")
-      .then(({ data }) => setClientes((data ?? []) as Cliente[]));
+      .then(({ data }) => setEmpresas((data ?? []) as Empresa[]));
   }, []);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ function FormAssistantPage() {
     setSaveError(null);
     try {
       const res = await createForm({
-        data: { draft, cliente_id: clienteId || null },
+        data: { draft, empresa_id: empresaId || null },
       });
       navigate({ to: "/app/forms/$id", params: { id: res.id } });
     } catch (e: any) {
@@ -294,15 +294,15 @@ function FormAssistantPage() {
           )}
 
           <div className="mt-3 border-t border-border pt-3">
-            <Label htmlFor="cliente">Cliente (opcional)</Label>
+            <Label htmlFor="empresa">Empresa (opcional)</Label>
             <Select
-              id="cliente"
-              value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
+              id="empresa"
+              value={empresaId}
+              onChange={(e) => setEmpresaId(e.target.value)}
               disabled={!draft || saving}
             >
-              <option value="">Template (sem cliente)</option>
-              {clientes.map((c) => (
+              <option value="">Template (sem empresa)</option>
+              {empresas.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
                 </option>

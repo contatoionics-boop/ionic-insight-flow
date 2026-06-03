@@ -1,32 +1,28 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Link2, Check, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { criarCasoELink, type LinkMode } from "@/lib/agent-link";
-import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/forms/")({
   component: FormsPage,
 });
 
-type Cliente = { id: string; nome: string };
+type Empresa = { id: string; nome: string };
 type Form = {
   id: string;
   nome: string;
   descricao: string | null;
-  cliente_id: string | null;
-  cliente: { nome: string } | null;
+  empresa_id: string | null;
+  empresa: { nome: string } | null;
 };
 
 function FormsPage() {
   const { userId } = useAuth();
-  const loadAgents = useServerFn(listTechnicalAgents);
   const navigate = useNavigate();
   const [forms, setForms] = useState<Form[]>([]);
-  const [clients, setClients] = useState<Cliente[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,24 +30,13 @@ function FormsPage() {
   const [editingForm, setEditingForm] = useState<Form | null>(null);
   const [fNome, setFNome] = useState("");
   const [fDesc, setFDesc] = useState("");
-  const [fCli, setFCli] = useState("");
+  const [fEmp, setFEmp] = useState("");
   const [toDelForm, setToDelForm] = useState<Form | null>(null);
-
-  // "Gerar link" modal
-  const [linkFormTarget, setLinkFormTarget] = useState<Form | null>(null);
-  const [linkClienteId, setLinkClienteId] = useState("");
-  const [linkAgenteId, setLinkAgenteId] = useState("");
-  const [linkMode, setLinkMode] = useState<LinkMode>("stepper");
-  const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
-  const [linkWorking, setLinkWorking] = useState(false);
-  const [linkResult, setLinkResult] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   const refreshForms = useCallback(async () => {
     const { data, error } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, cliente_id, cliente:clientes(nome)")
+      .select("id, nome, descricao, empresa_id, empresa:empresas(nome)")
       .order("nome");
     if (error) setError(error.message);
     else setForms((data ?? []) as unknown as Form[]);
@@ -61,56 +46,24 @@ function FormsPage() {
   useEffect(() => {
     refreshForms();
     supabase
-      .from("clientes")
+      .from("empresas")
       .select("id, nome")
       .order("nome")
-      .then(({ data }) => setClients((data ?? []) as Cliente[]));
-    loadAgents().then((data) => setAgentes((data ?? []) as { id: string; nome: string }[]));
-  }, [refreshForms, loadAgents]);
-
-  const openLinkModal = (f: Form) => {
-    setLinkFormTarget(f);
-    setLinkClienteId(f.cliente_id ?? "");
-    setLinkAgenteId("");
-    setLinkMode("stepper");
-    setLinkResult(null);
-    setLinkError(null);
-    setLinkCopied(false);
-  };
-
-  const handleGerarLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!linkFormTarget || !userId) return;
-    setLinkWorking(true);
-    setLinkError(null);
-    try {
-      const url = await criarCasoELink({
-        clienteId: linkClienteId,
-        formId: linkFormTarget.id,
-        agenteId: linkAgenteId,
-        userId,
-        mode: linkMode,
-      });
-      setLinkResult(url);
-    } catch (err: any) {
-      setLinkError(err?.message ?? "Erro ao gerar link.");
-    } finally {
-      setLinkWorking(false);
-    }
-  };
+      .then(({ data }) => setEmpresas((data ?? []) as Empresa[]));
+  }, [refreshForms]);
 
   const openCreateForm = () => {
     setEditingForm(null);
     setFNome("");
     setFDesc("");
-    setFCli("");
+    setFEmp("");
     setFormModal(true);
   };
   const openEditForm = (f: Form) => {
     setEditingForm(f);
     setFNome(f.nome);
     setFDesc(f.descricao ?? "");
-    setFCli(f.cliente_id ?? "");
+    setFEmp(f.empresa_id ?? "");
     setFormModal(true);
   };
 
@@ -119,12 +72,12 @@ function FormsPage() {
     if (editingForm) {
       await supabase
         .from("formularios")
-        .update({ nome: fNome, descricao: fDesc || null, cliente_id: fCli || null })
+        .update({ nome: fNome, descricao: fDesc || null, empresa_id: fEmp || null })
         .eq("id", editingForm.id);
     } else {
       await supabase
         .from("formularios")
-        .insert({ nome: fNome, descricao: fDesc || null, cliente_id: fCli || null, criado_por: userId });
+        .insert({ nome: fNome, descricao: fDesc || null, empresa_id: fEmp || null, criado_por: userId });
     }
     setFormModal(false);
     refreshForms();
@@ -141,20 +94,18 @@ function FormsPage() {
     const novoNome = prompt("Nome do novo formulário:", `${f.nome} (cópia)`);
     if (!novoNome) return;
     try {
-      // 1. cria novo formulário (sem cliente — template)
       const { data: novo, error: e1 } = await supabase
         .from("formularios")
         .insert({
           nome: novoNome,
           descricao: f.descricao,
-          cliente_id: null,
+          empresa_id: null,
           criado_por: userId,
         })
         .select("id")
         .single();
       if (e1 || !novo) throw e1 ?? new Error("Falha ao criar formulário");
 
-      // 2. busca seções originais
       const { data: secs } = await supabase
         .from("secoes")
         .select("id, titulo, descricao, ordem")
@@ -170,7 +121,6 @@ function FormsPage() {
         if (ns) secaoIdMap.set(s.id, ns.id);
       }
 
-      // 3. perguntas
       if (secaoIdMap.size) {
         const { data: ps } = await supabase
           .from("perguntas")
@@ -196,7 +146,6 @@ function FormsPage() {
           if (np) perguntaIdMap.set(p.id, np.id);
         }
 
-        // 4. opções
         if (perguntaIdMap.size) {
           const { data: ops } = await supabase
             .from("opcoes_pergunta")
@@ -225,7 +174,7 @@ function FormsPage() {
     <div>
       <PageHeader
         title="Formulários"
-        description="Roteiros de vistoria reutilizáveis. Um formulário pode servir como template para várias empresas."
+        description="Roteiros de mapeamento reutilizáveis. Um formulário pode servir como template para várias empresas."
         actions={
           <>
             <Button variant="secondary" onClick={() => navigate({ to: "/app/forms-assistant" })}>
@@ -257,7 +206,7 @@ function FormsPage() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">{f.nome}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {f.cliente?.nome ?? "Template (sem cliente)"}
+                    {f.empresa?.nome ?? "Template (sem empresa)"}
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -290,12 +239,6 @@ function FormsPage() {
                   <Pencil className="h-3 w-3" /> Editar info
                 </button>
                 <button
-                  onClick={() => openLinkModal(f)}
-                  className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2 py-1 text-xs text-primary hover:bg-primary/10"
-                >
-                  <Link2 className="h-3 w-3" /> Gerar link
-                </button>
-                <button
                   onClick={() => duplicarForm(f)}
                   className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
                 >
@@ -318,13 +261,13 @@ function FormsPage() {
           <div><Label>Nome</Label><Input required value={fNome} onChange={(e) => setFNome(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={fDesc} onChange={(e) => setFDesc(e.target.value)} /></div>
           <div>
-            <Label>Cliente (opcional)</Label>
-            <Select value={fCli} onChange={(e) => setFCli(e.target.value)}>
-              <option value="">Template (sem cliente)</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            <Label>Empresa (opcional)</Label>
+            <Select value={fEmp} onChange={(e) => setFEmp(e.target.value)}>
+              <option value="">Template (sem empresa)</option>
+              {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
             <p className="mt-1 text-xs text-muted-foreground">
-              Deixe sem cliente para criar um template reutilizável.
+              Deixe sem empresa para criar um template reutilizável.
             </p>
           </div>
           <div className="flex justify-end gap-2">
@@ -340,104 +283,6 @@ function FormsPage() {
           <Button variant="outline" onClick={() => setToDelForm(null)}>Cancelar</Button>
           <Button variant="destructive" onClick={delForm}>Excluir</Button>
         </div>
-      </Modal>
-
-      <Modal
-        open={!!linkFormTarget}
-        onClose={() => setLinkFormTarget(null)}
-        title={`Gerar link — ${linkFormTarget?.nome ?? ""}`}
-      >
-        {linkError && (
-          <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {linkError}
-          </div>
-        )}
-        {!linkResult ? (
-          <form onSubmit={handleGerarLink} className="space-y-4">
-            <div>
-              <Label>Cliente</Label>
-              <Select
-                value={linkClienteId}
-                onChange={(e) => setLinkClienteId(e.target.value)}
-                required
-                disabled={!!linkFormTarget?.cliente_id}
-              >
-                <option value="">Selecione o cliente</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </Select>
-              {linkFormTarget?.cliente_id && (
-                <p className="mt-1 text-xs text-muted-foreground">Cliente fixado por este formulário.</p>
-              )}
-            </div>
-            <div>
-              <Label>Agente técnico</Label>
-              <Select value={linkAgenteId} onChange={(e) => setLinkAgenteId(e.target.value)} required>
-                <option value="">Selecione o agente</option>
-                {agentes.map((a) => (
-                  <option key={a.id} value={a.id}>{a.nome}</option>
-                ))}
-              </Select>
-              {agentes.length === 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">Nenhum agente técnico cadastrado.</p>
-              )}
-            </div>
-            <div>
-              <Label>Modo de preenchimento</Label>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                {([
-                  { v: "stepper" as const, t: "Stepper", d: "Por etapas" },
-                  { v: "chat" as const, t: "Chat", d: "Pergunta a pergunta" },
-                ]).map((opt) => (
-                  <button
-                    key={opt.v}
-                    type="button"
-                    onClick={() => setLinkMode(opt.v)}
-                    className={`rounded-md border px-3 py-2 text-left text-sm transition ${
-                      linkMode === opt.v
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
-                  >
-                    <div className="font-semibold text-foreground">{opt.t}</div>
-                    <div className="text-xs text-muted-foreground">{opt.d}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setLinkFormTarget(null)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={linkWorking}>
-                {linkWorking ? "Gerando..." : "Gerar link"}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">Link gerado com sucesso. Compartilhe com o agente:</p>
-            <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 font-mono text-xs">
-              <span className="flex-1 truncate">{linkResult}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(linkResult);
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 1500);
-                }}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {linkCopied ? "Copiado" : "Copiar"}
-              </button>
-            </div>
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setLinkFormTarget(null)}>Fechar</Button>
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   );
