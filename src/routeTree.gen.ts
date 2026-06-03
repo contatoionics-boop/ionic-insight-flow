@@ -34,6 +34,7 @@ import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
 import { Route as AppVistoriasIdRouteImport } from './routes/app.vistorias.$id'
 import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
+import { Route as AppClientsEmpresaIdRouteImport } from './routes/app.clients.$empresaId'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
 
@@ -162,6 +163,11 @@ const AppReviewIdRoute = AppReviewIdRouteImport.update({
   path: '/review/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppClientsEmpresaIdRoute = AppClientsEmpresaIdRouteImport.update({
+  id: '/$empresaId',
+  path: '/$empresaId',
+  getParentRoute: () => AppClientsRoute,
+} as any)
 const AppFormsIdIndexRoute = AppFormsIdIndexRouteImport.update({
   id: '/$id/',
   path: '/$id/',
@@ -181,7 +187,7 @@ export interface FileRoutesByFullPath {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
@@ -210,7 +217,7 @@ export interface FileRoutesByTo {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms-assistant': typeof AppFormsAssistantRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
@@ -239,7 +247,7 @@ export interface FileRoutesById {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms': typeof AppFormsRouteWithChildren
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
@@ -283,6 +292,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
@@ -535,6 +547,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/clients/$empresaId': {
+      id: '/app/clients/$empresaId'
+      path: '/$empresaId'
+      fullPath: '/app/clients/$empresaId'
+      preLoaderRoute: typeof AppClientsEmpresaIdRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
     '/app/forms/$id/': {
       id: '/app/forms/$id/'
       path: '/$id'
@@ -551,6 +570,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppClientsRouteChildren {
+  AppClientsEmpresaIdRoute: typeof AppClientsEmpresaIdRoute
+}
+
+const AppClientsRouteChildren: AppClientsRouteChildren = {
+  AppClientsEmpresaIdRoute: AppClientsEmpresaIdRoute,
+}
+
+const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
+  AppClientsRouteChildren,
+)
 
 interface AppFormsRouteChildren {
   AppFormsIndexRoute: typeof AppFormsIndexRoute
@@ -571,7 +602,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppCasesRoute: typeof AppCasesRoute
-  AppClientsRoute: typeof AppClientsRoute
+  AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFormsRoute: typeof AppFormsRouteWithChildren
@@ -592,7 +623,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppCasesRoute: AppCasesRoute,
-  AppClientsRoute: AppClientsRoute,
+  AppClientsRoute: AppClientsRouteWithChildren,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFormsRoute: AppFormsRouteWithChildren,
