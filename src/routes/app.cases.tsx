@@ -59,7 +59,7 @@ function CasesPage() {
                 className="cursor-pointer transition-colors hover:bg-muted/50"
               >
                 <Td className="font-mono text-xs">{c.codigo}</Td>
-                <Td className="font-medium">{c.cliente?.nome ?? "—"}</Td>
+                <Td className="font-medium">{c.unidade?.matriz?.empresa?.nome ?? "—"}{c.unidade?.nome ? <span className="ml-1 text-xs text-muted-foreground">· {c.unidade.nome}</span> : null}</Td>
                 <Td>{c.agente?.nome ?? "—"}</Td>
                 <Td><Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge></Td>
                 <Td>{new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
