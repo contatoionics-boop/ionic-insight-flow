@@ -45,7 +45,7 @@ function VistoriaPage() {
           .eq("id", casoId)
           .maybeSingle();
         if (cErr) throw cErr;
-        if (!caso) throw new Error("Vistoria não encontrada ou sem permissão.");
+        if (!caso) throw new Error("Mapeamento não encontrado ou sem permissão.");
         if (!caso.formulario_id) throw new Error("Caso sem formulário associado.");
 
         const { data: formulario } = await supabase
@@ -134,7 +134,7 @@ function VistoriaPage() {
           // ignora — pode já estar em andamento
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Erro ao carregar vistoria.");
+        setError(e instanceof Error ? e.message : "Erro ao carregar mapeamento.");
       } finally {
         setLoading(false);
       }

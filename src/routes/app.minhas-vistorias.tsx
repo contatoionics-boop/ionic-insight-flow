@@ -71,8 +71,8 @@ function MinhasVistoriasPage() {
   return (
     <div>
       <PageHeader
-        title="Minhas vistorias"
-        description="Vistorias agendadas para você. Clique em iniciar para preencher o formulário."
+        title="Meus mapeamentos"
+        description="Mapeamentos agendados para você. Clique em iniciar para preencher o formulário."
       />
 
       <div className="mb-4 inline-flex rounded-md border border-border bg-card p-1">
@@ -98,13 +98,13 @@ function MinhasVistoriasPage() {
         <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
       ) : tab === "lista" ? (
         <div className="space-y-6">
-          <Section title="Pendentes" items={pendentes} empty="Nenhuma vistoria pendente." />
-          <Section title="Concluídas" items={concluidas} empty="Nenhuma vistoria concluída." />
+          <Section title="Pendentes" items={pendentes} empty="Nenhum mapeamento pendente." />
+          <Section title="Concluídos" items={concluidas} empty="Nenhum mapeamento concluído." />
         </div>
       ) : (
         <div className="space-y-4">
           {porDia.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Nenhuma vistoria futura agendada.</p></Card>
+            <Card><p className="text-sm text-muted-foreground">Nenhum mapeamento futuro agendado.</p></Card>
           ) : (
             porDia.map(([dia, items]) => (
               <div key={dia}>
