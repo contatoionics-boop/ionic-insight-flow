@@ -32,14 +32,14 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/app/clients", label: "Clientes", icon: Building2 },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
-    { to: "/app/new-case", label: "Agendar vistoria", icon: PlusCircle },
-    { to: "/app/cases", label: "Vistorias", icon: FolderKanban },
+    { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
+    { to: "/app/cases", label: "Mapeamentos", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
   admin: [
     { to: "/app/clients", label: "Clientes", icon: Building2 },
-    { to: "/app/new-case", label: "Agendar vistoria", icon: PlusCircle },
+    { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
@@ -48,7 +48,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/history", label: "Histórico", icon: History },
   ],
   agente_tecnico: [
-    { to: "/app/minhas-vistorias", label: "Minhas vistorias", icon: ClipboardList },
+    { to: "/app/minhas-vistorias", label: "Meus mapeamentos", icon: ClipboardList },
   ],
 };
 

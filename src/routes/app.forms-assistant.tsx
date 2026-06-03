@@ -135,7 +135,7 @@ function FormAssistantPage() {
     <div>
       <PageHeader
         title="Assistente de IA"
-        description="Descreva sua vistoria ou anexe formulários existentes. A IA monta o rascunho e você revisa antes de salvar."
+        description="Descreva seu mapeamento ou anexe formulários existentes. A IA monta o rascunho e você revisa antes de salvar."
         actions={
           <Button variant="ghost" onClick={() => navigate({ to: "/app/forms" })}>
             <ArrowLeft className="h-4 w-4" /> Voltar
@@ -151,7 +151,7 @@ function FormAssistantPage() {
               <div className="flex h-full flex-col items-center justify-center text-center text-sm text-muted-foreground">
                 <Sparkles className="mb-2 h-8 w-8 text-primary" />
                 <p className="max-w-sm">
-                  Comece descrevendo o tipo de vistoria que precisa, ou anexe imagens/PDFs de formulários existentes.
+                  Comece descrevendo o tipo de mapeamento que precisa, ou anexe imagens/PDFs de formulários existentes.
                 </p>
               </div>
             )}
@@ -225,7 +225,7 @@ function FormAssistantPage() {
                     handleSend();
                   }
                 }}
-                placeholder="Descreva sua vistoria..."
+                placeholder="Descreva seu mapeamento..."
                 rows={2}
                 className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isLoading}

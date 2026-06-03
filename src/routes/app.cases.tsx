@@ -35,7 +35,7 @@ function CasesPage() {
 
   return (
     <div>
-      <PageHeader title="Vistorias" description="Todas as vistorias da plataforma. Clique em uma linha para ver detalhes." />
+      <PageHeader title="Mapeamentos" description="Todos os mapeamentos da plataforma. Clique em uma linha para ver detalhes." />
       <Table>
         <thead>
           <tr>
@@ -50,7 +50,7 @@ function CasesPage() {
           {loading ? (
             <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma vistoria registrada ainda.</td></tr>
+            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento registrado ainda.</td></tr>
           ) : (
             rows.map((c) => (
               <tr

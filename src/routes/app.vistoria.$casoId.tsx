@@ -199,7 +199,7 @@ function VistoriaPage() {
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <Card className="max-w-md text-center">
           <X className="mx-auto h-10 w-10 text-destructive" />
-          <h2 className="mt-3 text-lg font-semibold text-foreground">Não foi possível abrir a vistoria</h2>
+          <h2 className="mt-3 text-lg font-semibold text-foreground">Não foi possível abrir o mapeamento</h2>
           <p className="mt-1 text-sm text-muted-foreground">{error}</p>
         </Card>
       </div>
@@ -213,9 +213,9 @@ function VistoriaPage() {
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success">
             <Check className="h-10 w-10" strokeWidth={3} />
           </div>
-          <h2 className="mt-6 text-2xl font-semibold text-foreground">Vistoria enviada com sucesso.</h2>
+          <h2 className="mt-6 text-2xl font-semibold text-foreground">Mapeamento enviado com sucesso.</h2>
           <Link to="/app/minhas-vistorias" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-            Voltar para minhas vistorias
+            Voltar para meus mapeamentos
           </Link>
         </div>
       </div>
