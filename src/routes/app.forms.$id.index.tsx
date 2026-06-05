@@ -380,6 +380,47 @@ function FormBuilderPage() {
               {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
           </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Metadados do documento (PDF)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Código</Label>
+                <Input
+                  value={iCodigo}
+                  onChange={(e) => setICodigo(e.target.value)}
+                  placeholder="FR-29-10"
+                />
+              </div>
+              <div>
+                <Label>Revisão</Label>
+                <Input
+                  value={iRevisao}
+                  onChange={(e) => setIRevisao(e.target.value)}
+                  placeholder="00"
+                />
+              </div>
+              <div>
+                <Label>Data da revisão</Label>
+                <Input
+                  type="date"
+                  value={iDataRev}
+                  onChange={(e) => setIDataRev(e.target.value)}
+                />
+              </div>
+              <div />
+              <div>
+                <Label>Elaborado por</Label>
+                <Input value={iElaborado} onChange={(e) => setIElaborado(e.target.value)} />
+              </div>
+              <div>
+                <Label>Aprovado por</Label>
+                <Input value={iAprovado} onChange={(e) => setIAprovado(e.target.value)} />
+              </div>
+            </div>
+          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setInfoOpen(false)}>Cancelar</Button>
             <Button type="submit">Salvar</Button>
