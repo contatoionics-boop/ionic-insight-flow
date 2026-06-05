@@ -268,9 +268,10 @@ function NewCasePage() {
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={working || !unidadeId}>
+            <Button type="submit" disabled={working || !matrizId}>
               {working ? "Agendando..." : "Agendar mapeamento"}
             </Button>
+
           </div>
         </form>
       </Card>
