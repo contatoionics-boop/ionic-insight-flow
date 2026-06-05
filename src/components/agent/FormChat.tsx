@@ -52,7 +52,7 @@ export function FormChat({
     const startIdx = items.findIndex((it) => it.secaoIdx >= initialStep);
     const base = startIdx === -1 ? items.length : startIdx;
     const i = items.findIndex(
-      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live"),
+      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live", { validarImagensIa: ctx.validarImagensIa ?? true }),
     );
     return i === -1 ? items.length : i;
   });
