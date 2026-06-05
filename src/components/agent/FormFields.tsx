@@ -162,6 +162,7 @@ export function PerguntaBloco({
   update,
   mode,
   siblings,
+  validarImagensIa = true,
 }: {
   pergunta: Pergunta;
   casoId: string;
@@ -170,6 +171,7 @@ export function PerguntaBloco({
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
   siblings?: Siblings;
+  validarImagensIa?: boolean;
 }) {
   const campo = detectarCampo(pergunta);
   // Renderers especiais para perguntas tipo "texto" detectadas como estado/cidade
