@@ -200,7 +200,7 @@ export function FormChat({
           if (idx === cursor || editing === idx) {
             const showSecaoMarker = idx === 0 || items[idx - 1].secaoIdx !== it.secaoIdx;
             const r = state[it.pergunta.id] ?? {};
-            const podeConfirmar = isComplete(it.pergunta, r, "live");
+            const podeConfirmar = isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true });
             return (
               <div key={it.pergunta.id}>
                 {showSecaoMarker && editing !== idx && <SecaoDivider titulo={it.secaoTitulo} />}
