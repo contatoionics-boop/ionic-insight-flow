@@ -98,6 +98,53 @@ function AgendaPage() {
     setMes(new Date(mes));
   };
 
+  const reload = () => setMes(new Date(mes));
+
+  const openEdit = (e: Evento) => {
+    const dt = new Date(e.agendado_em);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEdData(`${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`);
+    setEdHora(`${pad(dt.getHours())}:${pad(dt.getMinutes())}`);
+    setEdEndereco(e.endereco_vistoria ?? "");
+    setEdObs(e.observacoes_agendamento ?? "");
+    setEdError(null);
+    setEditing(e);
+    setSel(null);
+  };
+
+  const submitEdit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editing) return;
+    setEdSaving(true);
+    setEdError(null);
+    try {
+      const agendadoEm = new Date(`${edData}T${edHora}:00`).toISOString();
+      await reagendar({
+        data: {
+          casoId: editing.id,
+          agendadoEm,
+          duracaoMin: editing.duracao_min ?? 60,
+          enderecoVistoria: edEndereco || null,
+          observacoes: edObs || null,
+        },
+      });
+      setEditing(null);
+      reload();
+    } catch (e: any) {
+      setEdError(e?.message ?? "Erro ao salvar.");
+    } finally {
+      setEdSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    await deletar({ data: { casoId: toDelete.id } });
+    setToDelete(null);
+    setSel(null);
+    reload();
+  };
+
   return (
     <div>
       <PageHeader
