@@ -269,6 +269,7 @@ function AgentPage() {
         onSubmit={submitAll}
         submitting={submitting}
         errorMessage={error}
+        initialStep={initialStep}
       />
     );
   }
@@ -284,6 +285,7 @@ function AgentPage() {
       onSubmit={submitAll}
       submitting={submitting}
       errorMessage={error}
+      initialStep={initialStep}
     />
   );
 }
