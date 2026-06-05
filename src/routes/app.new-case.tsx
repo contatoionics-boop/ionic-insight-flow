@@ -12,21 +12,19 @@ export const Route = createFileRoute("/app/new-case")({
 });
 
 type Empresa = { id: string; nome: string };
-type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null };
-type Unidade = {
-  id: string;
-  matriz_id: string;
-  nome: string;
+type EnderecoBase = {
   logradouro: string | null;
   numero: string | null;
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
 };
+type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null } & EnderecoBase;
+type Unidade = { id: string; matriz_id: string; nome: string } & EnderecoBase;
 type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
-function formatEnderecoUnidade(u?: Unidade | null) {
+function formatEndereco(u?: EnderecoBase | null) {
   if (!u) return "";
   const parts = [
     [u.logradouro, u.numero].filter(Boolean).join(", "),
@@ -34,6 +32,10 @@ function formatEnderecoUnidade(u?: Unidade | null) {
     [u.cidade, u.estado].filter(Boolean).join("/"),
   ].filter(Boolean);
   return parts.join(" - ");
+}
+
+function temEndereco(e?: EnderecoBase | null) {
+  return !!(e && (e.logradouro || e.cidade || e.bairro));
 }
 
 function NewCasePage() {
