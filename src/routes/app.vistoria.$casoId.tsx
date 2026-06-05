@@ -131,6 +131,8 @@ function VistoriaPage() {
         const empresa = matriz?.empresa;
         const pick = (a?: string | null, b?: string | null) =>
           (a && a.trim()) ? a : (b ?? null);
+        const agendado = (caso as any).agendado_em as string | null;
+        const dataVistoriaISO = agendado ? new Date(agendado).toISOString().slice(0, 10) : null;
         const dadosUnidade: DadosUnidade = {
           empresa_nome: empresa?.nome ?? null,
           matriz_nome: matriz?.nome ?? null,
@@ -143,6 +145,9 @@ function VistoriaPage() {
           bairro: pick(unidade?.bairro, matriz?.bairro),
           cidade: pick(unidade?.cidade, matriz?.cidade),
           estado: pick(unidade?.estado, matriz?.estado),
+          responsavel_nome: auth.profile?.nome || auth.email || null,
+          contato: auth.email || null,
+          data_vistoria: dataVistoriaISO,
         };
 
         let stateInicial = hidrato;
