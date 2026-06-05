@@ -85,8 +85,9 @@ export function FormRunner({
   const nomeEmpresa = config?.nome_empresa || "Ionics";
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <header className="sticky top-0 z-20 border-b border-border bg-white">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+
         {mode === "preview" && (
           <div className="bg-warning/10 px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-warning-foreground">
             <Eye className="mr-1 inline h-3 w-3" /> Preview — nenhum dado será salvo
