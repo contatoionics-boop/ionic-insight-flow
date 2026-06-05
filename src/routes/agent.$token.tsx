@@ -169,7 +169,9 @@ function AgentPage() {
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
+          validarImagensIa: (formulario as any)?.validar_imagens_ia ?? true,
         });
+
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao carregar link.");
       } finally {
