@@ -113,6 +113,18 @@ function EmpresaDetailPage() {
     refresh();
   }, [refresh]);
 
+  // Quando a empresa ainda não tem matriz, abre automaticamente o modal de cadastro
+  // para que o usuário possa complementar os dados (CNPJ, endereço etc.).
+  useEffect(() => {
+    if (!loading && canWrite && matrizes.length === 0 && !mModal) {
+      setEditingM(null);
+      setMForm({ nome: empresa?.nome ?? "" });
+      setCnpjMsg(null);
+      setMModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, matrizes.length, canWrite]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
