@@ -129,11 +129,42 @@ function AgentPage() {
             audioPath: r.arquivo_path ?? undefined,
           };
         }
-        setState(hidrato);
+
+        // Auto-preenche a 1ª seção a partir dos dados do caso (empresa→matriz→unidade)
+        const unidade = (caso as any).unidade;
+        const matriz = unidade?.matriz;
+        const empresa = matriz?.empresa;
+        const dadosUnidade: DadosUnidade = {
+          empresa_nome: empresa?.nome ?? null,
+          matriz_nome: matriz?.nome ?? null,
+          cnpj: matriz?.cnpj ?? null,
+          razao_social: matriz?.razao_social ?? matriz?.nome ?? null,
+          unidade_nome: unidade?.nome ?? null,
+          cep: unidade?.cep ?? null,
+          logradouro: unidade?.logradouro ?? null,
+          numero: unidade?.numero ?? null,
+          bairro: unidade?.bairro ?? null,
+          cidade: unidade?.cidade ?? null,
+          estado: unidade?.estado ?? null,
+        };
+
+        let stateInicial = hidrato;
+        let primeiraSecaoCompleta = false;
+        const primeiraSecao = secoes[0];
+        const perguntasPrimeira = primeiraSecao ? perguntasPorSecao[primeiraSecao.id] ?? [] : [];
+        if (primeiraSecao && perguntasPrimeira.length) {
+          const { state: hidratado } = hidratarSecao(perguntasPrimeira, dadosUnidade, hidrato);
+          stateInicial = hidratado;
+          primeiraSecaoCompleta = perguntasPrimeira.every((p) =>
+            isComplete(p, hidratado[p.id] ?? {}, "live"),
+          );
+        }
+        setState(stateInicial);
+        if (primeiraSecaoCompleta && secoes.length > 1) setInitialStep(1);
 
         setCtx({
           casoId: caso.id,
-          clienteNome: (caso as any).unidade?.matriz?.empresa?.nome ?? "",
+          clienteNome: empresa?.nome ?? matriz?.nome ?? "",
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
