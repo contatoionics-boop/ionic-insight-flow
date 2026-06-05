@@ -7,7 +7,6 @@ import {
   Button,
   Textarea,
   Input,
-  Label,
   Modal,
 } from "@/components/ui-bits";
 import {
@@ -347,7 +346,7 @@ function ReviewCasePage() {
                     <div key={p.id} className="rounded-md border border-border p-3">
                       <div className="text-sm font-medium text-foreground">
                         {p.texto}
-                      </Label>
+                      </div>
                       {p.instrucao_agente && (
                         <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
                           {p.instrucao_agente}
@@ -390,7 +389,7 @@ function ReviewCasePage() {
                           {r?.arquivo_path && fotoUrls[r.arquivo_path] && (
                             <audio controls src={fotoUrls[r.arquivo_path]} className="w-full" />
                           )}
-                          <div className="text-xs text-muted-foreground">Transcrição</Label>
+                          <div className="text-xs text-muted-foreground">Transcrição</div>
                           <Textarea
                             rows={4}
                             value={r?.transcricao ?? ""}
@@ -420,7 +419,7 @@ function ReviewCasePage() {
                           <div className="space-y-2">
                             <div className="text-xs text-muted-foreground">
                               Legenda / observação
-                            </Label>
+                            </div>
                             <Textarea
                               rows={4}
                               value={r?.valor_texto ?? ""}
