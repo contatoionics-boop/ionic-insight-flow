@@ -686,6 +686,7 @@ function CampoFoto({
   resposta,
   update,
   mode,
+  validarImagensIa = true,
 }: {
   pergunta: Pergunta;
   casoId: string;
@@ -693,6 +694,7 @@ function CampoFoto({
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
+  validarImagensIa?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [analisando, setAnalisando] = useState(false);
@@ -715,15 +717,26 @@ function CampoFoto({
       const { error } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false });
       if (error) throw error;
       const preview = URL.createObjectURL(file);
-      update({ filePath: path, fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: false });
+      update({ filePath: path, fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: !validarImagensIa });
       setUploading(false);
 
+      if (!validarImagensIa) return;
+
       setAnalisando(true);
-      const base64 = await fileToBase64(file);
-      const ia = (await validarFn({
-        data: { token, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
-      })) as IaResultado;
-      update({ ia, iaConfirmada: ia.status === "aprovada" });
+      try {
+        const base64 = await fileToBase64(file);
+        const ia = (await validarFn({
+          data: { token, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
+        })) as IaResultado;
+        update({ ia, iaConfirmada: ia.status === "aprovada" });
+      } catch (iaErr) {
+        // Falha da IA não bloqueia o envio: marca como confirmada pelo usuário e exibe aviso.
+        update({ iaConfirmada: true });
+        setErr(
+          (iaErr instanceof Error ? iaErr.message : "Falha ao analisar a foto.") +
+            " A foto foi mantida e você pode avançar.",
+        );
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erro ao processar foto.");
     } finally {
