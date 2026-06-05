@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Button, Textarea, Modal } from "@/components/ui-bits";
-import { ArrowLeft, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Check, AlertCircle, FileDown, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 
 export const Route = createFileRoute("/app/review/$id")({
   component: ReviewCasePage,
