@@ -89,6 +89,7 @@ function FullscreenPreviewPage() {
           formularioNome: f.nome,
           secoes,
           perguntasPorSecao,
+          validarImagensIa: (f as any).validar_imagens_ia ?? true,
         });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao carregar formulário.");
