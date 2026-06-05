@@ -24,6 +24,7 @@ export type FormRunnerCtx = {
   formularioNome: string;
   secoes: FormRunnerSecao[];
   perguntasPorSecao: Record<string, Pergunta[]>;
+  validarImagensIa?: boolean;
 };
 
 export function FormRunner({
@@ -67,9 +68,10 @@ export function FormRunner({
     [setState],
   );
 
+  const validarImagensIa = ctx.validarImagensIa ?? true;
   const pendentes = useMemo(
-    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode)),
-    [perguntasAtuais, state, mode],
+    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode, { validarImagensIa })),
+    [perguntasAtuais, state, mode, validarImagensIa],
   );
   const sectionComplete = pendentes.length === 0;
   const [showPendentes, setShowPendentes] = useState(false);
@@ -150,6 +152,7 @@ export function FormRunner({
                     resposta={state[p.id] ?? {}}
                     update={(patch) => update(p.id, patch)}
                     mode={mode}
+                    validarImagensIa={validarImagensIa}
                     siblings={{
                       perguntas: perguntasAtuais,
                       state,
@@ -169,7 +172,7 @@ export function FormRunner({
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive">
               {pendentes.map((p) => (
-                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode)}</li>
+                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode, validarImagensIa)}</li>
               ))}
             </ul>
           </div>
@@ -218,13 +221,13 @@ export function FormRunner({
   );
 }
 
-function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode): string {
+function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode, validarImagensIa: boolean = true): string {
   switch (p.tipo) {
     case "foto":
       if (!r.filePath && !r.filePreview) return "envie uma foto";
-      if (mode === "live" && !r.ia) return "aguardando validação da IA";
-      if (r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
-      if (r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
+      if (mode === "live" && validarImagensIa && !r.ia) return "aguardando validação da IA";
+      if (validarImagensIa && r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
+      if (validarImagensIa && r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
       return "incompleta";
     case "audio":
       if (!r.audioPath && !r.transcription?.trim()) return "grave um áudio";

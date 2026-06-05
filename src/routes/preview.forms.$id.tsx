@@ -34,7 +34,7 @@ function FullscreenPreviewPage() {
       try {
         const { data: f, error: fErr } = await supabase
           .from("formularios")
-          .select("nome, empresa:empresas(nome)")
+          .select("nome, validar_imagens_ia, empresa:empresas(nome)")
           .eq("id", id)
           .single();
         if (fErr) throw fErr;
@@ -89,6 +89,7 @@ function FullscreenPreviewPage() {
           formularioNome: f.nome,
           secoes,
           perguntasPorSecao,
+          validarImagensIa: (f as any).validar_imagens_ia ?? true,
         });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao carregar formulário.");

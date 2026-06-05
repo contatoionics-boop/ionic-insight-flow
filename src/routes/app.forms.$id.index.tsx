@@ -64,6 +64,7 @@ type Form = {
   data_revisao: string | null;
   elaborado_por: string | null;
   aprovado_por: string | null;
+  validar_imagens_ia: boolean;
 };
 type Empresa = { id: string; nome: string };
 type Secao = { id: string; titulo: string; ordem: number };
@@ -100,12 +101,13 @@ function FormBuilderPage() {
   const [iDataRev, setIDataRev] = useState("");
   const [iElaborado, setIElaborado] = useState("");
   const [iAprovado, setIAprovado] = useState("");
+  const [iValidarIa, setIValidarIa] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data: f, error: e1 } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, empresa_id, empresa:empresas(nome), codigo, revisao, data_revisao, elaborado_por, aprovado_por")
+      .select("id, nome, descricao, empresa_id, empresa:empresas(nome), codigo, revisao, data_revisao, elaborado_por, aprovado_por, validar_imagens_ia")
       .eq("id", id)
       .single();
     if (e1) {
@@ -156,6 +158,7 @@ function FormBuilderPage() {
     setIDataRev(form.data_revisao ?? "");
     setIElaborado(form.elaborado_por ?? "");
     setIAprovado(form.aprovado_por ?? "");
+    setIValidarIa(form.validar_imagens_ia ?? true);
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
@@ -171,6 +174,7 @@ function FormBuilderPage() {
         data_revisao: iDataRev || null,
         elaborado_por: iElaborado || null,
         aprovado_por: iAprovado || null,
+        validar_imagens_ia: iValidarIa,
       })
       .eq("id", id);
     setInfoOpen(false);
@@ -380,6 +384,25 @@ function FormBuilderPage() {
               {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
           </div>
+
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={iValidarIa}
+                onChange={(e) => setIValidarIa(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-foreground">Validar imagens com IA</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Quando ativado, cada foto enviada na vistoria é analisada pela IA antes de avançar.
+                  Desative para inspeções em que a validação automática não é necessária.
+                </span>
+              </span>
+            </label>
+          </div>
+
 
           <div className="border-t border-border pt-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

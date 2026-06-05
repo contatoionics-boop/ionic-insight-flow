@@ -52,7 +52,7 @@ export function FormChat({
     const startIdx = items.findIndex((it) => it.secaoIdx >= initialStep);
     const base = startIdx === -1 ? items.length : startIdx;
     const i = items.findIndex(
-      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live"),
+      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live", { validarImagensIa: ctx.validarImagensIa ?? true }),
     );
     return i === -1 ? items.length : i;
   });
@@ -77,7 +77,7 @@ export function FormChat({
     const it = items[idx];
     if (!it) return;
     const r = state[it.pergunta.id] ?? {};
-    if (!isComplete(it.pergunta, r, "live")) return;
+    if (!isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true })) return;
     setSavingIdx(idx);
     try {
       await onAdvanceSection?.([it.pergunta]);
@@ -200,7 +200,7 @@ export function FormChat({
           if (idx === cursor || editing === idx) {
             const showSecaoMarker = idx === 0 || items[idx - 1].secaoIdx !== it.secaoIdx;
             const r = state[it.pergunta.id] ?? {};
-            const podeConfirmar = isComplete(it.pergunta, r, "live");
+            const podeConfirmar = isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true });
             return (
               <div key={it.pergunta.id}>
                 {showSecaoMarker && editing !== idx && <SecaoDivider titulo={it.secaoTitulo} />}
@@ -222,6 +222,7 @@ export function FormChat({
                     resposta={r}
                     update={(patch) => update(it.pergunta.id, patch)}
                     mode="live"
+                    validarImagensIa={ctx.validarImagensIa ?? true}
                     siblings={{
                       perguntas: ctx.perguntasPorSecao[ctx.secoes[it.secaoIdx].id] ?? [],
                       state,
