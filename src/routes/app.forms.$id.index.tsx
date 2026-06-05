@@ -59,6 +59,11 @@ type Form = {
   descricao: string | null;
   empresa_id: string | null;
   empresa: { nome: string } | null;
+  codigo: string | null;
+  revisao: string | null;
+  data_revisao: string | null;
+  elaborado_por: string | null;
+  aprovado_por: string | null;
 };
 type Empresa = { id: string; nome: string };
 type Secao = { id: string; titulo: string; ordem: number };
