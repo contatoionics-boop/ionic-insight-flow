@@ -51,7 +51,9 @@ function AgentPage() {
 
         const { data: caso, error: cErr } = await supabase
           .from("casos")
-          .select("id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome)))")
+          .select(
+            "id, formulario_id, endereco_vistoria, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, razao_social, cnpj, empresa:empresas(nome)))",
+          )
           .eq("id", link.caso_id)
           .maybeSingle();
         if (cErr) throw cErr;
