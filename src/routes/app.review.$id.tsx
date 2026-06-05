@@ -125,6 +125,13 @@ function ReviewCasePage() {
         }
       />
 
+      {pdfError && (
+        <Card className="mb-3 border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive">{pdfError}</p>
+        </Card>
+      )}
+
+
       <Card>
         <p className="text-sm text-muted-foreground">
           O conteúdo coletado pelo agente técnico (fotos, transcrições e respostas) será exibido aqui
