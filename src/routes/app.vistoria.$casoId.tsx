@@ -12,6 +12,7 @@ import { FormChat } from "@/components/agent/FormChat";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarVistoria, iniciarVistoria } from "@/lib/casos.functions";
+import { hidratarSecao, type DadosUnidade } from "@/lib/perguntas-mapeamento";
 import { Check, Loader2, X } from "lucide-react";
 
 type VSearch = { mode?: "chat" | "stepper" };
@@ -41,7 +42,9 @@ function VistoriaPage() {
       try {
         const { data: caso, error: cErr } = await supabase
           .from("casos")
-          .select("id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome)))")
+          .select(
+            "id, formulario_id, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
+          )
           .eq("id", casoId)
           .maybeSingle();
         if (cErr) throw cErr;
@@ -117,11 +120,39 @@ function VistoriaPage() {
             audioPath: r.arquivo_path ?? undefined,
           };
         }
-        setState(hidrato);
+
+        // Auto-preenche a 1ª seção a partir dos dados do caso (empresa→matriz→unidade)
+        const unidade = (caso as any).unidade;
+        const matriz = unidade?.matriz;
+        const empresa = matriz?.empresa;
+        const pick = (a?: string | null, b?: string | null) =>
+          (a && a.trim()) ? a : (b ?? null);
+        const dadosUnidade: DadosUnidade = {
+          empresa_nome: empresa?.nome ?? null,
+          matriz_nome: matriz?.nome ?? null,
+          cnpj: matriz?.cnpj ?? null,
+          razao_social: matriz?.razao_social ?? matriz?.nome ?? null,
+          unidade_nome: unidade?.nome ?? null,
+          cep: pick(unidade?.cep, matriz?.cep),
+          logradouro: pick(unidade?.logradouro, matriz?.logradouro),
+          numero: pick(unidade?.numero, matriz?.numero),
+          bairro: pick(unidade?.bairro, matriz?.bairro),
+          cidade: pick(unidade?.cidade, matriz?.cidade),
+          estado: pick(unidade?.estado, matriz?.estado),
+        };
+
+        let stateInicial = hidrato;
+        const primeiraSecao = secoes[0];
+        const perguntasPrimeira = primeiraSecao ? perguntasPorSecao[primeiraSecao.id] ?? [] : [];
+        if (primeiraSecao && perguntasPrimeira.length) {
+          const { state: hidratado } = hidratarSecao(perguntasPrimeira, dadosUnidade, hidrato);
+          stateInicial = hidratado;
+        }
+        setState(stateInicial);
 
         setCtx({
           casoId: caso.id,
-          clienteNome: (caso as any).unidade?.matriz?.empresa?.nome ?? "",
+          clienteNome: empresa?.nome ?? matriz?.nome ?? "",
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
