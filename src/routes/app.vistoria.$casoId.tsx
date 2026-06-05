@@ -180,7 +180,7 @@ function VistoriaPage() {
         setLoading(false);
       }
     })();
-  }, [casoId, iniciar]);
+  }, [casoId, iniciar, auth.status, auth.userId, auth.profile?.nome, auth.email]);
 
   const saveSection = useCallback(
     async (perguntas: Pergunta[]) => {
