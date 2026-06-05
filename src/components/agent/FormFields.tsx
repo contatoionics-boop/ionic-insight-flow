@@ -16,6 +16,9 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
+import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
+import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
+import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
 
 function MicButton({
   token,
@@ -137,6 +140,12 @@ export function isComplete(p: Pergunta, r: Resposta, mode: RendererMode = "live"
   }
 }
 
+export type Siblings = {
+  perguntas: Pergunta[];
+  state: Record<string, Resposta>;
+  updateById: (perguntaId: string, patch: Partial<Resposta>) => void;
+};
+
 export function PerguntaBloco({
   pergunta,
   casoId,
@@ -144,6 +153,7 @@ export function PerguntaBloco({
   resposta,
   update,
   mode,
+  siblings,
 }: {
   pergunta: Pergunta;
   casoId: string;
@@ -151,7 +161,12 @@ export function PerguntaBloco({
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
+  siblings?: Siblings;
 }) {
+  const campo = detectarCampo(pergunta);
+  // Renderers especiais para perguntas tipo "texto" detectadas como estado/cidade
+  const renderEspecial = pergunta.tipo === "texto" && (campo === "estado" || campo === "cidade");
+
   return (
     <Card>
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -169,7 +184,14 @@ export function PerguntaBloco({
         </p>
       )}
 
-      {pergunta.tipo === "texto" && (
+      {renderEspecial && campo === "estado" && (
+        <CampoEstado resposta={resposta} update={update} />
+      )}
+      {renderEspecial && campo === "cidade" && (
+        <CampoCidade resposta={resposta} update={update} siblings={siblings} />
+      )}
+
+      {!renderEspecial && pergunta.tipo === "texto" && (
         <div className="flex items-start gap-2">
           <Textarea
             rows={3}
@@ -263,7 +285,7 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "cnpj" && (
-        <CampoCnpj resposta={resposta} update={update} token={token} />
+        <CampoCnpj resposta={resposta} update={update} token={token} siblings={siblings} />
       )}
     </Card>
   );
@@ -351,30 +373,106 @@ function CampoCnpj({
   resposta,
   update,
   token,
+  siblings,
 }: {
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
   token: string;
+  siblings?: Siblings;
 }) {
   const [valor, setValor] = useState(resposta.text ?? "");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [internal, setInternal] = useState<BuscarPorCnpjResult | null>(null);
+  const [unidadeIdx, setUnidadeIdx] = useState<number>(-1);
+  const buscarInternoFn = useServerFn(buscarPorCnpj);
+
+  const aplicarUnidade = (u: NonNullable<BuscarPorCnpjResult["unidades"]>[number] | NonNullable<NonNullable<BuscarPorCnpjResult["ultimaVistoria"]>["unidade"]>) => {
+    if (!siblings) return;
+    const dados = {
+      cnpj: internal?.matriz?.cnpj ?? valor,
+      razao_social: internal?.matriz?.razao_social ?? internal?.matriz?.nome ?? null,
+      empresa_nome: internal?.empresa?.nome ?? null,
+      matriz_nome: internal?.matriz?.nome ?? null,
+      unidade_nome: u.nome ?? null,
+      cep: u.cep ?? null,
+      logradouro: u.logradouro ?? null,
+      numero: u.numero ?? null,
+      bairro: u.bairro ?? null,
+      cidade: u.cidade ?? null,
+      estado: u.estado ?? null,
+    };
+    for (const p of siblings.perguntas) {
+      if (p.id === undefined) continue;
+      const ja = siblings.state[p.id]?.text?.trim();
+      if (ja) continue;
+      const v = valorParaCampo(detectarCampo(p), dados);
+      if (v) siblings.updateById(p.id, { text: v });
+    }
+  };
 
   const buscar = async () => {
     setLoading(true);
     setMsg(null);
     setInfo(null);
+    setInternal(null);
+    setUnidadeIdx(-1);
     try {
+      // 1) Tenta cache interno (matriz cadastrada / última vistoria)
+      const r = (await buscarInternoFn({ data: { cnpj: valor } })) as BuscarPorCnpjResult;
+      if (r.matriz) {
+        setInternal(r);
+        const nome = r.matriz.razao_social ?? r.matriz.nome ?? "";
+        setInfo(`✓ Cliente já cadastrado: ${nome}`);
+        const v = r.matriz.cnpj ?? valor;
+        setValor(v);
+        update({ text: v });
+        // auto-aplica se só tem uma unidade
+        if (r.unidades.length === 1) {
+          setUnidadeIdx(0);
+          aplicarUnidade(r.unidades[0]);
+        } else if (r.unidades.length === 0 && r.ultimaVistoria?.unidade) {
+          aplicarUnidade(r.ultimaVistoria.unidade);
+          setInfo(`✓ Dados da última vistoria recuperados.`);
+        }
+        return;
+      }
+      if (r.ultimaVistoria?.unidade) {
+        setInternal(r);
+        setInfo(`✓ Dados da última vistoria recuperados para este CNPJ.`);
+        aplicarUnidade(r.ultimaVistoria.unidade);
+        return;
+      }
+      // 2) Fallback: API pública
       const { consultarCnpj, maskCnpj } = await import("@/lib/cnpj");
       const d = await consultarCnpj(valor);
       const v = maskCnpj(d.cnpj);
       setValor(v);
-      const linha = d.nome_fantasia
-        ? `${d.razao_social} — ${d.nome_fantasia}`
-        : d.razao_social;
+      const linha = d.nome_fantasia ? `${d.razao_social} — ${d.nome_fantasia}` : d.razao_social;
       setInfo(linha);
-      update({ text: `${v} — ${linha}` });
+      update({ text: v });
+      // preenche siblings com os dados públicos
+      if (siblings) {
+        const dados = {
+          cnpj: v,
+          razao_social: d.razao_social,
+          empresa_nome: d.nome_fantasia || d.razao_social,
+          matriz_nome: d.razao_social,
+          cep: d.cep,
+          logradouro: d.logradouro,
+          numero: d.numero,
+          bairro: d.bairro,
+          cidade: d.cidade,
+          estado: d.estado,
+        };
+        for (const p of siblings.perguntas) {
+          const ja = siblings.state[p.id]?.text?.trim();
+          if (ja) continue;
+          const vCampo = valorParaCampo(detectarCampo(p), dados);
+          if (vCampo) siblings.updateById(p.id, { text: vCampo });
+        }
+      }
       setMsg("✓ CNPJ encontrado.");
     } catch (e: any) {
       setMsg(e?.message ?? "Falha ao consultar CNPJ.");
@@ -416,6 +514,30 @@ function CampoCnpj({
           {info}
         </div>
       )}
+      {internal && internal.unidades.length > 1 && (
+        <div className="rounded-md border border-border bg-muted/30 p-2">
+          <p className="mb-1 text-xs font-semibold text-foreground">
+            Selecione a unidade desta vistoria:
+          </p>
+          <select
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={unidadeIdx}
+            onChange={(e) => {
+              const i = Number(e.target.value);
+              setUnidadeIdx(i);
+              if (i >= 0) aplicarUnidade(internal.unidades[i]);
+            }}
+          >
+            <option value={-1}>— escolher unidade —</option>
+            {internal.unidades.map((u, i) => (
+              <option key={u.id} value={i}>
+                {u.nome}
+                {u.cidade ? ` · ${u.cidade}/${u.estado ?? ""}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {msg && !info && <p className="text-xs text-destructive">{msg}</p>}
       <p className="text-xs text-muted-foreground">
         Se a consulta falhar, digite o nome do cliente manualmente:
@@ -433,6 +555,119 @@ function CampoCnpj({
     </div>
   );
 }
+
+function CampoEstado({
+  resposta,
+  update,
+}: {
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+}) {
+  const [ufs, setUfs] = useState<UF[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    fetchUFs()
+      .then((d) => setUfs(d))
+      .catch((e) => setErr(e?.message ?? "Falha ao carregar UFs."))
+      .finally(() => setLoading(false));
+  }, []);
+  return (
+    <div className="space-y-1">
+      <select
+        disabled={loading}
+        className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+        value={resposta.text ?? ""}
+        onChange={(e) => update({ text: e.target.value })}
+      >
+        <option value="">{loading ? "Carregando estados…" : "Selecione o estado"}</option>
+        {ufs.map((u) => (
+          <option key={u.sigla} value={u.sigla}>
+            {u.sigla} — {u.nome}
+          </option>
+        ))}
+      </select>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </div>
+  );
+}
+
+function CampoCidade({
+  resposta,
+  update,
+  siblings,
+}: {
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+  siblings?: Siblings;
+}) {
+  // Detecta a UF lendo a pergunta-irmã marcada como estado
+  const ufIrma = (() => {
+    if (!siblings) return "";
+    for (const p of siblings.perguntas) {
+      if (detectarCampo(p) === "estado") {
+        const v = (siblings.state[p.id]?.text ?? "").trim().toUpperCase();
+        if (/^[A-Z]{2}$/.test(v)) return v;
+      }
+    }
+    return "";
+  })();
+
+  const [cidades, setCidades] = useState<Municipio[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ufIrma) {
+      setCidades([]);
+      return;
+    }
+    setLoading(true);
+    setErr(null);
+    fetchMunicipios(ufIrma)
+      .then(setCidades)
+      .catch((e) => setErr(e?.message ?? "Falha ao carregar cidades."))
+      .finally(() => setLoading(false));
+  }, [ufIrma]);
+
+  if (!ufIrma) {
+    return (
+      <div className="space-y-1">
+        <input
+          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+          placeholder="Selecione o estado primeiro ou digite a cidade"
+          value={resposta.text ?? ""}
+          onChange={(e) => update({ text: e.target.value })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Selecione o estado acima para filtrar as cidades.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <select
+        disabled={loading}
+        className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+        value={resposta.text ?? ""}
+        onChange={(e) => update({ text: e.target.value })}
+      >
+        <option value="">
+          {loading ? `Carregando cidades de ${ufIrma}…` : `Selecione a cidade (${ufIrma})`}
+        </option>
+        {cidades.map((c) => (
+          <option key={c.id} value={c.nome}>
+            {c.nome}
+          </option>
+        ))}
+      </select>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </div>
+  );
+}
+
 
 function CampoFoto({
   pergunta,

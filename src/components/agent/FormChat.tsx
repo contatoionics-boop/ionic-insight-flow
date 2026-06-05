@@ -22,6 +22,7 @@ export function FormChat({
   onSubmit,
   submitting,
   errorMessage,
+  initialStep = 0,
 }: {
   ctx: FormRunnerCtx;
   token: string;
@@ -31,6 +32,7 @@ export function FormChat({
   onSubmit?: () => Promise<void> | void;
   submitting?: boolean;
   errorMessage?: string | null;
+  initialStep?: number;
 }) {
   const { config } = useConfiguracoesEmpresa();
   const nomeEmpresa = config?.nome_empresa || "Ionics";
@@ -45,10 +47,13 @@ export function FormChat({
     return out;
   }, [ctx]);
 
-  // Cursor: primeira pergunta não completa (hidrata do rascunho).
-  // Calculado uma vez na montagem; depois avança apenas via Confirmar.
+  // Cursor: primeira pergunta não completa a partir da seção inicial.
   const [cursor, setCursor] = useState<number>(() => {
-    const i = items.findIndex((it) => !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live"));
+    const startIdx = items.findIndex((it) => it.secaoIdx >= initialStep);
+    const base = startIdx === -1 ? items.length : startIdx;
+    const i = items.findIndex(
+      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live"),
+    );
     return i === -1 ? items.length : i;
   });
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
@@ -217,6 +222,11 @@ export function FormChat({
                     resposta={r}
                     update={(patch) => update(it.pergunta.id, patch)}
                     mode="live"
+                    siblings={{
+                      perguntas: ctx.perguntasPorSecao[ctx.secoes[it.secaoIdx].id] ?? [],
+                      state,
+                      updateById: (id, patch) => update(id, patch),
+                    }}
                   />
                   <div className="mt-2 flex items-center justify-end gap-2">
                     {editing === idx && (

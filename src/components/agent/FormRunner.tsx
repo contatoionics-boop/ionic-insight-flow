@@ -36,6 +36,7 @@ export function FormRunner({
   onSubmit,
   submitting,
   errorMessage,
+  initialStep = 0,
 }: {
   ctx: FormRunnerCtx;
   token: string;
@@ -48,9 +49,10 @@ export function FormRunner({
   onSubmit?: () => Promise<void> | void;
   submitting?: boolean;
   errorMessage?: string | null;
+  initialStep?: number;
 }) {
   const { config } = useConfiguracoesEmpresa();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialStep);
 
   const totalSteps = ctx.secoes.length + 1;
   const isReview = step >= ctx.secoes.length;
@@ -140,6 +142,11 @@ export function FormRunner({
                     resposta={state[p.id] ?? {}}
                     update={(patch) => update(p.id, patch)}
                     mode={mode}
+                    siblings={{
+                      perguntas: perguntasAtuais,
+                      state,
+                      updateById: (id, patch) => update(id, patch),
+                    }}
                   />
                 ))}
               </div>

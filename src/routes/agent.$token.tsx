@@ -12,6 +12,8 @@ import { FormChat } from "@/components/agent/FormChat";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarEnvio } from "@/lib/agent-ai.functions";
+import { hidratarSecao, type DadosUnidade } from "@/lib/perguntas-mapeamento";
+import { isComplete } from "@/components/agent/FormFields";
 import { Check, Loader2, X } from "lucide-react";
 
 type AgentSearch = { mode?: "chat" | "stepper" };
@@ -28,6 +30,7 @@ function AgentPage() {
   const { mode: chatMode } = Route.useSearch();
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
+  const [initialStep, setInitialStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +51,9 @@ function AgentPage() {
 
         const { data: caso, error: cErr } = await supabase
           .from("casos")
-          .select("id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome)))")
+          .select(
+            "id, formulario_id, endereco_vistoria, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, razao_social, cnpj, empresa:empresas(nome)))",
+          )
           .eq("id", link.caso_id)
           .maybeSingle();
         if (cErr) throw cErr;
@@ -124,11 +129,42 @@ function AgentPage() {
             audioPath: r.arquivo_path ?? undefined,
           };
         }
-        setState(hidrato);
+
+        // Auto-preenche a 1ª seção a partir dos dados do caso (empresa→matriz→unidade)
+        const unidade = (caso as any).unidade;
+        const matriz = unidade?.matriz;
+        const empresa = matriz?.empresa;
+        const dadosUnidade: DadosUnidade = {
+          empresa_nome: empresa?.nome ?? null,
+          matriz_nome: matriz?.nome ?? null,
+          cnpj: matriz?.cnpj ?? null,
+          razao_social: matriz?.razao_social ?? matriz?.nome ?? null,
+          unidade_nome: unidade?.nome ?? null,
+          cep: unidade?.cep ?? null,
+          logradouro: unidade?.logradouro ?? null,
+          numero: unidade?.numero ?? null,
+          bairro: unidade?.bairro ?? null,
+          cidade: unidade?.cidade ?? null,
+          estado: unidade?.estado ?? null,
+        };
+
+        let stateInicial = hidrato;
+        let primeiraSecaoCompleta = false;
+        const primeiraSecao = secoes[0];
+        const perguntasPrimeira = primeiraSecao ? perguntasPorSecao[primeiraSecao.id] ?? [] : [];
+        if (primeiraSecao && perguntasPrimeira.length) {
+          const { state: hidratado } = hidratarSecao(perguntasPrimeira, dadosUnidade, hidrato);
+          stateInicial = hidratado;
+          primeiraSecaoCompleta = perguntasPrimeira.every((p) =>
+            isComplete(p, hidratado[p.id] ?? {}, "live"),
+          );
+        }
+        setState(stateInicial);
+        if (primeiraSecaoCompleta && secoes.length > 1) setInitialStep(1);
 
         setCtx({
           casoId: caso.id,
-          clienteNome: (caso as any).unidade?.matriz?.empresa?.nome ?? "",
+          clienteNome: empresa?.nome ?? matriz?.nome ?? "",
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
@@ -140,6 +176,35 @@ function AgentPage() {
       }
     })();
   }, [token]);
+
+  // Persiste auto-hidratação da 1ª seção uma única vez após carregar o caso.
+  const [hidratadoSalvo, setHidratadoSalvo] = useState(false);
+  useEffect(() => {
+    if (!ctx || hidratadoSalvo) return;
+    const primeira = ctx.secoes[0];
+    if (!primeira) return;
+    const perguntas = ctx.perguntasPorSecao[primeira.id] ?? [];
+    if (!perguntas.length) return;
+    const rows = perguntas
+      .filter((p) => (state[p.id]?.text ?? "").trim())
+      .map((p) => ({
+        caso_id: ctx.casoId,
+        pergunta_id: p.id,
+        tipo: p.tipo,
+        valor_texto: state[p.id]?.text ?? null,
+        arquivo_path: null,
+        transcricao: null,
+        ia_aprovado: null,
+        ia_motivo: null,
+      }));
+    setHidratadoSalvo(true);
+    if (rows.length) {
+      void supabase
+        .from("respostas_agente")
+        .upsert(rows, { onConflict: "caso_id,pergunta_id" });
+    }
+  }, [ctx, state, hidratadoSalvo]);
+
 
   const saveSection = useCallback(
     async (perguntas: Pergunta[]) => {
@@ -233,6 +298,7 @@ function AgentPage() {
         onSubmit={submitAll}
         submitting={submitting}
         errorMessage={error}
+        initialStep={initialStep}
       />
     );
   }
@@ -248,6 +314,7 @@ function AgentPage() {
       onSubmit={submitAll}
       submitting={submitting}
       errorMessage={error}
+      initialStep={initialStep}
     />
   );
 }
