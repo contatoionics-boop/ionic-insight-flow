@@ -77,7 +77,7 @@ export function FormChat({
     const it = items[idx];
     if (!it) return;
     const r = state[it.pergunta.id] ?? {};
-    if (!isComplete(it.pergunta, r, "live")) return;
+    if (!isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true })) return;
     setSavingIdx(idx);
     try {
       await onAdvanceSection?.([it.pergunta]);
