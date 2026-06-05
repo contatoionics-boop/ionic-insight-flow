@@ -1,74 +1,64 @@
-# Plano: Auto-preenchimento da 1ª seção do formulário de mapeamento
-
 ## Objetivo
-Quando o agente técnico abrir uma vistoria, a 1ª seção (dados do cliente/localização) já vem pronta. O formulário pula direto para a 2ª seção. Quando precisar preencher manualmente, há fluxo guiado por CNPJ + CEP + dropdowns em cascata.
 
-## 1. Pré-preenchimento automático ao abrir o link
-- No `agent.$token.tsx`, ao carregar o caso, hidratamos as respostas da 1ª seção (ordem mínima) a partir dos dados já cadastrados em `empresas → matrizes → unidades` vinculados ao caso.
-- Mapeamento por **tipo de pergunta + heurística no texto** (CNPJ, Razão Social, CEP, Estado, Cidade, Bairro, Endereço, Número, Unidade). Cada match grava `respostas_agente` com `valor_texto`.
-- Se TODAS as perguntas obrigatórias da 1ª seção ficarem preenchidas, o `FormRunner` inicia em `step = 1` (segunda seção). Senão, abre na 1ª normalmente.
-- A 1ª seção continua acessível pelo botão "Voltar" para ajustes.
+Resolver três problemas no fluxo de clientes/agendamento:
 
-## 2. Auto-preenchimento por CNPJ (Prioridade 1)
-Quando o agente digita CNPJ na 1ª seção (caso o pré-preenchimento não tenha rolado):
-- **Primeiro**: consulta a tabela `matrizes` por CNPJ. Se achar → puxa razão social, lista as `unidades` da matriz num seletor; ao escolher unidade, preenche CEP/UF/Cidade/Bairro/Endereço/Número.
-- **Senão**: consulta o último `caso` finalizado cujo CNPJ bate (via join unidade→matriz). Replica endereço operacional da última vistoria.
-- **Senão**: cai no fluxo manual (CEP + cascata).
+1. Botão **"Editar dados"** na lista de clientes não abre nada.
+2. Após cadastrar empresa, a lista só mostra o novo cliente depois de recarregar a página.
+3. Quando a empresa tem só uma localização, a matriz deve servir como ponto de mapeamento, sem precisar criar uma "unidade" separada para agendar.
 
-## 3. Preenchimento manual: CEP + cascata
-- CEP: já existe `consultarCep` (ViaCEP). Reaproveitar.
-- Cascata Estado → Cidade → Bairro → Rua usando **IBGE Localidades API** (online, sem custo, sem chave):
-  - Estados: `GET https://servicodados.ibge.gov.br/api/v1/localidades/estados`
-  - Cidades por UF: `GET .../estados/{UF}/municipios`
-  - **Bairros e ruas não existem no IBGE**. Para esses dois: campo livre com sugestões vindas do ViaCEP quando o CEP foi consultado. Se UF/Cidade forem trocados manualmente, Bairro e Rua voltam a input livre (sem cascata real). Esta limitação é explicitada na UI.
+---
 
-## 4. Componente novo: `EnderecoCascata`
-Reusável, fica em `src/components/agent/EnderecoCascata.tsx`. Encapsula:
-- input de CEP com lookup
-- selects de UF e Cidade (IBGE, cached em memória)
-- inputs de Bairro, Logradouro, Número
-Usado tanto pelo runner do agente quanto pelo cadastro de Unidades (`app.clients.$empresaId.tsx`) para consistência.
+## 1. Edição de clientes não abre
 
-## 5. Integração no FormRunner / FormChat
-- `agent.$token.tsx`: após hidratar `state`, calcular `primeiraSecaoCompleta`; passar `initialStep` ao `FormRunner` e `FormChat`.
-- `FormRunner`: aceita prop `initialStep` (default 0).
-- `FormChat`: mesma prop; pula primeira seção do roteiro.
-- Quando a 1ª seção tem perguntas mapeadas (CNPJ/CEP/etc.), renderiza widgets especiais (CNPJ lookup, EnderecoCascata) em vez do input de texto puro.
+**Causa provável:** o botão "Editar dados" em `src/routes/app.clients.tsx` (linhas 320–327) navega para `/app/clients/$empresaId`. Na prática, o usuário já está vendo a mesma página e nada acontece visualmente, ou — quando a empresa foi criada sem CNPJ/endereço — a página de detalhe abre, mas só mostra "Nova matriz" (não há nada para "editar"), o que reforça a sensação de "não funciona".
 
-## 6. Detecção de campos (heurística)
-Helper `src/lib/perguntas-mapeamento.ts`:
-```ts
-detectarCampo(pergunta) → "cnpj" | "razao_social" | "cep" | "uf" | "cidade" 
-                       | "bairro" | "logradouro" | "numero" | "unidade" | null
-```
-Por regex no `texto` da pergunta (case-insensitive, sem acento). Usado tanto para hidratar quanto para renderizar o widget certo.
+**Mudanças:**
+
+- Renomear o botão da lista para **"Abrir"** (com ícone de chevron), deixando claro que leva ao detalhe.
+- Em `src/routes/app.clients.$empresaId.tsx`, quando a empresa **não tem matriz**, abrir automaticamente o modal "Nova matriz" na primeira renderização (em vez de só mostrar o estado vazio com botão).
+- Quando a empresa tem **exatamente uma matriz**, adicionar um botão de atalho no header da página ("Editar dados da empresa") que abre direto o modal de edição daquela matriz.
+- Garantir que a coluna de Ações da lista pare o `stopPropagation` apenas no wrapper, mantendo o clique no botão funcional (revisão de QA).
+
+## 2. Lista não atualiza após salvar
+
+**Causa:** em `handleSave` (`app.clients.tsx`, linhas 171–217), após o `insert` navegamos imediatamente para a página de detalhe. Ao usar o botão "voltar" do navegador ou voltar pelo menu, o `useEffect`/`refresh` não roda de novo (o componente já está montado e o estado anterior persiste).
+
+**Mudança:**
+
+- Disparar `router.invalidate()` (de `useRouter`) após o save, antes de navegar. Isso marca a rota da lista como stale, e ao voltar ela rebusca.
+- Em alternativa, refazer `refresh()` no `handleSave` antes do `navigate` (cobre o caso de o usuário só fechar o modal sem ir ao detalhe).
+- Aplicar o mesmo padrão em `handleRename` e `handleDelete` (já chamam `refresh`, manter).
+
+## 3. Empresa com uma única localização → matriz é o ponto de mapeamento
+
+Hoje `casos.unidade_id` é obrigatório (FK para `unidades`), então o agendamento exige sempre uma unidade. Para preservar o schema sem migração e manter compatibilidade com dados existentes, adotamos uma **unidade implícita "Sede"** vinculada à matriz, criada de forma transparente.
+
+**Mudanças (frontend + server function):**
+
+- **Server function `agendarVistoria`** (`src/lib/casos.functions.ts`):
+  - Aceitar `matrizId` como alternativa a `unidadeId`.
+  - Se vier `matrizId` sem `unidadeId`: procurar uma unidade existente da matriz; se não houver, criar uma unidade "Sede" copiando o endereço da matriz, e usar o id dela no `casos.insert`. Operação idempotente (criar só se não existir nenhuma).
+- **Tela de agendamento** (`src/routes/app.new-case.tsx`):
+  - Quando a matriz selecionada tem **0 unidades**, esconder o seletor de Unidade e mostrar um aviso "Mapeamento será agendado na sede (endereço da matriz)".
+  - Quando tem **1 unidade**, manter o auto-select atual.
+  - Enviar `matrizId` no payload quando não há unidade selecionável; backend resolve.
+  - Pré-preenchimento de endereço já existe — apenas garantir o fallback para o endereço da matriz quando não há unidade.
+- **Tela de clientes detalhe** (`src/routes/app.clients.$empresaId.tsx`):
+  - Remover o aviso "Adicione a primeira unidade para poder agendar mapeamentos" e substituir por: "Esta matriz já pode receber mapeamentos. Adicione unidades extras se houver filiais."
+
+---
 
 ## Detalhes técnicos
 
-### Arquivos novos
-- `src/components/agent/EnderecoCascata.tsx`
-- `src/components/agent/CnpjLookup.tsx` 
-- `src/lib/ibge.ts` (helpers fetch + cache de UFs/municípios)
-- `src/lib/perguntas-mapeamento.ts` (heurística + hidratação)
-- `src/lib/cnpj-cache.functions.ts` (server fn: busca matriz/última vistoria por CNPJ)
+- Arquivos editados:
+  - `src/routes/app.clients.tsx` — rótulo do botão, `router.invalidate()` no save.
+  - `src/routes/app.clients.$empresaId.tsx` — auto-abrir modal de matriz quando vazio; atalho "Editar dados" para a matriz única; texto de hint na seção de unidades.
+  - `src/routes/app.new-case.tsx` — esconder seletor de unidade quando matriz sem unidade, enviar `matrizId`.
+  - `src/lib/casos.functions.ts` — aceitar `matrizId`, criar/reutilizar unidade "Sede".
+- Sem alterações de schema/migrações.
+- Sem mudanças de RLS (insert de unidade pelo backend usa o cliente autenticado, que já tem policy de insert via `criado_por = auth.uid()` na empresa do usuário).
 
-### Arquivos alterados
-- `src/routes/agent.$token.tsx` — hidratação 1ª seção + `initialStep`
-- `src/components/agent/FormRunner.tsx` — prop `initialStep`
-- `src/components/agent/FormChat.tsx` — prop `initialStep`
-- `src/components/agent/FormFields.tsx` — render condicional dos widgets especiais quando `detectarCampo` retorna match
-- `src/routes/app.clients.$empresaId.tsx` — reaproveita `EnderecoCascata`
+## Riscos / pontos a verificar
 
-### Sem mudanças de schema
-A heurística por texto evita migração. Se quiser robustez maior depois, adicionamos `perguntas.campo_mapeado` numa fase 2.
-
-### Server function nova
-`buscarPorCnpj(cnpj)` (autenticada) retorna:
-```
-{ matriz?: {...}, unidades?: [...], ultimaVistoria?: { endereco, unidade } }
-```
-
-## Fora de escopo
-- Banco interno de bairros/ruas acumulado
-- Mudança no editor de formulários (criação de perguntas)
-- Alteração da estrutura de tabelas (`secoes`/`perguntas`)
+- Policy de `INSERT` em `unidades` precisa permitir que o `criado_por` da empresa crie unidade sob qualquer matriz da empresa — confirmar nas políticas atuais antes de implementar; se faltar, abrir tarefa de policy (não incluído neste plano).
+- "Sede" criada automaticamente aparecerá na lista de unidades da matriz; aceitável e intuitivo.
