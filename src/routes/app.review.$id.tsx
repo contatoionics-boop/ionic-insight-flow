@@ -1,8 +1,24 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { PageHeader, Card, Button, Textarea, Modal } from "@/components/ui-bits";
-import { ArrowLeft, Check, AlertCircle, FileDown, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  PageHeader,
+  Card,
+  Button,
+  Textarea,
+  Input,
+  Label,
+  Modal,
+} from "@/components/ui-bits";
+import {
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  FileDown,
+  Loader2,
+  Save,
+  ImageOff,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 
@@ -14,15 +30,48 @@ type Caso = {
   id: string;
   codigo: string;
   status: string;
-  unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
+  formulario_id: string | null;
+  unidade: {
+    nome: string;
+    matriz: { nome: string; empresa: { nome: string } | null } | null;
+  } | null;
   agente: { nome: string } | null;
+};
+
+type Pergunta = {
+  id: string;
+  secao_id: string;
+  texto: string;
+  tipo: string;
+  ordem: number;
+  instrucao_agente: string | null;
+};
+
+type Secao = { id: string; titulo: string; ordem: number };
+
+type Opcao = { id: string; pergunta_id: string; texto: string };
+
+type Resposta = {
+  pergunta_id: string;
+  valor_texto: string | null;
+  arquivo_path: string | null;
+  transcricao: string | null;
 };
 
 function ReviewCasePage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
+  const [secoes, setSecoes] = useState<Secao[]>([]);
+  const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
+  const [opcoes, setOpcoes] = useState<Opcao[]>([]);
+  const [respostas, setRespostas] = useState<Record<string, Resposta>>({});
+  const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
   const [reopenOpen, setReopenOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
@@ -33,19 +82,144 @@ function ReviewCasePage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      setLoading(true);
+      const { data: c } = await supabase
         .from("casos")
-        .select("id, codigo, status, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
+        .select(
+          "id, codigo, status, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)",
+        )
         .eq("id", id)
         .maybeSingle();
-      setCaseData((data as unknown as Caso) ?? null);
+      const caso = (c as unknown as Caso) ?? null;
+      setCaseData(caso);
+
+      if (caso?.formulario_id) {
+        const { data: secs } = await supabase
+          .from("secoes")
+          .select("id, titulo, ordem")
+          .eq("formulario_id", caso.formulario_id)
+          .order("ordem");
+        const secList = (secs ?? []) as Secao[];
+        setSecoes(secList);
+
+        if (secList.length) {
+          const { data: ps } = await supabase
+            .from("perguntas")
+            .select("id, secao_id, texto, tipo, ordem, instrucao_agente")
+            .in(
+              "secao_id",
+              secList.map((s) => s.id),
+            )
+            .order("ordem");
+          const pList = (ps ?? []) as Pergunta[];
+          setPerguntas(pList);
+
+          if (pList.length) {
+            const { data: ops } = await supabase
+              .from("opcoes_pergunta")
+              .select("id, pergunta_id, texto, ordem")
+              .in(
+                "pergunta_id",
+                pList.map((p) => p.id),
+              )
+              .order("ordem");
+            setOpcoes((ops ?? []) as Opcao[]);
+          }
+        }
+      }
+
+      const { data: rs } = await supabase
+        .from("respostas_agente")
+        .select("pergunta_id, valor_texto, arquivo_path, transcricao")
+        .eq("caso_id", id);
+      const map: Record<string, Resposta> = {};
+      const paths: string[] = [];
+      for (const r of (rs ?? []) as Resposta[]) {
+        map[r.pergunta_id] = r;
+        if (r.arquivo_path) paths.push(r.arquivo_path);
+      }
+      setRespostas(map);
+
+      if (paths.length) {
+        const { data: signed } = await supabase.storage
+          .from("agente-uploads")
+          .createSignedUrls(paths, 60 * 60);
+        const urls: Record<string, string> = {};
+        for (const s of signed ?? []) {
+          if (s.path && s.signedUrl) urls[s.path] = s.signedUrl;
+        }
+        setFotoUrls(urls);
+      }
+
       setLoading(false);
     })();
   }, [id]);
 
+  const opcoesPorPergunta = useMemo(() => {
+    const m = new Map<string, Opcao[]>();
+    for (const o of opcoes) {
+      const arr = m.get(o.pergunta_id) ?? [];
+      arr.push(o);
+      m.set(o.pergunta_id, arr);
+    }
+    return m;
+  }, [opcoes]);
+
+  const perguntasPorSecao = useMemo(() => {
+    const m = new Map<string, Pergunta[]>();
+    for (const p of perguntas) {
+      const arr = m.get(p.secao_id) ?? [];
+      arr.push(p);
+      m.set(p.secao_id, arr);
+    }
+    return m;
+  }, [perguntas]);
+
+  const updateResposta = (
+    perguntaId: string,
+    patch: Partial<Resposta>,
+  ) => {
+    setRespostas((prev) => ({
+      ...prev,
+      [perguntaId]: {
+        pergunta_id: perguntaId,
+        valor_texto: prev[perguntaId]?.valor_texto ?? null,
+        arquivo_path: prev[perguntaId]?.arquivo_path ?? null,
+        transcricao: prev[perguntaId]?.transcricao ?? null,
+        ...patch,
+      },
+    }));
+    setDirty((d) => ({ ...d, [perguntaId]: true }));
+  };
+
+  const salvarTudo = async () => {
+    if (!caseData) return;
+    setSavingAll(true);
+    try {
+      const updates = Object.keys(dirty).filter((k) => dirty[k]);
+      for (const pid of updates) {
+        const r = respostas[pid];
+        if (!r) continue;
+        await supabase
+          .from("respostas_agente")
+          .update({
+            valor_texto: r.valor_texto,
+            transcricao: r.transcricao,
+          })
+          .eq("caso_id", caseData.id)
+          .eq("pergunta_id", pid);
+      }
+      setDirty({});
+      setSavedAt(Date.now());
+    } finally {
+      setSavingAll(false);
+    }
+  };
+
   const approve = async () => {
     if (!caseData) return;
     setWorking(true);
+    if (Object.values(dirty).some(Boolean)) await salvarTudo();
     await supabase.from("casos").update({ status: "aprovado" }).eq("id", caseData.id);
     setApproveOpen(false);
     navigate({ to: "/app/history" });
@@ -64,6 +238,7 @@ function ReviewCasePage() {
     setDownloading(true);
     setPdfError(null);
     try {
+      if (Object.values(dirty).some(Boolean)) await salvarTudo();
       const out = await gerarPdf({ data: { casoId: caseData.id } });
       const binary = atob(out.contentBase64);
       const bytes = new Uint8Array(binary.length);
@@ -85,7 +260,6 @@ function ReviewCasePage() {
   };
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
-
   if (!caseData) {
     return (
       <div>
@@ -96,6 +270,8 @@ function ReviewCasePage() {
       </div>
     );
   }
+
+  const hasDirty = Object.values(dirty).some(Boolean);
 
   return (
     <div>
@@ -111,6 +287,10 @@ function ReviewCasePage() {
         description={`${caseData.unidade?.matriz?.empresa?.nome ?? "—"}${caseData.unidade?.nome ? ` · ${caseData.unidade.nome}` : ""} · Agente ${caseData.agente?.nome ?? "—"}`}
         actions={
           <>
+            <Button variant="outline" onClick={salvarTudo} disabled={savingAll || !hasDirty}>
+              {savingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar alterações
+            </Button>
             <Button variant="outline" onClick={baixarPdf} disabled={downloading}>
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
               Baixar PDF
@@ -131,14 +311,146 @@ function ReviewCasePage() {
         </Card>
       )}
 
+      {hasDirty && (
+        <Card className="mb-3 border-amber-300/40 bg-amber-50">
+          <p className="text-sm text-amber-900">
+            Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> antes de aprovar ou gerar o PDF (também salvamos automaticamente nessas ações).
+          </p>
+        </Card>
+      )}
+      {!hasDirty && savedAt && (
+        <Card className="mb-3 border-emerald-300/40 bg-emerald-50">
+          <p className="text-sm text-emerald-900">Alterações salvas.</p>
+        </Card>
+      )}
 
-      <Card>
-        <p className="text-sm text-muted-foreground">
-          O conteúdo coletado pelo agente técnico (fotos, transcrições e respostas) será exibido aqui
-          assim que o fluxo de campo estiver concluído. Por enquanto você pode aprovar ou solicitar
-          reenvio do caso.
-        </p>
-      </Card>
+      <div className="space-y-4">
+        {secoes.length === 0 && (
+          <Card>
+            <p className="text-sm text-muted-foreground">
+              Este caso não possui seções/perguntas configuradas no formulário.
+            </p>
+          </Card>
+        )}
+        {secoes.map((s) => {
+          const ps = perguntasPorSecao.get(s.id) ?? [];
+          return (
+            <Card key={s.id}>
+              <h3 className="mb-3 text-lg font-semibold text-foreground">{s.titulo}</h3>
+              {ps.length === 0 && (
+                <p className="text-sm text-muted-foreground">Sem perguntas nesta seção.</p>
+              )}
+              <div className="space-y-5">
+                {ps.map((p) => {
+                  const r = respostas[p.id];
+                  return (
+                    <div key={p.id} className="rounded-md border border-border p-3">
+                      <Label className="text-sm font-medium text-foreground">
+                        {p.texto}
+                      </Label>
+                      {p.instrucao_agente && (
+                        <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+                          {p.instrucao_agente}
+                        </p>
+                      )}
+
+                      {p.tipo === "texto" && (
+                        <Textarea
+                          rows={3}
+                          value={r?.valor_texto ?? ""}
+                          onChange={(e) =>
+                            updateResposta(p.id, { valor_texto: e.target.value })
+                          }
+                          placeholder="Sem resposta"
+                          className="mt-2"
+                        />
+                      )}
+
+                      {p.tipo === "selecao_unica" && (
+                        <div className="mt-2 space-y-2">
+                          <select
+                            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                          >
+                            <option value="">— Sem resposta —</option>
+                            {(opcoesPorPergunta.get(p.id) ?? []).map((o) => (
+                              <option key={o.id} value={o.texto}>
+                                {o.texto}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {p.tipo === "audio" && (
+                        <div className="mt-2 space-y-2">
+                          {r?.arquivo_path && fotoUrls[r.arquivo_path] && (
+                            <audio controls src={fotoUrls[r.arquivo_path]} className="w-full" />
+                          )}
+                          <Label className="text-xs text-muted-foreground">Transcrição</Label>
+                          <Textarea
+                            rows={4}
+                            value={r?.transcricao ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { transcricao: e.target.value })
+                            }
+                            placeholder="Sem transcrição"
+                          />
+                        </div>
+                      )}
+
+                      {p.tipo === "foto" && (
+                        <div className="mt-2 grid gap-3 md:grid-cols-[200px_1fr]">
+                          <div className="overflow-hidden rounded-md border border-border bg-muted">
+                            {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
+                              <img
+                                src={fotoUrls[r.arquivo_path]}
+                                alt={p.texto}
+                                className="h-44 w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-44 items-center justify-center text-muted-foreground">
+                                <ImageOff className="h-8 w-8" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">
+                              Legenda / observação
+                            </Label>
+                            <Textarea
+                              rows={4}
+                              value={r?.valor_texto ?? ""}
+                              onChange={(e) =>
+                                updateResposta(p.id, { valor_texto: e.target.value })
+                              }
+                              placeholder="Sem legenda"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!["texto", "selecao_unica", "audio", "foto"].includes(p.tipo) && (
+                        <Input
+                          value={r?.valor_texto ?? ""}
+                          onChange={(e) =>
+                            updateResposta(p.id, { valor_texto: e.target.value })
+                          }
+                          placeholder="Sem resposta"
+                          className="mt-2"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
       <Modal open={reopenOpen} onClose={() => setReopenOpen(false)} title="Solicitar reenvio">
         <p className="mb-3 text-sm text-muted-foreground">
@@ -162,8 +474,8 @@ function ReviewCasePage() {
 
       <Modal open={approveOpen} onClose={() => setApproveOpen(false)} title="Aprovar relatório">
         <p className="text-sm text-foreground">
-          Confirma a aprovação do caso <strong>{caseData.codigo}</strong>? O relatório será enviado
-          conforme as configurações de saída.
+          Confirma a aprovação do caso <strong>{caseData.codigo}</strong>? Suas alterações serão
+          salvas antes da aprovação.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setApproveOpen(false)} disabled={working}>
