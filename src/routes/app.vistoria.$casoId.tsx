@@ -32,6 +32,7 @@ function VistoriaPage() {
   const { mode: chatMode } = Route.useSearch();
   const iniciar = useServerFn(iniciarVistoria);
   const finalizar = useServerFn(finalizarVistoria);
+  const auth = useAuth();
 
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
