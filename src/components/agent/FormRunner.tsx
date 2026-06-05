@@ -192,7 +192,7 @@ export function FormRunner({
           )}
           <Button
             onClick={advance}
-            disabled={(!isReview && !sectionComplete) || submitting}
+            disabled={submitting}
             className="h-12 flex-1 text-base"
           >
             {submitting ? (
