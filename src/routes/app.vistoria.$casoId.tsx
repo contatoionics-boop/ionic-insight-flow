@@ -42,6 +42,7 @@ function VistoriaPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    if (auth.status !== "authenticated") return;
     (async () => {
       try {
         const { data: caso, error: cErr } = await supabase
