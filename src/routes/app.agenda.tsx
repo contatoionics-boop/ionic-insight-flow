@@ -33,6 +33,8 @@ function AgendaPage() {
   const carregar = useServerFn(listarAgendaAdmin);
   const carregarAgentes = useServerFn(listTechnicalAgents);
   const cancelar = useServerFn(cancelarVistoria);
+  const deletar = useServerFn(deletarVistoria);
+  const reagendar = useServerFn(reagendarVistoria);
 
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
   const [agenteId, setAgenteId] = useState<string>("");
@@ -40,6 +42,14 @@ function AgendaPage() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<Evento | null>(null);
+  const [editing, setEditing] = useState<Evento | null>(null);
+  const [edData, setEdData] = useState("");
+  const [edHora, setEdHora] = useState("09:00");
+  const [edEndereco, setEdEndereco] = useState("");
+  const [edObs, setEdObs] = useState("");
+  const [edSaving, setEdSaving] = useState(false);
+  const [edError, setEdError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Evento | null>(null);
 
   useEffect(() => { carregarAgentes().then((d) => setAgentes((d ?? []) as any)); }, [carregarAgentes]);
 
