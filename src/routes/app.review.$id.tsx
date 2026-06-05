@@ -345,7 +345,7 @@ function ReviewCasePage() {
                   const r = respostas[p.id];
                   return (
                     <div key={p.id} className="rounded-md border border-border p-3">
-                      <Label className="text-sm font-medium text-foreground">
+                      <div className="text-sm font-medium text-foreground">
                         {p.texto}
                       </Label>
                       {p.instrucao_agente && (
@@ -390,7 +390,7 @@ function ReviewCasePage() {
                           {r?.arquivo_path && fotoUrls[r.arquivo_path] && (
                             <audio controls src={fotoUrls[r.arquivo_path]} className="w-full" />
                           )}
-                          <Label className="text-xs text-muted-foreground">Transcrição</Label>
+                          <div className="text-xs text-muted-foreground">Transcrição</Label>
                           <Textarea
                             rows={4}
                             value={r?.transcricao ?? ""}
@@ -418,7 +418,7 @@ function ReviewCasePage() {
                             )}
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                               Legenda / observação
                             </Label>
                             <Textarea
