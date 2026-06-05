@@ -134,7 +134,7 @@ export function isComplete(p: Pergunta, r: Resposta, mode: RendererMode = "live"
       return true;
     case "audio":
       if (mode === "preview") return !!r.transcription?.trim() || !!r.audioPath;
-      return !!r.audioPath && !!r.transcription?.trim() && !!r.transcriptionConfirmed;
+      return !!r.transcription?.trim() && !!r.transcriptionConfirmed;
     default:
       return !!r.text?.trim();
   }
