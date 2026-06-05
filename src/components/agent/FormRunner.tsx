@@ -152,6 +152,7 @@ export function FormRunner({
                     resposta={state[p.id] ?? {}}
                     update={(patch) => update(p.id, patch)}
                     mode={mode}
+                    validarImagensIa={validarImagensIa}
                     siblings={{
                       perguntas: perguntasAtuais,
                       state,
