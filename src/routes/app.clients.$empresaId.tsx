@@ -427,7 +427,7 @@ function EmpresaDetailPage() {
                   </div>
                   {unidades.length === 0 ? (
                     <p className="text-xs italic text-muted-foreground">
-                      Nenhuma unidade cadastrada. Adicione a primeira para poder agendar mapeamentos.
+                      A matriz já pode receber mapeamentos (será usado o endereço da matriz). Adicione unidades se houver filiais.
                     </p>
                   ) : (
                     <ul className="divide-y divide-border">
