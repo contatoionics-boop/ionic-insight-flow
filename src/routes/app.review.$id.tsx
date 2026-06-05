@@ -27,6 +27,9 @@ function ReviewCasePage() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [working, setWorking] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const gerarPdf = useServerFn(gerarPdfMapeamento);
 
   useEffect(() => {
     (async () => {
