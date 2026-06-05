@@ -64,6 +64,7 @@ type Form = {
   data_revisao: string | null;
   elaborado_por: string | null;
   aprovado_por: string | null;
+  validar_imagens_ia: boolean;
 };
 type Empresa = { id: string; nome: string };
 type Secao = { id: string; titulo: string; ordem: number };
