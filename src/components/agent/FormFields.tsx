@@ -18,7 +18,6 @@ import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
-import { useServerFn as useServerFnDup } from "@tanstack/react-start";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
 
 function MicButton({
