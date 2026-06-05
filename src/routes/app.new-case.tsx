@@ -56,7 +56,6 @@ function NewCasePage() {
   const [agentId, setAgentId] = useState("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
-  const [duracao, setDuracao] = useState(60);
   const [endereco, setEndereco] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
