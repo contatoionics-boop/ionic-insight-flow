@@ -162,6 +162,19 @@ export function FormRunner({
           )
         )}
 
+        {!isReview && showPendentes && pendentes.length > 0 && (
+          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-destructive">
+              Preencha os campos obrigatórios antes de avançar:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive">
+              {pendentes.map((p) => (
+                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {errorMessage && <p className="mt-4 text-sm text-destructive">{errorMessage}</p>}
       </main>
 
