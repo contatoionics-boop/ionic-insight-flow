@@ -47,7 +47,7 @@ function VistoriaPage() {
         const { data: caso, error: cErr } = await supabase
           .from("casos")
           .select(
-            "id, formulario_id, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
+            "id, formulario_id, agendado_em, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
           )
           .eq("id", casoId)
           .maybeSingle();
