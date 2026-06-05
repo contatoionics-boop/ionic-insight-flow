@@ -1,64 +1,100 @@
-## Objetivo
+# Geração dinâmica de PDF do mapeamento
 
-Resolver três problemas no fluxo de clientes/agendamento:
+Gerar um PDF estilo "FR-29-10" a partir das respostas do agente, funcionando para qualquer formulário cadastrado. O layout é fixo (cabeçalho/rodapé Ionics) e o conteúdo é montado dinamicamente percorrendo seções e perguntas do formulário usado naquele caso.
 
-1. Botão **"Editar dados"** na lista de clientes não abre nada.
-2. Após cadastrar empresa, a lista só mostra o novo cliente depois de recarregar a página.
-3. Quando a empresa tem só uma localização, a matriz deve servir como ponto de mapeamento, sem precisar criar uma "unidade" separada para agendar.
+## 1. Schema — metadados do formulário
 
----
+Migration adicionando colunas à tabela `formularios`:
 
-## 1. Edição de clientes não abre
+- `codigo text` — ex.: "FR-29-10"
+- `revisao text` — ex.: "00"
+- `data_revisao date`
+- `elaborado_por text`
+- `aprovado_por text`
 
-**Causa provável:** o botão "Editar dados" em `src/routes/app.clients.tsx` (linhas 320–327) navega para `/app/clients/$empresaId`. Na prática, o usuário já está vendo a mesma página e nada acontece visualmente, ou — quando a empresa foi criada sem CNPJ/endereço — a página de detalhe abre, mas só mostra "Nova matriz" (não há nada para "editar"), o que reforça a sensação de "não funciona".
+Todos opcionais. UI de edição entra na tela de edição do formulário (`app.forms.$id.index.tsx`) como um bloco "Metadados do documento".
 
-**Mudanças:**
+## 2. Renderização automática por tipo
 
-- Renomear o botão da lista para **"Abrir"** (com ícone de chevron), deixando claro que leva ao detalhe.
-- Em `src/routes/app.clients.$empresaId.tsx`, quando a empresa **não tem matriz**, abrir automaticamente o modal "Nova matriz" na primeira renderização (em vez de só mostrar o estado vazio com botão).
-- Quando a empresa tem **exatamente uma matriz**, adicionar um botão de atalho no header da página ("Editar dados da empresa") que abre direto o modal de edição daquela matriz.
-- Garantir que a coluna de Ações da lista pare o `stopPropagation` apenas no wrapper, mantendo o clique no botão funcional (revisão de QA).
+O gerador percorre `secoes` ordenadas. Para cada seção, agrupa as perguntas em blocos consecutivos por tipo:
 
-## 2. Lista não atualiza após salvar
+- **Bloco de campos** (perguntas `texto`, `toggle`, `cnpj`, `cep`, `data`, `numero`, `select`): renderiza como tabela 2 colunas (rótulo azul-marinho à esquerda, valor à direita). Toggle vira "☑ Sim ☐ Não". Perguntas sem resposta saem em branco.
+- **Bloco de fotos** (perguntas `foto`): renderiza como grid 2 colunas. Cada célula tem o `instrucao_agente` (ou `texto` se vazio) como legenda + a foto baixada do Storage. Quando IA marcou "aprovada/parcial/incorreta", aparece um selo discreto no canto.
+- **Bloco de áudio** (`audio`): título + transcrição em itálico (player não faz sentido em PDF).
 
-**Causa:** em `handleSave` (`app.clients.tsx`, linhas 171–217), após o `insert` navegamos imediatamente para a página de detalhe. Ao usar o botão "voltar" do navegador ou voltar pelo menu, o `useEffect`/`refresh` não roda de novo (o componente já está montado e o estado anterior persiste).
+Isso resolve "diferentes formulários" sem configuração — qualquer combinação de tipos é renderizada.
 
-**Mudança:**
+## 3. Geração — onde roda
 
-- Disparar `router.invalidate()` (de `useRouter`) após o save, antes de navegar. Isso marca a rota da lista como stale, e ao voltar ela rebusca.
-- Em alternativa, refazer `refresh()` no `handleSave` antes do `navigate` (cobre o caso de o usuário só fechar o modal sem ir ao detalhe).
-- Aplicar o mesmo padrão em `handleRename` e `handleDelete` (já chamam `refresh`, manter).
+Server function `gerarPdfMapeamento({ casoId })` em `src/lib/casos-pdf.functions.ts` protegida por `requireSupabaseAuth`:
 
-## 3. Empresa com uma única localização → matriz é o ponto de mapeamento
+1. Carrega caso + empresa/matriz/unidade + formulário (com metadados) + seções + perguntas + opções + respostas_agente.
+2. Baixa as fotos do bucket privado `agente-uploads` via `supabaseAdmin.storage.from(...).createSignedUrl(...)` e busca os bytes (fetch).
+3. Monta o PDF com **pdf-lib** (puro JS, roda no Worker). Fontes: Helvetica/Helvetica-Bold embutidas (sem dep de fonte externa). Logo: usa `configuracoes_empresa.logo_url` (download + embed PNG/JPEG); se ausente, escreve o nome da empresa em texto.
+4. Retorna `{ filename, contentBase64, mimeType: "application/pdf" }`.
 
-Hoje `casos.unidade_id` é obrigatório (FK para `unidades`), então o agendamento exige sempre uma unidade. Para preservar o schema sem migração e manter compatibilidade com dados existentes, adotamos uma **unidade implícita "Sede"** vinculada à matriz, criada de forma transparente.
+Por que pdf-lib: TanStack Start roda em Cloudflare Worker. `puppeteer`, `playwright`, `chrome-aws-lambda`, `sharp` e libs que requerem Chromium ou binários nativos **não funcionam**. pdf-lib é fetch/ESM e roda nativamente.
 
-**Mudanças (frontend + server function):**
+## 4. UI — botão de download
 
-- **Server function `agendarVistoria`** (`src/lib/casos.functions.ts`):
-  - Aceitar `matrizId` como alternativa a `unidadeId`.
-  - Se vier `matrizId` sem `unidadeId`: procurar uma unidade existente da matriz; se não houver, criar uma unidade "Sede" copiando o endereço da matriz, e usar o id dela no `casos.insert`. Operação idempotente (criar só se não existir nenhuma).
-- **Tela de agendamento** (`src/routes/app.new-case.tsx`):
-  - Quando a matriz selecionada tem **0 unidades**, esconder o seletor de Unidade e mostrar um aviso "Mapeamento será agendado na sede (endereço da matriz)".
-  - Quando tem **1 unidade**, manter o auto-select atual.
-  - Enviar `matrizId` no payload quando não há unidade selecionável; backend resolve.
-  - Pré-preenchimento de endereço já existe — apenas garantir o fallback para o endereço da matriz quando não há unidade.
-- **Tela de clientes detalhe** (`src/routes/app.clients.$empresaId.tsx`):
-  - Remover o aviso "Adicione a primeira unidade para poder agendar mapeamentos" e substituir por: "Esta matriz já pode receber mapeamentos. Adicione unidades extras se houver filiais."
+Em `src/routes/app.review.$id.tsx`, no header da tela de revisão, botão "Baixar PDF" ao lado dos botões existentes. Ao clicar:
 
----
+- Chama `gerarPdfMapeamento` via `useServerFn`.
+- Converte base64 → Blob → `URL.createObjectURL` → `<a download={filename}>` clicado programaticamente.
+- Toast de erro se falhar.
 
-## Detalhes técnicos
+Filename padrão: `mapeamento-{caso.codigo}-{empresa.nome}.pdf` (slug).
 
-- Arquivos editados:
-  - `src/routes/app.clients.tsx` — rótulo do botão, `router.invalidate()` no save.
-  - `src/routes/app.clients.$empresaId.tsx` — auto-abrir modal de matriz quando vazio; atalho "Editar dados" para a matriz única; texto de hint na seção de unidades.
-  - `src/routes/app.new-case.tsx` — esconder seletor de unidade quando matriz sem unidade, enviar `matrizId`.
-  - `src/lib/casos.functions.ts` — aceitar `matrizId`, criar/reutilizar unidade "Sede".
-- Sem alterações de schema/migrações.
-- Sem mudanças de RLS (insert de unidade pelo backend usa o cliente autenticado, que já tem policy de insert via `criado_por = auth.uid()` na empresa do usuário).
+## 5. Layout do PDF
 
-## Riscos / pontos a verificar
+Mesma estrutura do FR-29-10 mas com identidade Ionics:
 
-- Policy de `INSERT` em `unidades` precisa permitir que o `criado_por` da empresa crie unidade sob qualquer matriz da empresa — confirmar nas políticas atuais antes de implementar; se faltar, abrir tarefa de policy (não incluído neste plano).
-- "Sede" criada automaticamente aparecerá na lista de unidades da matriz; aceitável e intuitivo.
+```text
+┌─────────────────────────────────────────────────┐
+│ [Logo]   MAPEAMENTO TÉCNICO              [Code] │  cabeçalho
+│          {formulario.nome}                       │  (repetido toda página)
+├─────────────────────────────────────────────────┤
+│ Cliente/Unidade │ Empresa │ Data │ dd/mm/aaaa   │  bloco identificação
+│ Responsável     │ Nome    │ Contato │ email     │  (primeira página)
+├─────────────────────────────────────────────────┤
+│ 1 - {Seção 1.titulo}                            │  barra azul
+│  ┌──────────────────┬──────────────────────┐   │
+│  │ Rótulo pergunta  │ Resposta             │   │  bloco de campos
+│  └──────────────────┴──────────────────────┘   │
+│                                                  │
+│ 1.1 - Registro fotográfico                      │  barra azul (subseção)
+│  ┌────────────────┬────────────────┐            │
+│  │ instrução      │ instrução      │            │  grid de fotos
+│  │ [foto]         │ [foto]         │            │  2 col
+│  └────────────────┴────────────────┘            │
+├─────────────────────────────────────────────────┤
+│ Elaborado por: X │ Aprovado por: Y │ Rev: 00 │  rodapé
+│ Data revisão: ... │  Página N de M               │  (toda página)
+└─────────────────────────────────────────────────┘
+```
+
+Quebra de página automática: ao acumular conteúdo que ultrapassa a altura útil, abre nova página com cabeçalho/rodapé idênticos. Fotos são redimensionadas para caber na célula mantendo aspect ratio. Cores: `--primary` Ionics (azul) para cabeçalhos de tabela.
+
+## 6. Dependência nova
+
+`bun add pdf-lib` (~280kb, sem nativos, compatível com Worker).
+
+## Arquivos
+
+**Migration:**
+- `ALTER TABLE formularios ADD COLUMN codigo/revisao/data_revisao/elaborado_por/aprovado_por`
+
+**Novos:**
+- `src/lib/casos-pdf.functions.ts` — server fn `gerarPdfMapeamento`
+- `src/lib/pdf-mapeamento.server.ts` — montagem do PDF (renderHeader/renderFooter/renderCamposTable/renderFotosGrid/renderSecao)
+
+**Editados:**
+- `src/routes/app.forms.$id.index.tsx` — bloco "Metadados do documento" no editor de formulário
+- `src/routes/app.review.$id.tsx` — botão "Baixar PDF" + handler de download
+
+## Fora do escopo (sugestões futuras)
+
+- Salvar o PDF no Storage automaticamente ao finalizar
+- Botão de download também na ficha do caso (`app.vistorias.$id`)
+- Capa customizada / sumário automático
+- Assinatura digital
