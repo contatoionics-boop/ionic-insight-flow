@@ -209,6 +209,8 @@ function ClientsPage() {
 
       showToast("Empresa cadastrada ✓");
       setModalOpen(false);
+      await refresh();
+      await router.invalidate();
       navigate({ to: "/app/clients/$empresaId", params: { empresaId: emp.id } });
     } catch (e: any) {
       setError(e?.message ?? "Erro ao salvar.");
