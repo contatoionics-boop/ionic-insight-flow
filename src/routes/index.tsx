@@ -106,9 +106,9 @@ function LoginPage() {
             success ? "translate-x-8 opacity-0" : "translate-x-0 opacity-100"
           }`}
         >
-          <h2 className="text-3xl font-semibold leading-tight">Portal de Inspeções IONICS</h2>
+          <h2 className="text-3xl font-semibold leading-tight">Portal de Mapeamento Técnico IONICS</h2>
           <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">
-            Acesse sua conta para registrar e acompanhar as inspeções técnicas de campo.
+            Acesse sua conta para registrar e acompanhar os mapeamentos técnicos no campo.
           </p>
         </div>
 
