@@ -91,13 +91,14 @@ function AgendaPage() {
     <div>
       <PageHeader
         title="Agenda"
-        description="Vistorias agendadas no mês."
+        description="Mapeamentos agendados no mês."
         actions={
           <Link to="/app/new-case">
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Agendar vistoria
+              Agendar mapeamento
             </Button>
+
           </Link>
         }
       />
@@ -117,7 +118,7 @@ function AgendaPage() {
             <Button variant="ghost" onClick={() => setMes(startOfMonth(new Date()))}>Hoje</Button>
           </div>
           <div className="ml-auto min-w-[220px]">
-            <Label>Vistoriador</Label>
+            <Label>Agente Técnico</Label>
             <Select value={agenteId} onChange={(e) => setAgenteId(e.target.value)}>
               <option value="">Todos</option>
               {agentes.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
