@@ -59,6 +59,31 @@ function ReviewCasePage() {
     navigate({ to: "/app/review-queue" });
   };
 
+  const baixarPdf = async () => {
+    if (!caseData) return;
+    setDownloading(true);
+    setPdfError(null);
+    try {
+      const out = await gerarPdf({ data: { casoId: caseData.id } });
+      const binary = atob(out.contentBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: out.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = out.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : "Falha ao gerar PDF.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
 
   if (!caseData) {
