@@ -59,17 +59,64 @@ async function checarConflito(opts: {
   }
 }
 
-const AgendarInput = z.object({
-  unidadeId: z.string().uuid(),
-  formId: z.string().uuid(),
-  agenteId: z.string().uuid(),
-  agendadoEm: z.string().min(1),
-  duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
-  enderecoVistoria: z.string().max(500).optional().nullable(),
-  observacoes: z.string().max(2000).optional().nullable(),
-  gerarLink: z.boolean().default(false),
-  mode: z.enum(["stepper", "chat"]).default("stepper"),
-});
+const AgendarInput = z
+  .object({
+    unidadeId: z.string().uuid().optional().nullable(),
+    matrizId: z.string().uuid().optional().nullable(),
+    formId: z.string().uuid(),
+    agenteId: z.string().uuid(),
+    agendadoEm: z.string().min(1),
+    duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
+    enderecoVistoria: z.string().max(500).optional().nullable(),
+    observacoes: z.string().max(2000).optional().nullable(),
+    gerarLink: z.boolean().default(false),
+    mode: z.enum(["stepper", "chat"]).default("stepper"),
+  })
+  .refine((v) => !!v.unidadeId || !!v.matrizId, {
+    message: "Informe unidade ou matriz.",
+  });
+
+async function resolveUnidadeId(input: { unidadeId?: string | null; matrizId?: string | null; userId: string }) {
+  if (input.unidadeId) return input.unidadeId;
+  if (!input.matrizId) throw new Error("Sem unidade nem matriz.");
+  // Tenta usar uma unidade existente da matriz (idempotente)
+  const { data: existing, error: exErr } = await supabaseAdmin
+    .from("unidades")
+    .select("id")
+    .eq("matriz_id", input.matrizId)
+    .order("criado_em", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (exErr) throw new Error(exErr.message);
+  if (existing?.id) return existing.id;
+
+  // Cria uma unidade "Sede" copiando o endereço da matriz
+  const { data: m, error: mErr } = await supabaseAdmin
+    .from("matrizes")
+    .select("cep, logradouro, numero, bairro, cidade, estado, email, telefone")
+    .eq("id", input.matrizId)
+    .maybeSingle();
+  if (mErr || !m) throw new Error(mErr?.message ?? "Matriz não encontrada.");
+  const { data: nova, error: nErr } = await supabaseAdmin
+    .from("unidades")
+    .insert({
+      matriz_id: input.matrizId,
+      nome: "Sede",
+      criado_por: input.userId,
+      cep: m.cep,
+      logradouro: m.logradouro,
+      numero: m.numero,
+      bairro: m.bairro,
+      cidade: m.cidade,
+      estado: m.estado,
+      email: m.email,
+      telefone: m.telefone,
+    })
+    .select("id")
+    .single();
+  if (nErr || !nova) throw new Error(nErr?.message ?? "Erro ao criar unidade Sede.");
+  return nova.id;
+}
 
 export const agendarVistoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -82,10 +129,16 @@ export const agendarVistoria = createServerFn({ method: "POST" })
       duracaoMin: data.duracaoMin,
     });
 
+    const unidadeId = await resolveUnidadeId({
+      unidadeId: data.unidadeId,
+      matrizId: data.matrizId,
+      userId: context.userId,
+    });
+
     const { data: caso, error } = await supabaseAdmin
       .from("casos")
       .insert({
-        unidade_id: data.unidadeId,
+        unidade_id: unidadeId,
         formulario_id: data.formId,
         agente_id: data.agenteId,
         criado_por: context.userId,
@@ -98,6 +151,7 @@ export const agendarVistoria = createServerFn({ method: "POST" })
       .select("id, codigo")
       .single();
     if (error || !caso) throw new Error(error?.message ?? "Erro ao agendar.");
+
 
     let token: string | null = null;
     if (data.gerarLink) {
