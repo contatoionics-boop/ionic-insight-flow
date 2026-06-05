@@ -12,6 +12,7 @@ import { FormChat } from "@/components/agent/FormChat";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarVistoria, iniciarVistoria } from "@/lib/casos.functions";
+import { hidratarSecao, type DadosUnidade } from "@/lib/perguntas-mapeamento";
 import { Check, Loader2, X } from "lucide-react";
 
 type VSearch = { mode?: "chat" | "stepper" };
