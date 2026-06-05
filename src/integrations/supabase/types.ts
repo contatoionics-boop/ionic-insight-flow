@@ -220,6 +220,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "formularios_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       links_agente: {
@@ -620,14 +627,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_pode_editar_empresa: {
+        Args: { _empresa_id: string; _user_id: string }
+        Returns: boolean
+      }
+      admin_pode_ver_empresa: {
+        Args: { _empresa_id: string; _user_id: string }
+        Returns: boolean
+      }
       admin_pode_ver_formulario: {
         Args: { _formulario_id: string; _user_id: string }
+        Returns: boolean
+      }
+      agente_tem_caso_em_empresa: {
+        Args: { _empresa_id: string; _user_id: string }
+        Returns: boolean
+      }
+      agente_tem_caso_em_matriz: {
+        Args: { _matriz_id: string; _user_id: string }
+        Returns: boolean
+      }
+      agente_tem_caso_em_unidade: {
+        Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
       }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      empresa_da_matriz: { Args: { _matriz_id: string }; Returns: string }
       gen_caso_codigo: { Args: never; Returns: string }
       has_permissao_extra: {
         Args: { _perm: string; _user_id: string }
@@ -640,6 +668,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      matriz_da_unidade: { Args: { _unidade_id: string }; Returns: string }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "especialista" | "agente_tecnico"
