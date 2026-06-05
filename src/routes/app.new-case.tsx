@@ -245,13 +245,9 @@ function NewCasePage() {
                 <Input type="time" value={hora} onChange={(e) => setHora(e.target.value)} required />
               </div>
             </div>
-            <div>
-              <Label>Duração (min)</Label>
-              <Input type="number" min={15} step={15} value={duracao} onChange={(e) => setDuracao(Number(e.target.value))} required />
-            </div>
             <div className="md:col-span-2">
               <Label>Endereço do mapeamento</Label>
-              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade" />
+              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade ou matriz" />
             </div>
             <div className="md:col-span-2">
               <Label>Observações para o agente técnico</Label>
