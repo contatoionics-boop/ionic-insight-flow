@@ -10,6 +10,9 @@ export type CampoMapeado =
   | "bairro"
   | "logradouro"
   | "numero"
+  | "responsavel"
+  | "contato"
+  | "data_vistoria"
   | "cidade_estado"
   | null;
 
