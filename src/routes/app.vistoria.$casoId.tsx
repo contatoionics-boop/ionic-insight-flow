@@ -2,6 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/hooks/use-auth";
+
+
 import { Card } from "@/components/ui-bits";
 import {
   FormRunner,
@@ -29,6 +32,7 @@ function VistoriaPage() {
   const { mode: chatMode } = Route.useSearch();
   const iniciar = useServerFn(iniciarVistoria);
   const finalizar = useServerFn(finalizarVistoria);
+  const auth = useAuth();
 
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
@@ -38,12 +42,13 @@ function VistoriaPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    if (auth.status !== "authenticated") return;
     (async () => {
       try {
         const { data: caso, error: cErr } = await supabase
           .from("casos")
           .select(
-            "id, formulario_id, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
+            "id, formulario_id, agendado_em, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
           )
           .eq("id", casoId)
           .maybeSingle();
@@ -127,6 +132,8 @@ function VistoriaPage() {
         const empresa = matriz?.empresa;
         const pick = (a?: string | null, b?: string | null) =>
           (a && a.trim()) ? a : (b ?? null);
+        const agendado = (caso as any).agendado_em as string | null;
+        const dataVistoriaISO = agendado ? new Date(agendado).toISOString().slice(0, 10) : null;
         const dadosUnidade: DadosUnidade = {
           empresa_nome: empresa?.nome ?? null,
           matriz_nome: matriz?.nome ?? null,
@@ -139,6 +146,9 @@ function VistoriaPage() {
           bairro: pick(unidade?.bairro, matriz?.bairro),
           cidade: pick(unidade?.cidade, matriz?.cidade),
           estado: pick(unidade?.estado, matriz?.estado),
+          responsavel_nome: auth.profile?.nome || auth.email || null,
+          contato: auth.email || null,
+          data_vistoria: dataVistoriaISO,
         };
 
         let stateInicial = hidrato;
@@ -170,7 +180,7 @@ function VistoriaPage() {
         setLoading(false);
       }
     })();
-  }, [casoId, iniciar]);
+  }, [casoId, iniciar, auth.status, auth.userId, auth.profile?.nome, auth.email]);
 
   const saveSection = useCallback(
     async (perguntas: Pergunta[]) => {
