@@ -144,7 +144,8 @@ function NewCasePage() {
       const agendadoEm = new Date(`${data}T${hora}:00`).toISOString();
       await agendar({
         data: {
-          unidadeId,
+          unidadeId: unidadeId || null,
+          matrizId: matrizId || null,
           formId,
           agenteId: agentId,
           agendadoEm,
@@ -162,6 +163,7 @@ function NewCasePage() {
       setWorking(false);
     }
   };
+
 
   return (
     <div>
