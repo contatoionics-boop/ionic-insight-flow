@@ -120,9 +120,16 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 
 function safeText(s: string | null | undefined): string {
   if (!s) return "";
-  // pdf-lib (StandardFonts) só aceita WinAnsi — caracteres fora viram '?'.
-  // Substitui graceful: mantém acentuação latin-1.
-  return s.replace(/[\u2010-\u2015]/g, "-").replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+  // pdf-lib (StandardFonts) só aceita WinAnsi (latin-1). Substitui caracteres fora.
+  return s
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2022]/g, "*")
+    .replace(/[\u2026]/g, "...")
+    .replace(/[\u00B7]/g, "-")
+    // strip anything outside WinAnsi-1252 (0x00-0xFF), preservando \n
+    .replace(/[^\x00-\xFF\n]/g, "?");
 }
 
 // ============================================================
