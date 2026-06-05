@@ -222,6 +222,11 @@ export function FormChat({
                     resposta={r}
                     update={(patch) => update(it.pergunta.id, patch)}
                     mode="live"
+                    siblings={{
+                      perguntas: ctx.perguntasPorSecao[ctx.secoes[it.secaoIdx].id] ?? [],
+                      state,
+                      updateById: (id, patch) => update(id, patch),
+                    }}
                   />
                   <div className="mt-2 flex items-center justify-end gap-2">
                     {editing === idx && (
