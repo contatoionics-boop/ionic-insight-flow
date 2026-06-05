@@ -68,9 +68,10 @@ export function FormRunner({
     [setState],
   );
 
+  const validarImagensIa = ctx.validarImagensIa ?? true;
   const pendentes = useMemo(
-    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode)),
-    [perguntasAtuais, state, mode],
+    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode, { validarImagensIa })),
+    [perguntasAtuais, state, mode, validarImagensIa],
   );
   const sectionComplete = pendentes.length === 0;
   const [showPendentes, setShowPendentes] = useState(false);
