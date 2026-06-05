@@ -58,7 +58,7 @@ function VistoriaPage() {
 
         const { data: formulario } = await supabase
           .from("formularios")
-          .select("nome")
+          .select("nome, validar_imagens_ia")
           .eq("id", caso.formulario_id)
           .maybeSingle();
 
