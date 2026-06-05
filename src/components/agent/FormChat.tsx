@@ -222,6 +222,7 @@ export function FormChat({
                     resposta={r}
                     update={(patch) => update(it.pergunta.id, patch)}
                     mode="live"
+                    validarImagensIa={ctx.validarImagensIa ?? true}
                     siblings={{
                       perguntas: ctx.perguntasPorSecao[ctx.secoes[it.secaoIdx].id] ?? [],
                       state,
