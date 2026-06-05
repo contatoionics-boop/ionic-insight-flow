@@ -66,7 +66,10 @@ function NewCasePage() {
     (async () => {
       const [e, m, u, f, ag] = await Promise.all([
         supabase.from("empresas").select("id, nome").order("nome"),
-        supabase.from("matrizes").select("id, empresa_id, nome, cnpj").order("nome"),
+        supabase
+          .from("matrizes")
+          .select("id, empresa_id, nome, cnpj, logradouro, numero, bairro, cidade, estado")
+          .order("nome"),
         supabase
           .from("unidades")
           .select("id, matriz_id, nome, logradouro, numero, bairro, cidade, estado")

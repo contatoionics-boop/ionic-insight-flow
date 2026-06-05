@@ -118,6 +118,36 @@ async function resolveUnidadeId(input: { unidadeId?: string | null; matrizId?: s
   return nova.id;
 }
 
+type EnderecoRow = {
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
+};
+
+function formatEndereco(row?: EnderecoRow | null) {
+  if (!row) return null;
+  const endereco = [
+    [row.logradouro, row.numero].filter(Boolean).join(", "),
+    row.bairro,
+    [row.cidade, row.estado].filter(Boolean).join("/"),
+  ]
+    .filter(Boolean)
+    .join(" - ");
+  return endereco || null;
+}
+
+async function getEnderecoVistoria(unidadeId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("unidades")
+    .select("logradouro, numero, bairro, cidade, estado, matriz:matrizes(logradouro, numero, bairro, cidade, estado)")
+    .eq("id", unidadeId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return formatEndereco(data) ?? formatEndereco((data?.matriz as EnderecoRow | null) ?? null);
+}
+
 export const agendarVistoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => AgendarInput.parse(input))
@@ -135,6 +165,8 @@ export const agendarVistoria = createServerFn({ method: "POST" })
       userId: context.userId,
     });
 
+    const enderecoVistoria = data.enderecoVistoria?.trim() || (await getEnderecoVistoria(unidadeId));
+
     const { data: caso, error } = await supabaseAdmin
       .from("casos")
       .insert({
@@ -145,7 +177,7 @@ export const agendarVistoria = createServerFn({ method: "POST" })
         status: "agendado",
         agendado_em: data.agendadoEm,
         duracao_min: data.duracaoMin,
-        endereco_vistoria: data.enderecoVistoria ?? null,
+        endereco_vistoria: enderecoVistoria,
         observacoes_agendamento: data.observacoes ?? null,
       })
       .select("id, codigo")
