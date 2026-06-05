@@ -58,6 +58,7 @@ const emptyForm: NovaForm = {
 
 function ClientsPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { role, userId } = useAuth();
   const canWrite = role === "super_admin" || role === "admin";
 
