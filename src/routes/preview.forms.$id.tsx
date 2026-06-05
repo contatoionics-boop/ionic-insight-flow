@@ -34,7 +34,7 @@ function FullscreenPreviewPage() {
       try {
         const { data: f, error: fErr } = await supabase
           .from("formularios")
-          .select("nome, empresa:empresas(nome)")
+          .select("nome, validar_imagens_ia, empresa:empresas(nome)")
           .eq("id", id)
           .single();
         if (fErr) throw fErr;
