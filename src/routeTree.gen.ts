@@ -30,6 +30,7 @@ import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
+import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
 import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
 import { Route as AppVistoriasIdRouteImport } from './routes/app.vistorias.$id'
 import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
@@ -143,6 +144,11 @@ const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppFormsRoute,
 } as any)
+const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppClientsRoute,
+} as any)
 const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
   id: '/preview/forms/$id',
   path: '/preview/forms/$id',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
+  '/app/clients/': typeof AppClientsIndexRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id/': typeof AppFormsIdIndexRoute
@@ -217,7 +224,6 @@ export interface FileRoutesByTo {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
-  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms-assistant': typeof AppFormsAssistantRoute
@@ -234,6 +240,7 @@ export interface FileRoutesByTo {
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
+  '/app/clients': typeof AppClientsIndexRoute
   '/app/forms': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id': typeof AppFormsIdIndexRoute
@@ -265,6 +272,7 @@ export interface FileRoutesById {
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
   '/app/vistorias/$id': typeof AppVistoriasIdRoute
   '/preview/forms/$id': typeof PreviewFormsIdRoute
+  '/app/clients/': typeof AppClientsIndexRoute
   '/app/forms/': typeof AppFormsIndexRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id/': typeof AppFormsIdIndexRoute
@@ -297,6 +305,7 @@ export interface FileRouteTypes {
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
     | '/preview/forms/$id'
+    | '/app/clients/'
     | '/app/forms/'
     | '/app/forms/$id/preview'
     | '/app/forms/$id/'
@@ -309,7 +318,6 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/app/agenda'
     | '/app/cases'
-    | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms-assistant'
@@ -326,6 +334,7 @@ export interface FileRouteTypes {
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
     | '/preview/forms/$id'
+    | '/app/clients'
     | '/app/forms'
     | '/app/forms/$id/preview'
     | '/app/forms/$id'
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/app/vistoria/$casoId'
     | '/app/vistorias/$id'
     | '/preview/forms/$id'
+    | '/app/clients/'
     | '/app/forms/'
     | '/app/forms/$id/preview'
     | '/app/forms/$id/'
@@ -519,6 +529,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFormsIndexRouteImport
       parentRoute: typeof AppFormsRoute
     }
+    '/app/clients/': {
+      id: '/app/clients/'
+      path: '/'
+      fullPath: '/app/clients/'
+      preLoaderRoute: typeof AppClientsIndexRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
     '/preview/forms/$id': {
       id: '/preview/forms/$id'
       path: '/preview/forms/$id'
@@ -573,10 +590,12 @@ declare module '@tanstack/react-router' {
 
 interface AppClientsRouteChildren {
   AppClientsEmpresaIdRoute: typeof AppClientsEmpresaIdRoute
+  AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
 
 const AppClientsRouteChildren: AppClientsRouteChildren = {
   AppClientsEmpresaIdRoute: AppClientsEmpresaIdRoute,
+  AppClientsIndexRoute: AppClientsIndexRoute,
 }
 
 const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
