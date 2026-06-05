@@ -101,6 +101,7 @@ function FormBuilderPage() {
   const [iDataRev, setIDataRev] = useState("");
   const [iElaborado, setIElaborado] = useState("");
   const [iAprovado, setIAprovado] = useState("");
+  const [iValidarIa, setIValidarIa] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
