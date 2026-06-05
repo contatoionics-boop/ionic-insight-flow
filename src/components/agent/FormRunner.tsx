@@ -172,7 +172,7 @@ export function FormRunner({
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive">
               {pendentes.map((p) => (
-                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode)}</li>
+                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode, validarImagensIa)}</li>
               ))}
             </ul>
           </div>
