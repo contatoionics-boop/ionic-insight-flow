@@ -158,6 +158,7 @@ function FormBuilderPage() {
     setIDataRev(form.data_revisao ?? "");
     setIElaborado(form.elaborado_por ?? "");
     setIAprovado(form.aprovado_por ?? "");
+    setIValidarIa(form.validar_imagens_ia ?? true);
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
@@ -173,6 +174,7 @@ function FormBuilderPage() {
         data_revisao: iDataRev || null,
         elaborado_por: iElaborado || null,
         aprovado_por: iAprovado || null,
+        validar_imagens_ia: iValidarIa,
       })
       .eq("id", id);
     setInfoOpen(false);
