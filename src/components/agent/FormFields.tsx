@@ -140,6 +140,12 @@ export function isComplete(p: Pergunta, r: Resposta, mode: RendererMode = "live"
   }
 }
 
+export type Siblings = {
+  perguntas: Pergunta[];
+  state: Record<string, Resposta>;
+  updateById: (perguntaId: string, patch: Partial<Resposta>) => void;
+};
+
 export function PerguntaBloco({
   pergunta,
   casoId,
@@ -147,6 +153,7 @@ export function PerguntaBloco({
   resposta,
   update,
   mode,
+  siblings,
 }: {
   pergunta: Pergunta;
   casoId: string;
@@ -154,7 +161,12 @@ export function PerguntaBloco({
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
+  siblings?: Siblings;
 }) {
+  const campo = detectarCampo(pergunta);
+  // Renderers especiais para perguntas tipo "texto" detectadas como estado/cidade
+  const renderEspecial = pergunta.tipo === "texto" && (campo === "estado" || campo === "cidade");
+
   return (
     <Card>
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -172,7 +184,14 @@ export function PerguntaBloco({
         </p>
       )}
 
-      {pergunta.tipo === "texto" && (
+      {renderEspecial && campo === "estado" && (
+        <CampoEstado resposta={resposta} update={update} />
+      )}
+      {renderEspecial && campo === "cidade" && (
+        <CampoCidade resposta={resposta} update={update} siblings={siblings} />
+      )}
+
+      {!renderEspecial && pergunta.tipo === "texto" && (
         <div className="flex items-start gap-2">
           <Textarea
             rows={3}
