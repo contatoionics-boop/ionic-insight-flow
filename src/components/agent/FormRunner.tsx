@@ -24,6 +24,7 @@ export type FormRunnerCtx = {
   formularioNome: string;
   secoes: FormRunnerSecao[];
   perguntasPorSecao: Record<string, Pergunta[]>;
+  validarImagensIa?: boolean;
 };
 
 export function FormRunner({
