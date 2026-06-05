@@ -309,11 +309,11 @@ function UsersPage() {
           <div>
             <Label>Perfil</Label>
             <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-              <option value="super_admin">Super Admin</option>
+              <option value="super_admin">Especialista (Super Admin)</option>
               <option value="admin">IAN</option>
-              <option value="especialista">Especialista</option>
               <option value="agente_tecnico">Agente Técnico</option>
             </Select>
+
             {!editing && (
               <p className="mt-1 text-xs text-muted-foreground">
                 O usuário receberá um e-mail para definir a senha de primeiro acesso.
