@@ -105,7 +105,7 @@ function FormBuilderPage() {
     setLoading(true);
     const { data: f, error: e1 } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, empresa_id, empresa:empresas(nome)")
+      .select("id, nome, descricao, empresa_id, empresa:empresas(nome), codigo, revisao, data_revisao, elaborado_por, aprovado_por")
       .eq("id", id)
       .single();
     if (e1) {
