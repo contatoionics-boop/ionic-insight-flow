@@ -12,6 +12,8 @@ import { FormChat } from "@/components/agent/FormChat";
 import type { Pergunta, Resposta, TipoPergunta } from "@/components/agent/FormFields";
 import { supabase } from "@/integrations/supabase/client";
 import { finalizarEnvio } from "@/lib/agent-ai.functions";
+import { hidratarSecao, type DadosUnidade } from "@/lib/perguntas-mapeamento";
+import { isComplete } from "@/components/agent/FormFields";
 import { Check, Loader2, X } from "lucide-react";
 
 type AgentSearch = { mode?: "chat" | "stepper" };
@@ -28,6 +30,7 @@ function AgentPage() {
   const { mode: chatMode } = Route.useSearch();
   const [ctx, setCtx] = useState<FormRunnerCtx | null>(null);
   const [state, setState] = useState<Record<string, Resposta>>({});
+  const [initialStep, setInitialStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
