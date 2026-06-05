@@ -198,6 +198,7 @@ export type Database = {
           id: string
           nome: string
           revisao: string | null
+          validar_imagens_ia: boolean
         }
         Insert: {
           aprovado_por?: string | null
@@ -212,6 +213,7 @@ export type Database = {
           id?: string
           nome: string
           revisao?: string | null
+          validar_imagens_ia?: boolean
         }
         Update: {
           aprovado_por?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           id?: string
           nome?: string
           revisao?: string | null
+          validar_imagens_ia?: boolean
         }
         Relationships: [
           {

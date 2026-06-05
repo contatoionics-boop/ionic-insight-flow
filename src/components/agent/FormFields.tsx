@@ -123,12 +123,20 @@ async function fileToBase64(file: Blob): Promise<string> {
   return btoa(bin);
 }
 
-export function isComplete(p: Pergunta, r: Resposta, mode: RendererMode = "live"): boolean {
+export function isComplete(
+  p: Pergunta,
+  r: Resposta,
+  mode: RendererMode = "live",
+  opts: { validarImagensIa?: boolean } = {},
+): boolean {
   if (!p.obrigatoria) return true;
+  const validarIa = opts.validarImagensIa ?? true;
   switch (p.tipo) {
     case "foto":
       if (mode === "preview") return !!r.filePreview;
-      if (!r.filePath || !r.ia) return false;
+      if (!r.filePath) return false;
+      if (!validarIa) return true;
+      if (!r.ia) return false;
       if (r.ia.status === "incorreta") return false;
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
