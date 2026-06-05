@@ -166,6 +166,7 @@ function VistoriaPage() {
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
+          validarImagensIa: (formulario as any)?.validar_imagens_ia ?? true,
         });
 
         // marca como em andamento
