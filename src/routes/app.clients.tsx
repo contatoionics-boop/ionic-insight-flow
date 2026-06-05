@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   PageHeader,
@@ -58,6 +58,7 @@ const emptyForm: NovaForm = {
 
 function ClientsPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { role, userId } = useAuth();
   const canWrite = role === "super_admin" || role === "admin";
 
@@ -208,6 +209,8 @@ function ClientsPage() {
 
       showToast("Empresa cadastrada ✓");
       setModalOpen(false);
+      await refresh();
+      await router.invalidate();
       navigate({ to: "/app/clients/$empresaId", params: { empresaId: emp.id } });
     } catch (e: any) {
       setError(e?.message ?? "Erro ao salvar.");

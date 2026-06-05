@@ -113,6 +113,18 @@ function EmpresaDetailPage() {
     refresh();
   }, [refresh]);
 
+  // Quando a empresa ainda não tem matriz, abre automaticamente o modal de cadastro
+  // para que o usuário possa complementar os dados (CNPJ, endereço etc.).
+  useEffect(() => {
+    if (!loading && canWrite && matrizes.length === 0 && !mModal) {
+      setEditingM(null);
+      setMForm({ nome: empresa?.nome ?? "" });
+      setCnpjMsg(null);
+      setMModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, matrizes.length, canWrite]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -325,9 +337,16 @@ function EmpresaDetailPage() {
         description="Gerencie as matrizes (CNPJs) e as unidades atendidas."
         actions={
           canWrite ? (
-            <Button onClick={openCreateMatriz}>
-              <Plus className="h-4 w-4" /> Nova matriz
-            </Button>
+            <div className="flex gap-2">
+              {matrizes.length === 1 && (
+                <Button variant="outline" onClick={() => openEditMatriz(matrizes[0])}>
+                  <Pencil className="h-4 w-4" /> Editar dados
+                </Button>
+              )}
+              <Button onClick={openCreateMatriz}>
+                <Plus className="h-4 w-4" /> Nova matriz
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -408,7 +427,7 @@ function EmpresaDetailPage() {
                   </div>
                   {unidades.length === 0 ? (
                     <p className="text-xs italic text-muted-foreground">
-                      Nenhuma unidade cadastrada. Adicione a primeira para poder agendar mapeamentos.
+                      A matriz já pode receber mapeamentos (será usado o endereço da matriz). Adicione unidades se houver filiais.
                     </p>
                   ) : (
                     <ul className="divide-y divide-border">

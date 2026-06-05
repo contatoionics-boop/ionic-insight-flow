@@ -144,7 +144,8 @@ function NewCasePage() {
       const agendadoEm = new Date(`${data}T${hora}:00`).toISOString();
       await agendar({
         data: {
-          unidadeId,
+          unidadeId: unidadeId || null,
+          matrizId: matrizId || null,
           formId,
           agenteId: agentId,
           agendadoEm,
@@ -162,6 +163,7 @@ function NewCasePage() {
       setWorking(false);
     }
   };
+
 
   return (
     <div>
@@ -203,21 +205,25 @@ function NewCasePage() {
             </div>
             <div>
               <Label>Unidade</Label>
-              <Select
-                value={unidadeId}
-                onChange={(e) => onChangeUnidade(e.target.value)}
-                required
-                disabled={!matrizId}
-              >
-                <option value="">{matrizId ? "Selecione a unidade" : "Selecione a matriz antes"}</option>
-                {unidadesDaMatriz.map((u) => (
-                  <option key={u.id} value={u.id}>{u.nome}</option>
-                ))}
-              </Select>
-              {matrizId && unidadesDaMatriz.length === 0 && (
-                <p className="mt-1 text-xs text-destructive">Esta matriz não tem unidade. Cadastre uma em Clientes.</p>
+              {matrizId && unidadesDaMatriz.length === 0 ? (
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  Sem unidades cadastradas — o mapeamento será agendado na sede (endereço da matriz).
+                </div>
+              ) : (
+                <Select
+                  value={unidadeId}
+                  onChange={(e) => onChangeUnidade(e.target.value)}
+                  required={unidadesDaMatriz.length > 0}
+                  disabled={!matrizId}
+                >
+                  <option value="">{matrizId ? "Selecione a unidade" : "Selecione a matriz antes"}</option>
+                  {unidadesDaMatriz.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nome}</option>
+                  ))}
+                </Select>
               )}
             </div>
+
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -262,9 +268,10 @@ function NewCasePage() {
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={working || !unidadeId}>
+            <Button type="submit" disabled={working || !matrizId}>
               {working ? "Agendando..." : "Agendar mapeamento"}
             </Button>
+
           </div>
         </form>
       </Card>
