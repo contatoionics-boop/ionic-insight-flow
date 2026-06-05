@@ -221,13 +221,13 @@ export function FormRunner({
   );
 }
 
-function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode): string {
+function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode, validarImagensIa: boolean = true): string {
   switch (p.tipo) {
     case "foto":
       if (!r.filePath && !r.filePreview) return "envie uma foto";
-      if (mode === "live" && !r.ia) return "aguardando validação da IA";
-      if (r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
-      if (r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
+      if (mode === "live" && validarImagensIa && !r.ia) return "aguardando validação da IA";
+      if (validarImagensIa && r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
+      if (validarImagensIa && r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
       return "incompleta";
     case "audio":
       if (!r.audioPath && !r.transcription?.trim()) return "grave um áudio";
