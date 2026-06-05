@@ -283,7 +283,7 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "foto" && (
-        <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} />
+        <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} validarImagensIa={validarImagensIa} />)
       )}
 
       {pergunta.tipo === "audio" && (
