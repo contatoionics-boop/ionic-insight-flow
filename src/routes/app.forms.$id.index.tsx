@@ -95,6 +95,11 @@ function FormBuilderPage() {
   const [iNome, setINome] = useState("");
   const [iDesc, setIDesc] = useState("");
   const [iEmp, setIEmp] = useState("");
+  const [iCodigo, setICodigo] = useState("");
+  const [iRevisao, setIRevisao] = useState("");
+  const [iDataRev, setIDataRev] = useState("");
+  const [iElaborado, setIElaborado] = useState("");
+  const [iAprovado, setIAprovado] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
