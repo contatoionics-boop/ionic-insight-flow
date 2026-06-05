@@ -142,6 +142,11 @@ export function FormRunner({
                     resposta={state[p.id] ?? {}}
                     update={(patch) => update(p.id, patch)}
                     mode={mode}
+                    siblings={{
+                      perguntas: perguntasAtuais,
+                      state,
+                      updateById: (id, patch) => update(id, patch),
+                    }}
                   />
                 ))}
               </div>
