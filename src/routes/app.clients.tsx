@@ -200,10 +200,16 @@ function ClientsPage() {
                   <Td>
                     <div className="flex gap-2" onClick={(ev) => ev.stopPropagation()}>
                       <button
+                        onClick={() => navigate({ to: "/app/clients/$empresaId", params: { empresaId: e.id } })}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                      >
+                        <Pencil className="h-3 w-3" /> Editar
+                      </button>
+                      <button
                         onClick={() => openEdit(e)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                       >
-                        <Pencil className="h-3 w-3" /> Renomear
+                        Renomear
                       </button>
                       <button
                         onClick={() => setToDelete(e)}

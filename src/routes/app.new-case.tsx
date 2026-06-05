@@ -12,21 +12,19 @@ export const Route = createFileRoute("/app/new-case")({
 });
 
 type Empresa = { id: string; nome: string };
-type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null };
-type Unidade = {
-  id: string;
-  matriz_id: string;
-  nome: string;
+type EnderecoBase = {
   logradouro: string | null;
   numero: string | null;
   bairro: string | null;
   cidade: string | null;
   estado: string | null;
 };
+type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null } & EnderecoBase;
+type Unidade = { id: string; matriz_id: string; nome: string } & EnderecoBase;
 type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
-function formatEnderecoUnidade(u?: Unidade | null) {
+function formatEndereco(u?: EnderecoBase | null) {
   if (!u) return "";
   const parts = [
     [u.logradouro, u.numero].filter(Boolean).join(", "),
@@ -34,6 +32,10 @@ function formatEnderecoUnidade(u?: Unidade | null) {
     [u.cidade, u.estado].filter(Boolean).join("/"),
   ].filter(Boolean);
   return parts.join(" - ");
+}
+
+function temEndereco(e?: EnderecoBase | null) {
+  return !!(e && (e.logradouro || e.cidade || e.bairro));
 }
 
 function NewCasePage() {
@@ -54,7 +56,6 @@ function NewCasePage() {
   const [agentId, setAgentId] = useState("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
-  const [duracao, setDuracao] = useState(60);
   const [endereco, setEndereco] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
@@ -107,11 +108,17 @@ function NewCasePage() {
     }
   }, [unidadesDaMatriz, unidadeId]);
 
-  // Auto-preenche endereço a partir da unidade selecionada
+  // Auto-preenche endereço a partir da unidade, ou matriz como fallback
   useEffect(() => {
+    if (endereco) return;
     const u = unidades.find((x) => x.id === unidadeId);
-    if (u && !endereco) setEndereco(formatEnderecoUnidade(u));
-  }, [unidadeId, unidades, endereco]);
+    if (temEndereco(u)) {
+      setEndereco(formatEndereco(u));
+      return;
+    }
+    const m = matrizes.find((x) => x.id === matrizId);
+    if (temEndereco(m)) setEndereco(formatEndereco(m));
+  }, [unidadeId, matrizId, unidades, matrizes, endereco]);
 
   const onChangeEmpresa = (v: string) => {
     setEmpresaId(v);
@@ -141,7 +148,7 @@ function NewCasePage() {
           formId,
           agenteId: agentId,
           agendadoEm,
-          duracaoMin: duracao,
+          duracaoMin: 60,
           enderecoVistoria: endereco || null,
           observacoes: observacoes || null,
           gerarLink: false,
@@ -238,13 +245,9 @@ function NewCasePage() {
                 <Input type="time" value={hora} onChange={(e) => setHora(e.target.value)} required />
               </div>
             </div>
-            <div>
-              <Label>Duração (min)</Label>
-              <Input type="number" min={15} step={15} value={duracao} onChange={(e) => setDuracao(Number(e.target.value))} required />
-            </div>
             <div className="md:col-span-2">
               <Label>Endereço do mapeamento</Label>
-              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade" />
+              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade ou matriz" />
             </div>
             <div className="md:col-span-2">
               <Label>Observações para o agente técnico</Label>

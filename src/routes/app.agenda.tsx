@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-bits";
+import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
+import { DatePicker } from "@/components/ui/date-picker";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
-import { listarAgendaAdmin, cancelarVistoria } from "@/lib/casos.functions";
+import { listarAgendaAdmin, cancelarVistoria, deletarVistoria, reagendarVistoria } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/app/agenda")({
   component: AgendaPage,
@@ -32,6 +33,8 @@ function AgendaPage() {
   const carregar = useServerFn(listarAgendaAdmin);
   const carregarAgentes = useServerFn(listTechnicalAgents);
   const cancelar = useServerFn(cancelarVistoria);
+  const deletar = useServerFn(deletarVistoria);
+  const reagendar = useServerFn(reagendarVistoria);
 
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
   const [agenteId, setAgenteId] = useState<string>("");
@@ -39,6 +42,14 @@ function AgendaPage() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<Evento | null>(null);
+  const [editing, setEditing] = useState<Evento | null>(null);
+  const [edData, setEdData] = useState("");
+  const [edHora, setEdHora] = useState("09:00");
+  const [edEndereco, setEdEndereco] = useState("");
+  const [edObs, setEdObs] = useState("");
+  const [edSaving, setEdSaving] = useState(false);
+  const [edError, setEdError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Evento | null>(null);
 
   useEffect(() => { carregarAgentes().then((d) => setAgentes((d ?? []) as any)); }, [carregarAgentes]);
 
@@ -85,6 +96,53 @@ function AgendaPage() {
     await cancelar({ data: { casoId: id } });
     setSel(null);
     setMes(new Date(mes));
+  };
+
+  const reload = () => setMes(new Date(mes));
+
+  const openEdit = (e: Evento) => {
+    const dt = new Date(e.agendado_em);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEdData(`${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`);
+    setEdHora(`${pad(dt.getHours())}:${pad(dt.getMinutes())}`);
+    setEdEndereco(e.endereco_vistoria ?? "");
+    setEdObs(e.observacoes_agendamento ?? "");
+    setEdError(null);
+    setEditing(e);
+    setSel(null);
+  };
+
+  const submitEdit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editing) return;
+    setEdSaving(true);
+    setEdError(null);
+    try {
+      const agendadoEm = new Date(`${edData}T${edHora}:00`).toISOString();
+      await reagendar({
+        data: {
+          casoId: editing.id,
+          agendadoEm,
+          duracaoMin: editing.duracao_min ?? 60,
+          enderecoVistoria: edEndereco || null,
+          observacoes: edObs || null,
+        },
+      });
+      setEditing(null);
+      reload();
+    } catch (e: any) {
+      setEdError(e?.message ?? "Erro ao salvar.");
+    } finally {
+      setEdSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    await deletar({ data: { casoId: toDelete.id } });
+    setToDelete(null);
+    setSel(null);
+    reload();
   };
 
   return (
@@ -175,11 +233,76 @@ function AgendaPage() {
               {sel.observacoes_agendamento && (
                 <p className="mt-2 rounded bg-muted/40 p-2 text-xs italic">{sel.observacoes_agendamento}</p>
               )}
-              <div className="mt-4 flex justify-end gap-2">
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSel(null)}>Fechar</Button>
                 {sel.status !== "cancelado" && sel.status !== "aprovado" && sel.status !== "concluido" && (
-                  <Button variant="destructive" onClick={() => handleCancelar(sel.id)}>Cancelar vistoria</Button>
+                  <>
+                    <Button variant="outline" onClick={() => openEdit(sel)}>
+                      <Pencil className="mr-1 h-3 w-3" /> Editar
+                    </Button>
+                    <Button variant="outline" onClick={() => handleCancelar(sel.id)}>Cancelar vistoria</Button>
+                  </>
                 )}
+                <Button variant="destructive" onClick={() => setToDelete(sel)}>
+                  <Trash2 className="mr-1 h-3 w-3" /> Excluir
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditing(null)}>
+          <Card className="w-full max-w-md" >
+            <form onSubmit={submitEdit} onClick={(e) => e.stopPropagation()} className="space-y-3">
+              <h3 className="text-lg font-semibold">Editar agendamento</h3>
+              {edError && (
+                <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">{edError}</div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <Label>Data</Label>
+                  <DatePicker value={edData} onChange={setEdData} />
+                </div>
+                <div>
+                  <Label>Hora</Label>
+                  <Input type="time" value={edHora} onChange={(e) => setEdHora(e.target.value)} required />
+                </div>
+              </div>
+              <div>
+                <Label>Endereço</Label>
+                <Input value={edEndereco} onChange={(e) => setEdEndereco(e.target.value)} />
+              </div>
+              <div>
+                <Label>Observações</Label>
+                <textarea
+                  value={edObs}
+                  onChange={(e) => setEdObs(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditing(null)} disabled={edSaving}>Cancelar</Button>
+                <Button type="submit" disabled={edSaving}>{edSaving ? "Salvando..." : "Salvar"}</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {toDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setToDelete(null)}>
+          <Card className="w-full max-w-sm" >
+            <div onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-semibold">Excluir vistoria</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Excluir <strong>{toDelete.codigo}</strong> permanentemente? Esta ação não pode ser desfeita.
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setToDelete(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={handleDelete}>Excluir</Button>
               </div>
             </div>
           </Card>

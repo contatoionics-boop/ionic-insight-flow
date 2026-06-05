@@ -168,6 +168,21 @@ export const cancelarVistoria = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deletarVistoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ casoId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdminOrSuper(context.supabase, context.userId);
+    const { error } = await supabaseAdmin
+      .from("casos")
+      .delete()
+      .eq("id", data.casoId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const listarMinhasVistorias = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
