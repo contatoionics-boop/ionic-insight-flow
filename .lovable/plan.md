@@ -1,34 +1,74 @@
-# Renomear "Casos" → "Vistorias" e permitir ver/aprovar o andamento
+# Plano: Auto-preenchimento da 1ª seção do formulário de mapeamento
 
-## 1. Renomear no sidebar e na página
-- `src/components/AppLayout.tsx`: trocar label `"Casos"` por `"Vistorias"` no item `/app/cases` (super_admin).
-- `src/routes/app.cases.tsx`: `PageHeader` passa a `title="Vistorias"` e `description="Todas as vistorias da plataforma."`; mensagens vazias/loading usam "vistoria".
-- Manter a rota `/app/cases` (apenas o label muda).
+## Objetivo
+Quando o agente técnico abrir uma vistoria, a 1ª seção (dados do cliente/localização) já vem pronta. O formulário pula direto para a 2ª seção. Quando precisar preencher manualmente, há fluxo guiado por CNPJ + CEP + dropdowns em cascata.
 
-## 2. Linhas da tabela clicáveis
-Em `app.cases.tsx`, cada `<tr>` ganha `hover:bg-muted/50 cursor-pointer` e `onClick` que navega para `/app/vistorias/$id` via `useNavigate`.
+## 1. Pré-preenchimento automático ao abrir o link
+- No `agent.$token.tsx`, ao carregar o caso, hidratamos as respostas da 1ª seção (ordem mínima) a partir dos dados já cadastrados em `empresas → matrizes → unidades` vinculados ao caso.
+- Mapeamento por **tipo de pergunta + heurística no texto** (CNPJ, Razão Social, CEP, Estado, Cidade, Bairro, Endereço, Número, Unidade). Cada match grava `respostas_agente` com `valor_texto`.
+- Se TODAS as perguntas obrigatórias da 1ª seção ficarem preenchidas, o `FormRunner` inicia em `step = 1` (segunda seção). Senão, abre na 1ª normalmente.
+- A 1ª seção continua acessível pelo botão "Voltar" para ajustes.
 
-## 3. Nova rota: detalhes da vistoria
-Criar `src/routes/app.vistorias.$id.tsx` para admin/super_admin verem o andamento e o que já foi respondido.
+## 2. Auto-preenchimento por CNPJ (Prioridade 1)
+Quando o agente digita CNPJ na 1ª seção (caso o pré-preenchimento não tenha rolado):
+- **Primeiro**: consulta a tabela `matrizes` por CNPJ. Se achar → puxa razão social, lista as `unidades` da matriz num seletor; ao escolher unidade, preenche CEP/UF/Cidade/Bairro/Endereço/Número.
+- **Senão**: consulta o último `caso` finalizado cujo CNPJ bate (via join unidade→matriz). Replica endereço operacional da última vistoria.
+- **Senão**: cai no fluxo manual (CEP + cascata).
 
-Conteúdo:
-- **Cabeçalho**: código, status (badge), cliente, agente, formulário, agendado_em, endereço, observações, criado_em.
-- **Progresso**: `respondidas / total_perguntas` com `Progress`.
-- **Respostas por seção/pergunta**: lista `secoes` → `perguntas` do `formulario_id` ordenadas; para cada pergunta mostra texto/tipo/obrigatória + resposta de `respostas_agente` (`valor_texto`, transcrição, preview de `arquivo_path` via signed URL do bucket `agente-uploads`, badge `ia_aprovado`/`ia_motivo`), ou estado "Sem resposta" (mostra onde a vistoria parou).
-- **Ações**: "Voltar" → `/app/cases`. Se o usuário for **super_admin** e o status estiver em revisão/aprovado, link "Abrir na revisão" → `/app/review/$id` para edição/aprovação (admin comum não tem acesso a essa fila).
+## 3. Preenchimento manual: CEP + cascata
+- CEP: já existe `consultarCep` (ViaCEP). Reaproveitar.
+- Cascata Estado → Cidade → Bairro → Rua usando **IBGE Localidades API** (online, sem custo, sem chave):
+  - Estados: `GET https://servicodados.ibge.gov.br/api/v1/localidades/estados`
+  - Cidades por UF: `GET .../estados/{UF}/municipios`
+  - **Bairros e ruas não existem no IBGE**. Para esses dois: campo livre com sugestões vindas do ViaCEP quando o CEP foi consultado. Se UF/Cidade forem trocados manualmente, Bairro e Rua voltam a input livre (sem cascata real). Esta limitação é explicitada na UI.
 
-## 4. Acesso de super_admin ao fluxo de revisão
-Hoje `/app/review/$id` e `/app/review-queue` são usadas pelo especialista e as RLS de `casos` para UPDATE em status de revisão exigem `has_role('especialista')`. Para o super_admin também poder editar/aprovar pelo mesmo fluxo:
-- Migration adicionando policy `casos super admin select revisao`/`update revisao` já é coberta pela policy existente `casos super admin all` (super_admin já pode tudo), então **não há mudança de RLS necessária**.
-- O mesmo vale para `respostas_agente` (já tem `respostas super admin all`).
-- Apenas garantir no componente `ReviewCasePage` que super_admin não é bloqueado (hoje carrega via `supabase.from("casos")` direto, sem checar role — funciona). E exibir o link "Abrir na revisão" do passo 3 quando `role === "super_admin"`.
+## 4. Componente novo: `EnderecoCascata`
+Reusável, fica em `src/components/agent/EnderecoCascata.tsx`. Encapsula:
+- input de CEP com lookup
+- selects de UF e Cidade (IBGE, cached em memória)
+- inputs de Bairro, Logradouro, Número
+Usado tanto pelo runner do agente quanto pelo cadastro de Unidades (`app.clients.$empresaId.tsx`) para consistência.
 
-## 5. Detalhes técnicos
-- Rota TanStack: `createFileRoute("/app/vistorias/$id")` com `errorComponent` e `notFoundComponent`.
-- Carregamento paralelo via Supabase browser client: caso + joins, secoes/perguntas/opcoes do `formulario_id`, respostas_agente por `caso_id`. RLS atual já cobre admin (próprios casos) e super_admin (tudo).
-- Signed URLs para arquivos privados: `supabase.storage.from("agente-uploads").createSignedUrl(path, 3600)`.
+## 5. Integração no FormRunner / FormChat
+- `agent.$token.tsx`: após hidratar `state`, calcular `primeiraSecaoCompleta`; passar `initialStep` ao `FormRunner` e `FormChat`.
+- `FormRunner`: aceita prop `initialStep` (default 0).
+- `FormChat`: mesma prop; pula primeira seção do roteiro.
+- Quando a 1ª seção tem perguntas mapeadas (CNPJ/CEP/etc.), renderiza widgets especiais (CNPJ lookup, EnderecoCascata) em vez do input de texto puro.
+
+## 6. Detecção de campos (heurística)
+Helper `src/lib/perguntas-mapeamento.ts`:
+```ts
+detectarCampo(pergunta) → "cnpj" | "razao_social" | "cep" | "uf" | "cidade" 
+                       | "bairro" | "logradouro" | "numero" | "unidade" | null
+```
+Por regex no `texto` da pergunta (case-insensitive, sem acento). Usado tanto para hidratar quanto para renderizar o widget certo.
+
+## Detalhes técnicos
+
+### Arquivos novos
+- `src/components/agent/EnderecoCascata.tsx`
+- `src/components/agent/CnpjLookup.tsx` 
+- `src/lib/ibge.ts` (helpers fetch + cache de UFs/municípios)
+- `src/lib/perguntas-mapeamento.ts` (heurística + hidratação)
+- `src/lib/cnpj-cache.functions.ts` (server fn: busca matriz/última vistoria por CNPJ)
+
+### Arquivos alterados
+- `src/routes/agent.$token.tsx` — hidratação 1ª seção + `initialStep`
+- `src/components/agent/FormRunner.tsx` — prop `initialStep`
+- `src/components/agent/FormChat.tsx` — prop `initialStep`
+- `src/components/agent/FormFields.tsx` — render condicional dos widgets especiais quando `detectarCampo` retorna match
+- `src/routes/app.clients.$empresaId.tsx` — reaproveita `EnderecoCascata`
+
+### Sem mudanças de schema
+A heurística por texto evita migração. Se quiser robustez maior depois, adicionamos `perguntas.campo_mapeado` numa fase 2.
+
+### Server function nova
+`buscarPorCnpj(cnpj)` (autenticada) retorna:
+```
+{ matriz?: {...}, unidades?: [...], ultimaVistoria?: { endereco, unidade } }
+```
 
 ## Fora de escopo
-- Mudanças no fluxo do especialista além de permitir reuso por super_admin.
-- Renomear a rota `/app/cases` (só o label muda).
-- Polimento visual além do hover clicável da tabela.
+- Banco interno de bairros/ruas acumulado
+- Mudança no editor de formulários (criação de perguntas)
+- Alteração da estrutura de tabelas (`secoes`/`perguntas`)
