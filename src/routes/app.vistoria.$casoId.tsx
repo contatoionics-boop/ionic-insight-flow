@@ -2,6 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/hooks/use-auth";
+
+
 import { Card } from "@/components/ui-bits";
 import {
   FormRunner,
