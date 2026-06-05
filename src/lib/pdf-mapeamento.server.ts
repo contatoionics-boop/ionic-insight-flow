@@ -513,12 +513,12 @@ const FIELD_TYPES = new Set([
 function respostaToString(p: PdfPergunta, r: PdfResposta | undefined): string {
   if (!r) return "";
   if (p.tipo === "toggle") {
-    if (r.valor_texto === "sim") return "☑ Sim    ☐ Não";
-    if (r.valor_texto === "nao") return "☐ Sim    ☑ Não";
+    if (r.valor_texto === "sim") return "[X] Sim    [ ] Nao";
+    if (r.valor_texto === "nao") return "[ ] Sim    [X] Nao";
     return "";
   }
   if (p.tipo === "checkbox") {
-    return r.valor_texto === "true" ? "☑ Confirmado" : "☐ Não confirmado";
+    return r.valor_texto === "true" ? "[X] Confirmado" : "[ ] Nao confirmado";
   }
   if (p.tipo === "selecao_unica" && r.valor_texto && p.opcoes?.length) {
     const opt = p.opcoes.find((o) => o.id === r.valor_texto);
