@@ -67,16 +67,23 @@ export function FormRunner({
     [setState],
   );
 
-  const sectionComplete = useMemo(
-    () => perguntasAtuais.every((p) => isComplete(p, state[p.id] ?? {}, mode)),
+  const pendentes = useMemo(
+    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode)),
     [perguntasAtuais, state, mode],
   );
+  const sectionComplete = pendentes.length === 0;
+  const [showPendentes, setShowPendentes] = useState(false);
 
   const advance = async () => {
     if (isReview) {
       await onSubmit?.();
       return;
     }
+    if (!sectionComplete) {
+      setShowPendentes(true);
+      return;
+    }
+    setShowPendentes(false);
     await onAdvanceSection?.(perguntasAtuais);
     setStep((s) => s + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -155,6 +162,19 @@ export function FormRunner({
           )
         )}
 
+        {!isReview && showPendentes && pendentes.length > 0 && (
+          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-destructive">
+              Preencha os campos obrigatórios antes de avançar:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive">
+              {pendentes.map((p) => (
+                <li key={p.id}>{p.texto} — {motivoPendencia(p, state[p.id] ?? {}, mode)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {errorMessage && <p className="mt-4 text-sm text-destructive">{errorMessage}</p>}
       </main>
 
@@ -172,7 +192,7 @@ export function FormRunner({
           )}
           <Button
             onClick={advance}
-            disabled={(!isReview && !sectionComplete) || submitting}
+            disabled={submitting}
             className="h-12 flex-1 text-base"
           >
             {submitting ? (
@@ -196,6 +216,35 @@ export function FormRunner({
       </footer>
     </div>
   );
+}
+
+function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode): string {
+  switch (p.tipo) {
+    case "foto":
+      if (!r.filePath && !r.filePreview) return "envie uma foto";
+      if (mode === "live" && !r.ia) return "aguardando validação da IA";
+      if (r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
+      if (r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
+      return "incompleta";
+    case "audio":
+      if (!r.audioPath && !r.transcription?.trim()) return "grave um áudio";
+      if (mode === "live" && !r.transcriptionConfirmed) return "confirme a transcrição";
+      return "incompleta";
+    case "toggle":
+      return "selecione Sim ou Não";
+    case "selecao_unica":
+      return "selecione uma opção";
+    case "checkbox":
+      return "marque a confirmação";
+    case "data":
+      return "informe a data";
+    case "cep":
+      return "informe o CEP/endereço";
+    case "cnpj":
+      return "informe o CNPJ";
+    default:
+      return "preencha o campo";
+  }
 }
 
 function ReviewStep({
