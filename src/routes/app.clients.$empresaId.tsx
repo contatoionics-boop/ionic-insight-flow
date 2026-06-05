@@ -337,9 +337,16 @@ function EmpresaDetailPage() {
         description="Gerencie as matrizes (CNPJs) e as unidades atendidas."
         actions={
           canWrite ? (
-            <Button onClick={openCreateMatriz}>
-              <Plus className="h-4 w-4" /> Nova matriz
-            </Button>
+            <div className="flex gap-2">
+              {matrizes.length === 1 && (
+                <Button variant="outline" onClick={() => openEditMatriz(matrizes[0])}>
+                  <Pencil className="h-4 w-4" /> Editar dados
+                </Button>
+              )}
+              <Button onClick={openCreateMatriz}>
+                <Plus className="h-4 w-4" /> Nova matriz
+              </Button>
+            </div>
           ) : undefined
         }
       />
