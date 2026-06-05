@@ -57,6 +57,9 @@ export type DadosUnidade = {
   bairro?: string | null;
   cidade?: string | null;
   estado?: string | null;
+  responsavel_nome?: string | null;
+  contato?: string | null;
+  data_vistoria?: string | null;
 };
 
 export function valorParaCampo(campo: CampoMapeado, d: DadosUnidade): string | null {
@@ -84,6 +87,12 @@ export function valorParaCampo(campo: CampoMapeado, d: DadosUnidade): string | n
     case "cidade_estado":
       if (d.cidade && d.estado) return `${d.cidade}/${d.estado}`;
       return pick(d.cidade);
+    case "responsavel":
+      return pick(d.responsavel_nome);
+    case "contato":
+      return pick(d.contato);
+    case "data_vistoria":
+      return pick(d.data_vistoria);
   }
   return null;
 }
