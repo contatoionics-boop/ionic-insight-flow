@@ -285,7 +285,7 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "cnpj" && (
-        <CampoCnpj resposta={resposta} update={update} token={token} />
+        <CampoCnpj resposta={resposta} update={update} token={token} siblings={siblings} />
       )}
     </Card>
   );
