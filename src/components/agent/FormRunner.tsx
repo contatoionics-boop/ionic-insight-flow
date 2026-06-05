@@ -218,6 +218,35 @@ export function FormRunner({
   );
 }
 
+function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode): string {
+  switch (p.tipo) {
+    case "foto":
+      if (!r.filePath && !r.filePreview) return "envie uma foto";
+      if (mode === "live" && !r.ia) return "aguardando validação da IA";
+      if (r.ia?.status === "incorreta") return "foto reprovada pela IA, refaça";
+      if (r.ia?.status === "parcial" && !r.iaConfirmada) return "confirme a observação da IA";
+      return "incompleta";
+    case "audio":
+      if (!r.audioPath && !r.transcription?.trim()) return "grave um áudio";
+      if (mode === "live" && !r.transcriptionConfirmed) return "confirme a transcrição";
+      return "incompleta";
+    case "toggle":
+      return "selecione Sim ou Não";
+    case "selecao_unica":
+      return "selecione uma opção";
+    case "checkbox":
+      return "marque a confirmação";
+    case "data":
+      return "informe a data";
+    case "cep":
+      return "informe o CEP/endereço";
+    case "cnpj":
+      return "informe o CNPJ";
+    default:
+      return "preencha o campo";
+  }
+}
+
 function ReviewStep({
   ctx,
   state,
