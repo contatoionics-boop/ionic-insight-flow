@@ -148,7 +148,7 @@ function NewCasePage() {
           formId,
           agenteId: agentId,
           agendadoEm,
-          duracaoMin: duracao,
+          duracaoMin: 60,
           enderecoVistoria: endereco || null,
           observacoes: observacoes || null,
           gerarLink: false,
