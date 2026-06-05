@@ -385,6 +385,25 @@ function FormBuilderPage() {
             </Select>
           </div>
 
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={iValidarIa}
+                onChange={(e) => setIValidarIa(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-foreground">Validar imagens com IA</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Quando ativado, cada foto enviada na vistoria é analisada pela IA antes de avançar.
+                  Desative para inspeções em que a validação automática não é necessária.
+                </span>
+              </span>
+            </label>
+          </div>
+
+
           <div className="border-t border-border pt-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Metadados do documento (PDF)
