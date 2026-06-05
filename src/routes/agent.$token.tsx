@@ -62,9 +62,10 @@ function AgentPage() {
 
         const { data: formulario } = await supabase
           .from("formularios")
-          .select("nome")
+          .select("nome, validar_imagens_ia")
           .eq("id", caso.formulario_id)
           .maybeSingle();
+
 
         const { data: secoesData, error: sErr } = await supabase
           .from("secoes")
@@ -168,7 +169,9 @@ function AgentPage() {
           formularioNome: formulario?.nome ?? "",
           secoes,
           perguntasPorSecao,
+          validarImagensIa: (formulario as any)?.validar_imagens_ia ?? true,
         });
+
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao carregar link.");
       } finally {
