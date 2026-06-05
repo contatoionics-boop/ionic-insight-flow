@@ -151,13 +151,27 @@ function FormBuilderPage() {
     setINome(form.nome);
     setIDesc(form.descricao ?? "");
     setIEmp(form.empresa_id ?? "");
+    setICodigo(form.codigo ?? "");
+    setIRevisao(form.revisao ?? "");
+    setIDataRev(form.data_revisao ?? "");
+    setIElaborado(form.elaborado_por ?? "");
+    setIAprovado(form.aprovado_por ?? "");
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     await supabase
       .from("formularios")
-      .update({ nome: iNome, descricao: iDesc || null, empresa_id: iEmp || null })
+      .update({
+        nome: iNome,
+        descricao: iDesc || null,
+        empresa_id: iEmp || null,
+        codigo: iCodigo || null,
+        revisao: iRevisao || null,
+        data_revisao: iDataRev || null,
+        elaborado_por: iElaborado || null,
+        aprovado_por: iAprovado || null,
+      })
       .eq("id", id);
     setInfoOpen(false);
     load();
