@@ -177,6 +177,35 @@ function AgentPage() {
     })();
   }, [token]);
 
+  // Persiste auto-hidratação da 1ª seção uma única vez após carregar o caso.
+  const [hidratadoSalvo, setHidratadoSalvo] = useState(false);
+  useEffect(() => {
+    if (!ctx || hidratadoSalvo) return;
+    const primeira = ctx.secoes[0];
+    if (!primeira) return;
+    const perguntas = ctx.perguntasPorSecao[primeira.id] ?? [];
+    if (!perguntas.length) return;
+    const rows = perguntas
+      .filter((p) => (state[p.id]?.text ?? "").trim())
+      .map((p) => ({
+        caso_id: ctx.casoId,
+        pergunta_id: p.id,
+        tipo: p.tipo,
+        valor_texto: state[p.id]?.text ?? null,
+        arquivo_path: null,
+        transcricao: null,
+        ia_aprovado: null,
+        ia_motivo: null,
+      }));
+    setHidratadoSalvo(true);
+    if (rows.length) {
+      void supabase
+        .from("respostas_agente")
+        .upsert(rows, { onConflict: "caso_id,pergunta_id" });
+    }
+  }, [ctx, state, hidratadoSalvo]);
+
+
   const saveSection = useCallback(
     async (perguntas: Pergunta[]) => {
       if (!ctx) return;
