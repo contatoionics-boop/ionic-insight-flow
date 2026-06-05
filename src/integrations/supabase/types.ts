@@ -186,31 +186,46 @@ export type Database = {
       }
       formularios: {
         Row: {
+          aprovado_por: string | null
           ativo: boolean
+          codigo: string | null
           criado_em: string
           criado_por: string | null
+          data_revisao: string | null
           descricao: string | null
+          elaborado_por: string | null
           empresa_id: string | null
           id: string
           nome: string
+          revisao: string | null
         }
         Insert: {
+          aprovado_por?: string | null
           ativo?: boolean
+          codigo?: string | null
           criado_em?: string
           criado_por?: string | null
+          data_revisao?: string | null
           descricao?: string | null
+          elaborado_por?: string | null
           empresa_id?: string | null
           id?: string
           nome: string
+          revisao?: string | null
         }
         Update: {
+          aprovado_por?: string | null
           ativo?: boolean
+          codigo?: string | null
           criado_em?: string
           criado_por?: string | null
+          data_revisao?: string | null
           descricao?: string | null
+          elaborado_por?: string | null
           empresa_id?: string | null
           id?: string
           nome?: string
+          revisao?: string | null
         }
         Relationships: [
           {

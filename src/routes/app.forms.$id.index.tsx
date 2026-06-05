@@ -59,6 +59,11 @@ type Form = {
   descricao: string | null;
   empresa_id: string | null;
   empresa: { nome: string } | null;
+  codigo: string | null;
+  revisao: string | null;
+  data_revisao: string | null;
+  elaborado_por: string | null;
+  aprovado_por: string | null;
 };
 type Empresa = { id: string; nome: string };
 type Secao = { id: string; titulo: string; ordem: number };
@@ -90,12 +95,17 @@ function FormBuilderPage() {
   const [iNome, setINome] = useState("");
   const [iDesc, setIDesc] = useState("");
   const [iEmp, setIEmp] = useState("");
+  const [iCodigo, setICodigo] = useState("");
+  const [iRevisao, setIRevisao] = useState("");
+  const [iDataRev, setIDataRev] = useState("");
+  const [iElaborado, setIElaborado] = useState("");
+  const [iAprovado, setIAprovado] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data: f, error: e1 } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, empresa_id, empresa:empresas(nome)")
+      .select("id, nome, descricao, empresa_id, empresa:empresas(nome), codigo, revisao, data_revisao, elaborado_por, aprovado_por")
       .eq("id", id)
       .single();
     if (e1) {
@@ -141,13 +151,27 @@ function FormBuilderPage() {
     setINome(form.nome);
     setIDesc(form.descricao ?? "");
     setIEmp(form.empresa_id ?? "");
+    setICodigo(form.codigo ?? "");
+    setIRevisao(form.revisao ?? "");
+    setIDataRev(form.data_revisao ?? "");
+    setIElaborado(form.elaborado_por ?? "");
+    setIAprovado(form.aprovado_por ?? "");
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     await supabase
       .from("formularios")
-      .update({ nome: iNome, descricao: iDesc || null, empresa_id: iEmp || null })
+      .update({
+        nome: iNome,
+        descricao: iDesc || null,
+        empresa_id: iEmp || null,
+        codigo: iCodigo || null,
+        revisao: iRevisao || null,
+        data_revisao: iDataRev || null,
+        elaborado_por: iElaborado || null,
+        aprovado_por: iAprovado || null,
+      })
       .eq("id", id);
     setInfoOpen(false);
     load();
@@ -355,6 +379,47 @@ function FormBuilderPage() {
               <option value="">Template (sem empresa)</option>
               {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Metadados do documento (PDF)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Código</Label>
+                <Input
+                  value={iCodigo}
+                  onChange={(e) => setICodigo(e.target.value)}
+                  placeholder="FR-29-10"
+                />
+              </div>
+              <div>
+                <Label>Revisão</Label>
+                <Input
+                  value={iRevisao}
+                  onChange={(e) => setIRevisao(e.target.value)}
+                  placeholder="00"
+                />
+              </div>
+              <div>
+                <Label>Data da revisão</Label>
+                <Input
+                  type="date"
+                  value={iDataRev}
+                  onChange={(e) => setIDataRev(e.target.value)}
+                />
+              </div>
+              <div />
+              <div>
+                <Label>Elaborado por</Label>
+                <Input value={iElaborado} onChange={(e) => setIElaborado(e.target.value)} />
+              </div>
+              <div>
+                <Label>Aprovado por</Label>
+                <Input value={iAprovado} onChange={(e) => setIAprovado(e.target.value)} />
+              </div>
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setInfoOpen(false)}>Cancelar</Button>
