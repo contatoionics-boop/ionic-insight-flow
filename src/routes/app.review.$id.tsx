@@ -111,6 +111,10 @@ function ReviewCasePage() {
         description={`${caseData.unidade?.matriz?.empresa?.nome ?? "—"}${caseData.unidade?.nome ? ` · ${caseData.unidade.nome}` : ""} · Agente ${caseData.agente?.nome ?? "—"}`}
         actions={
           <>
+            <Button variant="outline" onClick={baixarPdf} disabled={downloading}>
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Baixar PDF
+            </Button>
             <Button variant="outline" onClick={() => setReopenOpen(true)}>
               <AlertCircle className="h-4 w-4" /> Solicitar reenvio
             </Button>
