@@ -10,9 +10,11 @@ import {
   Input,
   Label,
 } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { consultarCnpj, maskCnpj } from "@/lib/cnpj";
+import { consultarCep, maskCep } from "@/lib/cep";
 
 export const Route = createFileRoute("/app/clients")({
   component: ClientsPage,
@@ -26,6 +28,34 @@ type EmpresaRow = {
   unidades_count?: number;
 };
 
+type NovaForm = {
+  nome: string;
+  cnpj: string;
+  razao_social: string;
+  email: string;
+  telefone: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+};
+
+const emptyForm: NovaForm = {
+  nome: "",
+  cnpj: "",
+  razao_social: "",
+  email: "",
+  telefone: "",
+  cep: "",
+  logradouro: "",
+  numero: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
+};
+
 function ClientsPage() {
   const navigate = useNavigate();
   const { role, userId } = useAuth();
@@ -37,9 +67,14 @@ function ClientsPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<EmpresaRow | null>(null);
-  const [nome, setNome] = useState("");
+  const [form, setForm] = useState<NovaForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [cnpjMsg, setCnpjMsg] = useState<string | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+
+  const [renameOpen, setRenameOpen] = useState<EmpresaRow | null>(null);
+  const [renameNome, setRenameNome] = useState("");
   const [toDelete, setToDelete] = useState<EmpresaRow | null>(null);
 
   const refresh = useCallback(async () => {
@@ -80,36 +115,119 @@ function ClientsPage() {
   };
 
   const openCreate = () => {
-    setEditing(null);
-    setNome("");
+    setForm(emptyForm);
+    setCnpjMsg(null);
     setModalOpen(true);
   };
-  const openEdit = (e: EmpresaRow) => {
-    setEditing(e);
-    setNome(e.nome);
-    setModalOpen(true);
+
+  const onConsultarCnpj = async () => {
+    if (!form.cnpj) return;
+    setCnpjLoading(true);
+    setCnpjMsg(null);
+    try {
+      const d = await consultarCnpj(form.cnpj);
+      setForm((f) => ({
+        ...f,
+        cnpj: d.cnpj,
+        razao_social: d.razao_social || f.razao_social,
+        nome: f.nome || d.nome_fantasia || d.razao_social || "",
+        email: d.email || f.email,
+        telefone: d.telefone || f.telefone,
+        cep: d.cep || f.cep,
+        logradouro: d.logradouro || f.logradouro,
+        numero: d.numero || f.numero,
+        bairro: d.bairro || f.bairro,
+        cidade: d.cidade || f.cidade,
+        estado: d.estado || f.estado,
+      }));
+      setCnpjMsg("✓ Dados preenchidos.");
+    } catch (e: any) {
+      setCnpjMsg(e?.message ?? "Falha ao consultar CNPJ.");
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
+
+  const onConsultarCep = async () => {
+    if (!form.cep) return;
+    setCepLoading(true);
+    try {
+      const d = await consultarCep(form.cep);
+      setForm((f) => ({
+        ...f,
+        cep: d.cep,
+        logradouro: d.logradouro || f.logradouro,
+        bairro: d.bairro || f.bairro,
+        cidade: d.cidade || f.cidade,
+        estado: d.estado || f.estado,
+      }));
+    } catch {
+      // silent
+    } finally {
+      setCepLoading(false);
+    }
   };
 
   const handleSave = async (ev: React.FormEvent) => {
     ev.preventDefault();
+    if (!form.nome.trim()) {
+      setError("Informe o nome da empresa.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      if (editing) {
-        const { error } = await supabase.from("empresas").update({ nome }).eq("id", editing.id);
-        if (error) throw error;
-        showToast("Empresa atualizada ✓");
-      } else {
-        const { error } = await supabase.from("empresas").insert({ nome, criado_por: userId });
-        if (error) throw error;
-        showToast("Empresa cadastrada ✓ — adicione a matriz e as unidades.");
+      const { data: emp, error: empErr } = await supabase
+        .from("empresas")
+        .insert({ nome: form.nome.trim(), criado_por: userId })
+        .select("id")
+        .single();
+      if (empErr) throw empErr;
+
+      // Cria matriz se houver CNPJ ou algum dado de endereço
+      const temDadosMatriz =
+        form.cnpj || form.razao_social || form.cep || form.logradouro || form.cidade;
+      if (temDadosMatriz) {
+        const { error: mErr } = await supabase.from("matrizes").insert({
+          empresa_id: emp.id,
+          criado_por: userId,
+          nome: form.nome.trim(),
+          cnpj: form.cnpj || null,
+          razao_social: form.razao_social || null,
+          email: form.email || null,
+          telefone: form.telefone || null,
+          cep: form.cep || null,
+          logradouro: form.logradouro || null,
+          numero: form.numero || null,
+          bairro: form.bairro || null,
+          cidade: form.cidade || null,
+          estado: form.estado || null,
+        });
+        if (mErr) throw mErr;
       }
+
+      showToast("Empresa cadastrada ✓");
       setModalOpen(false);
-      refresh();
+      navigate({ to: "/app/clients/$empresaId", params: { empresaId: emp.id } });
     } catch (e: any) {
       setError(e?.message ?? "Erro ao salvar.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRename = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!renameOpen) return;
+    const { error } = await supabase
+      .from("empresas")
+      .update({ nome: renameNome })
+      .eq("id", renameOpen.id);
+    if (error) setError(error.message);
+    else {
+      showToast("Empresa atualizada ✓");
+      setRenameOpen(null);
+      refresh();
     }
   };
 
@@ -200,13 +318,18 @@ function ClientsPage() {
                   <Td>
                     <div className="flex gap-2" onClick={(ev) => ev.stopPropagation()}>
                       <button
-                        onClick={() => navigate({ to: "/app/clients/$empresaId", params: { empresaId: e.id } })}
+                        onClick={() =>
+                          navigate({ to: "/app/clients/$empresaId", params: { empresaId: e.id } })
+                        }
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                       >
-                        <Pencil className="h-3 w-3" /> Editar
+                        <Pencil className="h-3 w-3" /> Editar dados
                       </button>
                       <button
-                        onClick={() => openEdit(e)}
+                        onClick={() => {
+                          setRenameOpen(e);
+                          setRenameNome(e.nome);
+                        }}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                       >
                         Renomear
@@ -226,33 +349,165 @@ function ClientsPage() {
         </tbody>
       </Table>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Renomear empresa" : "Nova empresa"}
-      >
+      {/* Nova empresa (com matriz + endereço em um único passo) */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nova empresa">
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <Label>Nome da empresa</Label>
-            <Input
-              required
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: BP Bio Energy"
-            />
-            {!editing && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Após criar a empresa, abra-a para cadastrar a matriz (CNPJ) e as unidades.
+            <Label>CNPJ da matriz</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.cnpj}
+                onChange={(e) => setForm((f) => ({ ...f, cnpj: maskCnpj(e.target.value) }))}
+                placeholder="00.000.000/0000-00"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onConsultarCnpj}
+                disabled={cnpjLoading || !form.cnpj}
+              >
+                {cnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Consultar
+              </Button>
+            </div>
+            {cnpjMsg && (
+              <p className={`mt-1 text-xs ${cnpjMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>
+                {cnpjMsg}
               </p>
             )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Opcional. Ao consultar, preenchemos nome, razão social e endereço automaticamente.
+            </p>
           </div>
+
+          <div>
+            <Label>Nome da empresa *</Label>
+            <Input
+              required
+              value={form.nome}
+              onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+              placeholder="Ex: BP Bio Energy"
+            />
+          </div>
+
+          <div>
+            <Label>Razão social</Label>
+            <Input
+              value={form.razao_social}
+              onChange={(e) => setForm((f) => ({ ...f, razao_social: e.target.value }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                value={form.telefone}
+                onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>CEP</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.cep}
+                onChange={(e) => setForm((f) => ({ ...f, cep: maskCep(e.target.value) }))}
+                className="max-w-[160px]"
+                placeholder="00000-000"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onConsultarCep}
+                disabled={cepLoading || !form.cep}
+              >
+                {cepLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Buscar
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr,120px] gap-3">
+            <div>
+              <Label>Logradouro</Label>
+              <Input
+                value={form.logradouro}
+                onChange={(e) => setForm((f) => ({ ...f, logradouro: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Número</Label>
+              <Input
+                value={form.numero}
+                onChange={(e) => setForm((f) => ({ ...f, numero: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr,1fr,90px] gap-3">
+            <div>
+              <Label>Bairro</Label>
+              <Input
+                value={form.bairro}
+                onChange={(e) => setForm((f) => ({ ...f, bairro: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input
+                value={form.cidade}
+                onChange={(e) => setForm((f) => ({ ...f, cidade: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>UF</Label>
+              <Input
+                value={form.estado}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, estado: e.target.value.toUpperCase().slice(0, 2) }))
+                }
+                maxLength={2}
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Salvando..." : editing ? "Salvar" : "Cadastrar"}
+              {saving ? "Salvando..." : "Cadastrar"}
             </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Renomear */}
+      <Modal open={!!renameOpen} onClose={() => setRenameOpen(null)} title="Renomear empresa">
+        <form onSubmit={handleRename} className="space-y-4">
+          <div>
+            <Label>Nome da empresa</Label>
+            <Input
+              required
+              value={renameNome}
+              onChange={(e) => setRenameNome(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setRenameOpen(null)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Salvar</Button>
           </div>
         </form>
       </Modal>
