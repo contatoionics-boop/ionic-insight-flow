@@ -158,7 +158,7 @@ export function FormRunner({
         {errorMessage && <p className="mt-4 text-sm text-destructive">{errorMessage}</p>}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-white">
+      <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-4">
           {step > 0 && (
             <Button
