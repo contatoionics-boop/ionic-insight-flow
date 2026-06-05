@@ -27,8 +27,12 @@ function normalizar(s: string): string {
 export function detectarCampo(pergunta: Pick<Pergunta, "texto" | "tipo">): CampoMapeado {
   if (pergunta.tipo === "cnpj") return "cnpj";
   if (pergunta.tipo === "cep") return "cep";
+  if (pergunta.tipo === "data") return "data_vistoria";
   const n = normalizar(pergunta.texto);
   if (/\bcnpj\b/.test(n)) return "cnpj";
+  if (/(responsavel|vistoriador|t[eé]cnico|agente)/.test(n)) return "responsavel";
+  if (/(contato|telefone|celular|whatsapp|e[-\s]?mail|email)/.test(n)) return "contato";
+  if (/(data\s+(da\s+)?vistoria|data\s+do\s+mapeamento)/.test(n)) return "data_vistoria";
   if (/(razao\s*social|nome\s*(do\s*)?cliente|nome\s*fantasia|empresa)/.test(n)) return "razao_social";
   if (/\bunidade\b|filial|estabelecimento/.test(n)) return "unidade";
   if (/\bcep\b/.test(n)) return "cep";
