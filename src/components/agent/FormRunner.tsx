@@ -67,16 +67,23 @@ export function FormRunner({
     [setState],
   );
 
-  const sectionComplete = useMemo(
-    () => perguntasAtuais.every((p) => isComplete(p, state[p.id] ?? {}, mode)),
+  const pendentes = useMemo(
+    () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode)),
     [perguntasAtuais, state, mode],
   );
+  const sectionComplete = pendentes.length === 0;
+  const [showPendentes, setShowPendentes] = useState(false);
 
   const advance = async () => {
     if (isReview) {
       await onSubmit?.();
       return;
     }
+    if (!sectionComplete) {
+      setShowPendentes(true);
+      return;
+    }
+    setShowPendentes(false);
     await onAdvanceSection?.(perguntasAtuais);
     setStep((s) => s + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
