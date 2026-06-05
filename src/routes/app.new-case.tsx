@@ -108,11 +108,17 @@ function NewCasePage() {
     }
   }, [unidadesDaMatriz, unidadeId]);
 
-  // Auto-preenche endereço a partir da unidade selecionada
+  // Auto-preenche endereço a partir da unidade, ou matriz como fallback
   useEffect(() => {
+    if (endereco) return;
     const u = unidades.find((x) => x.id === unidadeId);
-    if (u && !endereco) setEndereco(formatEnderecoUnidade(u));
-  }, [unidadeId, unidades, endereco]);
+    if (temEndereco(u)) {
+      setEndereco(formatEndereco(u));
+      return;
+    }
+    const m = matrizes.find((x) => x.id === matrizId);
+    if (temEndereco(m)) setEndereco(formatEndereco(m));
+  }, [unidadeId, matrizId, unidades, matrizes, endereco]);
 
   const onChangeEmpresa = (v: string) => {
     setEmpresaId(v);
