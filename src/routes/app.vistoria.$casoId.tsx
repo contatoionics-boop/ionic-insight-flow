@@ -22,7 +22,7 @@ type VSearch = { mode?: "chat" | "stepper" };
 
 export const Route = createFileRoute("/app/vistoria/$casoId")({
   validateSearch: (search: Record<string, unknown>): VSearch => ({
-    mode: search.mode === "chat" ? "chat" : "stepper",
+    mode: search.mode === "stepper" ? "stepper" : "chat",
   }),
   component: VistoriaPage,
 });
@@ -274,7 +274,7 @@ function VistoriaPage() {
     );
   }
 
-  if (chatMode === "chat") {
+  if (chatMode !== "stepper") {
     return (
       <FormChat
         ctx={ctx}

@@ -20,7 +20,7 @@ type AgentSearch = { mode?: "chat" | "stepper" };
 
 export const Route = createFileRoute("/agent/$token")({
   validateSearch: (search: Record<string, unknown>): AgentSearch => ({
-    mode: search.mode === "chat" ? "chat" : "stepper",
+    mode: search.mode === "stepper" ? "stepper" : "chat",
   }),
   component: AgentPage,
 });
@@ -290,7 +290,7 @@ function AgentPage() {
     );
   }
 
-  if (chatMode === "chat") {
+  if (chatMode !== "stepper") {
     return (
       <FormChat
         ctx={ctx}
