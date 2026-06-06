@@ -361,6 +361,8 @@ function FormBuilderPage() {
             <PropertiesPanel
               key={selected.id}
               pergunta={selected}
+              perguntas={perguntas}
+              secoes={secoes}
               onSaved={(updated) => {
                 setPerguntas((arr) => arr.map((p) => (p.id === updated.id ? updated : p)));
               }}
@@ -605,10 +607,14 @@ function SortableQuestion({
 // ============= Properties Panel =============
 function PropertiesPanel({
   pergunta,
+  perguntas,
+  secoes,
   onSaved,
   onClose,
 }: {
   pergunta: Pergunta;
+  perguntas: Pergunta[];
+  secoes: Secao[];
   onSaved: (p: Pergunta) => void;
   onClose: () => void;
 }) {
@@ -616,10 +622,60 @@ function PropertiesPanel({
   const [tipo, setTipo] = useState<TipoPergunta>(pergunta.tipo);
   const [obrigatoria, setObrigatoria] = useState(pergunta.obrigatoria);
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
+  const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
+  const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
+  const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
+  const [refOpcoes, setRefOpcoes] = useState<{ id: string; texto: string }[]>([]);
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
   const [opcoesIniciais, setOpcoesIniciais] = useState<Opcao[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Perguntas elegíveis como gatilho: na mesma seção (acima) ou seções anteriores, excluindo a própria.
+  const minhaSecao = secoes.find((s) => s.id === pergunta.secao_id);
+  const minhaOrdem = pergunta.ordem;
+  const elegiveis = perguntas
+    .filter((p) => {
+      if (p.id === pergunta.id) return false;
+      const sec = secoes.find((s) => s.id === p.secao_id);
+      if (!sec || !minhaSecao) return false;
+      if (sec.ordem < minhaSecao.ordem) return true;
+      if (sec.ordem === minhaSecao.ordem && p.ordem < minhaOrdem) return true;
+      return false;
+    })
+    .sort((a, b) => {
+      const sa = secoes.find((s) => s.id === a.secao_id)?.ordem ?? 0;
+      const sb = secoes.find((s) => s.id === b.secao_id)?.ordem ?? 0;
+      return sa - sb || a.ordem - b.ordem;
+    });
+  const refPergunta = elegiveis.find((p) => p.id === condRefId);
+
+  useEffect(() => {
+    if (!condRefId) {
+      setRefOpcoes([]);
+      return;
+    }
+    const ref = perguntas.find((p) => p.id === condRefId);
+    if (!ref) return;
+    if (ref.tipo === "toggle") {
+      setRefOpcoes([
+        { id: "sim", texto: "sim" },
+        { id: "nao", texto: "nao" },
+      ]);
+      return;
+    }
+    if (ref.tipo === "selecao_unica") {
+      supabase
+        .from("opcoes_pergunta")
+        .select("id, texto")
+        .eq("pergunta_id", condRefId)
+        .order("ordem")
+        .then(({ data }) => setRefOpcoes((data ?? []) as { id: string; texto: string }[]));
+    } else {
+      setRefOpcoes([]);
+    }
+  }, [condRefId, perguntas]);
+
 
   useEffect(() => {
     let active = true;
