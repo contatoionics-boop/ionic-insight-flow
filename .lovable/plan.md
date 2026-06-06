@@ -1,100 +1,90 @@
-# Geração dinâmica de PDF do mapeamento
+## Contexto
 
-Gerar um PDF estilo "FR-29-10" a partir das respostas do agente, funcionando para qualquer formulário cadastrado. O layout é fixo (cabeçalho/rodapé Ionics) e o conteúdo é montado dinamicamente percorrendo seções e perguntas do formulário usado naquele caso.
+O IONICS já possui uma interface de chat funcional em `src/components/agent/FormChat.tsx`, usada em `/agent/$token` e `/app/vistoria/$casoId` quando `?mode=chat`. Ela já cobre: bolhas pergunta/resposta, progresso no header, autosave por pergunta, edição de respostas anteriores, gravação de voz com Whisper, upload de foto com validação por GPT‑4o Vision, retomada de rascunho e tela de revisão final.
 
-## 1. Schema — metadados do formulário
+Este plano cobre as **lacunas** entre o que existe e a especificação enviada — sem alterar geração do PDF, autenticação ou permissões.
 
-Migration adicionando colunas à tabela `formularios`:
+## 1. Chat como modo padrão
+Inverter o default em `src/routes/agent.$token.tsx` e `src/routes/app.vistoria.$casoId.tsx`: `mode = "chat"` passa a ser o padrão; stepper fica como opt‑in via `?mode=stepper`. Listagens que abrem mapeamentos deixam de forçar `?mode=chat`.
 
-- `codigo text` — ex.: "FR-29-10"
-- `revisao text` — ex.: "00"
-- `data_revisao date`
-- `elaborado_por text`
-- `aprovado_por text`
+## 2. Composer unificado fixo no rodapé (texto + voz + foto)
+Novo componente `src/components/agent/ChatComposer.tsx` com os 3 modos sempre visíveis:
+- Campo de texto + botão **Enviar**.
+- Botão **microfone** press‑and‑hold reutilizando `use-gravacao-voz.ts` + função server Whisper já existente; transcrição cai no input para confirmação.
+- Botão **câmera/galeria** (`<input type="file" capture>`) com preview inline; on confirm reusa o pipeline atual de upload + validação GPT‑4o Vision.
+- Modos incompatíveis com o tipo da pergunta atual ficam desabilitados.
 
-Todos opcionais. UI de edição entra na tela de edição do formulário (`app.forms.$id.index.tsx`) como um bloco "Metadados do documento".
+`FormChat` deixa de embutir `PerguntaBloco` no fluxo ativo (passa a renderizar via composer); `PerguntaBloco` continua sendo usado no modo **edição** e no modo stepper.
 
-## 2. Renderização automática por tipo
+Tipos com UI específica (CEP, toggle Sim/Não, múltipla escolha, data, select) continuam como **chips/controles inline abaixo da bolha** e auto‑confirmam ao clicar.
 
-O gerador percorre `secoes` ordenadas. Para cada seção, agrupa as perguntas em blocos consecutivos por tipo:
+## 3. Indicador de "digitando"
+Componente `TypingDots` (3 pontos animados via keyframes em `src/styles.css`). Após `confirmar()` resolver: 600 ms de pausa → mostra `TypingDots` por ~1 s → revela a próxima bolha.
 
-- **Bloco de campos** (perguntas `texto`, `toggle`, `cnpj`, `cep`, `data`, `numero`, `select`): renderiza como tabela 2 colunas (rótulo azul-marinho à esquerda, valor à direita). Toggle vira "☑ Sim ☐ Não". Perguntas sem resposta saem em branco.
-- **Bloco de fotos** (perguntas `foto`): renderiza como grid 2 colunas. Cada célula tem o `instrucao_agente` (ou `texto` se vazio) como legenda + a foto baixada do Storage. Quando IA marcou "aprovada/parcial/incorreta", aparece um selo discreto no canto.
-- **Bloco de áudio** (`audio`): título + transcrição em itálico (player não faz sentido em PDF).
+## 4. Saudação inicial
+Primeira bolha do agente: `Olá! Vamos fazer o mapeamento de {clienteNome} ({formularioNome}). Responda por texto, voz ou foto.`
 
-Isso resolve "diferentes formulários" sem configuração — qualquer combinação de tipos é renderizada.
+## 5. Conclusão e geração do documento
+Adicionar CTA **"Gerar documento"** na bolha final, ao lado de "Enviar ao especialista" — chama o fluxo `gerarPdfMapeamento` já existente (sem alterar a geração).
 
-## 3. Geração — onde roda
+## 6. Header
+Subtítulo passa a mostrar **"Pergunta {cursor+1} de {items.length}"**, mantendo a barra de progresso atual.
 
-Server function `gerarPdfMapeamento({ casoId })` em `src/lib/casos-pdf.functions.ts` protegida por `requireSupabaseAuth`:
+## 7. Perguntas condicionais (incluído)
 
-1. Carrega caso + empresa/matriz/unidade + formulário (com metadados) + seções + perguntas + opções + respostas_agente.
-2. Baixa as fotos do bucket privado `agente-uploads` via `supabaseAdmin.storage.from(...).createSignedUrl(...)` e busca os bytes (fetch).
-3. Monta o PDF com **pdf-lib** (puro JS, roda no Worker). Fontes: Helvetica/Helvetica-Bold embutidas (sem dep de fonte externa). Logo: usa `configuracoes_empresa.logo_url` (download + embed PNG/JPEG); se ausente, escreve o nome da empresa em texto.
-4. Retorna `{ filename, contentBase64, mimeType: "application/pdf" }`.
+### Schema
+Migration adicionando à tabela `perguntas`:
+- `condicional_pergunta_id uuid references perguntas(id) on delete set null` — pergunta que dispara o gatilho.
+- `condicional_operador text check (condicional_operador in ('igual','diferente','contem'))` — default `igual`.
+- `condicional_valor text` — valor (ou opção `texto`) a comparar.
 
-Por que pdf-lib: TanStack Start roda em Cloudflare Worker. `puppeteer`, `playwright`, `chrome-aws-lambda`, `sharp` e libs que requerem Chromium ou binários nativos **não funcionam**. pdf-lib é fetch/ESM e roda nativamente.
+Todas opcionais; quando `condicional_pergunta_id` for `null`, a pergunta aparece sempre (compatível com dados atuais).
 
-## 4. UI — botão de download
+### Editor de formulário
+Em `src/routes/app.forms.$id.index.tsx`, no editor da pergunta, adicionar bloco **"Mostrar somente se"**:
+- Select com as perguntas da **mesma seção** ou de **seções anteriores** (excluindo a própria).
+- Select de operador (`igual` / `diferente` / `contém`).
+- Campo de valor — se a pergunta‑gatilho for `selecao_unica`/`checkbox`/`toggle`, vira select com as opções dela; senão, input texto.
 
-Em `src/routes/app.review.$id.tsx`, no header da tela de revisão, botão "Baixar PDF" ao lado dos botões existentes. Ao clicar:
+### Avaliação no runtime
+Helper `avaliarCondicional(pergunta, state)` em `src/lib/perguntas-mapeamento.ts`:
+- Lê `state[condicional_pergunta_id]?.text` (toggle compara `"sim"`/`"nao"`; foto/áudio comparam presença).
+- Retorna `true` se condição satisfeita ou se não houver condicional.
 
-- Chama `gerarPdfMapeamento` via `useServerFn`.
-- Converte base64 → Blob → `URL.createObjectURL` → `<a download={filename}>` clicado programaticamente.
-- Toast de erro se falhar.
+### Integração no FormChat / FormRunner
+- `items` em `FormChat` é filtrado pelo helper; perguntas ocultas somem do progresso e da numeração.
+- Quando o usuário **edita uma resposta‑gatilho** e o resultado muda quais perguntas estão visíveis, recalcular `items`; respostas de perguntas que ficaram ocultas são limpas no Supabase (`valor_texto = null`) para não aparecer no PDF.
+- O mesmo filtro é aplicado em `FormRunner` (stepper) para consistência.
 
-Filename padrão: `mapeamento-{caso.codigo}-{empresa.nome}.pdf` (slug).
+### PDF
+`pdf-mapeamento.server.ts` já lê respostas existentes; perguntas ocultas terão resposta `null` e podem ser **suprimidas** do PDF (alterar o agrupador para pular perguntas cuja condicional não bate, em vez de imprimir linha vazia).
 
-## 5. Layout do PDF
+## O que **não** muda
+- Geração do PDF FR‑12‑10 (apenas filtro de ocultas).
+- Autenticação, RLS, papéis.
+- Modo stepper continua disponível via `?mode=stepper`.
+- Tabelas `secoes`, `opcoes_pergunta`, `respostas_agente`.
 
-Mesma estrutura do FR-29-10 mas com identidade Ionics:
-
-```text
-┌─────────────────────────────────────────────────┐
-│ [Logo]   MAPEAMENTO TÉCNICO              [Code] │  cabeçalho
-│          {formulario.nome}                       │  (repetido toda página)
-├─────────────────────────────────────────────────┤
-│ Cliente/Unidade │ Empresa │ Data │ dd/mm/aaaa   │  bloco identificação
-│ Responsável     │ Nome    │ Contato │ email     │  (primeira página)
-├─────────────────────────────────────────────────┤
-│ 1 - {Seção 1.titulo}                            │  barra azul
-│  ┌──────────────────┬──────────────────────┐   │
-│  │ Rótulo pergunta  │ Resposta             │   │  bloco de campos
-│  └──────────────────┴──────────────────────┘   │
-│                                                  │
-│ 1.1 - Registro fotográfico                      │  barra azul (subseção)
-│  ┌────────────────┬────────────────┐            │
-│  │ instrução      │ instrução      │            │  grid de fotos
-│  │ [foto]         │ [foto]         │            │  2 col
-│  └────────────────┴────────────────┘            │
-├─────────────────────────────────────────────────┤
-│ Elaborado por: X │ Aprovado por: Y │ Rev: 00 │  rodapé
-│ Data revisão: ... │  Página N de M               │  (toda página)
-└─────────────────────────────────────────────────┘
-```
-
-Quebra de página automática: ao acumular conteúdo que ultrapassa a altura útil, abre nova página com cabeçalho/rodapé idênticos. Fotos são redimensionadas para caber na célula mantendo aspect ratio. Cores: `--primary` Ionics (azul) para cabeçalhos de tabela.
-
-## 6. Dependência nova
-
-`bun add pdf-lib` (~280kb, sem nativos, compatível com Worker).
-
-## Arquivos
-
-**Migration:**
-- `ALTER TABLE formularios ADD COLUMN codigo/revisao/data_revisao/elaborado_por/aprovado_por`
+## Arquivos afetados
+**Migration:** `perguntas` (+ 3 colunas condicionais).
 
 **Novos:**
-- `src/lib/casos-pdf.functions.ts` — server fn `gerarPdfMapeamento`
-- `src/lib/pdf-mapeamento.server.ts` — montagem do PDF (renderHeader/renderFooter/renderCamposTable/renderFotosGrid/renderSecao)
+- `src/components/agent/ChatComposer.tsx`
+- `src/components/agent/TypingDots.tsx`
 
 **Editados:**
-- `src/routes/app.forms.$id.index.tsx` — bloco "Metadados do documento" no editor de formulário
-- `src/routes/app.review.$id.tsx` — botão "Baixar PDF" + handler de download
+- `src/components/agent/FormChat.tsx` — saudação, typing dots, composer, CTA final, filtro condicional, header.
+- `src/components/agent/FormRunner.tsx` — filtro condicional.
+- `src/components/agent/FormFields.tsx` — expor handlers de voz/foto reutilizáveis.
+- `src/lib/perguntas-mapeamento.ts` — `avaliarCondicional` + limpeza de respostas ocultas.
+- `src/lib/pdf-mapeamento.server.ts` — pular perguntas cuja condicional não bate.
+- `src/routes/agent.$token.tsx`, `src/routes/app.vistoria.$casoId.tsx` — default `mode=chat`.
+- `src/routes/app.forms.$id.index.tsx` — UI "Mostrar somente se".
+- `src/styles.css` — keyframes do typing.
 
-## Fora do escopo (sugestões futuras)
-
-- Salvar o PDF no Storage automaticamente ao finalizar
-- Botão de download também na ficha do caso (`app.vistorias.$id`)
-- Capa customizada / sumário automático
-- Assinatura digital
+## Ordem de execução
+1. Migration condicional + tipos regenerados.
+2. Helper `avaliarCondicional` + filtros em `FormChat`/`FormRunner`/PDF.
+3. UI "Mostrar somente se" no editor de formulários.
+4. `ChatComposer` + `TypingDots` + saudação + header + CTA final.
+5. Default `mode=chat` + ajuste das listagens.
