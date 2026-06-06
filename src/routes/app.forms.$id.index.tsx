@@ -708,6 +708,9 @@ function PropertiesPanel({
   const save = async () => {
     setSaving(true);
     setMsg(null);
+    const condicional_pergunta_id = condRefId || null;
+    const condicional_operador = condicional_pergunta_id ? condOp : null;
+    const condicional_valor = condicional_pergunta_id ? (condVal || null) : null;
     const { error } = await supabase
       .from("perguntas")
       .update({
@@ -715,6 +718,9 @@ function PropertiesPanel({
         tipo,
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
+        condicional_pergunta_id,
+        condicional_operador,
+        condicional_valor,
       })
       .eq("id", pergunta.id);
     if (error) {
@@ -759,6 +765,9 @@ function PropertiesPanel({
       tipo,
       obrigatoria,
       contexto_ia: mostraContexto ? contextoIa || null : null,
+      condicional_pergunta_id,
+      condicional_operador,
+      condicional_valor,
     });
     setMsg("Campo salvo");
     setSaving(false);
