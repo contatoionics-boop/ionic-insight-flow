@@ -1,5 +1,33 @@
 import type { Pergunta, Resposta } from "@/components/agent/FormFields";
 
+/**
+ * Avalia a condicional de exibição de uma pergunta.
+ * Retorna true quando a pergunta deve aparecer (sem condicional, ou condição satisfeita).
+ */
+export function avaliarCondicional(
+  pergunta: Pick<
+    Pergunta,
+    "condicional_pergunta_id" | "condicional_operador" | "condicional_valor"
+  >,
+  state: Record<string, Resposta>,
+): boolean {
+  const refId = pergunta.condicional_pergunta_id;
+  if (!refId) return true;
+  const operador = pergunta.condicional_operador || "igual";
+  const esperado = (pergunta.condicional_valor ?? "").trim();
+  const refResp = state[refId] ?? {};
+  // Valor da resposta-gatilho: texto direto, ou presença de arquivo/transcricao
+  const valor = (refResp.text ?? refResp.transcription ?? "").trim();
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+  const v = norm(valor);
+  const e = norm(esperado);
+  if (operador === "diferente") return v !== e;
+  if (operador === "contem") return e.length > 0 && v.includes(e);
+  return v === e; // igual (default)
+}
+
+
 export type CampoMapeado =
   | "cnpj"
   | "razao_social"
