@@ -129,3 +129,16 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-primary);
+  animation: typing-bounce 1s infinite ease-in-out;
+}

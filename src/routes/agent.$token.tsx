@@ -79,7 +79,7 @@ function AgentPage() {
         const { data: perguntas } = secoesIds.length
           ? await supabase
               .from("perguntas")
-              .select("id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia")
+              .select("id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor")
               .in("secao_id", secoesIds)
               .order("ordem")
           : { data: [] };
@@ -112,6 +112,9 @@ function AgentPage() {
             instrucao_agente: p.instrucao_agente,
             contexto_ia: p.contexto_ia,
             opcoes: opcoesPorPergunta.get(p.id),
+            condicional_pergunta_id: (p as any).condicional_pergunta_id ?? null,
+            condicional_operador: (p as any).condicional_operador ?? null,
+            condicional_valor: (p as any).condicional_valor ?? null,
           };
           (perguntasPorSecao[p.secao_id] ??= []).push(item);
         }
