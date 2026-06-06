@@ -76,6 +76,9 @@ type Pergunta = {
   obrigatoria: boolean;
   ordem: number;
   contexto_ia: string | null;
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
 };
 type Opcao = { id: string; texto: string; ordem: number };
 
