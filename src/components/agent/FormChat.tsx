@@ -10,6 +10,8 @@ import {
 } from "@/components/agent/FormFields";
 import type { FormRunnerCtx } from "@/components/agent/FormRunner";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { TypingDots } from "@/components/agent/TypingDots";
 
 type Item = { pergunta: Pergunta; secaoIdx: number; secaoTitulo: string };
 
@@ -37,15 +39,18 @@ export function FormChat({
   const { config } = useConfiguracoesEmpresa();
   const nomeEmpresa = config?.nome_empresa || "Ionics";
 
-  // Lista linear de perguntas com referência à seção
+  // Lista linear de perguntas com referência à seção (filtrada por condicional).
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
     ctx.secoes.forEach((s, idx) => {
       const ps = ctx.perguntasPorSecao[s.id] ?? [];
-      ps.forEach((p) => out.push({ pergunta: p, secaoIdx: idx, secaoTitulo: s.titulo }));
+      ps.forEach((p) => {
+        if (!avaliarCondicional(p, state)) return;
+        out.push({ pergunta: p, secaoIdx: idx, secaoTitulo: s.titulo });
+      });
     });
     return out;
-  }, [ctx]);
+  }, [ctx, state]);
 
   // Cursor: primeira pergunta não completa a partir da seção inicial.
   const [cursor, setCursor] = useState<number>(() => {
@@ -58,6 +63,7 @@ export function FormChat({
   });
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
+  const [typing, setTyping] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -109,7 +115,15 @@ export function FormChat({
       if (editing === idx) {
         setEditing(null);
       } else {
-        setCursor((c) => Math.max(c, idx + 1 + autoAdvanced));
+        // Indicador de "digitando" antes da próxima pergunta
+        const nextIdx = idx + 1 + autoAdvanced;
+        if (nextIdx < items.length) {
+          await new Promise((r) => setTimeout(r, 600));
+          setTyping(true);
+          await new Promise((r) => setTimeout(r, 900));
+          setTyping(false);
+        }
+        setCursor((c) => Math.max(c, nextIdx));
       }
     } finally {
       setSavingIdx(null);
@@ -132,8 +146,18 @@ export function FormChat({
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cliente</p>
-            <p className="text-sm font-semibold text-foreground">{ctx.clienteNome || "—"}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {ctx.clienteNome ? "Cliente" : "Progresso"}
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              {ctx.clienteNome ||
+                `Pergunta ${Math.min(cursor + 1, items.length)} de ${items.length}`}
+            </p>
+            {ctx.clienteNome && items.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                Pergunta {Math.min(cursor + 1, items.length)} de {items.length}
+              </p>
+            )}
           </div>
         </div>
         <div className="h-1 w-full bg-muted">
