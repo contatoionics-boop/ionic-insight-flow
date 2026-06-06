@@ -171,11 +171,21 @@ export function FormChat({
       </header>
 
       <main ref={scrollerRef} className="mx-auto w-full max-w-2xl flex-1 px-3 py-4 pb-40 sm:px-4">
+        <AgentBubble>
+          <p className="text-sm">
+            Olá! Vamos fazer o mapeamento
+            {ctx.clienteNome ? <> de <strong>{ctx.clienteNome}</strong></> : null}
+            {ctx.formularioNome ? <> ({ctx.formularioNome})</> : null}.
+            Responda cada pergunta por texto, voz ou foto.
+          </p>
+        </AgentBubble>
+
         {items.length === 0 && (
           <p className="text-center text-sm text-muted-foreground">
             Este formulário ainda não possui perguntas.
           </p>
         )}
+
 
         {items.map((it, idx) => {
           // Itens já respondidos (anteriores ao cursor) — mostrar histórico
