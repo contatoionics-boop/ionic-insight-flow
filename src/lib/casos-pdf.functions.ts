@@ -71,7 +71,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const { data: perguntas } = secIds.length
       ? await userSupa
           .from("perguntas")
-          .select("id, secao_id, texto, tipo, ordem, instrucao_agente")
+          .select("id, secao_id, texto, tipo, ordem, instrucao_agente, condicional_pergunta_id, condicional_operador, condicional_valor")
           .in("secao_id", secIds)
           .order("ordem")
       : { data: [] as any[] };
@@ -147,7 +147,20 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       }
     }
 
-    // 10) Monta perguntasPorSecao com opções
+    // 10) Monta perguntasPorSecao com opções — pula perguntas cuja condicional não bate
+    const norm = (s: string) =>
+      (s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+    const condicionalSatisfeita = (p: any): boolean => {
+      const refId = p.condicional_pergunta_id;
+      if (!refId) return true;
+      const op = p.condicional_operador || "igual";
+      const esperado = norm(p.condicional_valor ?? "");
+      const r = respostasMap.get(refId);
+      const valor = norm(r?.valor_texto ?? r?.transcricao ?? "");
+      if (op === "diferente") return valor !== esperado;
+      if (op === "contem") return esperado.length > 0 && valor.includes(esperado);
+      return valor === esperado;
+    };
     const secoesParaPdf = secoesList.map((s) => ({
       id: s.id,
       titulo: s.titulo,
@@ -155,6 +168,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       descricao: s.descricao,
       perguntas: (perguntas ?? [])
         .filter((p: any) => p.secao_id === s.id)
+        .filter(condicionalSatisfeita)
         .map((p: any) => ({
           id: p.id,
           texto: p.texto,

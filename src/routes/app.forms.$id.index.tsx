@@ -76,6 +76,9 @@ type Pergunta = {
   obrigatoria: boolean;
   ordem: number;
   contexto_ia: string | null;
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
 };
 type Opcao = { id: string; texto: string; ordem: number };
 
@@ -358,6 +361,8 @@ function FormBuilderPage() {
             <PropertiesPanel
               key={selected.id}
               pergunta={selected}
+              perguntas={perguntas}
+              secoes={secoes}
               onSaved={(updated) => {
                 setPerguntas((arr) => arr.map((p) => (p.id === updated.id ? updated : p)));
               }}
@@ -602,10 +607,14 @@ function SortableQuestion({
 // ============= Properties Panel =============
 function PropertiesPanel({
   pergunta,
+  perguntas,
+  secoes,
   onSaved,
   onClose,
 }: {
   pergunta: Pergunta;
+  perguntas: Pergunta[];
+  secoes: Secao[];
   onSaved: (p: Pergunta) => void;
   onClose: () => void;
 }) {
@@ -613,10 +622,60 @@ function PropertiesPanel({
   const [tipo, setTipo] = useState<TipoPergunta>(pergunta.tipo);
   const [obrigatoria, setObrigatoria] = useState(pergunta.obrigatoria);
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
+  const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
+  const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
+  const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
+  const [refOpcoes, setRefOpcoes] = useState<{ id: string; texto: string }[]>([]);
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
   const [opcoesIniciais, setOpcoesIniciais] = useState<Opcao[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Perguntas elegíveis como gatilho: na mesma seção (acima) ou seções anteriores, excluindo a própria.
+  const minhaSecao = secoes.find((s) => s.id === pergunta.secao_id);
+  const minhaOrdem = pergunta.ordem;
+  const elegiveis = perguntas
+    .filter((p) => {
+      if (p.id === pergunta.id) return false;
+      const sec = secoes.find((s) => s.id === p.secao_id);
+      if (!sec || !minhaSecao) return false;
+      if (sec.ordem < minhaSecao.ordem) return true;
+      if (sec.ordem === minhaSecao.ordem && p.ordem < minhaOrdem) return true;
+      return false;
+    })
+    .sort((a, b) => {
+      const sa = secoes.find((s) => s.id === a.secao_id)?.ordem ?? 0;
+      const sb = secoes.find((s) => s.id === b.secao_id)?.ordem ?? 0;
+      return sa - sb || a.ordem - b.ordem;
+    });
+  const refPergunta = elegiveis.find((p) => p.id === condRefId);
+
+  useEffect(() => {
+    if (!condRefId) {
+      setRefOpcoes([]);
+      return;
+    }
+    const ref = perguntas.find((p) => p.id === condRefId);
+    if (!ref) return;
+    if (ref.tipo === "toggle") {
+      setRefOpcoes([
+        { id: "sim", texto: "sim" },
+        { id: "nao", texto: "nao" },
+      ]);
+      return;
+    }
+    if (ref.tipo === "selecao_unica") {
+      supabase
+        .from("opcoes_pergunta")
+        .select("id, texto")
+        .eq("pergunta_id", condRefId)
+        .order("ordem")
+        .then(({ data }) => setRefOpcoes((data ?? []) as { id: string; texto: string }[]));
+    } else {
+      setRefOpcoes([]);
+    }
+  }, [condRefId, perguntas]);
+
 
   useEffect(() => {
     let active = true;
@@ -649,6 +708,9 @@ function PropertiesPanel({
   const save = async () => {
     setSaving(true);
     setMsg(null);
+    const condicional_pergunta_id = condRefId || null;
+    const condicional_operador = condicional_pergunta_id ? condOp : null;
+    const condicional_valor = condicional_pergunta_id ? (condVal || null) : null;
     const { error } = await supabase
       .from("perguntas")
       .update({
@@ -656,6 +718,9 @@ function PropertiesPanel({
         tipo,
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
+        condicional_pergunta_id,
+        condicional_operador,
+        condicional_valor,
       })
       .eq("id", pergunta.id);
     if (error) {
@@ -700,6 +765,9 @@ function PropertiesPanel({
       tipo,
       obrigatoria,
       contexto_ia: mostraContexto ? contextoIa || null : null,
+      condicional_pergunta_id,
+      condicional_operador,
+      condicional_valor,
     });
     setMsg("Campo salvo");
     setSaving(false);
@@ -743,6 +811,53 @@ function PropertiesPanel({
             className="h-4 w-4"
           />
         </label>
+
+        <div className="rounded-md border border-border p-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Mostrar somente se
+          </p>
+          <div className="mt-2 space-y-2">
+            <Select value={condRefId} onChange={(e) => setCondRefId(e.target.value)}>
+              <option value="">Sempre mostrar</option>
+              {elegiveis.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {(p.texto || "(sem título)").slice(0, 60)}
+                </option>
+              ))}
+            </Select>
+            {condRefId && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[120px_1fr]">
+                <Select value={condOp} onChange={(e) => setCondOp(e.target.value)}>
+                  <option value="igual">for igual a</option>
+                  <option value="diferente">for diferente de</option>
+                  <option value="contem">contiver</option>
+                </Select>
+                {refOpcoes.length > 0 ? (
+                  <Select value={condVal} onChange={(e) => setCondVal(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {refOpcoes.map((o) => (
+                      <option key={o.id} value={o.texto}>{o.texto}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    value={condVal}
+                    onChange={(e) => setCondVal(e.target.value)}
+                    placeholder={
+                      refPergunta?.tipo === "toggle" ? "sim ou nao" : "valor esperado"
+                    }
+                  />
+                )}
+              </div>
+            )}
+            {condRefId && (
+              <p className="text-xs text-muted-foreground">
+                A pergunta só aparece quando a resposta acima satisfaz a condição.
+              </p>
+            )}
+          </div>
+        </div>
+
 
         {mostraContexto && (
           <div>

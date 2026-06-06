@@ -375,6 +375,9 @@ export type Database = {
       }
       perguntas: {
         Row: {
+          condicional_operador: string | null
+          condicional_pergunta_id: string | null
+          condicional_valor: string | null
           contexto_ia: string | null
           criado_em: string
           id: string
@@ -386,6 +389,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Insert: {
+          condicional_operador?: string | null
+          condicional_pergunta_id?: string | null
+          condicional_valor?: string | null
           contexto_ia?: string | null
           criado_em?: string
           id?: string
@@ -397,6 +403,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Update: {
+          condicional_operador?: string | null
+          condicional_pergunta_id?: string | null
+          condicional_valor?: string | null
           contexto_ia?: string | null
           criado_em?: string
           id?: string
@@ -408,6 +417,13 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Relationships: [
+          {
+            foreignKeyName: "perguntas_condicional_pergunta_id_fkey"
+            columns: ["condicional_pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "perguntas_secao_id_fkey"
             columns: ["secao_id"]

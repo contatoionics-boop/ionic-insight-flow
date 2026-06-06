@@ -10,6 +10,7 @@ import {
   type Resposta,
 } from "@/components/agent/FormFields";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 
 export type FormRunnerSecao = {
   id: string;
@@ -58,7 +59,8 @@ export function FormRunner({
   const totalSteps = ctx.secoes.length + 1;
   const isReview = step >= ctx.secoes.length;
   const secaoAtual = isReview ? null : ctx.secoes[step];
-  const perguntasAtuais = secaoAtual ? ctx.perguntasPorSecao[secaoAtual.id] ?? [] : [];
+  const perguntasBrutas = secaoAtual ? ctx.perguntasPorSecao[secaoAtual.id] ?? [] : [];
+  const perguntasAtuais = perguntasBrutas.filter((p) => avaliarCondicional(p, state));
   const progress = Math.round(((step + 1) / Math.max(totalSteps, 1)) * 100);
 
   const update = useCallback(
