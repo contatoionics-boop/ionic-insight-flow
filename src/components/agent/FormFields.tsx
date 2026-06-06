@@ -89,6 +89,9 @@ export type Pergunta = {
   instrucao_agente: string | null;
   contexto_ia: string | null;
   opcoes?: { id: string; texto: string }[];
+  condicional_pergunta_id?: string | null;
+  condicional_operador?: string | null;
+  condicional_valor?: string | null;
 };
 
 export type IaResultado = {
