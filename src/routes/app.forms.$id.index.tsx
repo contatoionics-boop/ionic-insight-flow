@@ -813,9 +813,9 @@ function PropertiesPanel({
         </label>
 
         <div className="rounded-md border border-border p-3">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Mostrar somente se
-          </Label>
+          </p>
           <div className="mt-2 space-y-2">
             <Select value={condRefId} onChange={(e) => setCondRefId(e.target.value)}>
               <option value="">Sempre mostrar</option>
