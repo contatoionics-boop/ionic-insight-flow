@@ -812,6 +812,53 @@ function PropertiesPanel({
           />
         </label>
 
+        <div className="rounded-md border border-border p-3">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Mostrar somente se
+          </Label>
+          <div className="mt-2 space-y-2">
+            <Select value={condRefId} onChange={(e) => setCondRefId(e.target.value)}>
+              <option value="">Sempre mostrar</option>
+              {elegiveis.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {(p.texto || "(sem título)").slice(0, 60)}
+                </option>
+              ))}
+            </Select>
+            {condRefId && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[120px_1fr]">
+                <Select value={condOp} onChange={(e) => setCondOp(e.target.value)}>
+                  <option value="igual">for igual a</option>
+                  <option value="diferente">for diferente de</option>
+                  <option value="contem">contiver</option>
+                </Select>
+                {refOpcoes.length > 0 ? (
+                  <Select value={condVal} onChange={(e) => setCondVal(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {refOpcoes.map((o) => (
+                      <option key={o.id} value={o.texto}>{o.texto}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    value={condVal}
+                    onChange={(e) => setCondVal(e.target.value)}
+                    placeholder={
+                      refPergunta?.tipo === "toggle" ? "sim ou nao" : "valor esperado"
+                    }
+                  />
+                )}
+              </div>
+            )}
+            {condRefId && (
+              <p className="text-xs text-muted-foreground">
+                A pergunta só aparece quando a resposta acima satisfaz a condição.
+              </p>
+            )}
+          </div>
+        </div>
+
+
         {mostraContexto && (
           <div>
             <Label>Contexto IA</Label>
