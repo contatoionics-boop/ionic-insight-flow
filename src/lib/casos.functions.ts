@@ -63,14 +63,12 @@ const AgendarInput = z
   .object({
     unidadeId: z.string().uuid().optional().nullable(),
     matrizId: z.string().uuid().optional().nullable(),
-    formId: z.string().uuid(),
+    formIds: z.array(z.string().uuid()).min(1, "Selecione ao menos um formulário."),
     agenteId: z.string().uuid(),
     agendadoEm: z.string().min(1),
     duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
     enderecoVistoria: z.string().max(500).optional().nullable(),
     observacoes: z.string().max(2000).optional().nullable(),
-    gerarLink: z.boolean().default(false),
-    mode: z.enum(["stepper", "chat"]).default("stepper"),
   })
   .refine((v) => !!v.unidadeId || !!v.matrizId, {
     message: "Informe unidade ou matriz.",
@@ -79,7 +77,6 @@ const AgendarInput = z
 async function resolveUnidadeId(input: { unidadeId?: string | null; matrizId?: string | null; userId: string }) {
   if (input.unidadeId) return input.unidadeId;
   if (!input.matrizId) throw new Error("Sem unidade nem matriz.");
-  // Tenta usar uma unidade existente da matriz (idempotente)
   const { data: existing, error: exErr } = await supabaseAdmin
     .from("unidades")
     .select("id")
@@ -90,7 +87,6 @@ async function resolveUnidadeId(input: { unidadeId?: string | null; matrizId?: s
   if (exErr) throw new Error(exErr.message);
   if (existing?.id) return existing.id;
 
-  // Cria uma unidade "Sede" copiando o endereço da matriz
   const { data: m, error: mErr } = await supabaseAdmin
     .from("matrizes")
     .select("cep, logradouro, numero, bairro, cidade, estado, email, telefone")
@@ -148,7 +144,38 @@ async function getEnderecoVistoria(unidadeId: string) {
   return formatEndereco(data) ?? formatEndereco((data?.matriz as EnderecoRow | null) ?? null);
 }
 
-export const agendarVistoria = createServerFn({ method: "POST" })
+async function criarCaso(opts: {
+  agendamentoId: string;
+  unidadeId: string;
+  formId: string;
+  agenteId: string;
+  criadoPor: string;
+  agendadoEm: string;
+  duracaoMin: number;
+  enderecoVistoria: string | null;
+  observacoes: string | null;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("casos")
+    .insert({
+      agendamento_id: opts.agendamentoId,
+      unidade_id: opts.unidadeId,
+      formulario_id: opts.formId,
+      agente_id: opts.agenteId,
+      criado_por: opts.criadoPor,
+      status: "agendado",
+      agendado_em: opts.agendadoEm,
+      duracao_min: opts.duracaoMin,
+      endereco_vistoria: opts.enderecoVistoria,
+      observacoes_agendamento: opts.observacoes,
+    })
+    .select("id, codigo")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Erro ao criar caso.");
+  return data;
+}
+
+export const agendarMapeamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => AgendarInput.parse(input))
   .handler(async ({ data, context }) => {
@@ -167,35 +194,182 @@ export const agendarVistoria = createServerFn({ method: "POST" })
 
     const enderecoVistoria = data.enderecoVistoria?.trim() || (await getEnderecoVistoria(unidadeId));
 
-    const { data: caso, error } = await supabaseAdmin
-      .from("casos")
+    let matrizId = data.matrizId ?? null;
+    if (!matrizId) {
+      const { data: u } = await supabaseAdmin
+        .from("unidades")
+        .select("matriz_id")
+        .eq("id", unidadeId)
+        .maybeSingle();
+      matrizId = u?.matriz_id ?? null;
+    }
+
+    const { data: ag, error: agErr } = await supabaseAdmin
+      .from("agendamentos")
       .insert({
         unidade_id: unidadeId,
-        formulario_id: data.formId,
+        matriz_id: matrizId,
         agente_id: data.agenteId,
         criado_por: context.userId,
-        status: "agendado",
         agendado_em: data.agendadoEm,
         duracao_min: data.duracaoMin,
         endereco_vistoria: enderecoVistoria,
         observacoes_agendamento: data.observacoes ?? null,
       })
-      .select("id, codigo")
+      .select("id")
       .single();
-    if (error || !caso) throw new Error(error?.message ?? "Erro ao agendar.");
+    if (agErr || !ag) throw new Error(agErr?.message ?? "Erro ao criar agendamento.");
 
-
-    let token: string | null = null;
-    if (data.gerarLink) {
-      token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-      const { error: lErr } = await supabaseAdmin
-        .from("links_agente")
-        .insert({ token, caso_id: caso.id });
-      if (lErr) throw new Error(lErr.message);
+    const casos = [];
+    for (const formId of data.formIds) {
+      const c = await criarCaso({
+        agendamentoId: ag.id,
+        unidadeId,
+        formId,
+        agenteId: data.agenteId,
+        criadoPor: context.userId,
+        agendadoEm: data.agendadoEm,
+        duracaoMin: data.duracaoMin,
+        enderecoVistoria,
+        observacoes: data.observacoes ?? null,
+      });
+      casos.push(c);
     }
 
-    return { casoId: caso.id, codigo: caso.codigo, token, mode: data.mode };
+    return { agendamentoId: ag.id, casos };
   });
+
+export const adicionarFormularioAoAgendamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      agendamentoId: z.string().uuid(),
+      formId: z.string().uuid(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdminOrSuper(context.supabase, context.userId);
+    const { data: ag, error } = await supabaseAdmin
+      .from("agendamentos")
+      .select("id, unidade_id, agente_id, criado_por, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento")
+      .eq("id", data.agendamentoId)
+      .maybeSingle();
+    if (error || !ag) throw new Error("Agendamento não encontrado.");
+
+    const { data: existente } = await supabaseAdmin
+      .from("casos")
+      .select("id")
+      .eq("agendamento_id", ag.id)
+      .eq("formulario_id", data.formId)
+      .maybeSingle();
+    if (existente) throw new Error("Este formulário já está neste agendamento.");
+
+    const caso = await criarCaso({
+      agendamentoId: ag.id,
+      unidadeId: ag.unidade_id,
+      formId: data.formId,
+      agenteId: ag.agente_id,
+      criadoPor: ag.criado_por,
+      agendadoEm: ag.agendado_em,
+      duracaoMin: ag.duracao_min,
+      enderecoVistoria: ag.endereco_vistoria,
+      observacoes: ag.observacoes_agendamento,
+    });
+    return caso;
+  });
+
+export const removerCasoDoAgendamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ casoId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdminOrSuper(context.supabase, context.userId);
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("status")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (!caso) throw new Error("Caso não encontrado.");
+    if (!["agendado", "rascunho"].includes(caso.status)) {
+      throw new Error("Só é possível remover formulários que ainda não foram iniciados.");
+    }
+    const { error } = await supabaseAdmin.from("casos").delete().eq("id", data.casoId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const obterAgendamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ agendamentoId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: ag, error } = await supabase
+      .from("agendamentos")
+      .select(
+        "id, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, criado_por, unidade:unidades(id, nome, matriz:matrizes(id, nome, empresa:empresas(id, nome))), casos(id, codigo, status, formulario:formularios(id, nome))",
+      )
+      .eq("id", data.agendamentoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ag) throw new Error("Agendamento não encontrado.");
+    return ag;
+  });
+
+// Compat antigo (1 formulário). Usado por código legado.
+export const agendarVistoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        unidadeId: z.string().uuid().optional().nullable(),
+        matrizId: z.string().uuid().optional().nullable(),
+        formId: z.string().uuid(),
+        agenteId: z.string().uuid(),
+        agendadoEm: z.string().min(1),
+        duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
+        enderecoVistoria: z.string().max(500).optional().nullable(),
+        observacoes: z.string().max(2000).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdminOrSuper(context.supabase, context.userId);
+    await checarConflito({ agenteId: data.agenteId, inicio: data.agendadoEm, duracaoMin: data.duracaoMin });
+    const unidadeId = await resolveUnidadeId({ unidadeId: data.unidadeId, matrizId: data.matrizId, userId: context.userId });
+    const enderecoVistoria = data.enderecoVistoria?.trim() || (await getEnderecoVistoria(unidadeId));
+    let matrizId = data.matrizId ?? null;
+    if (!matrizId) {
+      const { data: u } = await supabaseAdmin.from("unidades").select("matriz_id").eq("id", unidadeId).maybeSingle();
+      matrizId = u?.matriz_id ?? null;
+    }
+    const { data: ag, error: agErr } = await supabaseAdmin
+      .from("agendamentos")
+      .insert({
+        unidade_id: unidadeId,
+        matriz_id: matrizId,
+        agente_id: data.agenteId,
+        criado_por: context.userId,
+        agendado_em: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+        endereco_vistoria: enderecoVistoria,
+        observacoes_agendamento: data.observacoes ?? null,
+      })
+      .select("id")
+      .single();
+    if (agErr || !ag) throw new Error(agErr?.message ?? "Erro ao criar agendamento.");
+    const caso = await criarCaso({
+      agendamentoId: ag.id,
+      unidadeId,
+      formId: data.formId,
+      agenteId: data.agenteId,
+      criadoPor: context.userId,
+      agendadoEm: data.agendadoEm,
+      duracaoMin: data.duracaoMin,
+      enderecoVistoria,
+      observacoes: data.observacoes ?? null,
+    });
+    return { casoId: caso.id, codigo: caso.codigo, agendamentoId: ag.id };
+  });
+
 
 const ReagendarInput = z.object({
   casoId: z.string().uuid(),
