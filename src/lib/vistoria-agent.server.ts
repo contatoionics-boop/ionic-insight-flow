@@ -305,7 +305,7 @@ export async function execSalvarResposta(
       {
         caso_id: casoId,
         pergunta_id: input.pergunta_id,
-        tipo: p.tipo,
+        tipo: p.tipo as any,
         valor_texto,
         arquivo_path,
         transcricao,
