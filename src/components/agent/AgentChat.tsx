@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui-bits";
+import { LumaSpin } from "@/components/ui/luma-spin";
 import { supabase } from "@/integrations/supabase/client";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
@@ -13,6 +14,10 @@ import {
   finalizarVistoriaChat,
   type EstadoVistoria,
 } from "@/lib/vistoria-agent.functions";
+
+// When rendered inside the authenticated app (with sidebar), offset the
+// fixed composer so it centers within the main content area, not viewport.
+const SIDEBAR_OFFSET_CLASS = "md:left-64";
 
 type Props = {
   token?: string;
@@ -272,7 +277,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 pb-44 pt-8">
         <div className="w-full">
           {busy ? (
-            <ShimmerText text="Pensando…" />
+            <div className="flex flex-col items-center justify-center gap-4">
+              <LumaSpin size={65} />
+              <span className="text-sm text-muted-foreground">Pensando…</span>
+            </div>
           ) : lastAssistantText ? (
             <div
               key={lastAssistant?.id}
@@ -291,7 +299,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       </main>
 
       {/* Composer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background via-background to-transparent pb-4 pt-6">
+      <footer
+        className={`fixed bottom-0 right-0 left-0 ${casoId ? SIDEBAR_OFFSET_CLASS : ""} z-10 bg-gradient-to-t from-background via-background to-transparent pb-4 pt-6`}
+      >
+
         <div className="mx-auto w-full max-w-3xl px-4">
           <div className="flex items-end gap-2 rounded-3xl border border-border bg-card px-2 py-2 shadow-lg shadow-black/5">
             <input
