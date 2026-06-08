@@ -20,6 +20,11 @@ type Props = {
   onFinalized?: () => void;
 };
 
+async function getCurrentAccessToken() {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
 export function AgentChat({ token, casoId, onFinalized }: Props) {
   const { config } = useConfiguracoesEmpresa();
   const nomeEmpresa = config?.nome_empresa || "Ionics";
@@ -29,6 +34,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const [estado, setEstado] = useState<EstadoVistoria | null>(null);
   const [estadoErro, setEstadoErro] = useState<string | null>(null);
+  const [authErro, setAuthErro] = useState<string | null>(null);
   const [finalizando, setFinalizando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
 
@@ -50,11 +56,17 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     () =>
       new DefaultChatTransport({
         api: "/api/vistoria-chat",
-        body: { token, casoId },
+        body: async () => {
+          const accessToken = token ? null : await getCurrentAccessToken();
+          return {
+            ...(token ? { token } : {}),
+            ...(casoId ? { casoId } : {}),
+            ...(accessToken ? { accessToken } : {}),
+          };
+        },
         headers: async (): Promise<Record<string, string>> => {
           if (token) return {};
-          const { data } = await supabase.auth.getSession();
-          const t = data.session?.access_token;
+          const t = await getCurrentAccessToken();
           return t ? { Authorization: `Bearer ${t}` } : {};
         },
       }),
@@ -98,6 +110,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const enviar = async (texto: string) => {
     const t = texto.trim();
     if (!t || busy) return;
+    if (!token && casoId) {
+      const accessToken = await getCurrentAccessToken();
+      if (!accessToken) {
+        setAuthErro("Sua sessão expirou. Entre novamente para continuar a vistoria.");
+        return;
+      }
+    }
+    setAuthErro(null);
     setInput("");
     await sendMessage({ text: t });
   };
@@ -256,15 +276,15 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
           ) : lastAssistantText ? (
             <div
               key={lastAssistant?.id}
-              className="animate-fade-in whitespace-pre-wrap text-center text-2xl font-medium leading-relaxed text-foreground sm:text-3xl"
+              className="mx-auto max-w-2xl animate-fade-in whitespace-pre-wrap text-balance text-center text-2xl font-medium leading-relaxed text-foreground sm:text-3xl"
             >
               {lastAssistantText}
             </div>
           ) : null}
 
-          {error && (
+          {(authErro || error) && (
             <div className="mx-auto mt-6 max-w-md rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-              {error.message || "Erro na conversa. Tente novamente."}
+              {authErro || friendlyChatError(error?.message)}
             </div>
           )}
         </div>
@@ -360,6 +380,14 @@ function ShimmerText({ text }: { text: string }) {
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     </div>
   );
+}
+
+function friendlyChatError(message?: string) {
+  if (!message) return "Não foi possível enviar sua resposta. Tente novamente.";
+  if (message.includes("Não autenticado") || message.includes("Sessão inválida")) {
+    return "Sua sessão expirou. Entre novamente para continuar a vistoria.";
+  }
+  return message;
 }
 
 function VoiceButton({

@@ -16,6 +16,7 @@ type Body = {
   messages: UIMessage[];
   token?: string;
   casoId?: string;
+  accessToken?: string;
 };
 
 async function resolveAccess(body: Body, request: Request): Promise<string> {
@@ -23,10 +24,12 @@ async function resolveAccess(body: Body, request: Request): Promise<string> {
   if (body.casoId) {
     // Validate via bearer token from authenticated user
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const accessToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "")
+      : body.accessToken;
+    if (!accessToken) {
       throw new Error("Não autenticado.");
     }
-    const accessToken = authHeader.replace("Bearer ", "");
     const { createClient } = await import("@supabase/supabase-js");
     const supa = createClient(
       process.env.SUPABASE_URL!,
