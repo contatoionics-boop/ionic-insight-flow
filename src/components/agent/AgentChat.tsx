@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Loader2, Mic, Send, Square, Check, X, FileText } from "lucide-react";
+import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,6 @@ import {
 } from "@/lib/vistoria-agent.functions";
 
 type Props = {
-  /** Either token (public link) OR casoId (authenticated). */
   token?: string;
   casoId?: string;
   onFinalized?: () => void;
@@ -65,7 +64,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         parts: [
           {
             type: "text",
-            text: `Olá. Sou o assistente técnico da ${nomeEmpresa}. Vamos conduzir o mapeamento técnico de **${estado.clienteNome}** utilizando o formulário **${estado.formularioNome}**.\n\nPor favor, responda às próximas perguntas por texto, voz (microfone) ou foto (câmera). Quando estiver pronto para começar, envie qualquer mensagem (por exemplo: "Pronto" ou "Vamos lá").`,
+            text: `Olá. Sou o assistente técnico da ${nomeEmpresa}. Vamos iniciar o mapeamento técnico de **${estado.clienteNome}**.\n\nEnvie qualquer mensagem (por exemplo: "Vamos começar") para iniciar.`,
           },
         ],
       },
@@ -83,15 +82,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, status]);
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, [status]);
+  }, [status, messages.length]);
 
   const busy = status === "submitted" || status === "streaming";
 
@@ -152,8 +146,8 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   if (estadoErro && !estado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
-        <div className="max-w-md rounded-lg border border-border bg-white p-6 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="max-w-md rounded-lg border border-border bg-card p-6 text-center">
           <X className="mx-auto h-10 w-10 text-destructive" />
           <h2 className="mt-3 text-lg font-semibold text-foreground">Não foi possível abrir</h2>
           <p className="mt-1 text-sm text-muted-foreground">{estadoErro}</p>
@@ -164,7 +158,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   if (!estado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
@@ -172,7 +166,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   if (finalizado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="max-w-md text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success">
             <Check className="h-10 w-10" strokeWidth={3} />
@@ -193,31 +187,54 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       ? Math.round((estado.respondidas / estado.totalVisiveis) * 100)
       : 0;
 
+  // Find last visible assistant message (ignore empty)
+  const lastAssistant = [...messages]
+    .reverse()
+    .find(
+      (m) =>
+        m.role === "assistant" &&
+        m.parts.some((p) => p.type === "text" && p.text.trim().length > 0),
+    );
+  const lastAssistantText = lastAssistant
+    ? lastAssistant.parts
+        .map((p) => (p.type === "text" ? p.text : ""))
+        .join("")
+        .trim()
+    : "";
+
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
-      <header className="sticky top-0 z-20 border-b border-border bg-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-muted/60"
+          >
             {config?.logo_url && (
-              <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
+              <img src={config.logo_url} alt={nomeEmpresa} className="h-6 w-auto object-contain" />
             )}
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold leading-tight text-primary">
-                {nomeEmpresa}
-              </p>
-              <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                {estado.clienteNome} · {estado.formularioNome || "Mapeamento"}
-              </p>
-            </div>
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground">
-              {estado.respondidas}/{estado.totalVisiveis}
-            </p>
-            <p>respondidas</p>
+            <span className="truncate text-base font-semibold text-foreground">
+              {nomeEmpresa}
+            </span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="hidden max-w-[180px] truncate rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground sm:inline-block">
+              {estado.clienteNome}
+            </span>
+            <Button
+              variant="default"
+              onClick={handleFinalizar}
+              disabled={finalizando}
+              className="h-8 rounded-full px-4 text-xs"
+            >
+              {finalizando ? <Loader2 className="h-3 w-3 animate-spin" /> : "Finalizar"}
+            </Button>
           </div>
         </div>
-        <div className="h-1 w-full bg-muted">
+        <div className="h-0.5 w-full bg-muted">
           <div
             className="h-full bg-primary transition-all duration-500"
             style={{ width: `${progresso}%` }}
@@ -225,25 +242,32 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-3 py-4 pb-48 sm:px-4">
-        {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
-        ))}
+      {/* Main: only current question */}
+      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 pb-44 pt-8">
+        <div className="w-full">
+          {busy ? (
+            <ShimmerText text="Pensando…" />
+          ) : lastAssistantText ? (
+            <div
+              key={lastAssistant?.id}
+              className="animate-fade-in whitespace-pre-wrap text-center text-2xl font-medium leading-relaxed text-foreground sm:text-3xl"
+            >
+              {lastAssistantText}
+            </div>
+          ) : null}
 
-        {status === "submitted" && <TypingIndicator />}
-
-        {error && (
-          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error.message || "Erro na conversa. Tente novamente."}
-          </div>
-        )}
-
-        <div ref={bottomRef} />
+          {error && (
+            <div className="mx-auto mt-6 max-w-md rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+              {error.message || "Erro na conversa. Tente novamente."}
+            </div>
+          )}
+        </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-white">
-        <div className="mx-auto w-full max-w-2xl px-3 py-3 sm:px-4">
-          <div className="flex items-end gap-2">
+      {/* Composer */}
+      <footer className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background via-background to-transparent pb-4 pt-6">
+        <div className="mx-auto w-full max-w-3xl px-4">
+          <div className="flex items-end gap-2 rounded-3xl border border-border bg-card px-2 py-2 shadow-lg shadow-black/5">
             <input
               ref={fotoInputRef}
               type="file"
@@ -261,21 +285,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               onClick={() => fotoInputRef.current?.click()}
               disabled={busy || uploadingFoto}
               title="Anexar foto"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted disabled:opacity-50"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
             >
               {uploadingFoto ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Camera className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
               )}
             </button>
-
-            <VoiceButton
-              token={token ?? "preview"}
-              current={input}
-              onText={onTranscricao}
-              disabled={busy}
-            />
 
             <textarea
               ref={inputRef}
@@ -288,95 +305,53 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
                 }
               }}
               rows={1}
-              placeholder="Responda por texto, voz ou foto…"
+              placeholder="Responda à pergunta…"
               disabled={busy}
-              className="min-h-[44px] max-h-32 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+              className="min-h-[40px] max-h-32 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
             />
 
-            <button
-              type="button"
-              onClick={() => void enviar(input)}
-              disabled={busy || !input.trim()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
+            {input.trim().length === 0 ? (
+              <VoiceButton
+                token={token ?? "preview"}
+                current={input}
+                onText={onTranscricao}
+                disabled={busy}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => void enviar(input)}
+                disabled={busy}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            )}
           </div>
 
-          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>
-              {estado.obrigatoriasFaltando === 0
-                ? "Todas as obrigatórias respondidas."
-                : `${estado.obrigatoriasFaltando} obrigatória(s) pendente(s).`}
-            </span>
-            <Button
-              variant="outline"
-              onClick={handleFinalizar}
-              disabled={finalizando}
-              className="h-8 text-xs"
-            >
-              {finalizando ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <>
-                  <FileText className="h-3 w-3" /> Finalizar mapeamento
-                </>
-              )}
-            </Button>
-          </div>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            {estado.respondidas}/{estado.totalVisiveis} respondidas
+            {estado.obrigatoriasFaltando > 0
+              ? ` · ${estado.obrigatoriasFaltando} obrigatória(s) pendente(s)`
+              : " · todas obrigatórias respondidas"}
+          </p>
         </div>
       </footer>
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
-  const isUser = message.role === "user";
-  const text = message.parts
-    .map((p) => (p.type === "text" ? p.text : ""))
-    .join("")
-    .trim();
-
-  // Strip internal anexo markers from user-visible text
-  const display = isUser ? text.replace(/\[ANEXO_FOTO[^\]]+\]\s*/g, "📷 ").trim() : text;
-
-  if (!display && !isUser) return null;
-
-  if (isUser) {
-    return (
-      <div className="mb-3 flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-          {display || "…"}
-        </div>
-      </div>
-    );
-  }
-
+function ShimmerText({ text }: { text: string }) {
   return (
-    <div className="mb-3 flex items-start gap-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-        IA
-      </div>
-      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-border bg-white px-4 py-2.5 text-sm text-foreground">
-        {display}
-      </div>
-    </div>
-  );
-}
-
-function TypingIndicator() {
-  return (
-    <div className="mb-3 flex items-start gap-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-        IA
-      </div>
-      <div className="rounded-2xl rounded-tl-sm border border-border bg-white px-4 py-3">
-        <div className="flex gap-1">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" />
-        </div>
-      </div>
+    <div className="animate-fade-in text-center">
+      <span className="bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground bg-[length:200%_100%] bg-clip-text text-2xl font-medium text-transparent [animation:shimmer_2s_linear_infinite] sm:text-3xl">
+        {text}
+      </span>
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     </div>
   );
 }
@@ -392,7 +367,7 @@ function VoiceButton({
   onText: (t: string) => void;
   disabled?: boolean;
 }) {
-  const { recording, transcrevendo, erro, start, stop, mmss } = useGravacaoVoz({
+  const { recording, transcrevendo, start, stop } = useGravacaoVoz({
     token,
     onTranscricao: (txt) => {
       if (!txt) return;
@@ -401,28 +376,24 @@ function VoiceButton({
     },
   });
   return (
-    <div className="flex flex-col items-end">
-      <button
-        type="button"
-        onClick={recording ? stop : start}
-        disabled={disabled || transcrevendo}
-        title={recording ? "Parar gravação" : "Gravar voz"}
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition ${
-          recording
-            ? "animate-pulse border-destructive bg-destructive/10 text-destructive"
-            : "border-border bg-background text-muted-foreground hover:bg-muted"
-        } disabled:opacity-50`}
-      >
-        {transcrevendo ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : recording ? (
-          <Square className="h-4 w-4" />
-        ) : (
-          <Mic className="h-4 w-4" />
-        )}
-      </button>
-      {recording && <span className="font-mono text-[10px] text-destructive">{mmss}</span>}
-      {erro && <span className="max-w-[120px] truncate text-[10px] text-destructive">{erro}</span>}
-    </div>
+    <button
+      type="button"
+      onClick={recording ? stop : start}
+      disabled={disabled || transcrevendo}
+      title={recording ? "Parar gravação" : "Gravar voz"}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${
+        recording
+          ? "animate-pulse bg-destructive/10 text-destructive"
+          : "text-muted-foreground hover:bg-muted"
+      } disabled:opacity-50`}
+    >
+      {transcrevendo ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : recording ? (
+        <Square className="h-4 w-4" />
+      ) : (
+        <Mic className="h-5 w-5" />
+      )}
+    </button>
   );
 }
