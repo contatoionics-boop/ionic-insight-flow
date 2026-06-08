@@ -70,7 +70,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         parts: [
           {
             type: "text",
-            text: `Olá. Sou o assistente técnico da ${nomeEmpresa}. Vamos iniciar o mapeamento técnico de **${estado.clienteNome}**.\n\nEnvie qualquer mensagem (por exemplo: "Vamos começar") para iniciar.`,
+            text: `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nVamos iniciar o mapeamento técnico de ${estado.clienteNome}.\n\nEnvie qualquer mensagem para começar.`,
           },
         ],
       },
