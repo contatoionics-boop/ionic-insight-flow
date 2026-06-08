@@ -382,6 +382,14 @@ function ShimmerText({ text }: { text: string }) {
   );
 }
 
+function friendlyChatError(message?: string) {
+  if (!message) return "Não foi possível enviar sua resposta. Tente novamente.";
+  if (message.includes("Não autenticado") || message.includes("Sessão inválida")) {
+    return "Sua sessão expirou. Entre novamente para continuar a vistoria.";
+  }
+  return message;
+}
+
 function VoiceButton({
   token,
   current,
