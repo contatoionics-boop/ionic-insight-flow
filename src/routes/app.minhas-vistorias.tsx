@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Badge, Button } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
-import { CalendarDays, ListChecks, MapPin, Play } from "lucide-react";
+import { CalendarDays, ListChecks, MapPin, Play, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
@@ -18,8 +18,20 @@ type Vistoria = {
   duracao_min: number | null;
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
+  agendamento_id: string;
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   formulario: { nome: string } | null;
+};
+
+type Grupo = {
+  agendamentoId: string;
+  cliente: string;
+  unidade: string | null;
+  agendadoEm: string | null;
+  endereco: string | null;
+  observacoes: string | null;
+  casos: Vistoria[];
+  status: "concluido" | "em_andamento" | "agendado";
 };
 
 function fmtData(iso: string | null) {
@@ -31,6 +43,35 @@ function fmtData(iso: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+const PENDENTES: CaseStatus[] = ["agendado", "em_andamento", "rascunho"];
+const FINALIZADOS: CaseStatus[] = ["aguardando_revisao", "aprovado", "concluido"];
+
+function agrupar(rows: Vistoria[]): Grupo[] {
+  const map = new Map<string, Grupo>();
+  for (const r of rows) {
+    const key = r.agendamento_id;
+    if (!map.has(key)) {
+      map.set(key, {
+        agendamentoId: key,
+        cliente: r.unidade?.matriz?.empresa?.nome ?? "—",
+        unidade: r.unidade?.nome ?? null,
+        agendadoEm: r.agendado_em,
+        endereco: r.endereco_vistoria,
+        observacoes: r.observacoes_agendamento,
+        casos: [],
+        status: "agendado",
+      });
+    }
+    map.get(key)!.casos.push(r);
+  }
+  for (const g of map.values()) {
+    if (g.casos.every((c) => FINALIZADOS.includes(c.status))) g.status = "concluido";
+    else if (g.casos.some((c) => c.status === "em_andamento")) g.status = "em_andamento";
+    else g.status = "agendado";
+  }
+  return [...map.values()];
 }
 
 function MinhasVistoriasPage() {
@@ -46,23 +87,23 @@ function MinhasVistoriasPage() {
     });
   }, [load]);
 
+  const grupos = useMemo(() => agrupar(rows), [rows]);
+  const pendentes = grupos.filter((g) => g.status !== "concluido");
+  const concluidos = grupos.filter((g) => g.status === "concluido");
+
   const agora = Date.now();
-  const pendentes = rows.filter(
-    (r) => r.status === "agendado" || r.status === "em_andamento" || r.status === "rascunho",
-  );
-  const concluidas = rows.filter((r) => ["aguardando_revisao", "aprovado", "concluido"].includes(r.status));
   const futuras = pendentes
-    .filter((r) => r.agendado_em && new Date(r.agendado_em).getTime() >= agora - 60 * 60_000)
-    .sort((a, b) => new Date(a.agendado_em!).getTime() - new Date(b.agendado_em!).getTime());
+    .filter((g) => g.agendadoEm && new Date(g.agendadoEm).getTime() >= agora - 60 * 60_000)
+    .sort((a, b) => new Date(a.agendadoEm!).getTime() - new Date(b.agendadoEm!).getTime());
 
   const porDia = useMemo(() => {
-    const map = new Map<string, Vistoria[]>();
-    for (const v of futuras) {
-      if (!v.agendado_em) continue;
-      const d = new Date(v.agendado_em);
+    const map = new Map<string, Grupo[]>();
+    for (const g of futuras) {
+      if (!g.agendadoEm) continue;
+      const d = new Date(g.agendadoEm);
       const key = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
       const arr = map.get(key) ?? [];
-      arr.push(v);
+      arr.push(g);
       map.set(key, arr);
     }
     return [...map.entries()];
@@ -72,7 +113,7 @@ function MinhasVistoriasPage() {
     <div>
       <PageHeader
         title="Meus mapeamentos"
-        description="Mapeamentos agendados para você. Clique em iniciar para preencher o formulário."
+        description="Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo."
       />
 
       <div className="mb-4 inline-flex rounded-md border border-border bg-card p-1">
@@ -98,8 +139,8 @@ function MinhasVistoriasPage() {
         <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
       ) : tab === "lista" ? (
         <div className="space-y-6">
-          <Section title="Pendentes" items={pendentes} empty="Nenhum mapeamento pendente." />
-          <Section title="Concluídos" items={concluidas} empty="Nenhum mapeamento concluído." />
+          <Section title="Pendentes" items={pendentes} empty="Nenhum agendamento pendente." />
+          <Section title="Concluídos" items={concluidos} empty="Nenhum agendamento concluído." />
         </div>
       ) : (
         <div className="space-y-4">
@@ -110,7 +151,7 @@ function MinhasVistoriasPage() {
               <div key={dia}>
                 <h3 className="mb-2 text-sm font-semibold capitalize text-foreground">{dia}</h3>
                 <div className="space-y-2">
-                  {items.map((v) => <VistoriaCard key={v.id} v={v} />)}
+                  {items.map((g) => <AgendamentoCard key={g.agendamentoId} g={g} />)}
                 </div>
               </div>
             ))
@@ -121,50 +162,87 @@ function MinhasVistoriasPage() {
   );
 }
 
-function Section({ title, items, empty }: { title: string; items: Vistoria[]; empty: string }) {
+function Section({ title, items, empty }: { title: string; items: Grupo[]; empty: string }) {
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-foreground">{title} <span className="text-muted-foreground">({items.length})</span></h3>
+      <h3 className="mb-2 text-sm font-semibold text-foreground">
+        {title} <span className="text-muted-foreground">({items.length})</span>
+      </h3>
       {items.length === 0 ? (
         <Card><p className="text-sm text-muted-foreground">{empty}</p></Card>
       ) : (
         <div className="space-y-2">
-          {items.map((v) => <VistoriaCard key={v.id} v={v} />)}
+          {items.map((g) => <AgendamentoCard key={g.agendamentoId} g={g} />)}
         </div>
       )}
     </div>
   );
 }
 
-function VistoriaCard({ v }: { v: Vistoria }) {
-  const podeIniciar = v.status === "agendado" || v.status === "em_andamento" || v.status === "rascunho";
+function AgendamentoCard({ g }: { g: Grupo }) {
+  const emAndamento = g.casos.find((c) => c.status === "em_andamento");
   return (
-    <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">{v.codigo}</span>
-          <Badge className={statusTones[v.status]}>{statusLabels[v.status]}</Badge>
-        </div>
-        <p className="mt-1 text-base font-semibold text-foreground">{v.unidade?.matriz?.empresa?.nome ?? "—"}{v.unidade?.nome ? <span className="ml-1 text-sm font-normal text-muted-foreground">· {v.unidade.nome}</span> : null}</p>
-        <p className="text-sm text-muted-foreground">{v.formulario?.nome ?? "—"}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {fmtData(v.agendado_em)}{v.duracao_min ? ` · ${v.duracao_min} min` : ""}</span>
-          {v.endereco_vistoria && (
-            <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {v.endereco_vistoria}</span>
+    <Card>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-foreground">
+            {g.cliente}
+            {g.unidade && (
+              <span className="ml-1 text-sm font-normal text-muted-foreground">· {g.unidade}</span>
+            )}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" /> {fmtData(g.agendadoEm)}
+            </span>
+            {g.endereco && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" /> {g.endereco}
+              </span>
+            )}
+          </div>
+          {g.observacoes && (
+            <p className="mt-2 text-xs italic text-muted-foreground">{g.observacoes}</p>
           )}
         </div>
-        {v.observacoes_agendamento && (
-          <p className="mt-2 text-xs italic text-muted-foreground">{v.observacoes_agendamento}</p>
-        )}
       </div>
-      {podeIniciar && (
-        <Link to="/app/vistoria/$casoId" params={{ casoId: v.id }}>
-          <Button>
-            <Play className="mr-1 h-4 w-4" />
-            {v.status === "em_andamento" ? "Continuar" : "Iniciar"}
-          </Button>
-        </Link>
-      )}
+
+      <div className="space-y-2 border-t border-border pt-3">
+        {g.casos.map((c) => {
+          const finalizado = FINALIZADOS.includes(c.status);
+          const isCurrent = c.status === "em_andamento";
+          const podeIniciar = !finalizado && (!emAndamento || isCurrent);
+          return (
+            <div
+              key={c.id}
+              className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[11px] text-muted-foreground">{c.codigo}</span>
+                  <Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge>
+                </div>
+                <p className="mt-0.5 text-sm font-medium text-foreground">
+                  {c.formulario?.nome ?? "—"}
+                </p>
+              </div>
+              {podeIniciar ? (
+                <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
+                  <Button>
+                    <Play className="mr-1 h-4 w-4" />
+                    {isCurrent ? "Continuar" : "Iniciar"}
+                  </Button>
+                </Link>
+              ) : !finalizado ? (
+                <Button disabled title="Termine o formulário em andamento antes">
+                  <Lock className="mr-1 h-4 w-4" />
+                  Bloqueado
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }
