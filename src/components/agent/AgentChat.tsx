@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui-bits";
+import { LumaSpin } from "@/components/ui/luma-spin";
 import { supabase } from "@/integrations/supabase/client";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
@@ -13,6 +14,10 @@ import {
   finalizarVistoriaChat,
   type EstadoVistoria,
 } from "@/lib/vistoria-agent.functions";
+
+// When rendered inside the authenticated app (with sidebar), offset the
+// fixed composer so it centers within the main content area, not viewport.
+const SIDEBAR_OFFSET_CLASS = "md:left-64";
 
 type Props = {
   token?: string;
