@@ -225,7 +225,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               {estado.clienteNome}
             </span>
             <Button
-              variant="default"
+              variant="primary"
               onClick={handleFinalizar}
               disabled={finalizando}
               className="h-8 rounded-full px-4 text-xs"
