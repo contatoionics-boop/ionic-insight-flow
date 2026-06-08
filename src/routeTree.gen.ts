@@ -37,6 +37,7 @@ import { Route as AppVistoriasIdRouteImport } from './routes/app.vistorias.$id'
 import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
 import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
 import { Route as AppClientsEmpresaIdRouteImport } from './routes/app.clients.$empresaId'
+import { Route as AppAgendamentoIdRouteImport } from './routes/app.agendamento.$id'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
 
@@ -180,6 +181,11 @@ const AppClientsEmpresaIdRoute = AppClientsEmpresaIdRouteImport.update({
   path: '/$empresaId',
   getParentRoute: () => AppClientsRoute,
 } as any)
+const AppAgendamentoIdRoute = AppAgendamentoIdRouteImport.update({
+  id: '/agendamento/$id',
+  path: '/agendamento/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFormsIdIndexRoute = AppFormsIdIndexRouteImport.update({
   id: '/$id/',
   path: '/$id/',
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/agendamento/$id': typeof AppAgendamentoIdRoute
   '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByTo {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/agendamento/$id': typeof AppAgendamentoIdRoute
   '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/app/review-queue': typeof AppReviewQueueRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
+  '/app/agendamento/$id': typeof AppAgendamentoIdRoute
   '/app/clients/$empresaId': typeof AppClientsEmpresaIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
   '/app/vistoria/$casoId': typeof AppVistoriaCasoIdRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/agendamento/$id'
     | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/agendamento/$id'
     | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/app/review-queue'
     | '/app/tracking'
     | '/app/users'
+    | '/app/agendamento/$id'
     | '/app/clients/$empresaId'
     | '/app/review/$id'
     | '/app/vistoria/$casoId'
@@ -591,6 +603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsEmpresaIdRouteImport
       parentRoute: typeof AppClientsRoute
     }
+    '/app/agendamento/$id': {
+      id: '/app/agendamento/$id'
+      path: '/agendamento/$id'
+      fullPath: '/app/agendamento/$id'
+      preLoaderRoute: typeof AppAgendamentoIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/forms/$id/': {
       id: '/app/forms/$id/'
       path: '/$id'
@@ -654,6 +673,7 @@ interface AppRouteChildren {
   AppReviewQueueRoute: typeof AppReviewQueueRoute
   AppTrackingRoute: typeof AppTrackingRoute
   AppUsersRoute: typeof AppUsersRoute
+  AppAgendamentoIdRoute: typeof AppAgendamentoIdRoute
   AppReviewIdRoute: typeof AppReviewIdRoute
   AppVistoriaCasoIdRoute: typeof AppVistoriaCasoIdRoute
   AppVistoriasIdRoute: typeof AppVistoriasIdRoute
@@ -675,6 +695,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReviewQueueRoute: AppReviewQueueRoute,
   AppTrackingRoute: AppTrackingRoute,
   AppUsersRoute: AppUsersRoute,
+  AppAgendamentoIdRoute: AppAgendamentoIdRoute,
   AppReviewIdRoute: AppReviewIdRoute,
   AppVistoriaCasoIdRoute: AppVistoriaCasoIdRoute,
   AppVistoriasIdRoute: AppVistoriasIdRoute,
