@@ -5,7 +5,7 @@ import { PageHeader, Card, Label, Input, Select, Button } from "@/components/ui-
 import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { agendarVistoria } from "@/lib/casos.functions";
+import { agendarMapeamento } from "@/lib/casos.functions";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
@@ -41,7 +41,7 @@ function temEndereco(e?: EnderecoBase | null) {
 function NewCasePage() {
   const navigate = useNavigate();
   const loadAgents = useServerFn(listTechnicalAgents);
-  const agendar = useServerFn(agendarVistoria);
+  const agendar = useServerFn(agendarMapeamento);
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
@@ -52,7 +52,7 @@ function NewCasePage() {
   const [empresaId, setEmpresaId] = useState("");
   const [matrizId, setMatrizId] = useState("");
   const [unidadeId, setUnidadeId] = useState("");
-  const [formId, setFormId] = useState("");
+  const [formIds, setFormIds] = useState<string[]>([]);
   const [agentId, setAgentId] = useState("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
@@ -141,6 +141,10 @@ function NewCasePage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formIds.length === 0) {
+      setError("Selecione ao menos um formulário.");
+      return;
+    }
     setWorking(true);
     setError(null);
     try {
@@ -149,14 +153,12 @@ function NewCasePage() {
         data: {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
-          formId,
+          formIds,
           agenteId: agentId,
           agendadoEm,
           duracaoMin: 60,
           enderecoVistoria: endereco || null,
           observacoes: observacoes || null,
-          gerarLink: false,
-          mode: "stepper",
         },
       });
       navigate({ to: "/app/agenda" });
@@ -165,6 +167,10 @@ function NewCasePage() {
     } finally {
       setWorking(false);
     }
+  };
+
+  const toggleForm = (id: string) => {
+    setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
 
 
@@ -230,12 +236,29 @@ function NewCasePage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label>Formulário</Label>
-              <Select value={formId} onChange={(e) => setFormId(e.target.value)} required>
-                <option value="">Selecione o formulário</option>
-                {forms.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-              </Select>
+            <div className="md:col-span-2">
+              <Label>Formulários ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
+              <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
+                {forms.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
+                ) : (
+                  forms.map((f) => (
+                    <label
+                      key={f.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formIds.includes(f.id)}
+                        onChange={() => toggleForm(f.id)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="text-foreground">{f.nome}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Cada formulário gera um caso independente dentro deste agendamento.</p>
             </div>
             <div>
               <Label>Agente técnico</Label>
