@@ -27,6 +27,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
@@ -129,6 +130,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiVistoriaChatRoute = ApiVistoriaChatRouteImport.update({
+  id: '/api/vistoria-chat',
+  path: '/api/vistoria-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
   id: '/api/forms-assistant',
   path: '/api/forms-assistant',
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
+  '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
+  '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
+  '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/agent/$token'
     | '/api/forms-assistant'
+    | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/agent/$token'
     | '/api/forms-assistant'
+    | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/cases'
     | '/app/configuracoes'
@@ -345,6 +356,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/agent/$token'
     | '/api/forms-assistant'
+    | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/cases'
     | '/app/clients'
@@ -377,6 +389,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
   ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
+  ApiVistoriaChatRoute: typeof ApiVistoriaChatRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
 }
 
@@ -507,6 +520,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/agenda'
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/vistoria-chat': {
+      id: '/api/vistoria-chat'
+      path: '/api/vistoria-chat'
+      fullPath: '/api/vistoria-chat'
+      preLoaderRoute: typeof ApiVistoriaChatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/forms-assistant': {
       id: '/api/forms-assistant'
@@ -668,18 +688,9 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
   ApiFormsAssistantRoute: ApiFormsAssistantRoute,
+  ApiVistoriaChatRoute: ApiVistoriaChatRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

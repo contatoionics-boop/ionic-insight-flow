@@ -1,90 +1,99 @@
-## Contexto
+## Visão geral
 
-O IONICS já possui uma interface de chat funcional em `src/components/agent/FormChat.tsx`, usada em `/agent/$token` e `/app/vistoria/$casoId` quando `?mode=chat`. Ela já cobre: bolhas pergunta/resposta, progresso no header, autosave por pergunta, edição de respostas anteriores, gravação de voz com Whisper, upload de foto com validação por GPT‑4o Vision, retomada de rascunho e tela de revisão final.
+Substituir o `FormChat`/`FormRunner` (formulário disfarçado de chat) por um **agente conversacional real**, dirigido por LLM via AI SDK + Lovable AI Gateway. O formulário do admin vira o **roteiro** que a IA usa para conduzir a conversa em PT‑BR formal técnico.
 
-Este plano cobre as **lacunas** entre o que existe e a especificação enviada — sem alterar geração do PDF, autenticação ou permissões.
+**Decisões confirmadas:** `google/gemini-3-flash-preview`; tom formal técnico; aceita batch (várias respostas num turno); `FormChat` legado é removido.
 
-## 1. Chat como modo padrão
-Inverter o default em `src/routes/agent.$token.tsx` e `src/routes/app.vistoria.$casoId.tsx`: `mode = "chat"` passa a ser o padrão; stepper fica como opt‑in via `?mode=stepper`. Listagens que abrem mapeamentos deixam de forçar `?mode=chat`.
+**Não muda:** schema do banco (`formularios`/`secoes`/`perguntas`/`opcoes_pergunta`/`respostas_agente`/condicionais), editor de formulários, RLS, autenticação, geração do PDF FR‑12‑10, upload de foto + validação GPT‑4o Vision, transcrição Whisper, helpers de CEP/CNPJ.
 
-## 2. Composer unificado fixo no rodapé (texto + voz + foto)
-Novo componente `src/components/agent/ChatComposer.tsx` com os 3 modos sempre visíveis:
-- Campo de texto + botão **Enviar**.
-- Botão **microfone** press‑and‑hold reutilizando `use-gravacao-voz.ts` + função server Whisper já existente; transcrição cai no input para confirmação.
-- Botão **câmera/galeria** (`<input type="file" capture>`) com preview inline; on confirm reusa o pipeline atual de upload + validação GPT‑4o Vision.
-- Modos incompatíveis com o tipo da pergunta atual ficam desabilitados.
+## Arquitetura
 
-`FormChat` deixa de embutir `PerguntaBloco` no fluxo ativo (passa a renderizar via composer); `PerguntaBloco` continua sendo usado no modo **edição** e no modo stepper.
+```text
+Browser (AgentChat + useChat)        /api/vistoria-chat (server route)        Supabase
+─────────────────────────────        ──────────────────────────────────       ────────
+UIMessage[] + parts ──POST──▶  streamText(model, tools, system) ──tools──▶  respostas_agente
+   parts ◀──stream────────────  toUIMessageStreamResponse                     perguntas
+   AI Elements UI                                                             casos / storage
+   Composer: texto + mic + foto
+```
 
-Tipos com UI específica (CEP, toggle Sim/Não, múltipla escolha, data, select) continuam como **chips/controles inline abaixo da bolha** e auto‑confirmam ao clicar.
+- **Frontend:** `AgentChat.tsx` montado com AI Elements (`Conversation`, `Message`, `MessageResponse`, `PromptInput`, `Tool`, `Shimmer`). Render via `message.parts`. Composer único no rodapé: textarea + botão de microfone (reusa `useGravacaoVoz` → Whisper) + botão de câmera (reusa pipeline de upload Storage). Sem botão "Confirmar".
+- **Backend:** server route `src/routes/api/vistoria-chat.ts`. Recebe `{ messages, token | casoId }`, valida acesso (token de link OU sessão autenticada para vistoria interna), carrega formulário + estado atual de respostas, monta system prompt + tools e faz `streamText` com `gemini-3-flash-preview`.
+- **State persistente:** `respostas_agente` continua sendo a fonte de verdade. Cada turno, o server lê o estado atual antes de chamar o modelo, então não precisamos persistir o histórico de mensagens (a conversa é descartável; o que importa é a tabela de respostas).
 
-## 3. Indicador de "digitando"
-Componente `TypingDots` (3 pontos animados via keyframes em `src/styles.css`). Após `confirmar()` resolver: 600 ms de pausa → mostra `TypingDots` por ~1 s → revela a próxima bolha.
+## System prompt (essência)
 
-## 4. Saudação inicial
-Primeira bolha do agente: `Olá! Vamos fazer o mapeamento de {clienteNome} ({formularioNome}). Responda por texto, voz ou foto.`
+> Você é o assistente de vistoria da Ionics conduzindo o mapeamento técnico de **{cliente}** com o formulário **{nome}**. Use português do Brasil em tom **formal técnico** ("Por favor, informe…"). Faça **uma pergunta por vez**, reformulando o texto cru de forma clara. Aceite respostas em batch: se o usuário fornecer várias informações numa só mensagem, distribua-as chamando `salvar_resposta` várias vezes antes de avançar. Sempre chame `salvar_resposta` antes de fazer a próxima pergunta. Respeite as condicionais (campo `condicional`). Use `validar_cep`/`validar_cnpj`/`validar_foto` quando aplicável. Quando todas as obrigatórias visíveis estiverem respondidas, chame `marcar_concluido` e ofereça o botão de gerar o documento.
 
-## 5. Conclusão e geração do documento
-Adicionar CTA **"Gerar documento"** na bolha final, ao lado de "Enviar ao especialista" — chama o fluxo `gerarPdfMapeamento` já existente (sem alterar a geração).
+Anexa JSON enxuto: `[{ pergunta_id, secao, texto, tipo, obrigatoria, opcoes, condicional, instrucao_agente, contexto_ia }]` + `state` atual `{ pergunta_id: { valor_texto, arquivo_path, transcricao } }`.
 
-## 6. Header
-Subtítulo passa a mostrar **"Pergunta {cursor+1} de {items.length}"**, mantendo a barra de progresso atual.
+## Tools (todas com validação server-side)
 
-## 7. Perguntas condicionais (incluído)
+1. **`salvar_resposta`** `{ pergunta_id, valor_texto?, opcao_id?, arquivo_path?, transcricao? }` — valida que `pergunta_id` pertence ao formulário do caso, valida tipo (foto exige `arquivo_path`, selecao_unica exige `opcao_id` válido, toggle só aceita `"sim"`/`"nao"`, etc). Faz upsert em `respostas_agente`. Retorna `{ ok, proxima_pergunta_sugerida }`.
+2. **`validar_cep`** `{ cep }` — reusa lookup atual; retorna `{ logradouro, bairro, cidade, estado }`.
+3. **`validar_cnpj`** `{ cnpj }` — reusa `buscarPorCnpj`; retorna razão social, endereço.
+4. **`validar_foto`** `{ pergunta_id, arquivo_path }` — reusa `validarFoto` (GPT‑4o Vision). Retorna `{ status, problemas, orientacao }`.
+5. **`marcar_concluido`** `{}` — server recalcula condicionais e checa se todas as obrigatórias visíveis têm resposta válida. Se faltar, retorna `{ ok: false, faltando: [pergunta_id...] }` e a IA volta a perguntar. Se ok, marca caso como `pronto_para_envio` e libera CTA "Gerar documento" no UI.
 
-### Schema
-Migration adicionando à tabela `perguntas`:
-- `condicional_pergunta_id uuid references perguntas(id) on delete set null` — pergunta que dispara o gatilho.
-- `condicional_operador text check (condicional_operador in ('igual','diferente','contem'))` — default `igual`.
-- `condicional_valor text` — valor (ou opção `texto`) a comparar.
+`stopWhen: stepCountIs(50)` para permitir loops de tool em batch.
 
-Todas opcionais; quando `condicional_pergunta_id` for `null`, a pergunta aparece sempre (compatível com dados atuais).
+## Anexos (foto/áudio)
 
-### Editor de formulário
-Em `src/routes/app.forms.$id.index.tsx`, no editor da pergunta, adicionar bloco **"Mostrar somente se"**:
-- Select com as perguntas da **mesma seção** ou de **seções anteriores** (excluindo a própria).
-- Select de operador (`igual` / `diferente` / `contém`).
-- Campo de valor — se a pergunta‑gatilho for `selecao_unica`/`checkbox`/`toggle`, vira select com as opções dela; senão, input texto.
+- **Foto:** clique na câmera → upload direto ao Supabase Storage (mesmo pipeline atual) → cliente envia a mensagem com `parts: [{type:"text", text:"Foto anexada"}, {type:"data-attachment", data:{arquivo_path, mime}}]`. Server injeta `arquivo_path` no contexto da próxima `salvar_resposta`/`validar_foto`.
+- **Áudio:** mic press‑and‑hold → blob → `transcreverAudio` (já existente) → transcrição vai como texto normal na próxima mensagem do usuário.
 
-### Avaliação no runtime
-Helper `avaliarCondicional(pergunta, state)` em `src/lib/perguntas-mapeamento.ts`:
-- Lê `state[condicional_pergunta_id]?.text` (toggle compara `"sim"`/`"nao"`; foto/áudio comparam presença).
-- Retorna `true` se condição satisfeita ou se não houver condicional.
+## Mudança de rotas
 
-### Integração no FormChat / FormRunner
-- `items` em `FormChat` é filtrado pelo helper; perguntas ocultas somem do progresso e da numeração.
-- Quando o usuário **edita uma resposta‑gatilho** e o resultado muda quais perguntas estão visíveis, recalcular `items`; respostas de perguntas que ficaram ocultas são limpas no Supabase (`valor_texto = null`) para não aparecer no PDF.
-- O mesmo filtro é aplicado em `FormRunner` (stepper) para consistência.
+- `/agent/$token` e `/app/vistoria/$casoId` passam a renderizar **só** `AgentChat`.
+- `?mode=stepper` removido (`FormRunner` deletado junto com `FormChat`).
+- `useGravacaoVoz`, `validarFoto`, `transcreverAudio`, helpers de CEP/CNPJ, `avaliarCondicional` — **preservados** (chamados pelas tools).
 
-### PDF
-`pdf-mapeamento.server.ts` já lê respostas existentes; perguntas ocultas terão resposta `null` e podem ser **suprimidas** do PDF (alterar o agrupador para pular perguntas cuja condicional não bate, em vez de imprimir linha vazia).
+## Componentes do mapeamento existentes (FormFields)
 
-## O que **não** muda
-- Geração do PDF FR‑12‑10 (apenas filtro de ocultas).
-- Autenticação, RLS, papéis.
-- Modo stepper continua disponível via `?mode=stepper`.
-- Tabelas `secoes`, `opcoes_pergunta`, `respostas_agente`.
+Os componentes especializados (`MicButton`, lógica de CEP/CNPJ inline) ficam disponíveis como utilitários para o composer, mas não como blocos de formulário. Para inputs estruturados que ainda fazem sentido renderizar inline (ex.: foto: preview + confirmar), o AI Elements `Tool` renderiza o resultado da tool com card customizado dentro da bolha da IA.
 
-## Arquivos afetados
-**Migration:** `perguntas` (+ 3 colunas condicionais).
+## Arquivos
 
-**Novos:**
-- `src/components/agent/ChatComposer.tsx`
-- `src/components/agent/TypingDots.tsx`
+**Novos**
+- `src/routes/api/vistoria-chat.ts` — server route, `streamText`, tools, validação de acesso por token/sessão.
+- `src/lib/vistoria-agent.server.ts` — system prompt builder + execução das tools (usa `supabaseAdmin` escopado ao `caso_id`).
+- `src/lib/vistoria-agent.functions.ts` — `createServerFn` auxiliares: `getEstadoVistoria(token|casoId)` para hidratar a UI ao montar; `uploadAnexo(...)`.
+- `src/components/agent/AgentChat.tsx` — UI principal (AI Elements).
+- `src/components/agent/composer/AttachPhotoButton.tsx`, `RecordVoiceButton.tsx` — composer.
+- `src/components/ai-elements/*` — instalados via `bun x ai-elements@latest add conversation message prompt-input tool shimmer`.
 
-**Editados:**
-- `src/components/agent/FormChat.tsx` — saudação, typing dots, composer, CTA final, filtro condicional, header.
-- `src/components/agent/FormRunner.tsx` — filtro condicional.
-- `src/components/agent/FormFields.tsx` — expor handlers de voz/foto reutilizáveis.
-- `src/lib/perguntas-mapeamento.ts` — `avaliarCondicional` + limpeza de respostas ocultas.
-- `src/lib/pdf-mapeamento.server.ts` — pular perguntas cuja condicional não bate.
-- `src/routes/agent.$token.tsx`, `src/routes/app.vistoria.$casoId.tsx` — default `mode=chat`.
-- `src/routes/app.forms.$id.index.tsx` — UI "Mostrar somente se".
-- `src/styles.css` — keyframes do typing.
+**Editados**
+- `src/routes/agent.$token.tsx` — passa a renderizar `AgentChat`; remove `validateSearch` de mode e ramos do `FormRunner`/`FormChat`.
+- `src/routes/app.vistoria.$casoId.tsx` — idem.
+- `src/lib/perguntas-mapeamento.ts` — exportar `achatarFormulario(secoes, perguntasPorSecao)` para uso no system prompt; manter `avaliarCondicional`.
+- `src/start.ts` — confirmar `attachSupabaseAuth` em `functionMiddleware` (já existe).
+
+**Deletados**
+- `src/components/agent/FormChat.tsx`
+- `src/components/agent/FormRunner.tsx`
+- `src/components/agent/FormFields.tsx` (após mover `MicButton`/inputs reaproveitáveis para `composer/`)
+- `src/components/agent/TypingDots.tsx` (substituído pelo `Shimmer` do AI Elements)
+
+## Segurança e validação
+
+- Server route valida acesso antes de qualquer chamada ao modelo: token via `links_agente` (igual `validarToken` em `agent-ai.functions.ts`) ou sessão autenticada via `requireSupabaseAuth` para `/app/vistoria/...`.
+- Toda tool valida que o `pergunta_id` pertence ao formulário do caso atual antes de gravar — impede que LLM grave em outro caso.
+- Tipos rejeitados em `salvar_resposta` voltam como tool result `{ ok:false, motivo }` e a IA reformula.
+- `LOVABLE_API_KEY` lido **dentro** do handler.
+
+## Custos/latência
+
+- `gemini-3-flash-preview` (barato/rápido) — fácil trocar depois para `openai/gpt-5-mini` ou `gpt-5.4-mini` mudando 1 string.
+- Histórico de mensagens **não** persiste — cada vistoria é uma sessão; estado vive em `respostas_agente`.
+- Anexos: só `arquivo_path` (curto) entra no contexto; binários ficam no Storage.
 
 ## Ordem de execução
-1. Migration condicional + tipos regenerados.
-2. Helper `avaliarCondicional` + filtros em `FormChat`/`FormRunner`/PDF.
-3. UI "Mostrar somente se" no editor de formulários.
-4. `ChatComposer` + `TypingDots` + saudação + header + CTA final.
-5. Default `mode=chat` + ajuste das listagens.
+
+1. Instalar AI Elements + verificar `ai`/`@ai-sdk/react`/`@ai-sdk/openai-compatible` no `package.json`.
+2. `vistoria-agent.server.ts` (system prompt builder + executores de tool com validação por tipo).
+3. `api/vistoria-chat.ts` (stream + auth dupla token/sessão + integração das tools).
+4. `vistoria-agent.functions.ts` (`getEstadoVistoria`, `uploadAnexo`).
+5. `AgentChat.tsx` + composer (texto, mic, foto).
+6. Trocar `agent.$token.tsx` e `app.vistoria.$casoId.tsx` para `AgentChat`.
+7. Deletar `FormChat`, `FormRunner`, `FormFields` (preservando o que migrou pro composer), `TypingDots`.
+8. QA: criar caso, conversar (texto + foto + voz + batch de CNPJ/endereço), checar `respostas_agente` populadas com os IDs corretos, gerar PDF, validar condicionais.
