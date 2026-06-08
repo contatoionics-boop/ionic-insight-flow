@@ -51,7 +51,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       new DefaultChatTransport({
         api: "/api/vistoria-chat",
         body: { token, casoId },
-        headers: async () => {
+        headers: async (): Promise<Record<string, string>> => {
           if (token) return {};
           const { data } = await supabase.auth.getSession();
           const t = data.session?.access_token;
