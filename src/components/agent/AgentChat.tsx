@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus } from "lucide-react";
+import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus, ArrowLeft } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui-bits";
 import { LumaSpin } from "@/components/ui/luma-spin";
@@ -238,18 +239,29 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <button
-            type="button"
-            className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-muted/60"
-          >
-            {config?.logo_url && (
-              <img src={config.logo_url} alt={nomeEmpresa} className="h-6 w-auto object-contain" />
+          <div className="flex min-w-0 items-center gap-2">
+            {casoId && (
+              <Link
+                to="/app/minhas-vistorias"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Voltar ao agendamento"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
             )}
-            <span className="truncate text-base font-semibold text-foreground">
-              {nomeEmpresa}
-            </span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </button>
+            <button
+              type="button"
+              className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-muted/60"
+            >
+              {config?.logo_url && (
+                <img src={config.logo_url} alt={nomeEmpresa} className="h-6 w-auto object-contain" />
+              )}
+              <span className="truncate text-base font-semibold text-foreground">
+                {nomeEmpresa}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             <span className="hidden max-w-[180px] truncate rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground sm:inline-block">

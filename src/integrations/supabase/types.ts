@@ -14,9 +14,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      agendamentos: {
+        Row: {
+          agendado_em: string
+          agente_id: string
+          atualizado_em: string
+          criado_em: string
+          criado_por: string
+          duracao_min: number
+          endereco_vistoria: string | null
+          id: string
+          matriz_id: string | null
+          observacoes_agendamento: string | null
+          unidade_id: string
+        }
+        Insert: {
+          agendado_em: string
+          agente_id: string
+          atualizado_em?: string
+          criado_em?: string
+          criado_por: string
+          duracao_min?: number
+          endereco_vistoria?: string | null
+          id?: string
+          matriz_id?: string | null
+          observacoes_agendamento?: string | null
+          unidade_id: string
+        }
+        Update: {
+          agendado_em?: string
+          agente_id?: string
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string
+          duracao_min?: number
+          endereco_vistoria?: string | null
+          id?: string
+          matriz_id?: string | null
+          observacoes_agendamento?: string | null
+          unidade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_matriz_id_fkey"
+            columns: ["matriz_id"]
+            isOneToOne: false
+            referencedRelation: "matrizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       casos: {
         Row: {
           agendado_em: string | null
+          agendamento_id: string
           agente_id: string | null
           atualizado_em: string
           codigo: string
@@ -32,6 +90,7 @@ export type Database = {
         }
         Insert: {
           agendado_em?: string | null
+          agendamento_id: string
           agente_id?: string | null
           atualizado_em?: string
           codigo?: string
@@ -47,6 +106,7 @@ export type Database = {
         }
         Update: {
           agendado_em?: string | null
+          agendamento_id?: string
           agente_id?: string | null
           atualizado_em?: string
           codigo?: string
@@ -61,6 +121,13 @@ export type Database = {
           unidade_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "casos_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "casos_agente_id_fkey"
             columns: ["agente_id"]
