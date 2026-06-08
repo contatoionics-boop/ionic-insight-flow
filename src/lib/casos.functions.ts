@@ -451,7 +451,7 @@ export const listarMinhasVistorias = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), formulario:formularios(nome)",
+        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agendamento_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), formulario:formularios(nome)",
       )
       .eq("agente_id", context.userId)
       .order("agendado_em", { ascending: true, nullsFirst: false });
@@ -466,6 +466,25 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertVistoriador(context.supabase, context.userId);
+    // Bloqueia se outro caso do mesmo agendamento já estiver em andamento
+    const { data: alvo } = await supabaseAdmin
+      .from("casos")
+      .select("agendamento_id, status")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (!alvo) throw new Error("Caso não encontrado.");
+    if (alvo.status !== "em_andamento") {
+      const { data: emAndamento } = await supabaseAdmin
+        .from("casos")
+        .select("id")
+        .eq("agendamento_id", alvo.agendamento_id)
+        .eq("status", "em_andamento")
+        .neq("id", data.casoId)
+        .maybeSingle();
+      if (emAndamento) {
+        throw new Error("Termine o formulário em andamento deste agendamento antes de abrir outro.");
+      }
+    }
     const { error } = await context.supabase
       .from("casos")
       .update({ status: "em_andamento" })
