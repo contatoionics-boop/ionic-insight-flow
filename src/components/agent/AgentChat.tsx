@@ -13,6 +13,8 @@ import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import {
   getEstadoVistoria,
   finalizarVistoriaChat,
+  listarMensagensChat,
+  salvarMensagemChat,
   type EstadoVistoria,
 } from "@/lib/vistoria-agent.functions";
 
