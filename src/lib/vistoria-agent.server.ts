@@ -1,4 +1,4 @@
-// Server-only helpers for the vistoria conversational agent.
+// Server-only helpers for the mapeamento técnico conversational agent.
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
@@ -25,12 +25,15 @@ export type AgentResposta = {
   transcricao: string | null;
 };
 
+export type CadastroFato = { label: string; valor: string };
+
 export type AgentContext = {
   casoId: string;
   clienteNome: string;
   formularioNome: string;
   perguntas: AgentPergunta[];
   state: Record<string, AgentResposta>;
+  cadastro: CadastroFato[];
 };
 
 /** Validate access via token (public link). Returns casoId. */
@@ -71,7 +74,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")
     .select(
-      "id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, razao_social, empresa:empresas(nome)))",
+      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
     )
     .eq("id", casoId)
     .maybeSingle();
@@ -83,6 +86,41 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const empresa = matriz?.empresa;
   const clienteNome =
     empresa?.nome ?? matriz?.razao_social ?? matriz?.nome ?? unidade?.nome ?? "Cliente";
+
+  // Buscar endereço da vistoria do agendamento se existir
+  let enderecoVistoria: string | null = (caso as any).endereco_vistoria ?? null;
+  if (!enderecoVistoria && (caso as any).agendamento_id) {
+    const { data: ag } = await supabaseAdmin
+      .from("agendamentos")
+      .select("endereco_vistoria")
+      .eq("id", (caso as any).agendamento_id)
+      .maybeSingle();
+    enderecoVistoria = ag?.endereco_vistoria ?? null;
+  }
+
+  const enderecoUnidade = [
+    unidade?.logradouro,
+    unidade?.numero,
+    unidade?.bairro,
+    unidade?.cidade && unidade?.estado ? `${unidade.cidade}/${unidade.estado}` : unidade?.cidade,
+    unidade?.cep,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const cadastro: CadastroFato[] = [];
+  if (empresa?.nome) cadastro.push({ label: "Empresa (cliente)", valor: empresa.nome });
+  if (matriz?.razao_social) cadastro.push({ label: "Razão social da matriz", valor: matriz.razao_social });
+  if (matriz?.nome && matriz?.nome !== matriz?.razao_social) cadastro.push({ label: "Nome da matriz", valor: matriz.nome });
+  if (matriz?.cnpj) cadastro.push({ label: "CNPJ", valor: matriz.cnpj });
+  if (matriz?.telefone) cadastro.push({ label: "Telefone da matriz", valor: matriz.telefone });
+  if (matriz?.email) cadastro.push({ label: "E-mail da matriz", valor: matriz.email });
+  if (unidade?.nome) cadastro.push({ label: "Unidade", valor: unidade.nome });
+  if (enderecoUnidade) cadastro.push({ label: "Endereço da unidade", valor: enderecoUnidade });
+  if (unidade?.telefone) cadastro.push({ label: "Telefone da unidade", valor: unidade.telefone });
+  if (unidade?.email) cadastro.push({ label: "E-mail da unidade", valor: unidade.email });
+  if (enderecoVistoria) cadastro.push({ label: "Endereço do mapeamento", valor: enderecoVistoria });
+  if ((caso as any).observacoes_agendamento) cadastro.push({ label: "Observações do agendamento", valor: (caso as any).observacoes_agendamento });
 
   const { data: formulario } = await supabaseAdmin
     .from("formularios")
@@ -159,6 +197,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     formularioNome: formulario?.nome ?? "",
     perguntas,
     state,
+    cadastro,
   };
 }
 
@@ -216,22 +255,35 @@ export function buildSystemPrompt(ctx: AgentContext): string {
   const proxima = flat.find((p) => !p.respondida);
   const faltando = flat.filter((p) => p.obrigatoria && !p.respondida).length;
 
+  const cadastroBloco = ctx.cadastro.length
+    ? ctx.cadastro.map((c) => `- ${c.label}: ${c.valor}`).join("\n")
+    : "- (nenhum dado de cadastro disponível)";
+
   return [
-    `Você é o assistente técnico da Ionics conduzindo o mapeamento técnico de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
+    `Você é o assistente técnico da Ionics conduzindo o **mapeamento técnico** de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
+    ``,
+    `## Contexto exclusivo`,
+    `- Este atendimento é um **mapeamento técnico**. Use SEMPRE o termo "mapeamento" (nunca "vistoria", "inspeção", "auditoria" ou termos correlatos) ao se referir ao trabalho em andamento, em perguntas, confirmações e fechamentos.`,
+    `- Refira-se ao usuário como "agente técnico" (não "vistoriador").`,
+    ``,
+    `## Dados já cadastrados no mapeamento (NÃO pergunte sobre eles)`,
+    `Os dados abaixo já foram informados no cadastro deste mapeamento e você já os conhece. **Não pergunte novamente.** Se uma pergunta do formulário pedir um desses dados, pule-a salvando diretamente com \`salvar_resposta\` usando o valor já conhecido, e siga para a próxima pendente. Se o usuário pedir para revisar, responda diretamente com o valor abaixo.`,
+    cadastroBloco,
     ``,
     `## Regras de conversa`,
     `- Idioma: português do Brasil. Tom: formal técnico ("Por favor, informe…", "Poderia confirmar…").`,
+    `- **Inicie a conversa direto pela primeira pergunta pendente** — não faça apresentação longa nem pergunte dados de cliente/endereço que já constam acima. Um cumprimento curto ("Olá! Vamos continuar o mapeamento.") seguido imediatamente da próxima pergunta basta.`,
     `- Faça **uma pergunta por vez**, reformulando o texto cru de forma natural e clara. Não leia o texto da pergunta literalmente — explique o que precisa.`,
-    `- Para perguntas tipo "foto", peça que o vistoriador anexe a imagem pelo botão de câmera.`,
+    `- Para perguntas tipo "foto", peça que o agente técnico anexe a imagem pelo botão de câmera.`,
     `- Para perguntas tipo "audio", aceite a transcrição enviada como texto.`,
     `- Para perguntas com \`opcoes\`, apresente as opções numeradas.`,
-    `- **Aceite respostas em batch:** se o usuário fornecer várias informações numa só mensagem (ex.: "CNPJ 12.345…, razão social Acme, endereço Rua X 123"), chame \`salvar_resposta\` várias vezes — uma por pergunta — antes de fazer a próxima.`,
+    `- **Aceite respostas em batch:** se o usuário fornecer várias informações numa só mensagem, chame \`salvar_resposta\` várias vezes — uma por pergunta — antes de fazer a próxima.`,
     `- **Sempre** chame \`salvar_resposta\` antes de avançar. Use o exato \`pergunta_id\` listado abaixo.`,
     `- Respeite condicionais: pergunte apenas as visíveis listadas. Se uma resposta tornar nova pergunta visível, ela aparecerá no próximo turno.`,
     `- Quando o usuário anexar uma foto (mensagem mencionando "[ANEXO_FOTO arquivo_path=...]"), chame \`validar_foto\` com o \`pergunta_id\` adequado e o \`arquivo_path\`. Se aprovada/parcial, chame \`salvar_resposta\` com o \`arquivo_path\`.`,
-    `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu (ex.: "o que eu respondi sobre o CNPJ?", "qual endereço eu informei?"), consulte o \`state\` listado abaixo e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
+    `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu, consulte o \`state\` ou os dados de cadastro acima e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
     `- A interface mostra apenas a sua última mensagem por vez (estilo ChatGPT). Por isso, cada turno deve conter a pergunta atual completa e autocontida — não diga "como mencionei acima".`,
-    `- Quando todas as perguntas obrigatórias visíveis estiverem respondidas, agradeça e informe que a vistoria pode ser finalizada pelo botão "Finalizar" no topo.`,
+    `- Quando todas as perguntas obrigatórias visíveis estiverem respondidas, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
     ``,
     `## Status atual`,
     `- Perguntas visíveis: ${flat.length}`,
@@ -371,7 +423,7 @@ export async function execValidarFoto(
         {
           role: "system",
           content:
-            "Você valida fotos de vistorias técnicas. Compare a imagem ao contexto e responda em PT-BR.",
+            "Você valida fotos de mapeamentos técnicos. Compare a imagem ao contexto e responda em PT-BR.",
         },
         {
           role: "user",
