@@ -197,6 +197,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     formularioNome: formulario?.nome ?? "",
     perguntas,
     state,
+    cadastro,
   };
 }
 
