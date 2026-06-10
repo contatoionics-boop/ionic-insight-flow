@@ -193,9 +193,16 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         .from("agente-uploads")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
-      await sendMessage({
-        text: `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`,
-      });
+      const fotoText = `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`;
+      void salvarMensagem({
+        data: {
+          token,
+          casoId,
+          role: "user",
+          parts: [{ type: "text", text: fotoText }],
+        },
+      }).catch(() => undefined);
+      await sendMessage({ text: fotoText });
     } catch (e: any) {
       alert("Falha ao enviar foto: " + (e?.message ?? e));
     } finally {
