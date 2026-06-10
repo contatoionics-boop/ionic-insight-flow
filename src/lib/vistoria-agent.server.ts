@@ -1,4 +1,4 @@
-// Server-only helpers for the vistoria conversational agent.
+// Server-only helpers for the mapeamento técnico conversational agent.
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
