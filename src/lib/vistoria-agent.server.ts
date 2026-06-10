@@ -25,12 +25,15 @@ export type AgentResposta = {
   transcricao: string | null;
 };
 
+export type CadastroFato = { label: string; valor: string };
+
 export type AgentContext = {
   casoId: string;
   clienteNome: string;
   formularioNome: string;
   perguntas: AgentPergunta[];
   state: Record<string, AgentResposta>;
+  cadastro: CadastroFato[];
 };
 
 /** Validate access via token (public link). Returns casoId. */
