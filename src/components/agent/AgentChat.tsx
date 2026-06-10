@@ -102,8 +102,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     [token, casoId],
   );
 
-  const initialGreeting = useMemo<UIMessage[]>(() => {
-    if (!estado) return [];
+  // Mensagens iniciais: histórico persistido (se houver) ou saudação curta.
+  const initialMessages = useMemo<UIMessage[]>(() => {
+    if (!estado || historico === null) return [];
+    if (historico.length > 0) return historico;
     return [
       {
         id: "greeting",
@@ -116,13 +118,25 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         ],
       },
     ];
-  }, [estado, nomeEmpresa]);
+  }, [estado, historico, nomeEmpresa]);
 
   const { messages, sendMessage, status, error } = useChat({
     id: estado?.casoId ?? "vistoria",
     transport,
-    messages: initialGreeting,
-    onFinish: () => {
+    messages: initialMessages,
+    onFinish: ({ message }) => {
+      // Persistir mensagem final do assistente
+      if (message?.id && !persistedIdsRef.current.has(message.id)) {
+        persistedIdsRef.current.add(message.id);
+        void salvarMensagem({
+          data: {
+            token,
+            casoId,
+            role: "assistant",
+            parts: message.parts as any,
+          },
+        }).catch(() => persistedIdsRef.current.delete(message.id));
+      }
       void refreshEstado();
     },
   });
