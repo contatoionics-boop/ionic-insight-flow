@@ -39,24 +39,45 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const getEstado = useServerFn(getEstadoVistoria);
   const finalizar = useServerFn(finalizarVistoriaChat);
+  const listarHistorico = useServerFn(listarMensagensChat);
+  const salvarMensagem = useServerFn(salvarMensagemChat);
 
   const [estado, setEstado] = useState<EstadoVistoria | null>(null);
   const [estadoErro, setEstadoErro] = useState<string | null>(null);
   const [authErro, setAuthErro] = useState<string | null>(null);
   const [finalizando, setFinalizando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+  const [historico, setHistorico] = useState<UIMessage[] | null>(null);
+  const persistedIdsRef = useRef<Set<string>>(new Set());
 
   const refreshEstado = async () => {
     try {
       const e = await getEstado({ data: { token, casoId } });
       setEstado(e);
     } catch (err: any) {
-      setEstadoErro(err?.message ?? "Erro ao carregar vistoria.");
+      setEstadoErro(err?.message ?? "Erro ao carregar mapeamento.");
     }
   };
 
   useEffect(() => {
     refreshEstado();
+    // Carregar histórico de mensagens do Supabase
+    (async () => {
+      try {
+        const rows = await listarHistorico({ data: { token, casoId } });
+        const msgs: UIMessage[] = rows.map((r) => {
+          persistedIdsRef.current.add(r.id);
+          return {
+            id: r.id,
+            role: r.role as UIMessage["role"],
+            parts: Array.isArray(r.parts) ? r.parts : [],
+          } as UIMessage;
+        });
+        setHistorico(msgs);
+      } catch {
+        setHistorico([]);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casoId]);
 
