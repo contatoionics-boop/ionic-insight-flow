@@ -242,7 +242,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     );
   }
 
-  if (!estado) {
+  if (!estado || historico === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
