@@ -423,7 +423,7 @@ export async function execValidarFoto(
         {
           role: "system",
           content:
-            "Você valida fotos de vistorias técnicas. Compare a imagem ao contexto e responda em PT-BR.",
+            "Você valida fotos de mapeamentos técnicos. Compare a imagem ao contexto e responda em PT-BR.",
         },
         {
           role: "user",
