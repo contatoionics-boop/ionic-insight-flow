@@ -158,6 +158,38 @@ export type Database = {
           },
         ]
       }
+      chat_mensagens: {
+        Row: {
+          caso_id: string
+          criado_em: string
+          id: string
+          parts: Json
+          role: string
+        }
+        Insert: {
+          caso_id: string
+          criado_em?: string
+          id?: string
+          parts: Json
+          role: string
+        }
+        Update: {
+          caso_id?: string
+          criado_em?: string
+          id?: string
+          parts?: Json
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mensagens_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracoes_empresa: {
         Row: {
           atualizado_em: string

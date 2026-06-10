@@ -85,3 +85,61 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============= Histórico de chat =============
+
+const HistoricoInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+});
+
+async function resolverCasoId(data: { token?: string; casoId?: string }): Promise<string> {
+  if (data.token) {
+    const { validarTokenAcesso } = await import("@/lib/vistoria-agent.server");
+    return validarTokenAcesso(data.token);
+  }
+  if (data.casoId) return data.casoId;
+  throw new Error("Informe token ou casoId.");
+}
+
+export type ChatMensagemRow = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  parts: any;
+  criado_em: string;
+};
+
+export const listarMensagensChat = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => HistoricoInput.parse(input))
+  .handler(async ({ data }): Promise<ChatMensagemRow[]> => {
+    const casoId = await resolverCasoId(data);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("chat_mensagens")
+      .select("id, role, parts, criado_em")
+      .eq("caso_id", casoId)
+      .order("criado_em", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as ChatMensagemRow[];
+  });
+
+const SalvarMensagemInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  role: z.enum(["user", "assistant", "system"]),
+  parts: z.array(z.any()).min(1),
+});
+
+export const salvarMensagemChat = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => SalvarMensagemInput.parse(input))
+  .handler(async ({ data }) => {
+    const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("chat_mensagens").insert({
+      caso_id: casoId,
+      role: data.role,
+      parts: data.parts,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

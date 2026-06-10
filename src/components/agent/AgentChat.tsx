@@ -13,6 +13,8 @@ import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import {
   getEstadoVistoria,
   finalizarVistoriaChat,
+  listarMensagensChat,
+  salvarMensagemChat,
   type EstadoVistoria,
 } from "@/lib/vistoria-agent.functions";
 
@@ -37,24 +39,45 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const getEstado = useServerFn(getEstadoVistoria);
   const finalizar = useServerFn(finalizarVistoriaChat);
+  const listarHistorico = useServerFn(listarMensagensChat);
+  const salvarMensagem = useServerFn(salvarMensagemChat);
 
   const [estado, setEstado] = useState<EstadoVistoria | null>(null);
   const [estadoErro, setEstadoErro] = useState<string | null>(null);
   const [authErro, setAuthErro] = useState<string | null>(null);
   const [finalizando, setFinalizando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+  const [historico, setHistorico] = useState<UIMessage[] | null>(null);
+  const persistedIdsRef = useRef<Set<string>>(new Set());
 
   const refreshEstado = async () => {
     try {
       const e = await getEstado({ data: { token, casoId } });
       setEstado(e);
     } catch (err: any) {
-      setEstadoErro(err?.message ?? "Erro ao carregar vistoria.");
+      setEstadoErro(err?.message ?? "Erro ao carregar mapeamento.");
     }
   };
 
   useEffect(() => {
     refreshEstado();
+    // Carregar histórico de mensagens do Supabase
+    (async () => {
+      try {
+        const rows = await listarHistorico({ data: { token, casoId } });
+        const msgs: UIMessage[] = rows.map((r) => {
+          persistedIdsRef.current.add(r.id);
+          return {
+            id: r.id,
+            role: r.role as UIMessage["role"],
+            parts: Array.isArray(r.parts) ? r.parts : [],
+          } as UIMessage;
+        });
+        setHistorico(msgs);
+      } catch {
+        setHistorico([]);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casoId]);
 
@@ -79,8 +102,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     [token, casoId],
   );
 
-  const initialGreeting = useMemo<UIMessage[]>(() => {
-    if (!estado) return [];
+  // Mensagens iniciais: histórico persistido (se houver) ou saudação curta.
+  const initialMessages = useMemo<UIMessage[]>(() => {
+    if (!estado || historico === null) return [];
+    if (historico.length > 0) return historico;
     return [
       {
         id: "greeting",
@@ -93,13 +118,25 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         ],
       },
     ];
-  }, [estado, nomeEmpresa]);
+  }, [estado, historico, nomeEmpresa]);
 
   const { messages, sendMessage, status, error } = useChat({
     id: estado?.casoId ?? "vistoria",
     transport,
-    messages: initialGreeting,
-    onFinish: () => {
+    messages: initialMessages,
+    onFinish: ({ message }) => {
+      // Persistir mensagem final do assistente
+      if (message?.id && !persistedIdsRef.current.has(message.id)) {
+        persistedIdsRef.current.add(message.id);
+        void salvarMensagem({
+          data: {
+            token,
+            casoId,
+            role: "assistant",
+            parts: message.parts as any,
+          },
+        }).catch(() => persistedIdsRef.current.delete(message.id));
+      }
       void refreshEstado();
     },
   });
@@ -116,15 +153,25 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const enviar = async (texto: string) => {
     const t = texto.trim();
     if (!t || busy) return;
+    if (historico === null) return;
     if (!token && casoId) {
       const accessToken = await getCurrentAccessToken();
       if (!accessToken) {
-        setAuthErro("Sua sessão expirou. Entre novamente para continuar a vistoria.");
+        setAuthErro("Sua sessão expirou. Entre novamente para continuar o mapeamento.");
         return;
       }
     }
     setAuthErro(null);
     setInput("");
+    // Persistir mensagem do usuário no Supabase (não bloqueia o envio)
+    void salvarMensagem({
+      data: {
+        token,
+        casoId,
+        role: "user",
+        parts: [{ type: "text", text: t }],
+      },
+    }).catch(() => undefined);
     await sendMessage({ text: t });
   };
 
@@ -146,9 +193,16 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         .from("agente-uploads")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
-      await sendMessage({
-        text: `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`,
-      });
+      const fotoText = `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`;
+      void salvarMensagem({
+        data: {
+          token,
+          casoId,
+          role: "user",
+          parts: [{ type: "text", text: fotoText }],
+        },
+      }).catch(() => undefined);
+      await sendMessage({ text: fotoText });
     } catch (e: any) {
       alert("Falha ao enviar foto: " + (e?.message ?? e));
     } finally {
@@ -188,7 +242,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     );
   }
 
-  if (!estado) {
+  if (!estado || historico === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
