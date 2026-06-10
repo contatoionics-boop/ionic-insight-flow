@@ -153,15 +153,25 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const enviar = async (texto: string) => {
     const t = texto.trim();
     if (!t || busy) return;
+    if (historico === null) return;
     if (!token && casoId) {
       const accessToken = await getCurrentAccessToken();
       if (!accessToken) {
-        setAuthErro("Sua sessão expirou. Entre novamente para continuar a vistoria.");
+        setAuthErro("Sua sessão expirou. Entre novamente para continuar o mapeamento.");
         return;
       }
     }
     setAuthErro(null);
     setInput("");
+    // Persistir mensagem do usuário no Supabase (não bloqueia o envio)
+    void salvarMensagem({
+      data: {
+        token,
+        casoId,
+        role: "user",
+        parts: [{ type: "text", text: t }],
+      },
+    }).catch(() => undefined);
     await sendMessage({ text: t });
   };
 
