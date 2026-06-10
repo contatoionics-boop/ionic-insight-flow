@@ -74,7 +74,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")
     .select(
-      "id, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, razao_social, empresa:empresas(nome)))",
+      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
     )
     .eq("id", casoId)
     .maybeSingle();
@@ -86,6 +86,41 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const empresa = matriz?.empresa;
   const clienteNome =
     empresa?.nome ?? matriz?.razao_social ?? matriz?.nome ?? unidade?.nome ?? "Cliente";
+
+  // Buscar endereço da vistoria do agendamento se existir
+  let enderecoVistoria: string | null = (caso as any).endereco_vistoria ?? null;
+  if (!enderecoVistoria && (caso as any).agendamento_id) {
+    const { data: ag } = await supabaseAdmin
+      .from("agendamentos")
+      .select("endereco_vistoria")
+      .eq("id", (caso as any).agendamento_id)
+      .maybeSingle();
+    enderecoVistoria = ag?.endereco_vistoria ?? null;
+  }
+
+  const enderecoUnidade = [
+    unidade?.logradouro,
+    unidade?.numero,
+    unidade?.bairro,
+    unidade?.cidade && unidade?.estado ? `${unidade.cidade}/${unidade.estado}` : unidade?.cidade,
+    unidade?.cep,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const cadastro: CadastroFato[] = [];
+  if (empresa?.nome) cadastro.push({ label: "Empresa (cliente)", valor: empresa.nome });
+  if (matriz?.razao_social) cadastro.push({ label: "Razão social da matriz", valor: matriz.razao_social });
+  if (matriz?.nome && matriz?.nome !== matriz?.razao_social) cadastro.push({ label: "Nome da matriz", valor: matriz.nome });
+  if (matriz?.cnpj) cadastro.push({ label: "CNPJ", valor: matriz.cnpj });
+  if (matriz?.telefone) cadastro.push({ label: "Telefone da matriz", valor: matriz.telefone });
+  if (matriz?.email) cadastro.push({ label: "E-mail da matriz", valor: matriz.email });
+  if (unidade?.nome) cadastro.push({ label: "Unidade", valor: unidade.nome });
+  if (enderecoUnidade) cadastro.push({ label: "Endereço da unidade", valor: enderecoUnidade });
+  if (unidade?.telefone) cadastro.push({ label: "Telefone da unidade", valor: unidade.telefone });
+  if (unidade?.email) cadastro.push({ label: "E-mail da unidade", valor: unidade.email });
+  if (enderecoVistoria) cadastro.push({ label: "Endereço do mapeamento", valor: enderecoVistoria });
+  if ((caso as any).observacoes_agendamento) cadastro.push({ label: "Observações do agendamento", valor: (caso as any).observacoes_agendamento });
 
   const { data: formulario } = await supabaseAdmin
     .from("formularios")
