@@ -383,6 +383,44 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             </div>
           ) : null}
 
+          {!busy && aguardandoMaisFotos && (
+            <div className="mx-auto mt-8 max-w-md animate-fade-in">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <p className="text-center text-sm font-medium text-foreground">
+                  {fotosBuffer.length} foto{fotosBuffer.length > 1 ? "s" : ""} pronta{fotosBuffer.length > 1 ? "s" : ""} para envio.
+                </p>
+                <p className="mt-1 text-center text-sm text-muted-foreground">
+                  Deseja anexar mais fotos para este item?
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="min-h-[48px] flex-1 rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    {uploadingFoto ? "Enviando…" : "Sim, adicionar mais"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void enviarFotosBuffer()}
+                    disabled={uploadingFoto}
+                    className="min-h-[48px] flex-1 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    Não, continuar
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={descartarFotosBuffer}
+                  className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Descartar fotos
+                </button>
+              </div>
+            </div>
+          )}
+
           {(authErro || error) && (
             <div className="mx-auto mt-6 max-w-md rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
               {authErro || friendlyChatError(error?.message)}
