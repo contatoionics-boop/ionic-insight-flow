@@ -310,6 +310,7 @@ export async function execSalvarResposta(
     valor_texto?: string;
     opcao_id?: string;
     arquivo_path?: string;
+    arquivos_paths?: string[];
     transcricao?: string;
   },
 ): Promise<{ ok: boolean; motivo?: string }> {
@@ -317,12 +318,28 @@ export async function execSalvarResposta(
   if (!p) return { ok: false, motivo: "pergunta_id desconhecido para este formulário." };
 
   let valor_texto = input.valor_texto ?? null;
-  const arquivo_path = input.arquivo_path ?? null;
+  // Aceita lista (multi-foto) ou caminho único (legado). Para foto, agregamos
+  // com o que já estiver salvo, sem duplicar.
+  const existente = ctx.state[input.pergunta_id];
+  const incomingList = (input.arquivos_paths ?? []).filter(Boolean);
+  const incomingSingle = input.arquivo_path ? [input.arquivo_path] : [];
+  let arquivos_paths: string[] = [];
+  if (p.tipo === "foto") {
+    const merged = [
+      ...(existente?.arquivos_paths ?? []),
+      ...incomingList,
+      ...incomingSingle,
+    ];
+    arquivos_paths = Array.from(new Set(merged.filter(Boolean)));
+  } else {
+    arquivos_paths = [...incomingList, ...incomingSingle];
+  }
+  const arquivo_path = arquivos_paths[0] ?? input.arquivo_path ?? null;
   const transcricao = input.transcricao ?? null;
 
   // Type-specific validation
   if (p.tipo === "foto" && !arquivo_path) {
-    return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path." };
+    return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path ou arquivos_paths." };
   }
   if (p.tipo === "audio" && !transcricao && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo audio exige transcricao ou arquivo_path." };
@@ -364,6 +381,7 @@ export async function execSalvarResposta(
         tipo: p.tipo as any,
         valor_texto,
         arquivo_path,
+        arquivos_paths,
         transcricao,
       },
       { onConflict: "caso_id,pergunta_id" },
@@ -374,6 +392,7 @@ export async function execSalvarResposta(
   ctx.state[input.pergunta_id] = {
     valor_texto,
     arquivo_path,
+    arquivos_paths,
     transcricao,
   };
   return { ok: true };
