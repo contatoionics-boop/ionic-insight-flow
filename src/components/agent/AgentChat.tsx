@@ -516,7 +516,7 @@ function VoiceButton({
       onClick={recording ? stop : start}
       disabled={disabled || transcrevendo}
       title={recording ? "Parar gravação" : "Gravar voz"}
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${
         recording
           ? "animate-pulse bg-destructive/10 text-destructive"
           : "text-muted-foreground hover:bg-muted"
