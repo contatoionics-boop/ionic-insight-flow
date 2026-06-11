@@ -449,7 +449,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
                 type="button"
                 onClick={() => void enviar(input)}
                 disabled={busy}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40"
               >
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
