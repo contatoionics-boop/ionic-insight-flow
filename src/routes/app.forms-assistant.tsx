@@ -282,8 +282,8 @@ function FormAssistantPage() {
                 className="hidden"
                 onChange={handleAttach}
               />
-              <Button variant="ghost" onClick={() => fileRef.current?.click()} disabled={isLoading}>
-                <Paperclip className="h-4 w-4" />
+              <Button variant="ghost" onClick={() => fileRef.current?.click()} disabled={isLoading || extracting}>
+                {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
               </Button>
               <textarea
                 value={input}
