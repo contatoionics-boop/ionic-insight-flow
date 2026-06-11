@@ -120,7 +120,9 @@ function FormAssistantPage() {
         }
         if (isDocx(file)) {
           try {
-            const mammoth = (await import("mammoth/mammoth.browser")).default;
+            const mammoth = (await import("mammoth/mammoth.browser" as any)).default as {
+              extractRawText: (input: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
+            };
             const arrayBuffer = await file.arrayBuffer();
             const result = await mammoth.extractRawText({ arrayBuffer });
             const text = (result.value ?? "").trim();
