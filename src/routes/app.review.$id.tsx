@@ -406,36 +406,49 @@ function ReviewCasePage() {
                         </div>
                       )}
 
-                      {p.tipo === "foto" && (
-                        <div className="mt-2 grid gap-3 md:grid-cols-[200px_1fr]">
-                          <div className="overflow-hidden rounded-md border border-border bg-muted">
-                            {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
-                              <img
-                                src={fotoUrls[r.arquivo_path]}
-                                alt={p.texto}
-                                className="h-44 w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-44 items-center justify-center text-muted-foreground">
-                                <ImageOff className="h-8 w-8" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground">
-                              Legenda / observação
+                      {p.tipo === "foto" && (() => {
+                        const fotoList: string[] =
+                          Array.isArray(r?.arquivos_paths) && r!.arquivos_paths!.length
+                            ? r!.arquivos_paths!
+                            : r?.arquivo_path ? [r.arquivo_path] : [];
+                        return (
+                          <div className="mt-2 grid gap-3 md:grid-cols-[200px_1fr]">
+                            <div className="space-y-2">
+                              {fotoList.length === 0 ? (
+                                <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
+                                  <ImageOff className="h-8 w-8" />
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {fotoList.map((pth, i) => (
+                                    <div key={pth + i} className="overflow-hidden rounded-md border border-border bg-muted">
+                                      {fotoUrls[pth] ? (
+                                        <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
+                                      ) : (
+                                        <div className="flex h-24 items-center justify-center text-muted-foreground">
+                                          <ImageOff className="h-5 w-5" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {fotoList.length > 1 && (
+                                <p className="text-center text-[11px] text-muted-foreground">{fotoList.length} fotos</p>
+                              )}
                             </div>
-                            <Textarea
-                              rows={4}
-                              value={r?.valor_texto ?? ""}
-                              onChange={(e) =>
-                                updateResposta(p.id, { valor_texto: e.target.value })
-                              }
-                              placeholder="Sem legenda"
-                            />
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">Legenda / observação</div>
+                              <Textarea
+                                rows={4}
+                                value={r?.valor_texto ?? ""}
+                                onChange={(e) => updateResposta(p.id, { valor_texto: e.target.value })}
+                                placeholder="Sem legenda"
+                              />
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {!["texto", "selecao_unica", "audio", "foto"].includes(p.tipo) && (
                         <Input
