@@ -22,6 +22,7 @@ export type AgentPergunta = {
 export type AgentResposta = {
   valor_texto: string | null;
   arquivo_path: string | null;
+  arquivos_paths: string[];
   transcricao: string | null;
 };
 
