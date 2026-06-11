@@ -185,6 +185,7 @@ function ReviewCasePage() {
         pergunta_id: perguntaId,
         valor_texto: prev[perguntaId]?.valor_texto ?? null,
         arquivo_path: prev[perguntaId]?.arquivo_path ?? null,
+        arquivos_paths: prev[perguntaId]?.arquivos_paths ?? null,
         transcricao: prev[perguntaId]?.transcricao ?? null,
         ...patch,
       },
