@@ -160,7 +160,7 @@ function ConfiguracoesPage() {
               )}
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Enviando…" : "Trocar logo"}
+                {uploading ? "Enviando…" : c.logo_url ? "Trocar logo" : "Enviar logo"}
                 <input
                   type="file"
                   accept="image/*"
@@ -168,7 +168,21 @@ function ConfiguracoesPage() {
                   onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
                 />
               </label>
+              {c.logo_url && (
+                <button
+                  type="button"
+                  onClick={() => set("logo_url", "")}
+                  className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+                  title="Remover logo"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remover
+                </button>
+              )}
             </div>
+            {c.logo_url === "" && (
+              <p className="mt-1 text-xs text-muted-foreground">Clique em "Salvar configurações" para confirmar a remoção.</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
