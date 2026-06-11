@@ -434,7 +434,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               rows={1}
               placeholder="Responda à pergunta…"
               disabled={busy}
-              className="min-h-[40px] max-h-32 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+              className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent px-1 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 sm:text-sm"
             />
 
             {input.trim().length === 0 ? (
