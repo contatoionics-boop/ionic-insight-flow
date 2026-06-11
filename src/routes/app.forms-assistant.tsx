@@ -101,35 +101,79 @@ function FormAssistantPage() {
   const draft = useMemo(() => extractLatestDraft(messages), [messages]);
   const isLoading = status === "submitted" || status === "streaming";
 
+  const [extracting, setExtracting] = useState(false);
+
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     const next: Attachment[] = [];
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name}: arquivo maior que 5MB`);
-        continue;
+    setExtracting(true);
+    try {
+      for (const file of files) {
+        const okType = ACCEPTED_MIME.includes(file.type) || isDocx(file);
+        if (!okType) {
+          alert(`${file.name}: formato não suportado. Use PDF, PNG, JPG ou DOCX.`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`${file.name}: arquivo maior que 10MB`);
+          continue;
+        }
+        if (isDocx(file)) {
+          try {
+            const mammoth = (await import("mammoth/mammoth.browser")).default;
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            const text = (result.value ?? "").trim();
+            if (!text) {
+              alert(`${file.name}: não foi possível extrair texto do DOCX.`);
+              continue;
+            }
+            next.push({
+              id: crypto.randomUUID(),
+              name: file.name,
+              mediaType: "text/plain",
+              text,
+            });
+          } catch (err: any) {
+            alert(`${file.name}: erro ao ler DOCX (${err?.message ?? "desconhecido"})`);
+          }
+        } else {
+          const url = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          next.push({ id: crypto.randomUUID(), name: file.name, mediaType: file.type, url });
+        }
       }
-      const url = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result as string);
-        r.onerror = rej;
-        r.readAsDataURL(file);
-      });
-      next.push({ id: crypto.randomUUID(), name: file.name, mediaType: file.type, url });
+      setAttachments((a) => [...a, ...next]);
+    } finally {
+      setExtracting(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
-    setAttachments((a) => [...a, ...next]);
-    if (fileRef.current) fileRef.current.value = "";
   };
 
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
-    const text = input.trim();
-    const files = attachments;
+    const textParts: string[] = [];
+    if (input.trim()) textParts.push(input.trim());
+    const docxAttachments = attachments.filter((a) => a.text);
+    for (const a of docxAttachments) {
+      textParts.push(`\n\n--- Conteúdo do arquivo "${a.name}" ---\n${a.text}`);
+    }
+    const fileAttachments = attachments.filter((a) => a.url);
+    const combined = textParts.join("") || "(arquivos anexados)";
     setInput("");
     setAttachments([]);
     await sendMessage({
-      text: text || "(arquivos anexados)",
-      files: files.map((f) => ({ type: "file", mediaType: f.mediaType, url: f.url, filename: f.name })),
+      text: combined,
+      files: fileAttachments.map((f) => ({
+        type: "file",
+        mediaType: f.mediaType,
+        url: f.url!,
+        filename: f.name,
+      })),
     } as any);
   };
 
