@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, Save, Upload } from "lucide-react";
+import { Loader2, Save, Upload, Trash2 } from "lucide-react";
 
 import { Button, Card, Input, Label } from "@/components/ui-bits";
 import { useAuth } from "@/hooks/use-auth";
