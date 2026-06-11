@@ -112,7 +112,7 @@ const COR_WHITE: RGB = rgb(1, 1, 1);
 const PAGE_W = 595.28; // A4
 const PAGE_H = 841.89;
 const MARGIN_X = 36;
-const HEADER_H = 70;
+const HEADER_H = 86;
 const FOOTER_H = 40;
 const MARGIN_TOP = HEADER_H + 18;
 const MARGIN_BOTTOM = FOOTER_H + 10;
@@ -237,6 +237,20 @@ async function loadLogo(pdf: PDFDocument, meta: PdfMeta) {
   }
 }
 
+function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  const ell = "...";
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const candidate = text.slice(0, mid) + ell;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo) + ell;
+}
+
 function drawHeader(ctx: Ctx) {
   const { page, font, fontBold, meta, logoImg } = ctx;
   const e = meta.empresa;
@@ -252,8 +266,6 @@ function drawHeader(ctx: Ctx) {
     color: COR_NAVY,
   });
 
-  // fundo branco já é a página
-
   // border-bottom 1px cinza
   page.drawLine({
     start: { x: 0, y: headerBottom },
@@ -262,29 +274,39 @@ function drawHeader(ctx: Ctx) {
     color: COR_BORDA,
   });
 
-  // ====== Lado esquerdo ======
-  // Caixa navy com logo / nome da empresa
-  const boxH = 30;
-  const boxY = topY - 4 - 14 - boxH / 2 - 4; // espaço abaixo da border-top
+  // ====== Geometria: divide header em duas colunas ======
+  const innerTop = topY - 4 - 8; // abaixo da border-top com respiro
+  const innerBottom = headerBottom + 8;
+  const innerH = innerTop - innerBottom;
+  // coluna direita reservada para título/código/data
+  const rightColW = 200;
+  const rightX = PAGE_W - MARGIN_X - rightColW;
+  // coluna esquerda
+  const leftColMaxRight = rightX - 16;
+
+  // ---- Esquerda: caixa navy com logo + info ----
+  const boxH = Math.min(36, innerH);
+  const boxY = innerBottom + (innerH - boxH) / 2;
   const boxX = MARGIN_X;
   const padBox = 8;
-  let boxW = 70;
+  let boxW = 64;
   if (logoImg) boxW = Math.max(54, logoImg.w + padBox * 2);
-  // bordas arredondadas: simulamos com pdf-lib via radius nativo
   page.drawRectangle({
     x: boxX,
     y: boxY,
     width: boxW,
     height: boxH,
     color: COR_NAVY,
-    // pdf-lib: borderRadius não existe nativamente; aceitamos cantos retos visualmente
   });
   if (logoImg) {
+    const scale = Math.min((boxW - 8) / logoImg.w, (boxH - 8) / logoImg.h, 1);
+    const lw = logoImg.w * scale;
+    const lh = logoImg.h * scale;
     page.drawImage(logoImg.embed, {
-      x: boxX + (boxW - logoImg.w) / 2,
-      y: boxY + (boxH - logoImg.h) / 2,
-      width: logoImg.w,
-      height: logoImg.h,
+      x: boxX + (boxW - lw) / 2,
+      y: boxY + (boxH - lh) / 2,
+      width: lw,
+      height: lh,
     });
   } else {
     const nome = safeText((e.nome || "").toUpperCase()) || "EMPRESA";
@@ -299,69 +321,93 @@ function drawHeader(ctx: Ctx) {
     });
   }
 
-  // Linhas de info ao lado da caixa
-  const infoX = boxX + boxW + 12;
+  // Info ao lado da caixa, truncada à largura disponível
+  const infoX = boxX + boxW + 10;
+  const infoMaxW = Math.max(40, leftColMaxRight - infoX);
+  const infoSize = 8;
+
   const linha1Parts: string[] = [];
   if (e.razaoSocial || e.nome) linha1Parts.push(safeText(e.razaoSocial || e.nome));
   if (e.cnpj) linha1Parts.push(`CNPJ ${safeText(e.cnpj)}`);
-  const linha1 = linha1Parts.join("  •  ");
+  const linha1 = truncateToWidth(linha1Parts.join("  •  "), fontBold, infoSize, infoMaxW);
+
   const linha2Parts: string[] = [];
   if (e.cidadeEstado) linha2Parts.push(safeText(e.cidadeEstado));
   if (e.email) linha2Parts.push(safeText(e.email));
-  if (!linha2Parts.length && e.telefone) linha2Parts.push(safeText(e.telefone));
-  const linha2 = linha2Parts.join("  •  ");
+  else if (e.telefone) linha2Parts.push(safeText(e.telefone));
+  const linha2 = truncateToWidth(linha2Parts.join("  •  "), font, infoSize, infoMaxW);
 
-  const infoSize = 8;
-  page.drawText(linha1, {
-    x: infoX,
-    y: boxY + boxH - infoSize - 2,
-    size: infoSize,
-    font: fontBold,
-    color: COR_NAVY,
-  });
+  const lineGap = 4;
+  const block1Y = boxY + boxH - infoSize - 2;
+  const block2Y = block1Y - infoSize - lineGap;
+  if (linha1) {
+    page.drawText(linha1, {
+      x: infoX,
+      y: block1Y,
+      size: infoSize,
+      font: fontBold,
+      color: COR_NAVY,
+    });
+  }
   if (linha2) {
     page.drawText(linha2, {
       x: infoX,
-      y: boxY + 4,
+      y: block2Y,
       size: infoSize,
       font,
       color: COR_MUTED,
     });
   }
 
-  // ====== Lado direito ======
+  // ---- Direita: título (wrap até 2 linhas) + código + data ----
   const titulo = (safeText(meta.titulo) || "DOCUMENTO").toUpperCase();
-  const tSize = 11;
-  const tW = fontBold.widthOfTextAtSize(titulo, tSize);
-  page.drawText(titulo, {
-    x: PAGE_W - MARGIN_X - tW,
-    y: boxY + boxH - tSize + 1,
-    size: tSize,
-    font: fontBold,
-    color: COR_NAVY,
-  });
+  let tSize = 10;
+  let tLines = wrapText(titulo, fontBold, tSize, rightColW).slice(0, 2);
+  // garante que cada linha caiba (truncar a última se necessário)
+  if (tLines.length === 2) {
+    tLines[1] = truncateToWidth(tLines[1], fontBold, tSize, rightColW);
+  } else if (tLines.length === 1) {
+    tLines[0] = truncateToWidth(tLines[0], fontBold, tSize, rightColW);
+  }
+  const tLineH = tSize + 2;
+  const codeSize = 12;
+  const dataSize = 8;
+  const totalRightH = tLines.length * tLineH + 2 + codeSize + 2 + dataSize;
+  let ry = innerTop - (innerH - totalRightH) / 2;
+
+  for (const line of tLines) {
+    const lw = fontBold.widthOfTextAtSize(line, tSize);
+    page.drawText(line, {
+      x: PAGE_W - MARGIN_X - lw,
+      y: ry - tSize,
+      size: tSize,
+      font: fontBold,
+      color: COR_NAVY,
+    });
+    ry -= tLineH;
+  }
+  ry -= 2;
 
   if (meta.codigo) {
     const code = safeText(meta.codigo);
-    const cSize = 12;
-    const cW = fontBold.widthOfTextAtSize(code, cSize);
+    const cw = fontBold.widthOfTextAtSize(code, codeSize);
     page.drawText(code, {
-      x: PAGE_W - MARGIN_X - cW,
-      y: boxY + boxH / 2 - cSize / 2 - 1,
-      size: cSize,
+      x: PAGE_W - MARGIN_X - cw,
+      y: ry - codeSize,
+      size: codeSize,
       font: fontBold,
       color: COR_AZUL,
     });
+    ry -= codeSize + 2;
   }
 
   const dataStr = safeText(meta.dataDocumento || "");
   if (dataStr) {
-    const dSize = 8;
-    const dW = font.widthOfTextAtSize(dataStr, dSize);
+    const dw = font.widthOfTextAtSize(dataStr, dataSize);
     page.drawText(dataStr, {
-      x: PAGE_W - MARGIN_X - dW,
-      y: boxY + 3,
-      size: dSize,
+      x: PAGE_W - MARGIN_X - dw,
+      y: ry - dataSize,
+      size: dataSize,
       font,
       color: COR_MUTED,
     });
