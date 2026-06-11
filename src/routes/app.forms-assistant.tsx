@@ -278,7 +278,7 @@ function FormAssistantPage() {
                 ref={fileRef}
                 type="file"
                 multiple
-                accept="image/*,application/pdf"
+                accept={ACCEPT_ATTR}
                 className="hidden"
                 onChange={handleAttach}
               />
