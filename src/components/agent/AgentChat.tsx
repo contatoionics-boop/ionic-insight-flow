@@ -370,9 +370,20 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       >
 
         <div className="mx-auto w-full max-w-3xl px-4">
-          <div className="flex items-end gap-2 rounded-3xl border border-border bg-card px-2 py-2 shadow-lg shadow-black/5">
+          <div className="flex items-end gap-1.5 rounded-3xl border border-border bg-card px-2 py-2 shadow-lg shadow-black/5">
             <input
               ref={fotoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onFotoSelecionada(f);
+                e.target.value = "";
+              }}
+            />
+            <input
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
@@ -387,15 +398,27 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               type="button"
               onClick={() => fotoInputRef.current?.click()}
               disabled={busy || uploadingFoto}
-              title="Anexar foto"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
+              title="Anexar arquivo"
+              aria-label="Anexar arquivo da galeria"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
             >
               {uploadingFoto ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="h-5 w-5" />
+                <Paperclip className="h-5 w-5" />
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={busy || uploadingFoto}
+              title="Tirar foto"
+              aria-label="Abrir câmera para tirar foto"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+
 
             <textarea
               ref={inputRef}
