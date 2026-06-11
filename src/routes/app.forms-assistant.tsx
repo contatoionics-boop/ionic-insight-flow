@@ -242,6 +242,11 @@ function FormAssistantPage() {
                 </div>
               </div>
             ))}
+            {extracting && (
+              <div className="text-sm text-muted-foreground">
+                <Loader2 className="inline h-3 w-3 animate-spin" /> Lendo documento e extraindo perguntas...
+              </div>
+            )}
             {isLoading && (
               <div className="text-sm text-muted-foreground">
                 <Loader2 className="inline h-3 w-3 animate-spin" /> Pensando...
