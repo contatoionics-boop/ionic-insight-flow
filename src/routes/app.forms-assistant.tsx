@@ -20,8 +20,26 @@ type Attachment = {
   id: string;
   name: string;
   mediaType: string;
-  url: string; // data URL
+  url?: string; // data URL (for PDF/imagem)
+  text?: string; // texto extraído (para DOCX)
 };
+
+const ACCEPTED_MIME = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ACCEPT_ATTR =
+  ".pdf,.png,.jpg,.jpeg,.docx,image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function isDocx(file: File) {
+  return (
+    file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    file.name.toLowerCase().endsWith(".docx")
+  );
+}
 
 const TIPO_LABEL: Record<string, string> = {
   texto: "Texto",
