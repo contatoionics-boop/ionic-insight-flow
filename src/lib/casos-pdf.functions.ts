@@ -51,10 +51,12 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       .eq("id", caso.formulario_id)
       .maybeSingle();
 
-    // 3) Configurações da empresa (logo + nome) — uso admin pois é singleton compartilhado
+    // 3) Configurações da empresa — singleton compartilhado
     const { data: configs } = await supabaseAdmin
       .from("configuracoes_empresa")
-      .select("nome_empresa, logo_url")
+      .select(
+        "nome_empresa, logo_url, cnpj, telefone, email_contato, endereco, cidade_estado, site",
+      )
       .limit(1);
     const config = configs?.[0];
 
@@ -192,14 +194,24 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const pdfBytes = await buildMapeamentoPdf({
       meta: {
         titulo: formulario?.nome ?? "Mapeamento Técnico",
-        codigo: formulario?.codigo ?? null,
+        codigo: caso.codigo ?? formulario?.codigo ?? null,
         revisao: formulario?.revisao ?? null,
         dataRevisao: formulario?.data_revisao ?? null,
         elaboradoPor: formulario?.elaborado_por ?? null,
         aprovadoPor: formulario?.aprovado_por ?? null,
+        dataDocumento: dataStr,
         logoBytes,
         logoMime,
-        nomeEmpresa: config?.nome_empresa || "Ionics",
+        empresa: {
+          nome: config?.nome_empresa || "Ionics",
+          razaoSocial: config?.nome_empresa || null,
+          cnpj: config?.cnpj ?? null,
+          telefone: config?.telefone ?? null,
+          email: config?.email_contato ?? null,
+          endereco: config?.endereco ?? null,
+          cidadeEstado: config?.cidade_estado ?? null,
+          site: config?.site ?? null,
+        },
       },
       identificacao: {
         cliente,
