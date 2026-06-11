@@ -592,6 +592,7 @@ export type Database = {
       respostas_agente: {
         Row: {
           arquivo_path: string | null
+          arquivos_paths: string[]
           caso_id: string
           criado_em: string
           ia_aprovado: boolean | null
@@ -604,6 +605,7 @@ export type Database = {
         }
         Insert: {
           arquivo_path?: string | null
+          arquivos_paths?: string[]
           caso_id: string
           criado_em?: string
           ia_aprovado?: boolean | null
@@ -616,6 +618,7 @@ export type Database = {
         }
         Update: {
           arquivo_path?: string | null
+          arquivos_paths?: string[]
           caso_id?: string
           criado_em?: string
           ia_aprovado?: boolean | null

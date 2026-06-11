@@ -14,6 +14,8 @@ export type EstadoVistoria = {
   totalVisiveis: number;
   respondidas: number;
   obrigatoriasFaltando: number;
+  proximaPerguntaTipo: string | null;
+  proximaPerguntaId: string | null;
 };
 
 /** Public-or-auth: pass either token (link público) OU casoId (sessão autenticada). */
@@ -45,6 +47,10 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       const r = ctx.state[p.id];
       return p.obrigatoria && !(r?.valor_texto || r?.arquivo_path || r?.transcricao);
     }).length;
+    const proxima = visiveis.find((p) => {
+      const r = ctx.state[p.id];
+      return !(r?.valor_texto || r?.arquivo_path || r?.transcricao);
+    }) ?? null;
 
     return {
       casoId,
@@ -53,6 +59,8 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       totalVisiveis: visiveis.length,
       respondidas,
       obrigatoriasFaltando,
+      proximaPerguntaTipo: proxima?.tipo ?? null,
+      proximaPerguntaId: proxima?.id ?? null,
     };
   });
 

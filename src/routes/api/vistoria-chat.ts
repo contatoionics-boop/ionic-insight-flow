@@ -77,12 +77,13 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         const tools = {
           salvar_resposta: tool({
             description:
-              "Salva a resposta do vistoriador para uma pergunta específica. Use SEMPRE antes de avançar. Para batch, chame múltiplas vezes.",
+              "Salva a resposta do vistoriador para uma pergunta específica. Use SEMPRE antes de avançar. Para batch, chame múltiplas vezes. Para fotos múltiplas no mesmo item, passe arquivos_paths com a lista.",
             inputSchema: z.object({
               pergunta_id: z.string().uuid(),
               valor_texto: z.string().optional(),
               opcao_id: z.string().uuid().optional(),
               arquivo_path: z.string().optional(),
+              arquivos_paths: z.array(z.string()).optional(),
               transcricao: z.string().optional(),
             }),
             execute: async (input) => execSalvarResposta(casoId, ctx, input),

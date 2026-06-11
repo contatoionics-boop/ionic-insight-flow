@@ -22,6 +22,7 @@ export type AgentPergunta = {
 export type AgentResposta = {
   valor_texto: string | null;
   arquivo_path: string | null;
+  arquivos_paths: string[];
   transcricao: string | null;
 };
 
@@ -180,13 +181,14 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
-    .select("pergunta_id, valor_texto, arquivo_path, transcricao")
+    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
     .eq("caso_id", casoId);
   const state: Record<string, AgentResposta> = {};
   for (const r of respostas ?? []) {
     state[r.pergunta_id] = {
       valor_texto: r.valor_texto ?? null,
       arquivo_path: r.arquivo_path ?? null,
+      arquivos_paths: (r as any).arquivos_paths ?? [],
       transcricao: r.transcricao ?? null,
     };
   }
@@ -280,7 +282,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- **Aceite respostas em batch:** se o usuário fornecer várias informações numa só mensagem, chame \`salvar_resposta\` várias vezes — uma por pergunta — antes de fazer a próxima.`,
     `- **Sempre** chame \`salvar_resposta\` antes de avançar. Use o exato \`pergunta_id\` listado abaixo.`,
     `- Respeite condicionais: pergunte apenas as visíveis listadas. Se uma resposta tornar nova pergunta visível, ela aparecerá no próximo turno.`,
-    `- Quando o usuário anexar uma foto (mensagem mencionando "[ANEXO_FOTO arquivo_path=...]"), chame \`validar_foto\` com o \`pergunta_id\` adequado e o \`arquivo_path\`. Se aprovada/parcial, chame \`salvar_resposta\` com o \`arquivo_path\`.`,
+    `- Quando o usuário anexar uma ou mais fotos (mensagem contendo "[ANEXO_FOTO arquivo_path=..." ou "[ANEXO_FOTOS arquivos_paths=p1,p2,..."), chame \`validar_foto\` na PRIMEIRA foto e em seguida chame \`salvar_resposta\` UMA ÚNICA VEZ passando \`arquivos_paths\` com a lista completa (ou \`arquivo_path\` se for só uma). Não crie respostas separadas por foto — todas pertencem ao mesmo \`pergunta_id\`.`,
     `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu, consulte o \`state\` ou os dados de cadastro acima e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
     `- A interface mostra apenas a sua última mensagem por vez (estilo ChatGPT). Por isso, cada turno deve conter a pergunta atual completa e autocontida — não diga "como mencionei acima".`,
     `- Quando todas as perguntas obrigatórias visíveis estiverem respondidas, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
@@ -308,6 +310,7 @@ export async function execSalvarResposta(
     valor_texto?: string;
     opcao_id?: string;
     arquivo_path?: string;
+    arquivos_paths?: string[];
     transcricao?: string;
   },
 ): Promise<{ ok: boolean; motivo?: string }> {
@@ -315,12 +318,28 @@ export async function execSalvarResposta(
   if (!p) return { ok: false, motivo: "pergunta_id desconhecido para este formulário." };
 
   let valor_texto = input.valor_texto ?? null;
-  const arquivo_path = input.arquivo_path ?? null;
+  // Aceita lista (multi-foto) ou caminho único (legado). Para foto, agregamos
+  // com o que já estiver salvo, sem duplicar.
+  const existente = ctx.state[input.pergunta_id];
+  const incomingList = (input.arquivos_paths ?? []).filter(Boolean);
+  const incomingSingle = input.arquivo_path ? [input.arquivo_path] : [];
+  let arquivos_paths: string[] = [];
+  if (p.tipo === "foto") {
+    const merged = [
+      ...(existente?.arquivos_paths ?? []),
+      ...incomingList,
+      ...incomingSingle,
+    ];
+    arquivos_paths = Array.from(new Set(merged.filter(Boolean)));
+  } else {
+    arquivos_paths = [...incomingList, ...incomingSingle];
+  }
+  const arquivo_path = arquivos_paths[0] ?? input.arquivo_path ?? null;
   const transcricao = input.transcricao ?? null;
 
   // Type-specific validation
   if (p.tipo === "foto" && !arquivo_path) {
-    return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path." };
+    return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path ou arquivos_paths." };
   }
   if (p.tipo === "audio" && !transcricao && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo audio exige transcricao ou arquivo_path." };
@@ -362,6 +381,7 @@ export async function execSalvarResposta(
         tipo: p.tipo as any,
         valor_texto,
         arquivo_path,
+        arquivos_paths,
         transcricao,
       },
       { onConflict: "caso_id,pergunta_id" },
@@ -372,6 +392,7 @@ export async function execSalvarResposta(
   ctx.state[input.pergunta_id] = {
     valor_texto,
     arquivo_path,
+    arquivos_paths,
     transcricao,
   };
   return { ok: true };

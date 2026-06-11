@@ -98,7 +98,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     // 7) Respostas
     const { data: respostas } = await userSupa
       .from("respostas_agente")
-      .select("pergunta_id, valor_texto, arquivo_path, transcricao, ia_aprovado")
+      .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_aprovado")
       .eq("caso_id", caso.id);
     const respostasMap = new Map<string, any>();
     for (const r of respostas ?? []) {
@@ -110,7 +110,10 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     for (const p of perguntas ?? []) {
       if (p.tipo === "foto") {
         const r = respostasMap.get(p.id);
-        if (r?.arquivo_path) arquivoPaths.push(r.arquivo_path);
+        const paths: string[] = Array.isArray(r?.arquivos_paths) && r.arquivos_paths.length
+          ? r.arquivos_paths
+          : r?.arquivo_path ? [r.arquivo_path] : [];
+        for (const pth of paths) arquivoPaths.push(pth);
       }
     }
     const fotos = new Map<string, { bytes: Uint8Array; mime: string }>();

@@ -39,6 +39,7 @@ export type PdfResposta = {
   pergunta_id: string;
   valor_texto: string | null;
   arquivo_path: string | null;
+  arquivos_paths?: string[] | null;
   transcricao: string | null;
   ia_aprovado: boolean | null;
 };
@@ -945,20 +946,28 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
         );
       } else if (g.tipo === "fotos") {
         drawSubTitle(ctx, `${secIdx}.${subIdx++}`, "Registro fotográfico");
-        const items = await Promise.all(
+        const nested = await Promise.all(
           g.items.map(async (p) => {
             const r = input.respostas.get(p.id);
-            const foto = r?.arquivo_path ? await getFoto(r.arquivo_path) : null;
+            const paths: string[] = Array.isArray(r?.arquivos_paths) && r!.arquivos_paths!.length
+              ? r!.arquivos_paths!
+              : r?.arquivo_path ? [r.arquivo_path] : [];
             const selo =
               r?.ia_aprovado === true ? "IA OK" : r?.ia_aprovado === false ? "IA REVISAR" : undefined;
-            return {
-              legenda: p.instrucao_agente || p.texto,
-              foto: foto ?? undefined,
-              selo,
-            };
+            const legendaBase = p.instrucao_agente || p.texto;
+            if (paths.length === 0) {
+              return [{ legenda: legendaBase, foto: undefined, selo: undefined as string | undefined }];
+            }
+            return Promise.all(
+              paths.map(async (path, i) => ({
+                legenda: paths.length > 1 ? `${legendaBase} (${i + 1}/${paths.length})` : legendaBase,
+                foto: (await getFoto(path)) ?? undefined,
+                selo: i === 0 ? selo : undefined,
+              })),
+            );
           }),
         );
-        drawFotosGrid(ctx, items);
+        drawFotosGrid(ctx, nested.flat());
       } else {
         for (const p of g.items) {
           const r = input.respostas.get(p.id);

@@ -184,6 +184,12 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFoto, setUploadingFoto] = useState(false);
 
+  // Buffer de fotos para a pergunta atual (multi-foto). Permanece local até o
+  // usuário clicar em "Não, continuar" — só então enviamos ao agente.
+  const [fotosBuffer, setFotosBuffer] = useState<string[]>([]);
+  const isFotoPergunta = estado?.proximaPerguntaTipo === "foto";
+  const aguardandoMaisFotos = isFotoPergunta && fotosBuffer.length > 0;
+
   const onFotoSelecionada = async (file: File) => {
     if (!estado) return;
     setUploadingFoto(true);
@@ -194,14 +200,18 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         .from("agente-uploads")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
+
+      // Para perguntas de foto, acumulamos no buffer e mostramos os botões
+      // de resposta rápida — não enviamos ao agente ainda.
+      if (isFotoPergunta) {
+        setFotosBuffer((prev) => [...prev, path]);
+        return;
+      }
+
+      // Outros tipos (raro): comportamento antigo de envio imediato
       const fotoText = `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`;
       void salvarMensagem({
-        data: {
-          token,
-          casoId,
-          role: "user",
-          parts: [{ type: "text", text: fotoText }],
-        },
+        data: { token, casoId, role: "user", parts: [{ type: "text", text: fotoText }] },
       }).catch(() => undefined);
       await sendMessage({ text: fotoText });
     } catch (e: any) {
@@ -210,6 +220,22 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       setUploadingFoto(false);
     }
   };
+
+  const enviarFotosBuffer = async () => {
+    if (fotosBuffer.length === 0 || !estado) return;
+    const paths = fotosBuffer;
+    setFotosBuffer([]);
+    const fotoText =
+      paths.length === 1
+        ? `[ANEXO_FOTO arquivo_path=${paths[0]}] Anexei 1 foto para a pergunta atual. Salve com salvar_resposta e avance para a próxima pergunta.`
+        : `[ANEXO_FOTOS arquivos_paths=${paths.join(",")}] Anexei ${paths.length} fotos para a pergunta atual. Salve TODAS no mesmo item chamando salvar_resposta uma única vez com arquivos_paths=[${paths.map((p) => `"${p}"`).join(",")}], confirme brevemente ("Fotos salvas. Vamos continuar.") e avance para a próxima pergunta.`;
+    void salvarMensagem({
+      data: { token, casoId, role: "user", parts: [{ type: "text", text: fotoText }] },
+    }).catch(() => undefined);
+    await sendMessage({ text: fotoText });
+  };
+
+  const descartarFotosBuffer = () => setFotosBuffer([]);
 
   const handleFinalizar = async () => {
     if (!estado) return;
@@ -356,6 +382,44 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               {lastAssistantText}
             </div>
           ) : null}
+
+          {!busy && aguardandoMaisFotos && (
+            <div className="mx-auto mt-8 max-w-md animate-fade-in">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <p className="text-center text-sm font-medium text-foreground">
+                  {fotosBuffer.length} foto{fotosBuffer.length > 1 ? "s" : ""} pronta{fotosBuffer.length > 1 ? "s" : ""} para envio.
+                </p>
+                <p className="mt-1 text-center text-sm text-muted-foreground">
+                  Deseja anexar mais fotos para este item?
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={uploadingFoto}
+                    className="min-h-[48px] flex-1 rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    {uploadingFoto ? "Enviando…" : "Sim, adicionar mais"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void enviarFotosBuffer()}
+                    disabled={uploadingFoto}
+                    className="min-h-[48px] flex-1 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    Não, continuar
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={descartarFotosBuffer}
+                  className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Descartar fotos
+                </button>
+              </div>
+            </div>
+          )}
 
           {(authErro || error) && (
             <div className="mx-auto mt-6 max-w-md rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
