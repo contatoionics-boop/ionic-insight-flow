@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Plus, ArrowLeft } from "lucide-react";
+import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Paperclip, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui-bits";
