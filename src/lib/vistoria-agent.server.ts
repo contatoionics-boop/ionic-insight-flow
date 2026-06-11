@@ -181,13 +181,14 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
-    .select("pergunta_id, valor_texto, arquivo_path, transcricao")
+    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
     .eq("caso_id", casoId);
   const state: Record<string, AgentResposta> = {};
   for (const r of respostas ?? []) {
     state[r.pergunta_id] = {
       valor_texto: r.valor_texto ?? null,
       arquivo_path: r.arquivo_path ?? null,
+      arquivos_paths: (r as any).arquivos_paths ?? [],
       transcricao: r.transcricao ?? null,
     };
   }
