@@ -39,6 +39,7 @@ export type PdfResposta = {
   pergunta_id: string;
   valor_texto: string | null;
   arquivo_path: string | null;
+  arquivos_paths?: string[] | null;
   transcricao: string | null;
   ia_aprovado: boolean | null;
 };
