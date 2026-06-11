@@ -51,10 +51,12 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       .eq("id", caso.formulario_id)
       .maybeSingle();
 
-    // 3) Configurações da empresa (logo + nome) — uso admin pois é singleton compartilhado
+    // 3) Configurações da empresa — singleton compartilhado
     const { data: configs } = await supabaseAdmin
       .from("configuracoes_empresa")
-      .select("nome_empresa, logo_url")
+      .select(
+        "nome_empresa, logo_url, cnpj, telefone, email_contato, endereco, cidade_estado, site",
+      )
       .limit(1);
     const config = configs?.[0];
 
