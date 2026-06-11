@@ -181,6 +181,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   };
 
   const fotoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFoto, setUploadingFoto] = useState(false);
 
   const onFotoSelecionada = async (file: File) => {
