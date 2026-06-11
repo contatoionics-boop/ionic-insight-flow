@@ -130,13 +130,16 @@ function ReviewCasePage() {
 
       const { data: rs } = await supabase
         .from("respostas_agente")
-        .select("pergunta_id, valor_texto, arquivo_path, transcricao")
+        .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
         .eq("caso_id", id);
       const map: Record<string, Resposta> = {};
       const paths: string[] = [];
       for (const r of (rs ?? []) as Resposta[]) {
         map[r.pergunta_id] = r;
-        if (r.arquivo_path) paths.push(r.arquivo_path);
+        const list = Array.isArray(r.arquivos_paths) && r.arquivos_paths.length
+          ? r.arquivos_paths
+          : r.arquivo_path ? [r.arquivo_path] : [];
+        for (const pth of list) if (pth && !paths.includes(pth)) paths.push(pth);
       }
       setRespostas(map);
 
