@@ -80,6 +80,8 @@ function ReviewCasePage() {
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const gerarPdf = useServerFn(gerarPdfMapeamento);
+  const aprovarFn = useServerFn(aprovarMapeamento);
+  const recusarFn = useServerFn(solicitarCorrecao);
 
   useEffect(() => {
     (async () => {
@@ -224,18 +226,26 @@ function ReviewCasePage() {
   const approve = async () => {
     if (!caseData) return;
     setWorking(true);
-    if (Object.values(dirty).some(Boolean)) await salvarTudo();
-    await supabase.from("casos").update({ status: "aprovado" }).eq("id", caseData.id);
-    setApproveOpen(false);
-    navigate({ to: "/app/history" });
+    try {
+      if (Object.values(dirty).some(Boolean)) await salvarTudo();
+      await aprovarFn({ data: { casoId: caseData.id } });
+      setApproveOpen(false);
+      navigate({ to: "/app/history" });
+    } finally {
+      setWorking(false);
+    }
   };
 
   const reopen = async () => {
     if (!caseData) return;
     setWorking(true);
-    await supabase.from("casos").update({ status: "em_analise" }).eq("id", caseData.id);
-    setReopenOpen(false);
-    navigate({ to: "/app/review-queue" });
+    try {
+      await recusarFn({ data: { casoId: caseData.id, motivo: reopenReason || "Solicitação de correção" } });
+      setReopenOpen(false);
+      navigate({ to: "/app/review-queue" });
+    } finally {
+      setWorking(false);
+    }
   };
 
   const baixarPdf = async () => {
