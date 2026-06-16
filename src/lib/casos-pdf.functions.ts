@@ -232,7 +232,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       fotos,
     });
 
-    const filename = `mapeamento-${slugify(caso.codigo || "caso")}-${slugify(cliente)}.pdf`;
+    const filename = `mapeamento-${slugify(caso.codigo || "caso")}-${slugify(empresaNome)}.pdf`;
     return {
       filename,
       contentBase64: toBase64(pdfBytes),
