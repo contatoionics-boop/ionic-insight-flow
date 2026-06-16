@@ -297,25 +297,28 @@ function ClientsPage() {
           </tr>
         </thead>
         <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Carregando...
-              </td>
-            </tr>
-          ) : rows.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Nenhuma empresa cadastrada ainda.
-              </td>
-            </tr>
-          ) : (
-            rows.map((e) => (
+          {(() => {
+            const q = busca.trim().toLowerCase();
+            const visiveis = q
+              ? rows.filter((r) => (r.nome ?? "").toLowerCase().includes(q) || (r.codigo_ionics ?? "").toLowerCase().includes(q))
+              : rows;
+            if (loading) {
+              return (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+              );
+            }
+            if (visiveis.length === 0) {
+              return (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma empresa encontrada.</td></tr>
+              );
+            }
+            return visiveis.map((e) => (
               <tr
                 key={e.id}
                 onClick={() => navigate({ to: "/app/clients/$empresaId", params: { empresaId: e.id } })}
                 className="cursor-pointer transition-colors hover:bg-muted/50"
               >
+                <Td className="font-mono text-xs text-primary">{e.codigo_ionics ?? "—"}</Td>
                 <Td className="font-medium">
                   <div className="flex items-center gap-1">
                     {e.nome}
