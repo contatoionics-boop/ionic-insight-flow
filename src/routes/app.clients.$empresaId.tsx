@@ -89,7 +89,7 @@ function EmpresaDetailPage() {
         .eq("empresa_id", empresaId)
         .order("criado_em"),
     ]);
-    setEmpresa((emp as Empresa) ?? null);
+    setEmpresa(((emp as unknown) as Empresa) ?? null);
     const matsList = (mats ?? []) as Matriz[];
     setMatrizes(matsList);
 
