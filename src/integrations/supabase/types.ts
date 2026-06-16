@@ -16,41 +16,53 @@ export type Database = {
     Tables: {
       agendamentos: {
         Row: {
+          aceite_agente: boolean
+          aceite_status: string
           agendado_em: string
           agente_id: string
           atualizado_em: string
           criado_em: string
           criado_por: string
+          data_aceite: string | null
           duracao_min: number
           endereco_vistoria: string | null
           id: string
           matriz_id: string | null
+          motivo_recusa: string | null
           observacoes_agendamento: string | null
           unidade_id: string
         }
         Insert: {
+          aceite_agente?: boolean
+          aceite_status?: string
           agendado_em: string
           agente_id: string
           atualizado_em?: string
           criado_em?: string
           criado_por: string
+          data_aceite?: string | null
           duracao_min?: number
           endereco_vistoria?: string | null
           id?: string
           matriz_id?: string | null
+          motivo_recusa?: string | null
           observacoes_agendamento?: string | null
           unidade_id: string
         }
         Update: {
+          aceite_agente?: boolean
+          aceite_status?: string
           agendado_em?: string
           agente_id?: string
           atualizado_em?: string
           criado_em?: string
           criado_por?: string
+          data_aceite?: string | null
           duracao_min?: number
           endereco_vistoria?: string | null
           id?: string
           matriz_id?: string | null
+          motivo_recusa?: string | null
           observacoes_agendamento?: string | null
           unidade_id?: string
         }
@@ -359,18 +371,21 @@ export type Database = {
       }
       empresas: {
         Row: {
+          codigo_ionics: string | null
           criado_em: string
           criado_por: string | null
           id: string
           nome: string
         }
         Insert: {
+          codigo_ionics?: string | null
           criado_em?: string
           criado_por?: string | null
           id?: string
           nome: string
         }
         Update: {
+          codigo_ionics?: string | null
           criado_em?: string
           criado_por?: string | null
           id?: string
@@ -854,6 +869,7 @@ export type Database = {
           bairro: string | null
           cep: string | null
           cidade: string | null
+          codigo_ionics: string | null
           criado_em: string
           criado_por: string | null
           email: string | null
@@ -869,6 +885,7 @@ export type Database = {
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ionics?: string | null
           criado_em?: string
           criado_por?: string | null
           email?: string | null
@@ -884,6 +901,7 @@ export type Database = {
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
+          codigo_ionics?: string | null
           criado_em?: string
           criado_por?: string | null
           email?: string | null
