@@ -257,6 +257,23 @@ function VistoriaDetalhesPage() {
         </div>
       </Card>
 
+      {caso.motivo_recusa && (
+        <Card className="mb-4 border-destructive/40 bg-destructive/5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Motivo da recusa</p>
+          <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">{caso.motivo_recusa}</p>
+        </Card>
+      )}
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <TimelineMapeamento
+          agendado={caso.agendado_em}
+          execucao={caso.data_execucao}
+          entrega={caso.data_entrega_agente}
+          aprovacao={caso.data_aprovacao_pablo}
+        />
+        <ObservacoesPanel casoId={caso.id} />
+      </div>
+
       {secoes.length === 0 ? (
         <Card><p className="text-sm text-muted-foreground">Este mapeamento não tem formulário associado.</p></Card>
       ) : (
