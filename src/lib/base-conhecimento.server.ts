@@ -17,10 +17,10 @@ export async function extrairTexto(
     return String(result?.value ?? "");
   }
   if (tipo === "pdf") {
-    const mod: any = await import("pdf-parse");
-    const pdfParse = mod.default ?? mod;
-    const result = await pdfParse(buf);
-    return String(result?.text ?? "");
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return Array.isArray(text) ? text.join("\n\n") : String(text ?? "");
   }
   return "";
 }
