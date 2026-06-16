@@ -33,13 +33,15 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const userSupa = context.supabase;
 
     // 1) Caso + relações
-    const { data: caso, error: cErr } = await userSupa
+    const { data: caso, error: cErr } = await (userSupa as any)
       .from("casos")
       .select(
-        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, codigo_ionics, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome, codigo_ionics)))" as any,
+        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, codigo_ionics, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome, codigo_ionics)))",
       )
       .eq("id", data.casoId)
       .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!caso) throw new Error("Caso não encontrado.");
     if (cErr) throw new Error(cErr.message);
     if (!caso) throw new Error("Caso não encontrado.");
     if (!caso.formulario_id) throw new Error("Caso sem formulário associado.");
