@@ -71,6 +71,89 @@ export type Database = {
           },
         ]
       }
+      base_conhecimento: {
+        Row: {
+          arquivo_path: string
+          arquivo_url: string | null
+          atualizado_em: string
+          categoria: string | null
+          criado_em: string
+          criado_por: string | null
+          erro_mensagem: string | null
+          id: string
+          nome: string
+          status: string
+          tamanho_bytes: number | null
+          tipo: string
+        }
+        Insert: {
+          arquivo_path: string
+          arquivo_url?: string | null
+          atualizado_em?: string
+          categoria?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          nome: string
+          status?: string
+          tamanho_bytes?: number | null
+          tipo: string
+        }
+        Update: {
+          arquivo_path?: string
+          arquivo_url?: string | null
+          atualizado_em?: string
+          categoria?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          nome?: string
+          status?: string
+          tamanho_bytes?: number | null
+          tipo?: string
+        }
+        Relationships: []
+      }
+      base_conhecimento_chunks: {
+        Row: {
+          conteudo: string
+          criado_em: string
+          documento_id: string
+          embedding: string
+          id: string
+          posicao: number
+          tokens: number | null
+        }
+        Insert: {
+          conteudo: string
+          criado_em?: string
+          documento_id: string
+          embedding: string
+          id?: string
+          posicao: number
+          tokens?: number | null
+        }
+        Update: {
+          conteudo?: string
+          criado_em?: string
+          documento_id?: string
+          embedding?: string
+          id?: string
+          posicao?: number
+          tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "base_conhecimento_chunks_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "base_conhecimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       casos: {
         Row: {
           agendado_em: string | null
@@ -786,6 +869,20 @@ export type Database = {
       agente_tem_caso_em_unidade: {
         Args: { _unidade_id: string; _user_id: string }
         Returns: boolean
+      }
+      buscar_conhecimento: {
+        Args: {
+          match_count?: number
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          conteudo: string
+          documento_id: string
+          id: string
+          posicao: number
+          similarity: number
+        }[]
       }
       current_user_role: {
         Args: never

@@ -69,7 +69,42 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         if (!key) return new Response("LOVABLE_API_KEY ausente", { status: 500 });
 
         const ctx: AgentContext = await loadAgentContext(casoId);
-        const system = buildSystemPrompt(ctx);
+        let system = buildSystemPrompt(ctx);
+
+        // Inject RAG context based on the last user message
+        try {
+          const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
+          const queryText = (() => {
+            if (!lastUser) return "";
+            const parts = (lastUser as any).parts;
+            if (Array.isArray(parts)) {
+              return parts
+                .filter((p: any) => p?.type === "text")
+                .map((p: any) => p.text)
+                .join(" ");
+            }
+            return typeof (lastUser as any).content === "string"
+              ? (lastUser as any).content
+              : "";
+          })();
+          if (queryText.trim()) {
+            const { buscarContextoRelevante } = await import(
+              "@/lib/base-conhecimento.functions"
+            );
+            const chunks = await buscarContextoRelevante(queryText, 5, 0.5);
+            if (chunks.length) {
+              const bloco = chunks
+                .map((c, i) => `[${i + 1}] ${c.conteudo}`)
+                .join("\n\n---\n\n");
+              system +=
+                "\n\n## Base de conhecimento\nUse as seguintes informações da base de conhecimento para embasar sua resposta, quando relevantes:\n---\n" +
+                bloco +
+                "\n---";
+            }
+          }
+        } catch (e) {
+          console.error("[RAG] falha ao buscar contexto:", e);
+        }
 
         const provider = createLovableAiGatewayProvider(key);
         const model = provider("google/gemini-3-flash-preview");
