@@ -13,7 +13,7 @@ export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
 });
 
-type Empresa = { id: string; nome: string };
+type Empresa = { id: string; nome: string; codigo_ionics: string | null };
 type EnderecoBase = {
   logradouro: string | null;
   numero: string | null;
@@ -22,7 +22,7 @@ type EnderecoBase = {
   estado: string | null;
 };
 type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null } & EnderecoBase;
-type Unidade = { id: string; matriz_id: string; nome: string } & EnderecoBase;
+type Unidade = { id: string; matriz_id: string; nome: string; codigo_ionics: string | null } & EnderecoBase;
 type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
