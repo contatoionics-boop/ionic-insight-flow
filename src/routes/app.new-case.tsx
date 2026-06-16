@@ -306,7 +306,12 @@ function NewCasePage() {
             </div>
             <div>
               <Label>Agente técnico</Label>
-              <Select value={agentId} onChange={(e) => setAgentId(e.target.value)} required>
+              <Select
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                required
+                className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
+              >
                 <option value="">Selecione o agente técnico</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
@@ -314,7 +319,9 @@ function NewCasePage() {
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Data</Label>
-                <DatePicker value={data} onChange={setData} />
+                <div className={conflito ? "rounded-md border border-destructive ring-1 ring-destructive" : undefined}>
+                  <DatePicker value={data} onChange={setData} />
+                </div>
               </div>
               <div>
                 <Label>Hora</Label>
