@@ -41,6 +41,7 @@ import { Route as AppClientsEmpresaIdRouteImport } from './routes/app.clients.$e
 import { Route as AppAgendamentoIdRouteImport } from './routes/app.agendamento.$id'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
+import { Route as ApiPublicHooksCheckAtrasosRouteImport } from './routes/api/public/hooks/check-atrasos'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -202,6 +203,12 @@ const AppFormsIdPreviewRoute = AppFormsIdPreviewRouteImport.update({
   path: '/$id/preview',
   getParentRoute: () => AppFormsRoute,
 } as any)
+const ApiPublicHooksCheckAtrasosRoute =
+  ApiPublicHooksCheckAtrasosRouteImport.update({
+    id: '/api/public/hooks/check-atrasos',
+    path: '/api/public/hooks/check-atrasos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/clients/': typeof AppClientsIndexRoute
   '/app/forms/': typeof AppFormsIndexRoute
+  '/api/public/hooks/check-atrasos': typeof ApiPublicHooksCheckAtrasosRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id/': typeof AppFormsIdIndexRoute
 }
@@ -266,6 +274,7 @@ export interface FileRoutesByTo {
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/clients': typeof AppClientsIndexRoute
   '/app/forms': typeof AppFormsIndexRoute
+  '/api/public/hooks/check-atrasos': typeof ApiPublicHooksCheckAtrasosRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id': typeof AppFormsIdIndexRoute
 }
@@ -301,6 +310,7 @@ export interface FileRoutesById {
   '/preview/forms/$id': typeof PreviewFormsIdRoute
   '/app/clients/': typeof AppClientsIndexRoute
   '/app/forms/': typeof AppFormsIndexRoute
+  '/api/public/hooks/check-atrasos': typeof ApiPublicHooksCheckAtrasosRoute
   '/app/forms/$id/preview': typeof AppFormsIdPreviewRoute
   '/app/forms/$id/': typeof AppFormsIdIndexRoute
 }
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/preview/forms/$id'
     | '/app/clients/'
     | '/app/forms/'
+    | '/api/public/hooks/check-atrasos'
     | '/app/forms/$id/preview'
     | '/app/forms/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/preview/forms/$id'
     | '/app/clients'
     | '/app/forms'
+    | '/api/public/hooks/check-atrasos'
     | '/app/forms/$id/preview'
     | '/app/forms/$id'
   id:
@@ -403,6 +415,7 @@ export interface FileRouteTypes {
     | '/preview/forms/$id'
     | '/app/clients/'
     | '/app/forms/'
+    | '/api/public/hooks/check-atrasos'
     | '/app/forms/$id/preview'
     | '/app/forms/$id/'
   fileRoutesById: FileRoutesById
@@ -415,6 +428,7 @@ export interface RootRouteChildren {
   ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
   ApiVistoriaChatRoute: typeof ApiVistoriaChatRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
+  ApiPublicHooksCheckAtrasosRoute: typeof ApiPublicHooksCheckAtrasosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -643,6 +657,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFormsIdPreviewRouteImport
       parentRoute: typeof AppFormsRoute
     }
+    '/api/public/hooks/check-atrasos': {
+      id: '/api/public/hooks/check-atrasos'
+      path: '/api/public/hooks/check-atrasos'
+      fullPath: '/api/public/hooks/check-atrasos'
+      preLoaderRoute: typeof ApiPublicHooksCheckAtrasosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -732,6 +753,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFormsAssistantRoute: ApiFormsAssistantRoute,
   ApiVistoriaChatRoute: ApiVistoriaChatRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,
+  ApiPublicHooksCheckAtrasosRoute: ApiPublicHooksCheckAtrasosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
