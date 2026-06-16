@@ -83,13 +83,14 @@ function ClientsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("empresas")
-      .select("id, nome, criado_em, matrizes(id, cnpj, cidade, estado, unidades(id))")
+      .select("id, nome, criado_em, codigo_ionics, matrizes(id, cnpj, cidade, estado, unidades(id))" as any)
       .order("criado_em", { ascending: false });
     if (error) setError(error.message);
     else {
       const norm = ((data ?? []) as any[]).map((e) => ({
         id: e.id,
         nome: e.nome,
+        codigo_ionics: e.codigo_ionics ?? null,
         criado_em: e.criado_em,
         matrizes: (e.matrizes ?? []).map((m: any) => ({
           id: m.id,
