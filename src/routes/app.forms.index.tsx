@@ -1,7 +1,30 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Eye, Copy, ExternalLink, Sparkles } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Eye,
+  Copy,
+  ExternalLink,
+  Sparkles,
+  MoreHorizontal,
+  LayoutGrid,
+  List as ListIcon,
+  Table as TableIcon,
+  Search,
+  FileText,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -16,7 +39,36 @@ type Form = {
   descricao: string | null;
   empresa_id: string | null;
   empresa: { nome: string } | null;
+  ativo: boolean;
+  criado_em: string;
+  perguntas_count: number;
 };
+
+type ViewMode = "grid" | "list" | "table";
+type StatusFilter = "todos" | "ativo" | "rascunho";
+type SortKey = "nome" | "empresa" | "perguntas" | "criado_em" | "status";
+
+const VIEW_KEY = "forms.viewMode";
+
+function fmtData(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function StatusBadge({ ativo }: { ativo: boolean }) {
+  return ativo ? (
+    <span className="inline-flex items-center rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">
+      Ativo
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+      Rascunho
+    </span>
+  );
+}
 
 function FormsPage() {
   const { userId } = useAuth();
@@ -26,6 +78,23 @@ function FormsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [view, setView] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "grid";
+    const v = window.localStorage.getItem(VIEW_KEY);
+    return v === "list" || v === "table" || v === "grid" ? (v as ViewMode) : "grid";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_KEY, view);
+    } catch {}
+  }, [view]);
+
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState<StatusFilter>("todos");
+  const [empresaFiltro, setEmpresaFiltro] = useState<string>("");
+  const [sortKey, setSortKey] = useState<SortKey>("nome");
+  const [sortAsc, setSortAsc] = useState(true);
+
   const [formModal, setFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<Form | null>(null);
   const [fNome, setFNome] = useState("");
@@ -34,12 +103,32 @@ function FormsPage() {
   const [toDelForm, setToDelForm] = useState<Form | null>(null);
 
   const refreshForms = useCallback(async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from("formularios")
-      .select("id, nome, descricao, empresa_id, empresa:empresas(nome)")
+      .select(
+        "id, nome, descricao, empresa_id, ativo, criado_em, empresa:empresas(nome), secoes(perguntas(id))",
+      )
       .order("nome");
-    if (error) setError(error.message);
-    else setForms((data ?? []) as unknown as Form[]);
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+    const mapped: Form[] = (data ?? []).map((r: any) => ({
+      id: r.id,
+      nome: r.nome,
+      descricao: r.descricao,
+      empresa_id: r.empresa_id,
+      empresa: r.empresa,
+      ativo: !!r.ativo,
+      criado_em: r.criado_em,
+      perguntas_count: (r.secoes ?? []).reduce(
+        (acc: number, s: any) => acc + (s.perguntas?.length ?? 0),
+        0,
+      ),
+    }));
+    setForms(mapped);
     setLoading(false);
   }, []);
 
@@ -51,6 +140,33 @@ function FormsPage() {
       .order("nome")
       .then(({ data }) => setEmpresas((data ?? []) as Empresa[]));
   }, [refreshForms]);
+
+  const filtered = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    let list = forms.filter((f) => {
+      if (q && !f.nome.toLowerCase().includes(q)) return false;
+      if (statusFiltro === "ativo" && !f.ativo) return false;
+      if (statusFiltro === "rascunho" && f.ativo) return false;
+      if (empresaFiltro && f.empresa_id !== empresaFiltro) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      const dir = sortAsc ? 1 : -1;
+      switch (sortKey) {
+        case "nome":
+          return a.nome.localeCompare(b.nome) * dir;
+        case "empresa":
+          return (a.empresa?.nome ?? "").localeCompare(b.empresa?.nome ?? "") * dir;
+        case "perguntas":
+          return (a.perguntas_count - b.perguntas_count) * dir;
+        case "criado_em":
+          return (new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()) * dir;
+        case "status":
+          return (Number(a.ativo) - Number(b.ativo)) * dir;
+      }
+    });
+    return list;
+  }, [forms, busca, statusFiltro, empresaFiltro, sortKey, sortAsc]);
 
   const openCreateForm = () => {
     setEditingForm(null);
@@ -170,6 +286,100 @@ function FormsPage() {
     }
   };
 
+  const goView = (id: string) => navigate({ to: "/app/forms/$id/preview", params: { id } });
+  const goEditar = (id: string) => navigate({ to: "/app/forms/$id", params: { id } });
+
+  const ActionsMenu = ({ f }: { f: Form }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Ações"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={() => goView(f.id)}>
+          <Eye className="mr-2 h-4 w-4" /> Visualizar
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`/preview/forms/${f.id}`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="mr-2 h-4 w-4" /> Tela cheia
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => goEditar(f.id)}>
+          <Pencil className="mr-2 h-4 w-4" /> Editar estrutura
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openEditForm(f)}>
+          <Pencil className="mr-2 h-4 w-4" /> Editar info
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => duplicarForm(f)}>
+          <Copy className="mr-2 h-4 w-4" /> Duplicar
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => setToDelForm(f)}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const ViewToggle = () => {
+    const opts: { v: ViewMode; icon: any; label: string }[] = [
+      { v: "grid", icon: LayoutGrid, label: "Cards" },
+      { v: "list", icon: ListIcon, label: "Lista" },
+      { v: "table", icon: TableIcon, label: "Detalhes" },
+    ];
+    return (
+      <div className="inline-flex items-center rounded-md border border-border bg-card p-0.5">
+        {opts.map((o) => {
+          const Icon = o.icon;
+          const active = view === o.v;
+          return (
+            <button
+              key={o.v}
+              onClick={() => setView(o.v)}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title={o.label}
+              aria-label={o.label}
+              aria-pressed={active}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const SortBtn = ({ k, label }: { k: SortKey; label: string }) => {
+    const active = sortKey === k;
+    return (
+      <button
+        onClick={() => {
+          if (active) setSortAsc((v) => !v);
+          else {
+            setSortKey(k);
+            setSortAsc(true);
+          }
+        }}
+        className={`inline-flex items-center gap-1 ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        {active && (sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+      </button>
+    );
+  };
+
   return (
     <div>
       <PageHeader
@@ -186,74 +396,171 @@ function FormsPage() {
           </>
         }
       />
+
       {error && (
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
+
+      {/* Filtros */}
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome..."
+              className="pl-8"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { v: "todos", l: "Todos" },
+                { v: "ativo", l: "Ativo" },
+                { v: "rascunho", l: "Rascunho" },
+              ] as { v: StatusFilter; l: string }[]
+            ).map((p) => {
+              const active = statusFiltro === p.v;
+              return (
+                <button
+                  key={p.v}
+                  onClick={() => setStatusFiltro(p.v)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p.l}
+                </button>
+              );
+            })}
+          </div>
+          <Select
+            value={empresaFiltro}
+            onChange={(e) => setEmpresaFiltro(e.target.value)}
+            className="sm:max-w-xs"
+          >
+            <option value="">Todas as empresas</option>
+            {empresas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <ViewToggle />
+      </div>
+
       {loading ? (
-        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
-      ) : forms.length === 0 ? (
-        <Card><p className="text-sm text-muted-foreground">Nenhum formulário cadastrado. Crie o primeiro.</p></Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {forms.map((f) => (
-            <div key={f.id} className="rounded-lg border border-border bg-card p-5 shadow-sm">
-              <button
-                onClick={() => navigate({ to: "/app/forms/$id", params: { id: f.id } })}
-                className="flex w-full items-center justify-between text-left"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{f.nome}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {f.empresa?.nome ?? "Template (sem empresa)"}
-                  </p>
+        <Card>
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <p className="text-sm text-muted-foreground">
+            {forms.length === 0
+              ? "Nenhum formulário cadastrado. Crie o primeiro."
+              : "Nenhum formulário corresponde aos filtros."}
+          </p>
+        </Card>
+      ) : view === "grid" ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((f) => (
+            <div
+              key={f.id}
+              onClick={() => goView(f.id)}
+              className="group relative cursor-pointer rounded-lg border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+            >
+              <div className="absolute right-3 top-3">
+                <ActionsMenu f={f} />
+              </div>
+              <div className="pr-8">
+                <p className="truncate text-sm font-semibold text-foreground">{f.nome}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {f.empresa?.nome ?? "Template (sem empresa)"}
+                </p>
+                <div className="mt-3">
+                  <StatusBadge ativo={f.ativo} />
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-                <button
-                  onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id: f.id } })}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
-                >
-                  <Eye className="h-3 w-3" /> Visualizar
-                </button>
-                <a
-                  href={`/preview/forms/${f.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
-                >
-                  <ExternalLink className="h-3 w-3" /> Tela cheia
-                </a>
-                <button
-                  onClick={() => navigate({ to: "/app/forms/$id", params: { id: f.id } })}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
-                >
-                  <Pencil className="h-3 w-3" /> Editar estrutura
-                </button>
-                <button
-                  onClick={() => openEditForm(f)}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
-                >
-                  <Pencil className="h-3 w-3" /> Editar info
-                </button>
-                <button
-                  onClick={() => duplicarForm(f)}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
-                >
-                  <Copy className="h-3 w-3" /> Duplicar
-                </button>
-                <button
-                  onClick={() => setToDelForm(f)}
-                  className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-3 w-3" /> Excluir
-                </button>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-[11px] text-muted-foreground">
+                <span>{f.perguntas_count} {f.perguntas_count === 1 ? "pergunta" : "perguntas"}</span>
+                <span>Criado em {fmtData(f.criado_em)}</span>
               </div>
             </div>
           ))}
         </div>
+      ) : view === "list" ? (
+        <Card className="p-0">
+          <ul className="divide-y divide-border">
+            {filtered.map((f) => (
+              <li
+                key={f.id}
+                onClick={() => goView(f.id)}
+                className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+              >
+                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{f.nome}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {f.empresa?.nome ?? "Template (sem empresa)"}
+                  </p>
+                </div>
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  {f.perguntas_count} {f.perguntas_count === 1 ? "pergunta" : "perguntas"}
+                </span>
+                <span className="hidden text-xs text-muted-foreground md:inline">
+                  {fmtData(f.criado_em)}
+                </span>
+                <StatusBadge ativo={f.ativo} />
+                <ActionsMenu f={f} />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : (
+        <Card className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">#</th>
+                  <th className="px-3 py-2 text-left font-medium"><SortBtn k="nome" label="Nome" /></th>
+                  <th className="px-3 py-2 text-left font-medium"><SortBtn k="empresa" label="Empresa" /></th>
+                  <th className="px-3 py-2 text-left font-medium"><SortBtn k="perguntas" label="Perguntas" /></th>
+                  <th className="px-3 py-2 text-left font-medium"><SortBtn k="criado_em" label="Criado em" /></th>
+                  <th className="px-3 py-2 text-left font-medium">Última edição</th>
+                  <th className="px-3 py-2 text-left font-medium"><SortBtn k="status" label="Status" /></th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((f, i) => (
+                  <tr
+                    key={f.id}
+                    onClick={() => goView(f.id)}
+                    className="cursor-pointer border-t border-border odd:bg-card even:bg-muted/20 hover:bg-muted/40"
+                  >
+                    <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                    <td className="px-3 py-2 font-medium text-foreground">{f.nome}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {f.empresa?.nome ?? "Template (sem empresa)"}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{f.perguntas_count}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{fmtData(f.criado_em)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{fmtData(f.criado_em)}</td>
+                    <td className="px-3 py-2"><StatusBadge ativo={f.ativo} /></td>
+                    <td className="px-3 py-2 text-right"><ActionsMenu f={f} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       <Modal open={formModal} onClose={() => setFormModal(false)} title={editingForm ? "Editar formulário" : "Novo formulário"}>
