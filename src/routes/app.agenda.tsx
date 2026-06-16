@@ -193,9 +193,10 @@ function AgendaPage() {
           {dias.map((d) => {
             const inMonth = d.getMonth() === mes.getMonth();
             const items = eventosPorDia.get(d.toDateString()) ?? [];
+            const ocupadoPorAgente = !!agenteId && items.length > 0;
             return (
-              <div key={d.toISOString()} className={`min-h-[88px] bg-card p-1 ${inMonth ? "" : "opacity-40"}`}>
-                <div className="text-[10px] font-semibold text-muted-foreground">{d.getDate()}</div>
+              <div key={d.toISOString()} className={`min-h-[88px] p-1 ${inMonth ? "" : "opacity-40"} ${ocupadoPorAgente ? "bg-destructive/15 ring-1 ring-inset ring-destructive/40" : "bg-card"}`}>
+                <div className={`text-[10px] font-semibold ${ocupadoPorAgente ? "text-destructive" : "text-muted-foreground"}`}>{d.getDate()}{ocupadoPorAgente ? " · ocupado" : ""}</div>
                 <div className="mt-1 space-y-0.5">
                   {items.slice(0, 3).map((e) => (
                     <button
