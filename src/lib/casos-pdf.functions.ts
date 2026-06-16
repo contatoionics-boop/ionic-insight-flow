@@ -36,7 +36,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const { data: caso, error: cErr } = await userSupa
       .from("casos")
       .select(
-        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
+        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, codigo_ionics, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome, codigo_ionics)))" as any,
       )
       .eq("id", data.casoId)
       .maybeSingle();
