@@ -82,7 +82,7 @@ function EmpresaDetailPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     const [{ data: emp }, { data: mats }] = await Promise.all([
-      supabase.from("empresas").select("id, nome").eq("id", empresaId).maybeSingle(),
+      supabase.from("empresas").select("id, nome, codigo_ionics" as any).eq("id", empresaId).maybeSingle(),
       supabase
         .from("matrizes")
         .select("id, empresa_id, nome, cnpj, razao_social, email, telefone, cep, logradouro, numero, bairro, cidade, estado")
@@ -96,7 +96,7 @@ function EmpresaDetailPage() {
     if (matsList.length > 0) {
       const { data: unis } = await supabase
         .from("unidades")
-        .select("id, matriz_id, nome, email, telefone, cep, logradouro, numero, bairro, cidade, estado")
+        .select("id, matriz_id, nome, codigo_ionics, email, telefone, cep, logradouro, numero, bairro, cidade, estado" as any)
         .in("matriz_id", matsList.map((m) => m.id))
         .order("criado_em");
       const map: Record<string, Unidade[]> = {};
