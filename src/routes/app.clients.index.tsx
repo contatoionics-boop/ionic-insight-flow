@@ -23,6 +23,7 @@ export const Route = createFileRoute("/app/clients/")({
 type EmpresaRow = {
   id: string;
   nome: string;
+  codigo_ionics: string | null;
   criado_em: string;
   matrizes: { id: string; cnpj: string | null; cidade: string | null; estado: string | null }[];
   unidades_count?: number;
@@ -77,18 +78,20 @@ function ClientsPage() {
   const [renameOpen, setRenameOpen] = useState<EmpresaRow | null>(null);
   const [renameNome, setRenameNome] = useState("");
   const [toDelete, setToDelete] = useState<EmpresaRow | null>(null);
+  const [busca, setBusca] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("empresas")
-      .select("id, nome, criado_em, matrizes(id, cnpj, cidade, estado, unidades(id))")
+      .select("id, nome, criado_em, codigo_ionics, matrizes(id, cnpj, cidade, estado, unidades(id))" as any)
       .order("criado_em", { ascending: false });
     if (error) setError(error.message);
     else {
       const norm = ((data ?? []) as any[]).map((e) => ({
         id: e.id,
         nome: e.nome,
+        codigo_ionics: e.codigo_ionics ?? null,
         criado_em: e.criado_em,
         matrizes: (e.matrizes ?? []).map((m: any) => ({
           id: m.id,
@@ -270,9 +273,22 @@ function ClientsPage() {
         </div>
       )}
 
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome ou código IONICS"
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       <Table>
         <thead>
           <tr>
+            <Th>Código IONICS</Th>
             <Th>Empresa</Th>
             <Th>Matrizes (CNPJ)</Th>
             <Th>Unidades</Th>
@@ -281,25 +297,28 @@ function ClientsPage() {
           </tr>
         </thead>
         <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Carregando...
-              </td>
-            </tr>
-          ) : rows.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Nenhuma empresa cadastrada ainda.
-              </td>
-            </tr>
-          ) : (
-            rows.map((e) => (
+          {(() => {
+            const q = busca.trim().toLowerCase();
+            const visiveis = q
+              ? rows.filter((r) => (r.nome ?? "").toLowerCase().includes(q) || (r.codigo_ionics ?? "").toLowerCase().includes(q))
+              : rows;
+            if (loading) {
+              return (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+              );
+            }
+            if (visiveis.length === 0) {
+              return (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma empresa encontrada.</td></tr>
+              );
+            }
+            return visiveis.map((e) => (
               <tr
                 key={e.id}
                 onClick={() => navigate({ to: "/app/clients/$empresaId", params: { empresaId: e.id } })}
                 className="cursor-pointer transition-colors hover:bg-muted/50"
               >
+                <Td className="font-mono text-xs text-primary">{e.codigo_ionics ?? "—"}</Td>
                 <Td className="font-medium">
                   <div className="flex items-center gap-1">
                     {e.nome}
@@ -347,8 +366,8 @@ function ClientsPage() {
                   </Td>
                 )}
               </tr>
-            ))
-          )}
+            ));
+          })()}
         </tbody>
       </Table>
 

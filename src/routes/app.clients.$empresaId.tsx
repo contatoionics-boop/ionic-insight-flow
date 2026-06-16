@@ -18,7 +18,7 @@ export const Route = createFileRoute("/app/clients/$empresaId")({
   component: EmpresaDetailPage,
 });
 
-type Empresa = { id: string; nome: string };
+type Empresa = { id: string; nome: string; codigo_ionics: string | null };
 type Matriz = {
   id: string;
   empresa_id: string;
@@ -38,6 +38,7 @@ type Unidade = {
   id: string;
   matriz_id: string;
   nome: string;
+  codigo_ionics: string | null;
   email: string | null;
   telefone: string | null;
   cep: string | null;
@@ -81,25 +82,25 @@ function EmpresaDetailPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     const [{ data: emp }, { data: mats }] = await Promise.all([
-      supabase.from("empresas").select("id, nome").eq("id", empresaId).maybeSingle(),
+      supabase.from("empresas").select("id, nome, codigo_ionics" as any).eq("id", empresaId).maybeSingle(),
       supabase
         .from("matrizes")
         .select("id, empresa_id, nome, cnpj, razao_social, email, telefone, cep, logradouro, numero, bairro, cidade, estado")
         .eq("empresa_id", empresaId)
         .order("criado_em"),
     ]);
-    setEmpresa((emp as Empresa) ?? null);
+    setEmpresa(((emp as unknown) as Empresa) ?? null);
     const matsList = (mats ?? []) as Matriz[];
     setMatrizes(matsList);
 
     if (matsList.length > 0) {
       const { data: unis } = await supabase
         .from("unidades")
-        .select("id, matriz_id, nome, email, telefone, cep, logradouro, numero, bairro, cidade, estado")
+        .select("id, matriz_id, nome, codigo_ionics, email, telefone, cep, logradouro, numero, bairro, cidade, estado" as any)
         .in("matriz_id", matsList.map((m) => m.id))
         .order("criado_em");
       const map: Record<string, Unidade[]> = {};
-      for (const u of (unis ?? []) as Unidade[]) {
+      for (const u of ((unis ?? []) as unknown) as Unidade[]) {
         (map[u.matriz_id] ??= []).push(u);
       }
       setUnidadesPorMatriz(map);
@@ -333,7 +334,16 @@ function EmpresaDetailPage() {
       </Link>
 
       <PageHeader
-        title={empresa.nome}
+        title={
+          <span className="flex items-center gap-3">
+            {empresa.nome}
+            {empresa.codigo_ionics && (
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-sm text-primary">
+                {empresa.codigo_ionics}
+              </span>
+            )}
+          </span>
+        }
         description="Gerencie as matrizes (CNPJs) e as unidades atendidas."
         actions={
           canWrite ? (
@@ -434,7 +444,14 @@ function EmpresaDetailPage() {
                       {unidades.map((u) => (
                         <li key={u.id} className="flex flex-wrap items-start justify-between gap-3 py-2.5">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{u.nome}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {u.nome}
+                              {u.codigo_ionics && (
+                                <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                                  {u.codigo_ionics}
+                                </span>
+                              )}
+                            </p>
                             <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                               {u.email && <span>{u.email}</span>}
                               {u.telefone && <span>{u.telefone}</span>}

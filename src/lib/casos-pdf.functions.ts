@@ -33,13 +33,15 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const userSupa = context.supabase;
 
     // 1) Caso + relações
-    const { data: caso, error: cErr } = await userSupa
+    const { data: caso, error: cErr } = await (userSupa as any)
       .from("casos")
       .select(
-        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome)))",
+        "id, codigo, agendado_em, agente:profiles!agente_id(nome, email), formulario_id, unidade:unidades(nome, codigo_ionics, cep, logradouro, numero, bairro, cidade, estado, matriz:matrizes(nome, cnpj, razao_social, cep, logradouro, numero, bairro, cidade, estado, empresa:empresas(nome, codigo_ionics)))",
       )
       .eq("id", data.casoId)
       .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (!caso) throw new Error("Caso não encontrado.");
     if (cErr) throw new Error(cErr.message);
     if (!caso) throw new Error("Caso não encontrado.");
     if (!caso.formulario_id) throw new Error("Caso sem formulário associado.");
@@ -188,7 +190,9 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const m: any = u?.matriz;
     const e: any = m?.empresa;
 
-    const cliente = e?.nome ?? m?.nome ?? "—";
+    const empresaNome = e?.nome ?? m?.nome ?? "—";
+    const codigoIonicsUnidade = u?.codigo_ionics ?? e?.codigo_ionics ?? null;
+    const cliente = codigoIonicsUnidade ? `${empresaNome} (${codigoIonicsUnidade})` : empresaNome;
     const unidade = u?.nome ?? "";
     const dataStr = caso.agendado_em
       ? new Date(caso.agendado_em).toLocaleDateString("pt-BR")
@@ -228,7 +232,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       fotos,
     });
 
-    const filename = `mapeamento-${slugify(caso.codigo || "caso")}-${slugify(cliente)}.pdf`;
+    const filename = `mapeamento-${slugify(caso.codigo || "caso")}-${slugify(empresaNome)}.pdf`;
     return {
       filename,
       contentBase64: toBase64(pdfBytes),

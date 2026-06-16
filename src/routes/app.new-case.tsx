@@ -1,17 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Label, Input, Select, Button } from "@/components/ui-bits";
+import { PageHeader, Card, Label, Input, Select, Button, Modal } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
+import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
 });
 
-type Empresa = { id: string; nome: string };
+type Empresa = { id: string; nome: string; codigo_ionics: string | null };
 type EnderecoBase = {
   logradouro: string | null;
   numero: string | null;
@@ -20,7 +22,7 @@ type EnderecoBase = {
   estado: string | null;
 };
 type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null } & EnderecoBase;
-type Unidade = { id: string; matriz_id: string; nome: string } & EnderecoBase;
+type Unidade = { id: string; matriz_id: string; nome: string; codigo_ionics: string | null } & EnderecoBase;
 type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
@@ -61,25 +63,27 @@ function NewCasePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [conflito, setConflito] = useState<{ agenteNome?: string | null; clienteNome?: string | null; dataConflito?: string | null } | null>(null);
+  const verificar = useServerFn(verificarConflitoAgente);
 
   useEffect(() => {
     (async () => {
       const [e, m, u, f, ag] = await Promise.all([
-        supabase.from("empresas").select("id, nome").order("nome"),
+        supabase.from("empresas").select("id, nome, codigo_ionics" as any).order("nome"),
         supabase
           .from("matrizes")
           .select("id, empresa_id, nome, cnpj, logradouro, numero, bairro, cidade, estado")
           .order("nome"),
         supabase
           .from("unidades")
-          .select("id, matriz_id, nome, logradouro, numero, bairro, cidade, estado")
+          .select("id, matriz_id, nome, codigo_ionics, logradouro, numero, bairro, cidade, estado" as any)
           .order("nome"),
         supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
         loadAgents(),
       ]);
-      setEmpresas((e.data ?? []) as Empresa[]);
+      setEmpresas(((e.data ?? []) as unknown) as Empresa[]);
       setMatrizes((m.data ?? []) as Matriz[]);
-      setUnidades((u.data ?? []) as Unidade[]);
+      setUnidades(((u.data ?? []) as unknown) as Unidade[]);
       setForms((f.data ?? []) as Form[]);
       setAgents((ag ?? []) as Agente[]);
     })();
@@ -139,10 +143,35 @@ function NewCasePage() {
     setEndereco("");
   };
 
+  // Verifica conflito em tempo real quando agente + data estão preenchidos
+  useEffect(() => {
+    if (!agentId || !data) { setConflito(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const agendadoEm = new Date(`${data}T${hora || "09:00"}:00`).toISOString();
+        const res = await verificar({ data: { agenteId: agentId, data: agendadoEm, duracaoMin: 60 } });
+        if (cancelled) return;
+        if (res.conflito) {
+          setConflito({ agenteNome: res.agenteNome, clienteNome: res.clienteNome, dataConflito: res.dataConflito });
+        } else {
+          setConflito(null);
+        }
+      } catch {
+        // ignora
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [agentId, data, hora, verificar]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formIds.length === 0) {
       setError("Selecione ao menos um formulário.");
+      return;
+    }
+    if (conflito) {
+      // Bloqueia completamente
       return;
     }
     setWorking(true);
@@ -173,6 +202,9 @@ function NewCasePage() {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
 
+  const empresaSel = empresas.find((x) => x.id === empresaId);
+  const unidadeSel = unidades.find((x) => x.id === unidadeId);
+
 
   return (
     <div>
@@ -192,8 +224,15 @@ function NewCasePage() {
               <Label>Empresa</Label>
               <Select value={empresaId} onChange={(e) => onChangeEmpresa(e.target.value)} required>
                 <option value="">Selecione a empresa</option>
-                {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome}{e.codigo_ionics ? ` · ${e.codigo_ionics}` : ""}
+                  </option>
+                ))}
               </Select>
+              {empresaSel?.codigo_ionics && (
+                <p className="mt-1 font-mono text-xs text-primary">{empresaSel.codigo_ionics}</p>
+              )}
             </div>
             <div>
               <Label>Matriz</Label>
@@ -227,9 +266,14 @@ function NewCasePage() {
                 >
                   <option value="">{matrizId ? "Selecione a unidade" : "Selecione a matriz antes"}</option>
                   {unidadesDaMatriz.map((u) => (
-                    <option key={u.id} value={u.id}>{u.nome}</option>
+                    <option key={u.id} value={u.id}>
+                      {u.nome}{u.codigo_ionics ? ` · ${u.codigo_ionics}` : ""}
+                    </option>
                   ))}
                 </Select>
+              )}
+              {unidadeSel?.codigo_ionics && (
+                <p className="mt-1 font-mono text-xs text-primary">{unidadeSel.codigo_ionics}</p>
               )}
             </div>
 
@@ -262,7 +306,12 @@ function NewCasePage() {
             </div>
             <div>
               <Label>Agente técnico</Label>
-              <Select value={agentId} onChange={(e) => setAgentId(e.target.value)} required>
+              <Select
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                required
+                className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
+              >
                 <option value="">Selecione o agente técnico</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
@@ -270,7 +319,9 @@ function NewCasePage() {
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Data</Label>
-                <DatePicker value={data} onChange={setData} />
+                <div className={conflito ? "rounded-md border border-destructive ring-1 ring-destructive" : undefined}>
+                  <DatePicker value={data} onChange={setData} />
+                </div>
               </div>
               <div>
                 <Label>Hora</Label>
@@ -293,14 +344,34 @@ function NewCasePage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={working || !matrizId}>
+          <div className="flex items-center justify-end gap-3">
+            {conflito && (
+              <span className="text-xs text-destructive">Conflito detectado — escolha outro agente ou data.</span>
+            )}
+            <Button type="submit" disabled={working || !matrizId || !!conflito}>
               {working ? "Agendando..." : "Agendar mapeamento"}
             </Button>
-
           </div>
         </form>
       </Card>
+
+      <Modal open={!!conflito} onClose={() => setConflito(null)} title="Conflito de agenda">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>
+              O agente <strong>{conflito?.agenteNome ?? ""}</strong> já está agendado em{" "}
+              <strong>
+                {conflito?.dataConflito ? new Date(conflito.dataConflito).toLocaleString("pt-BR") : ""}
+              </strong>{" "}
+              para <strong>{conflito?.clienteNome ?? "outro cliente"}</strong>. Escolha outro agente ou outra data para continuar.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setConflito(null)}>Entendido</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

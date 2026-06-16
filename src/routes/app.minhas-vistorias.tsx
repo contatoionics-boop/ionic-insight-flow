@@ -1,10 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button } from "@/components/ui-bits";
+import { PageHeader, Card, Badge, Button, Modal } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
-import { CalendarDays, ListChecks, MapPin, Play, Lock } from "lucide-react";
+import {
+  listarAgendamentosDoAgente,
+  confirmarAgendamentoAgente,
+  recusarAgendamentoAgente,
+  type AceiteAgendamento,
+} from "@/lib/agendamentos.functions";
+import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
@@ -76,16 +82,43 @@ function agrupar(rows: Vistoria[]): Grupo[] {
 
 function MinhasVistoriasPage() {
   const load = useServerFn(listarMinhasVistorias);
+  const loadAgendamentos = useServerFn(listarAgendamentosDoAgente);
+  const confirmar = useServerFn(confirmarAgendamentoAgente);
+  const recusar = useServerFn(recusarAgendamentoAgente);
   const [rows, setRows] = useState<Vistoria[]>([]);
+  const [agendamentos, setAgendamentos] = useState<AceiteAgendamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"lista" | "agenda">("lista");
+  const [recusando, setRecusando] = useState<AceiteAgendamento | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [working, setWorking] = useState(false);
 
-  useEffect(() => {
-    load().then((d) => {
-      setRows((d ?? []) as unknown as Vistoria[]);
-      setLoading(false);
-    });
-  }, [load]);
+  const reload = async () => {
+    const [d, ags] = await Promise.all([load(), loadAgendamentos()]);
+    setRows((d ?? []) as unknown as Vistoria[]);
+    setAgendamentos(ags ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+
+  const pendentesAceite = agendamentos.filter((a) => a.aceite_status === "aguardando_aceite");
+
+  const handleConfirmar = async (ag: AceiteAgendamento) => {
+    setWorking(true);
+    try { await confirmar({ data: { agendamentoId: ag.id } }); await reload(); }
+    finally { setWorking(false); }
+  };
+
+  const handleRecusar = async () => {
+    if (!recusando || motivo.trim().length < 3) return;
+    setWorking(true);
+    try {
+      await recusar({ data: { agendamentoId: recusando.id, motivo: motivo.trim() } });
+      setRecusando(null); setMotivo("");
+      await reload();
+    } finally { setWorking(false); }
+  };
 
   const grupos = useMemo(() => agrupar(rows), [rows]);
   const pendentes = grupos.filter((g) => g.status !== "concluido");
@@ -115,6 +148,69 @@ function MinhasVistoriasPage() {
         title="Meus mapeamentos"
         description="Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo."
       />
+
+      {pendentesAceite.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {pendentesAceite.map((ag) => (
+            <Card key={ag.id} className="border-warning/40 bg-warning/5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <BellRing className="h-4 w-4 text-warning-foreground" />
+                    Novo agendamento — confirmar?
+                  </div>
+                  <p className="mt-1 text-sm">
+                    <strong>{ag.cliente_nome ?? "Cliente"}</strong>
+                    {ag.unidade_nome ? <span className="text-muted-foreground"> · {ag.unidade_nome}</span> : null}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    <CalendarDays className="mr-1 inline h-3 w-3" />
+                    {new Date(ag.agendado_em).toLocaleString("pt-BR")}
+                  </p>
+                  {ag.endereco_vistoria && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      <MapPin className="mr-1 inline h-3 w-3" />{ag.endereco_vistoria}
+                    </p>
+                  )}
+                  {ag.observacoes_agendamento && (
+                    <p className="mt-1 text-xs italic text-muted-foreground">{ag.observacoes_agendamento}</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setRecusando(ag); setMotivo(""); }} disabled={working}>
+                    <XCircle className="mr-1 h-4 w-4" /> Recusar / Reagendar
+                  </Button>
+                  <Button onClick={() => handleConfirmar(ag)} disabled={working}>
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> Confirmar agendamento
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!recusando} onClose={() => setRecusando(null)} title="Recusar / Solicitar reagendamento">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Informe o motivo da recusa. Ian receberá uma notificação e poderá reagendar.
+          </p>
+          <textarea
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            rows={4}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            placeholder="Ex: estarei em outro agendamento já confirmado nesse dia."
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRecusando(null)} disabled={working}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRecusar} disabled={working || motivo.trim().length < 3}>
+              Recusar agendamento
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
 
       <div className="mb-4 inline-flex rounded-md border border-border bg-card p-1">
         <button
