@@ -1,81 +1,79 @@
-# Base de Conhecimento (RAG) para o agente
+## Plano: 4 melhorias no módulo Mapeamentos
 
-Vou criar uma nova seção em Configurações chamada **Base de Conhecimento** onde você importa documentos (PDF, DOCX, TXT) que são processados, divididos em pedaços (chunks), convertidos em embeddings e usados automaticamente como contexto pela IA do sistema.
+### 1. Banco de dados (1 migração)
 
-## 1. Banco de dados (migration)
+**Alterar `casos`** — adicionar campos de timeline:
+- `data_execucao timestamptz` — preenchido quando agente envia 1ª resposta
+- `data_entrega_agente timestamptz` — preenchido quando agente finaliza (status `aguardando_revisao`)
+- `data_aprovacao_pablo timestamptz` — preenchido na aprovação final
+- `motivo_recusa text` — texto da recusa quando Pablo solicita correção
 
-- Habilitar extensão `vector` (pgvector) no Postgres.
-- Tabela `base_conhecimento`:
-  - `nome`, `categoria`, `arquivo_url`, `arquivo_path`, `tipo` (pdf/docx/txt), `tamanho_bytes`, `status` (aguardando | processando | pronto | erro), `erro_mensagem`, `criado_por`, `criado_em`, `atualizado_em`.
-- Tabela `base_conhecimento_chunks`:
-  - `documento_id` (FK → base_conhecimento, cascade delete), `conteudo` text, `embedding vector(1536)` (usando `openai/text-embedding-3-small` via Lovable AI Gateway — 1536 dims cabe em índice ivfflat; gemini-embedding-001 daria 3072 dims que **não** cabe no ivfflat), `posicao` int, `tokens` int.
-- Índice ivfflat em `embedding` com `vector_cosine_ops` (lists=100).
-- Bucket de storage `base-conhecimento` (privado).
-- RLS: somente `super_admin` gerencia documentos; `service_role` faz tudo (server fns).
-- GRANTs em ambas as tabelas.
-- Função SQL `buscar_conhecimento(query_embedding vector(1536), match_count int, similarity_threshold float)` retornando os chunks ordenados por similaridade coseno, com `1 - (embedding <=> query)` como score.
+> `data_agendamento` já existe como `agendado_em`; será reutilizada.
 
-## 2. Server functions (TanStack)
+**Nova tabela `mapeamento_observacoes`**:
+- `id`, `caso_id` (FK→casos), `texto`, `usuario_id` (FK→profiles), `criado_em`
+- RLS: leitura/escrita para usuários `authenticated` que enxergam o caso
+- GRANT padrão para `authenticated` e `service_role`
 
-`src/lib/base-conhecimento.functions.ts`:
-- `listarDocumentos()` — lista tudo, ordenado por data desc.
-- `criarDocumento({ nome, categoria, arquivo_path, tipo, tamanho_bytes })` — cria registro `processando` e dispara processamento em background (await dentro do handler, retornando assim que terminar — sem fila externa pra manter simples).
-- `processarDocumento(id)`:
-  - Baixa arquivo do Storage via admin client.
-  - Extrai texto:
-    - **TXT**: decode UTF-8 direto.
-    - **DOCX**: `mammoth.extractRawText({ buffer })`.
-    - **PDF**: `pdf-parse` (Node-compat, funciona em workerd). Se falhar, marca erro.
-  - Chunking: ~500 tokens (≈2000 chars) com overlap 50 tokens (≈200 chars).
-  - Para cada chunk, chama o endpoint `https://ai.gateway.lovable.dev/v1/embeddings` com `openai/text-embedding-3-small` em batches de 32.
-  - Insere chunks no banco.
-  - Atualiza status para `pronto` (ou `erro` com mensagem).
-- `excluirDocumento(id)` — apaga storage + cascade nos chunks.
-- `buscarContextoRelevante(texto, topK=5, threshold=0.5)` — gera embedding da query e chama `buscar_conhecimento`. Usada internamente pelos agentes.
+**Nova tabela `notificacoes`**:
+- `id`, `usuario_id`, `caso_id` (nullable), `tipo` (`agente_atrasado` | `correcao_solicitada` | `aprovado` | `recusado`), `titulo`, `mensagem`, `lido boolean default false`, `criado_em`
+- RLS: usuário só vê/atualiza suas próprias
+- GRANT padrão
 
-## 3. UI
+**Trigger/função `casos_timeline_auto`** — atualiza `data_entrega_agente` ao mover para `aguardando_revisao` e `data_aprovacao_pablo` ao mover para `concluido`. `data_execucao` será setada via server function ao salvar 1ª resposta (mais confiável que trigger nos respostas).
 
-- Novo item no `ConfiguracoesNav`: **"Base de conhecimento"** com ícone `BookOpen` (lucide), rota `/app/base-conhecimento`.
-- Nova rota `src/routes/app.base-conhecimento.tsx`:
-  - Tabela: Nome, Categoria, Tipo, Tamanho, Data, Status (badge colorido), ações (excluir).
-  - Botão **"Importar documento"** abre modal com:
-    - Campo nome (autopreenchido com nome do arquivo, editável)
-    - Campo categoria (input livre + sugestões das categorias já usadas)
-    - Drop/upload de arquivo (PDF, DOCX, TXT) — limite 10MB
-  - Polling leve (revalidate a cada 3s) enquanto houver documento em `processando`.
-  - Restrito a `super_admin`.
+### 2. Server functions (`src/lib/mapeamento.functions.ts` — novo)
 
-## 4. Integração com o agente
+- `listarMapeamentosComProgresso()` — retorna casos + `{respondidas, totalObrigatorias}` calculado via join `perguntas` (obrigatoria=true) × `respostas_agente`.
+- `adicionarObservacao({casoId, texto})` — `requireSupabaseAuth`.
+- `listarObservacoes({casoId})`.
+- `recusarMapeamento({casoId, motivo})` — seta status `em_correcao`, grava `motivo_recusa`, cria notificações para Ian (criador) e agente.
+- `aprovarMapeamento({casoId})` — seta `concluido` + `data_aprovacao_pablo`, notifica Ian.
+- `listarNotificacoes()` / `marcarNotificacaoLida({id})` / `marcarTodasLidas()`.
+- Hook em `vistoria-chat.ts` (ou onde se grava 1ª resposta): se `data_execucao` for null, setar `now()`.
 
-No `src/lib/vistoria-agent.server.ts` (e qualquer outro caminho que monte system prompt do agente principal), antes de chamar `generateText`:
-- Chamar `buscarContextoRelevante(últimaMensagemUsuário)`.
-- Se houver chunks com similaridade ≥ 0.5, anexar ao system prompt:
-  ```
-  Use as seguintes informações da base de conhecimento para embasar sua resposta:
-  ---
-  {chunks}
-  ---
-  ```
-- Se vazio, agente responde normalmente sem mudar comportamento.
+### 3. Cron de alerta (48h)
 
-## 5. Detalhes técnicos relevantes
+Server route `src/routes/api/public/hooks/check-atrasos.ts` (sem auth header — usa `apikey` anon):
+- SELECT casos onde `data_execucao IS NOT NULL AND data_entrega_agente IS NULL AND data_execucao < now() - interval '48 hours'` E não existe notificação `agente_atrasado` ainda.
+- Cria notificações para o criador (Ian) e retorna count.
 
-- **Embedding model**: `openai/text-embedding-3-small` (1536 dims) via Lovable AI Gateway. Justificativa: gemini-embedding-001 retorna 3072 dims, acima do limite de 2000 do ivfflat. Para usar Gemini precisaríamos HNSW (mais custoso) ou passar `dimensions: 1536`.
-- **PDF parsing**: usar `pdf-parse` (puro JS, funciona no Worker). Mammoth também é puro JS.
-- **NÃO uso edge function Supabase** — uso TanStack server function conforme stack do projeto.
-- Mantém paleta atual; nenhum CSS var alterado.
+Cron pg_cron rodando de hora em hora (via `supabase--insert`).
 
-## 6. Arquivos a criar/editar
+### 4. UI
 
-Criar:
-- migration SQL (pgvector, tabelas, função, índices, storage bucket, RLS, grants)
-- `src/lib/base-conhecimento.functions.ts`
-- `src/lib/base-conhecimento.server.ts` (helpers de extração de texto)
-- `src/routes/app.base-conhecimento.tsx`
+**`src/routes/app.cases.tsx`** — coluna **Progresso**:
+- `5/7` + barra `<Progress>` colorida: vermelho ≤40, amarelo 41-79, verde ≥80. Usa cores semânticas `destructive`, `warning` (criar se não existir — usar `--warning` token; ou inline com `bg-yellow-500` evitado → usar `bg-destructive`, `bg-primary`, e tom amarelo via classes Tailwind padrão `bg-amber-500` aceitas pois não são CSS vars). Vou usar tons via classes utilitárias do Tailwind existentes (`bg-red-500`, `bg-amber-500`, `bg-emerald-500`) sem alterar CSS vars.
+
+**`src/routes/app.vistorias.$id.tsx`** — adicionar 3 seções:
+- **Linha do Tempo** (componente novo `TimelineMapeamento`): lista vertical com 4 etapas, ícones (CalendarDays, Play, Send, CheckCircle), data/hora formatada, cinza se pendente, vermelho se >48h sem próxima.
+- **Observações e Intercorrências** (componente novo `ObservacoesPanel`): textarea + botão "Adicionar"; log abaixo (mais recente no topo) com nome do usuário e timestamp.
+- **Ações de revisão** (apenas para Pablo / super_admin): botões "Aprovar" e "Solicitar correção" (modal com motivo).
+
+**Sino de notificações** — novo componente `NotificacoesBell` no header (`AppLayout.tsx`): badge com contador não lidos, dropdown listando últimas 10, click marca lida e navega.
+
+**Toasts** — disparar via `sonner` quando lista de notificações ganhar novas (poll a cada 30s simples).
+
+### 5. Arquivos a criar/editar
+
+Novos:
+- `supabase/migrations/<ts>_mapeamento_melhorias.sql`
+- `src/lib/mapeamento.functions.ts`
+- `src/lib/notificacoes.functions.ts`
+- `src/components/mapeamento/TimelineMapeamento.tsx`
+- `src/components/mapeamento/ObservacoesPanel.tsx`
+- `src/components/mapeamento/AcoesRevisao.tsx`
+- `src/components/NotificacoesBell.tsx`
+- `src/routes/api/public/hooks/check-atrasos.ts`
 
 Editar:
-- `src/components/ConfiguracoesNav.tsx` (novo item)
-- `src/lib/vistoria-agent.server.ts` (injetar contexto RAG)
-- `package.json` (adicionar `mammoth`, `pdf-parse`)
+- `src/routes/app.cases.tsx` — coluna progresso
+- `src/routes/app.vistorias.$id.tsx` — montar 3 seções novas
+- `src/components/AppLayout.tsx` — incluir sino
+- `src/routes/api/vistoria-chat.ts` — setar `data_execucao` na 1ª resposta
 
-Posso seguir?
+### Observações
+
+- "Pablo" e "Ian" não são usuários nomeados — vou tratar como **papéis**: Pablo = `super_admin` (revisor), Ian = `criado_por` do caso (gestor). Confirme se prefere mapear de outra forma.
+- O cron de atraso precisa ser agendado via `supabase--insert` após a aprovação da migração.
+- Mantém paleta atual; não toca em `src/styles.css`.
