@@ -100,7 +100,7 @@ function EmpresaDetailPage() {
         .in("matriz_id", matsList.map((m) => m.id))
         .order("criado_em");
       const map: Record<string, Unidade[]> = {};
-      for (const u of (unis ?? []) as Unidade[]) {
+      for (const u of ((unis ?? []) as unknown) as Unidade[]) {
         (map[u.matriz_id] ??= []).push(u);
       }
       setUnidadesPorMatriz(map);
