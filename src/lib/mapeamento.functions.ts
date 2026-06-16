@@ -55,6 +55,9 @@ export type MapeamentoComProgresso = {
   data_aprovacao_pablo: string | null;
   empresa_nome: string | null;
   unidade_nome: string | null;
+  cliente_codigo_ionics: string | null;
+  unidade_codigo_ionics: string | null;
+  agente_id: string | null;
   agente_nome: string | null;
   respondidas_obrigatorias: number;
   total_obrigatorias: number;
@@ -68,12 +71,13 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
     const { data: casos, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)",
+        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
       )
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     const list = (casos ?? []) as any[];
     if (list.length === 0) return [];
+
 
     const formIds = Array.from(new Set(list.map((c) => c.formulario_id).filter(Boolean)));
     const secoesPorForm = new Map<string, string[]>();
