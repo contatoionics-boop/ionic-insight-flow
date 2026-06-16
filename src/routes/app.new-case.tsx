@@ -224,8 +224,15 @@ function NewCasePage() {
               <Label>Empresa</Label>
               <Select value={empresaId} onChange={(e) => onChangeEmpresa(e.target.value)} required>
                 <option value="">Selecione a empresa</option>
-                {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                {empresas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome}{e.codigo_ionics ? ` · ${e.codigo_ionics}` : ""}
+                  </option>
+                ))}
               </Select>
+              {empresaSel?.codigo_ionics && (
+                <p className="mt-1 font-mono text-xs text-primary">{empresaSel.codigo_ionics}</p>
+              )}
             </div>
             <div>
               <Label>Matriz</Label>
@@ -259,9 +266,14 @@ function NewCasePage() {
                 >
                   <option value="">{matrizId ? "Selecione a unidade" : "Selecione a matriz antes"}</option>
                   {unidadesDaMatriz.map((u) => (
-                    <option key={u.id} value={u.id}>{u.nome}</option>
+                    <option key={u.id} value={u.id}>
+                      {u.nome}{u.codigo_ionics ? ` · ${u.codigo_ionics}` : ""}
+                    </option>
                   ))}
                 </Select>
+              )}
+              {unidadeSel?.codigo_ionics && (
+                <p className="mt-1 font-mono text-xs text-primary">{unidadeSel.codigo_ionics}</p>
               )}
             </div>
 
