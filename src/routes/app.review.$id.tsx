@@ -21,7 +21,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
-import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/review/$id")({
   component: ReviewCasePage,
