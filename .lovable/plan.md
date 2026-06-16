@@ -1,79 +1,61 @@
-## Plano: 4 melhorias no módulo Mapeamentos
+Vou implementar as 4 melhorias em fases, com migrações Supabase + frontend.
 
-### 1. Banco de dados (1 migração)
+## 1. Código IONICS (Clientes + Unidades)
 
-**Alterar `casos`** — adicionar campos de timeline:
-- `data_execucao timestamptz` — preenchido quando agente envia 1ª resposta
-- `data_entrega_agente timestamptz` — preenchido quando agente finaliza (status `aguardando_revisao`)
-- `data_aprovacao_pablo timestamptz` — preenchido na aprovação final
-- `motivo_recusa text` — texto da recusa quando Pablo solicita correção
+**Banco** (migração):
+- `CREATE SEQUENCE empresas_ionics_seq START 1;`
+- Adicionar `codigo_ionics TEXT UNIQUE` em `empresas`, com default `'ION-' || lpad(nextval(...)::text, 5, '0')`.
+- Adicionar `codigo_ionics TEXT` em `unidades`, preenchido por trigger no INSERT como `<codigo_empresa>-<NN>` (NN = sequencial por empresa, baseado em `count(*) + 1` da empresa).
+- Backfill nos registros existentes (empresas e unidades, por ordem de `criado_em`).
 
-> `data_agendamento` já existe como `agendado_em`; será reutilizada.
+**Frontend**:
+- `app.clients.index.tsx`: coluna + filtro de busca já existente passa a casar também por `codigo_ionics`.
+- `app.clients.$empresaId.tsx`: exibir código em destaque no header da empresa e ao lado de cada unidade.
+- `app.agendamento.$id.tsx`: ao selecionar cliente/unidade, mostrar código IONICS.
+- PDF de mapeamentos: incluir no bloco de identificação do cliente (route que gera PDF — adicionar campo).
 
-**Nova tabela `mapeamento_observacoes`**:
-- `id`, `caso_id` (FK→casos), `texto`, `usuario_id` (FK→profiles), `criado_em`
-- RLS: leitura/escrita para usuários `authenticated` que enxergam o caso
-- GRANT padrão para `authenticated` e `service_role`
+## 2. Filtros + Exportação em /app/cases
 
-**Nova tabela `notificacoes`**:
-- `id`, `usuario_id`, `caso_id` (nullable), `tipo` (`agente_atrasado` | `correcao_solicitada` | `aprovado` | `recusado`), `titulo`, `mensagem`, `lido boolean default false`, `criado_em`
-- RLS: usuário só vê/atualiza suas próprias
-- GRANT padrão
+- Estender `listarMapeamentosComProgresso` para incluir `agendamento_data` (já no caso) e retornar dados que o filtro precisa.
+- Adicionar barra de filtros (Agente select, Cliente texto, Data início/fim, Status select) — filtragem client-side em tempo real.
+- Chips abaixo da barra com botão X individual.
+- Botão "Exportar CSV" que serializa exatamente `rowsFiltradas` (cabeçalhos: ID, Cliente, Unidade, Código IONICS, Agente, Status, Progresso, Data agendamento, Data criação).
 
-**Trigger/função `casos_timeline_auto`** — atualiza `data_entrega_agente` ao mover para `aguardando_revisao` e `data_aprovacao_pablo` ao mover para `concluido`. `data_execucao` será setada via server function ao salvar 1ª resposta (mais confiável que trigger nos respostas).
+## 3. Conflito de agenda
 
-### 2. Server functions (`src/lib/mapeamento.functions.ts` — novo)
+**Banco**: novo server fn `verificarConflitoAgente({ agente_id, data, ignorar_id? })` que faz SELECT em `agendamentos` por agente_id + mesma data (truncada por dia).
 
-- `listarMapeamentosComProgresso()` — retorna casos + `{respondidas, totalObrigatorias}` calculado via join `perguntas` (obrigatoria=true) × `respostas_agente`.
-- `adicionarObservacao({casoId, texto})` — `requireSupabaseAuth`.
-- `listarObservacoes({casoId})`.
-- `recusarMapeamento({casoId, motivo})` — seta status `em_correcao`, grava `motivo_recusa`, cria notificações para Ian (criador) e agente.
-- `aprovarMapeamento({casoId})` — seta `concluido` + `data_aprovacao_pablo`, notifica Ian.
-- `listarNotificacoes()` / `marcarNotificacaoLida({id})` / `marcarTodasLidas()`.
-- Hook em `vistoria-chat.ts` (ou onde se grava 1ª resposta): se `data_execucao` for null, setar `now()`.
+**Frontend** (`app.agendamento.$id.tsx`):
+- Antes de salvar, chamar verificação. Se houver conflito, abrir Dialog "Entendido" com mensagem detalhada e não permitir salvar.
+- Inputs de data e agente recebem classe `border-destructive` enquanto conflito persistir.
+- Em `app.agenda.tsx` (calendário visual): quando agente filtrado, server fn `listarDiasOcupadosPorAgente` retorna lista de datas — pintar células em vermelho.
 
-### 3. Cron de alerta (48h)
+## 4. Aceite de agendamento pelo agente
 
-Server route `src/routes/api/public/hooks/check-atrasos.ts` (sem auth header — usa `apikey` anon):
-- SELECT casos onde `data_execucao IS NOT NULL AND data_entrega_agente IS NULL AND data_execucao < now() - interval '48 hours'` E não existe notificação `agente_atrasado` ainda.
-- Cria notificações para o criador (Ian) e retorna count.
+**Banco** (migração):
+- Adicionar em `agendamentos`: `aceite_agente BOOLEAN DEFAULT false`, `data_aceite TIMESTAMPTZ`, `motivo_recusa TEXT`.
+- Atualizar enum/coluna `status` para suportar `aguardando_aceite`, `confirmado`, `recusado_pelo_agente` (manter outros).
+- Trigger: ao criar agendamento com agente, status default = `aguardando_aceite`.
 
-Cron pg_cron rodando de hora em hora (via `supabase--insert`).
+**Frontend**:
+- `app.agendamento.$id.tsx`: ao criar, status fica `aguardando_aceite`; bloquear edição de data/agente quando `status = 'confirmado'`.
+- `app.minhas-vistorias.tsx` (visão do agente): card destacado para agendamentos `aguardando_aceite` com botões "Confirmar agendamento" e "Recusar / Solicitar reagendamento" (dialog com motivo).
+- Server fns: `confirmarAgendamentoAgente(id)` e `recusarAgendamentoAgente(id, motivo)` — usam `requireSupabaseAuth` e validam que o `userId` é o `agente_id` do agendamento.
+- Notificações (tabela `notificacoes` já existe): criar registros para Ian (criador) ao confirmar/recusar; criar para agente ao Ian agendar.
 
-### 4. UI
+## Detalhes técnicos
 
-**`src/routes/app.cases.tsx`** — coluna **Progresso**:
-- `5/7` + barra `<Progress>` colorida: vermelho ≤40, amarelo 41-79, verde ≥80. Usa cores semânticas `destructive`, `warning` (criar se não existir — usar `--warning` token; ou inline com `bg-yellow-500` evitado → usar `bg-destructive`, `bg-primary`, e tom amarelo via classes Tailwind padrão `bg-amber-500` aceitas pois não são CSS vars). Vou usar tons via classes utilitárias do Tailwind existentes (`bg-red-500`, `bg-amber-500`, `bg-emerald-500`) sem alterar CSS vars.
+- Todas as alterações de schema em migrações separadas por feature para facilitar review.
+- Sem alterações em CSS variables — uso de tokens semânticos existentes (`bg-destructive/15`, `text-destructive`, `border-destructive`).
+- Server fns ficam em `src/lib/*.functions.ts`; helpers privados em `*.server.ts` quando necessário.
+- Export CSV: gerar Blob no client com `URL.createObjectURL`, sem dependência nova.
+- PDF: identificar arquivo que gera o PDF dos mapeamentos antes de editar (provavelmente um server fn ou rota dedicada).
 
-**`src/routes/app.vistorias.$id.tsx`** — adicionar 3 seções:
-- **Linha do Tempo** (componente novo `TimelineMapeamento`): lista vertical com 4 etapas, ícones (CalendarDays, Play, Send, CheckCircle), data/hora formatada, cinza se pendente, vermelho se >48h sem próxima.
-- **Observações e Intercorrências** (componente novo `ObservacoesPanel`): textarea + botão "Adicionar"; log abaixo (mais recente no topo) com nome do usuário e timestamp.
-- **Ações de revisão** (apenas para Pablo / super_admin): botões "Aprovar" e "Solicitar correção" (modal com motivo).
+## Ordem de execução
 
-**Sino de notificações** — novo componente `NotificacoesBell` no header (`AppLayout.tsx`): badge com contador não lidos, dropdown listando últimas 10, click marca lida e navega.
+1. Migração #1 — Código IONICS (sequence + colunas + trigger + backfill).
+2. Migração #2 — Conflito + aceite (colunas em agendamentos + status novos).
+3. Após aprovação das migrações, regenera types.
+4. Implementar frontend + server fns das 4 features em paralelo onde possível.
 
-**Toasts** — disparar via `sonner` quando lista de notificações ganhar novas (poll a cada 30s simples).
-
-### 5. Arquivos a criar/editar
-
-Novos:
-- `supabase/migrations/<ts>_mapeamento_melhorias.sql`
-- `src/lib/mapeamento.functions.ts`
-- `src/lib/notificacoes.functions.ts`
-- `src/components/mapeamento/TimelineMapeamento.tsx`
-- `src/components/mapeamento/ObservacoesPanel.tsx`
-- `src/components/mapeamento/AcoesRevisao.tsx`
-- `src/components/NotificacoesBell.tsx`
-- `src/routes/api/public/hooks/check-atrasos.ts`
-
-Editar:
-- `src/routes/app.cases.tsx` — coluna progresso
-- `src/routes/app.vistorias.$id.tsx` — montar 3 seções novas
-- `src/components/AppLayout.tsx` — incluir sino
-- `src/routes/api/vistoria-chat.ts` — setar `data_execucao` na 1ª resposta
-
-### Observações
-
-- "Pablo" e "Ian" não são usuários nomeados — vou tratar como **papéis**: Pablo = `super_admin` (revisor), Ian = `criado_por` do caso (gestor). Confirme se prefere mapear de outra forma.
-- O cron de atraso precisa ser agendado via `supabase--insert` após a aprovação da migração.
-- Mantém paleta atual; não toca em `src/styles.css`.
+Quer que eu prossiga nessa ordem?
