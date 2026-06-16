@@ -173,6 +173,7 @@ export function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificacoesBell />
             <button
               onClick={toggleTheme}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-muted"
