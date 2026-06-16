@@ -1,10 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button } from "@/components/ui-bits";
+import { PageHeader, Card, Badge, Button, Modal } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
-import { CalendarDays, ListChecks, MapPin, Play, Lock } from "lucide-react";
+import {
+  listarAgendamentosDoAgente,
+  confirmarAgendamentoAgente,
+  recusarAgendamentoAgente,
+  type AceiteAgendamento,
+} from "@/lib/agendamentos.functions";
+import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
