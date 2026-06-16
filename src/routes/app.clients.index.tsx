@@ -273,9 +273,22 @@ function ClientsPage() {
         </div>
       )}
 
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome ou código IONICS"
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       <Table>
         <thead>
           <tr>
+            <Th>Código IONICS</Th>
             <Th>Empresa</Th>
             <Th>Matrizes (CNPJ)</Th>
             <Th>Unidades</Th>
