@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Label, Input, Select, Button } from "@/components/ui-bits";
+import { PageHeader, Card, Label, Input, Select, Button, Modal } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
+import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
