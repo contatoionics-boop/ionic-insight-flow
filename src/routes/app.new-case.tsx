@@ -143,10 +143,35 @@ function NewCasePage() {
     setEndereco("");
   };
 
+  // Verifica conflito em tempo real quando agente + data estão preenchidos
+  useEffect(() => {
+    if (!agentId || !data) { setConflito(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const agendadoEm = new Date(`${data}T${hora || "09:00"}:00`).toISOString();
+        const res = await verificar({ data: { agenteId: agentId, data: agendadoEm, duracaoMin: 60 } });
+        if (cancelled) return;
+        if (res.conflito) {
+          setConflito({ agenteNome: res.agenteNome, clienteNome: res.clienteNome, dataConflito: res.dataConflito });
+        } else {
+          setConflito(null);
+        }
+      } catch {
+        // ignora
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [agentId, data, hora, verificar]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formIds.length === 0) {
       setError("Selecione ao menos um formulário.");
+      return;
+    }
+    if (conflito) {
+      // Bloqueia completamente
       return;
     }
     setWorking(true);
@@ -176,6 +201,9 @@ function NewCasePage() {
   const toggleForm = (id: string) => {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
+
+  const empresaSel = empresas.find((x) => x.id === empresaId);
+  const unidadeSel = unidades.find((x) => x.id === unidadeId);
 
 
   return (
