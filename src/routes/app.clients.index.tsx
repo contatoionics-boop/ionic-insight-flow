@@ -78,6 +78,7 @@ function ClientsPage() {
   const [renameOpen, setRenameOpen] = useState<EmpresaRow | null>(null);
   const [renameNome, setRenameNome] = useState("");
   const [toDelete, setToDelete] = useState<EmpresaRow | null>(null);
+  const [busca, setBusca] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
