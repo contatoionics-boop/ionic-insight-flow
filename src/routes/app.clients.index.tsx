@@ -23,6 +23,7 @@ export const Route = createFileRoute("/app/clients/")({
 type EmpresaRow = {
   id: string;
   nome: string;
+  codigo_ionics: string | null;
   criado_em: string;
   matrizes: { id: string; cnpj: string | null; cidade: string | null; estado: string | null }[];
   unidades_count?: number;
