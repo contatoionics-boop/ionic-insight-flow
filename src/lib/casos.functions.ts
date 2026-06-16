@@ -236,6 +236,26 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
       casos.push(c);
     }
 
+    // Notifica o agente que tem um novo agendamento aguardando aceite
+    try {
+      const cliente = await supabaseAdmin
+        .from("unidades")
+        .select("nome, matriz:matrizes(empresa:empresas(nome))")
+        .eq("id", unidadeId)
+        .maybeSingle();
+      const empNome = (cliente.data as any)?.matriz?.empresa?.nome ?? "cliente";
+      const dataFmt = new Date(data.agendadoEm).toLocaleString("pt-BR");
+      await supabaseAdmin.from("notificacoes").insert({
+        usuario_id: data.agenteId,
+        titulo: "Novo agendamento — confirmar?",
+        mensagem: `Você tem um novo agendamento em ${dataFmt} — ${empNome}.`,
+        tipo: "agendamento_novo",
+        lido: false,
+      } as any);
+    } catch {
+      // não bloqueia se notificação falhar
+    }
+
     return { agendamentoId: ag.id, casos };
   });
 
