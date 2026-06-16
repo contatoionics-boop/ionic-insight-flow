@@ -163,10 +163,14 @@ export type Database = {
           codigo: string
           criado_em: string
           criado_por: string | null
+          data_aprovacao_pablo: string | null
+          data_entrega_agente: string | null
+          data_execucao: string | null
           duracao_min: number
           endereco_vistoria: string | null
           formulario_id: string | null
           id: string
+          motivo_recusa: string | null
           observacoes_agendamento: string | null
           status: Database["public"]["Enums"]["caso_status"]
           unidade_id: string
@@ -179,10 +183,14 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          data_aprovacao_pablo?: string | null
+          data_entrega_agente?: string | null
+          data_execucao?: string | null
           duracao_min?: number
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          motivo_recusa?: string | null
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
           unidade_id: string
@@ -195,10 +203,14 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          data_aprovacao_pablo?: string | null
+          data_entrega_agente?: string | null
+          data_execucao?: string | null
           duracao_min?: number
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          motivo_recusa?: string | null
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
           unidade_id?: string
@@ -464,6 +476,38 @@ export type Database = {
           },
         ]
       }
+      mapeamento_observacoes: {
+        Row: {
+          caso_id: string
+          criado_em: string
+          id: string
+          texto: string
+          usuario_id: string
+        }
+        Insert: {
+          caso_id: string
+          criado_em?: string
+          id?: string
+          texto: string
+          usuario_id: string
+        }
+        Update: {
+          caso_id?: string
+          criado_em?: string
+          id?: string
+          texto?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapeamento_observacoes_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matrizes: {
         Row: {
           bairro: string | null
@@ -522,6 +566,47 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacoes: {
+        Row: {
+          caso_id: string | null
+          criado_em: string
+          id: string
+          lido: boolean
+          mensagem: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Insert: {
+          caso_id?: string | null
+          criado_em?: string
+          id?: string
+          lido?: boolean
+          mensagem: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Update: {
+          caso_id?: string | null
+          criado_em?: string
+          id?: string
+          lido?: boolean
+          mensagem?: string
+          tipo?: string
+          titulo?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
             referencedColumns: ["id"]
           },
         ]
