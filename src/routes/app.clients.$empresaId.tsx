@@ -444,7 +444,14 @@ function EmpresaDetailPage() {
                       {unidades.map((u) => (
                         <li key={u.id} className="flex flex-wrap items-start justify-between gap-3 py-2.5">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{u.nome}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {u.nome}
+                              {u.codigo_ionics && (
+                                <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                                  {u.codigo_ionics}
+                                </span>
+                              )}
+                            </p>
                             <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                               {u.email && <span>{u.email}</span>}
                               {u.telefone && <span>{u.telefone}</span>}
