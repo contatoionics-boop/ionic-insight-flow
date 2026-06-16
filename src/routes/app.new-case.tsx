@@ -63,25 +63,27 @@ function NewCasePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [conflito, setConflito] = useState<{ agenteNome?: string | null; clienteNome?: string | null; dataConflito?: string | null } | null>(null);
+  const verificar = useServerFn(verificarConflitoAgente);
 
   useEffect(() => {
     (async () => {
       const [e, m, u, f, ag] = await Promise.all([
-        supabase.from("empresas").select("id, nome").order("nome"),
+        supabase.from("empresas").select("id, nome, codigo_ionics" as any).order("nome"),
         supabase
           .from("matrizes")
           .select("id, empresa_id, nome, cnpj, logradouro, numero, bairro, cidade, estado")
           .order("nome"),
         supabase
           .from("unidades")
-          .select("id, matriz_id, nome, logradouro, numero, bairro, cidade, estado")
+          .select("id, matriz_id, nome, codigo_ionics, logradouro, numero, bairro, cidade, estado" as any)
           .order("nome"),
         supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
         loadAgents(),
       ]);
-      setEmpresas((e.data ?? []) as Empresa[]);
+      setEmpresas(((e.data ?? []) as unknown) as Empresa[]);
       setMatrizes((m.data ?? []) as Matriz[]);
-      setUnidades((u.data ?? []) as Unidade[]);
+      setUnidades(((u.data ?? []) as unknown) as Unidade[]);
       setForms((f.data ?? []) as Form[]);
       setAgents((ag ?? []) as Agente[]);
     })();
