@@ -366,8 +366,8 @@ function ClientsPage() {
                   </Td>
                 )}
               </tr>
-            ))
-          )}
+            ));
+          })()}
         </tbody>
       </Table>
 
