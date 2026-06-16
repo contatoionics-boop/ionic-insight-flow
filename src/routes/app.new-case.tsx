@@ -344,14 +344,34 @@ function NewCasePage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={working || !matrizId}>
+          <div className="flex items-center justify-end gap-3">
+            {conflito && (
+              <span className="text-xs text-destructive">Conflito detectado — escolha outro agente ou data.</span>
+            )}
+            <Button type="submit" disabled={working || !matrizId || !!conflito}>
               {working ? "Agendando..." : "Agendar mapeamento"}
             </Button>
-
           </div>
         </form>
       </Card>
+
+      <Modal open={!!conflito} onClose={() => setConflito(null)} title="Conflito de agenda">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>
+              O agente <strong>{conflito?.agenteNome ?? ""}</strong> já está agendado em{" "}
+              <strong>
+                {conflito?.dataConflito ? new Date(conflito.dataConflito).toLocaleString("pt-BR") : ""}
+              </strong>{" "}
+              para <strong>{conflito?.clienteNome ?? "outro cliente"}</strong>. Escolha outro agente ou outra data para continuar.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setConflito(null)}>Entendido</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
