@@ -190,7 +190,9 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const m: any = u?.matriz;
     const e: any = m?.empresa;
 
-    const cliente = e?.nome ?? m?.nome ?? "—";
+    const empresaNome = e?.nome ?? m?.nome ?? "—";
+    const codigoIonicsUnidade = u?.codigo_ionics ?? e?.codigo_ionics ?? null;
+    const cliente = codigoIonicsUnidade ? `${empresaNome} (${codigoIonicsUnidade})` : empresaNome;
     const unidade = u?.nome ?? "";
     const dataStr = caso.agendado_em
       ? new Date(caso.agendado_em).toLocaleDateString("pt-BR")
