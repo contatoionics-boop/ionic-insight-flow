@@ -334,7 +334,16 @@ function EmpresaDetailPage() {
       </Link>
 
       <PageHeader
-        title={empresa.nome}
+        title={
+          <span className="flex items-center gap-3">
+            {empresa.nome}
+            {empresa.codigo_ionics && (
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-sm text-primary">
+                {empresa.codigo_ionics}
+              </span>
+            )}
+          </span>
+        }
         description="Gerencie as matrizes (CNPJs) e as unidades atendidas."
         actions={
           canWrite ? (
