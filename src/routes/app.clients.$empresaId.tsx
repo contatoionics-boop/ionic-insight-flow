@@ -18,7 +18,7 @@ export const Route = createFileRoute("/app/clients/$empresaId")({
   component: EmpresaDetailPage,
 });
 
-type Empresa = { id: string; nome: string };
+type Empresa = { id: string; nome: string; codigo_ionics: string | null };
 type Matriz = {
   id: string;
   empresa_id: string;
@@ -38,6 +38,7 @@ type Unidade = {
   id: string;
   matriz_id: string;
   nome: string;
+  codigo_ionics: string | null;
   email: string | null;
   telefone: string | null;
   cep: string | null;
