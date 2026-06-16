@@ -17,7 +17,8 @@ export async function extrairTexto(
     return String(result?.value ?? "");
   }
   if (tipo === "pdf") {
-    const pdfParse: any = (await import("pdf-parse")).default;
+    const mod: any = await import("pdf-parse");
+    const pdfParse = mod.default ?? mod;
     const result = await pdfParse(buf);
     return String(result?.text ?? "");
   }

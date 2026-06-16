@@ -26,6 +26,7 @@ import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
@@ -126,6 +127,11 @@ const AppCasesRoute = AppCasesRouteImport.update({
   path: '/cases',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
+  id: '/base-conhecimento',
+  path: '/base-conhecimento',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/configuracoes'
     | '/app/dashboard'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
     | '/app/configuracoes'
@@ -526,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCasesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/base-conhecimento': {
+      id: '/app/base-conhecimento'
+      path: '/base-conhecimento'
+      fullPath: '/app/base-conhecimento'
+      preLoaderRoute: typeof AppBaseConhecimentoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/agenda': {
       id: '/app/agenda'
       path: '/agenda'
@@ -659,6 +678,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
+  AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -681,6 +701,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
+  AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
