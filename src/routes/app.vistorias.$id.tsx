@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { TimelineMapeamento } from "@/components/mapeamento/TimelineMapeamento";
+import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 
 export const Route = createFileRoute("/app/vistorias/$id")({
   component: VistoriaDetalhesPage,
@@ -27,6 +29,10 @@ type Caso = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   formulario_id: string | null;
+  data_execucao: string | null;
+  data_entrega_agente: string | null;
+  data_aprovacao_pablo: string | null;
+  motivo_recusa: string | null;
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
@@ -84,7 +90,7 @@ function VistoriaDetalhesPage() {
       const { data: casoData } = await supabase
         .from("casos")
         .select(
-          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, motivo_recusa, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -250,6 +256,23 @@ function VistoriaDetalhesPage() {
           <Progress value={progresso} />
         </div>
       </Card>
+
+      {caso.motivo_recusa && (
+        <Card className="mb-4 border-destructive/40 bg-destructive/5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Motivo da recusa</p>
+          <p className="mt-1 text-sm text-foreground whitespace-pre-wrap">{caso.motivo_recusa}</p>
+        </Card>
+      )}
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <TimelineMapeamento
+          agendado={caso.agendado_em}
+          execucao={caso.data_execucao}
+          entrega={caso.data_entrega_agente}
+          aprovacao={caso.data_aprovacao_pablo}
+        />
+        <ObservacoesPanel casoId={caso.id} />
+      </div>
 
       {secoes.length === 0 ? (
         <Card><p className="text-sm text-muted-foreground">Este mapeamento não tem formulário associado.</p></Card>
