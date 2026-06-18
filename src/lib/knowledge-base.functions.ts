@@ -286,7 +286,7 @@ export const importarRegistros = createServerFn({ method: "POST" })
         throw new Error("Arquivo maior que 5 MB. Divida em arquivos menores.");
       }
 
-      const linhas = parseLinhas(data.tipo, ab);
+      const linhas = await parseLinhas(data.tipo, ab);
       if (linhas.length === 0) throw new Error("Arquivo vazio ou sem registros válidos.");
       if (linhas.length > MAX_ROWS) {
         throw new Error(
