@@ -163,21 +163,38 @@ export async function buscarContextoRelevante(
     const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const embedding = await gerarEmbedding(texto, key);
-    const { data, error } = await supabaseAdmin.rpc("buscar_conhecimento", {
-      query_embedding: embedding as any,
-      match_count: topK,
-      similarity_threshold: threshold,
-    });
-    if (error) {
-      console.error("[buscar_conhecimento]", error.message);
-      return [];
-    }
-    return (data ?? []).map((r: any) => ({
+
+    const [docsRes, kbRes] = await Promise.all([
+      supabaseAdmin.rpc("buscar_conhecimento", {
+        query_embedding: embedding as any,
+        match_count: topK,
+        similarity_threshold: threshold,
+      }),
+      supabaseAdmin.rpc("buscar_knowledge_base", {
+        query_embedding: embedding as any,
+        match_count: topK,
+        similarity_threshold: threshold,
+      }),
+    ]);
+
+    if (docsRes.error) console.error("[buscar_conhecimento]", docsRes.error.message);
+    if (kbRes.error) console.error("[buscar_knowledge_base]", kbRes.error.message);
+
+    const docs = (docsRes.data ?? []).map((r: any) => ({
       conteudo: r.conteudo as string,
       similarity: r.similarity as number,
     }));
+    const kb = (kbRes.data ?? []).map((r: any) => ({
+      conteudo: `[knowledge_base | ${r.categoria} | classificacao=${r.classificacao}${r.tags?.length ? ` | tags=${r.tags.join(",")}` : ""}]\nTítulo: ${r.titulo}\n${r.conteudo}`,
+      similarity: r.similarity as number,
+    }));
+
+    return [...docs, ...kb]
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, topK);
   } catch (e) {
     console.error("[buscarContextoRelevante]", e);
     return [];
   }
 }
+
