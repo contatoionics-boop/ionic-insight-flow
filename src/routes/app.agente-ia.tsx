@@ -13,6 +13,18 @@ export const Route = createFileRoute("/app/agente-ia")({
 const STORAGE_KEY = "app.agente-ia.messages.v1";
 const CHAT_ID = "agente-ia-single";
 
+type FonteUsada = {
+  numero: number;
+  id: string;
+  titulo: string;
+  categoria: string;
+  classificacao: string;
+  fonte: string | null;
+  trecho: string;
+  similarity: number | null;
+  origem: string;
+};
+
 function loadMessages(): UIMessage[] {
   if (typeof window === "undefined") return [];
   try {
@@ -104,6 +116,7 @@ function AgenteIaPage() {
               .map((p: any) => (p.type === "text" ? p.text : ""))
               .join("");
             const isUser = m.role === "user";
+            const fontes = ((m as any).metadata?.fontes ?? []) as FonteUsada[];
             return (
               <div key={m.id} className={`mb-4 flex gap-3 ${isUser ? "justify-end" : ""}`}>
                 {!isUser && (
@@ -119,6 +132,23 @@ function AgenteIaPage() {
                   }`}
                 >
                   {text || (isUser ? "" : <span className="opacity-60">…</span>)}
+                  {!isUser && fontes.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-border pt-3 whitespace-normal">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        Registros consultados
+                      </p>
+                      {fontes.map((fonte) => (
+                        <div key={fonte.id} className="rounded-md border border-border bg-background/70 p-2">
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="font-semibold text-foreground">[{fonte.numero}] {fonte.titulo}</span>
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">{fonte.categoria}</span>
+                            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-semibold text-primary">{fonte.classificacao}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">“{fonte.trecho}”</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {isUser && (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
