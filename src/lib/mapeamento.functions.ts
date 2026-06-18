@@ -74,7 +74,7 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
     const { data: casos, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
+        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
       )
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
