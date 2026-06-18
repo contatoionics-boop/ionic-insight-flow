@@ -30,6 +30,7 @@ import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhe
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
+import { Route as ApiAgenteIaRouteImport } from './routes/api/agente-ia'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
@@ -148,6 +149,11 @@ const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
   path: '/api/forms-assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgenteIaRoute = ApiAgenteIaRouteImport.update({
+  id: '/api/agente-ia',
+  path: '/api/agente-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
   id: '/agent/$token',
   path: '/agent/$token',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
@@ -425,6 +437,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
+  ApiAgenteIaRoute: typeof ApiAgenteIaRoute
   ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
   ApiVistoriaChatRoute: typeof ApiVistoriaChatRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
@@ -578,6 +591,13 @@ declare module '@tanstack/react-router' {
       path: '/api/forms-assistant'
       fullPath: '/api/forms-assistant'
       preLoaderRoute: typeof ApiFormsAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agente-ia': {
+      id: '/api/agente-ia'
+      path: '/api/agente-ia'
+      fullPath: '/api/agente-ia'
+      preLoaderRoute: typeof ApiAgenteIaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent/$token': {
@@ -750,6 +770,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
+  ApiAgenteIaRoute: ApiAgenteIaRoute,
   ApiFormsAssistantRoute: ApiFormsAssistantRoute,
   ApiVistoriaChatRoute: ApiVistoriaChatRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,
