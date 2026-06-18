@@ -134,7 +134,7 @@ function AgenteIaPage() {
                   {text || (isUser ? "" : <span className="opacity-60">…</span>)}
                   {!isUser && fontes.length > 0 && (
                     <div className="mt-3 space-y-2 border-t border-border pt-3 whitespace-normal">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
                         Registros consultados
                       </p>
                       {fontes.map((fonte) => (

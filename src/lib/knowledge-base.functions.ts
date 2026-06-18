@@ -348,16 +348,18 @@ export const importarRegistros = createServerFn({ method: "POST" })
 
       // Embeddings em lotes de 32
       const key = process.env.LOVABLE_API_KEY;
+      if (!key) throw new Error("LOVABLE_API_KEY ausente. Não foi possível gerar embeddings.");
       const { gerarEmbeddings } = await import("@/lib/base-conhecimento.server");
       const textos = validas.map((v) => `${v.titulo}\n\n${v.conteudo}`);
-      let embeddings: (number[] | null)[] = validas.map(() => null);
-      if (key) {
-        try {
-          const out = await gerarEmbeddings(textos, key);
-          if (out.length === textos.length) embeddings = out;
-        } catch (e) {
-          console.error("[knowledge_base embeddings batch]", e);
-        }
+      let embeddings: number[][] = [];
+      try {
+        embeddings = await gerarEmbeddings(textos, key);
+      } catch (e: any) {
+        console.error("[knowledge_base embeddings batch]", e);
+        throw new Error(`Falha ao gerar embeddings: ${String(e?.message ?? e)}`);
+      }
+      if (embeddings.length !== textos.length) {
+        throw new Error("Falha ao gerar embeddings para todos os registros importados.");
       }
 
       // Insere em lotes de 100
