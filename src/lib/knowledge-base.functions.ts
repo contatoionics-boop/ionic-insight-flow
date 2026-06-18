@@ -218,7 +218,10 @@ const ImportarInput = z.object({
 
 type LinhaBruta = Record<string, unknown>;
 
-function parseLinhas(tipo: "json" | "csv" | "xlsx", buffer: ArrayBuffer): LinhaBruta[] {
+async function parseLinhas(
+  tipo: "json" | "csv" | "xlsx",
+  buffer: ArrayBuffer,
+): Promise<LinhaBruta[]> {
   if (tipo === "json") {
     const txt = new TextDecoder().decode(buffer);
     const parsed = JSON.parse(txt);
@@ -226,19 +229,20 @@ function parseLinhas(tipo: "json" | "csv" | "xlsx", buffer: ArrayBuffer): LinhaB
     return parsed as LinhaBruta[];
   }
   if (tipo === "csv") {
-    const Papa = require("papaparse");
+    const Papa: any = await import("papaparse");
     const txt = new TextDecoder().decode(buffer);
-    const res = Papa.parse(txt, { header: true, skipEmptyLines: true });
+    const res = (Papa.default ?? Papa).parse(txt, { header: true, skipEmptyLines: true });
     if (res.errors?.length) {
       throw new Error(`CSV inválido: ${res.errors[0].message}`);
     }
     return res.data as LinhaBruta[];
   }
   // xlsx
-  const XLSX = require("xlsx");
-  const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
+  const XLSX: any = await import("xlsx");
+  const lib = XLSX.default ?? XLSX;
+  const wb = lib.read(new Uint8Array(buffer), { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { defval: "" }) as LinhaBruta[];
+  return lib.utils.sheet_to_json(ws, { defval: "" }) as LinhaBruta[];
 }
 
 export const importarRegistros = createServerFn({ method: "POST" })
