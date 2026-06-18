@@ -202,7 +202,26 @@ function CasesPage() {
                       </div>
                     )}
                   </Td>
-                  <Td>{c.agente_nome ?? "—"}</Td>
+                  <Td>
+                    {c.agente_nome ?? "—"}
+                    {c.agente_id && (
+                      <div className="mt-0.5">
+                        {c.aceite_status === "confirmado" ? (
+                          <Badge className="bg-success/15 text-success text-[10px]">
+                            ✓ Aceito{c.data_aceite ? ` ${new Date(c.data_aceite).toLocaleDateString("pt-BR")}` : ""}
+                          </Badge>
+                        ) : c.aceite_status === "recusado_pelo_agente" ? (
+                          <Badge className="bg-destructive/15 text-destructive text-[10px]" title={c.motivo_recusa_agente ?? undefined}>
+                            ✕ Recusado
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-warning/20 text-warning-foreground text-[10px]">
+                            ⏳ Aguardando aceite
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </Td>
                   <Td><Badge className={statusTones[c.status as CaseStatus]}>{statusLabels[c.status as CaseStatus]}</Badge></Td>
                   <Td>
                     <div className="flex items-center gap-2">
