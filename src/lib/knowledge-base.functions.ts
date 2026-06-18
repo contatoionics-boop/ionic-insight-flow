@@ -431,3 +431,109 @@ export async function buscarKnowledgeBase(
     return [];
   }
 }
+
+export type KnowledgeBaseFonteAgente = {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  categoria: string;
+  classificacao: string;
+  tags: string[];
+  fonte: string | null;
+  similarity: number | null;
+  origem: "semantica" | "literal";
+};
+
+const STOPWORDS_BUSCA = new Set([
+  "COM", "DOS", "DAS", "QUE", "PARA", "UMA", "POR", "BASE", "CONHECIMENTO",
+  "RESPONDA", "INFORME", "REGRA", "CASO", "POSSO", "USAR", "QUAL", "QUAIS",
+]);
+
+function termosBuscaLiteral(texto: string): string[] {
+  const normalizado = texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  const termos = normalizado.match(/[A-Z0-9]{3,}/g) ?? [];
+  return Array.from(new Set(termos.filter((t) => !STOPWORDS_BUSCA.has(t)))).slice(0, 8);
+}
+
+function contarOcorrencias(row: { titulo: string; conteudo: string; tags?: string[] }, termos: string[]) {
+  const alvo = `${row.titulo}\n${row.conteudo}\n${(row.tags ?? []).join(" ")}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  return termos.reduce((total, termo) => total + (alvo.includes(termo) ? 1 : 0), 0);
+}
+
+/** Busca híbrida para o Agente de IA: semântica por embedding + literal por termos-chave. */
+export async function buscarKnowledgeBaseParaAgente(
+  texto: string,
+  topK = 8,
+): Promise<KnowledgeBaseFonteAgente[]> {
+  if (!texto?.trim()) return [];
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const encontrados = new Map<string, KnowledgeBaseFonteAgente>();
+
+    const termos = termosBuscaLiteral(texto);
+    if (termos.length) {
+      const filtro = termos
+        .flatMap((termo) => [`titulo.ilike.%${termo}%`, `conteudo.ilike.%${termo}%`])
+        .join(",");
+      const { data, error } = await supabaseAdmin
+        .from("knowledge_base")
+        .select("id, titulo, conteudo, categoria, classificacao, tags, fonte")
+        .or(filtro)
+        .limit(topK * 2);
+      if (error) console.error("[knowledge_base literal]", error.message);
+      for (const row of data ?? []) {
+        const score = contarOcorrencias(row as any, termos);
+        encontrados.set(row.id, {
+          ...(row as any),
+          tags: (row.tags ?? []) as string[],
+          similarity: score,
+          origem: "literal",
+        });
+      }
+    }
+
+    const key = process.env.LOVABLE_API_KEY;
+    if (key) {
+      try {
+        const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");
+        const embedding = await gerarEmbedding(texto, key);
+        const { data, error } = await supabaseAdmin.rpc("buscar_knowledge_base", {
+          query_embedding: embedding as any,
+          match_count: topK,
+          similarity_threshold: 0.15,
+        });
+        if (error) console.error("[buscar_knowledge_base agente]", error.message);
+        for (const row of data ?? []) {
+          const existente = encontrados.get(row.id);
+          encontrados.set(row.id, {
+            ...(row as any),
+            tags: (row.tags ?? []) as string[],
+            similarity: row.similarity as number,
+            origem: existente?.origem === "literal" ? "literal" : "semantica",
+          });
+        }
+      } catch (e) {
+        console.error("[knowledge_base agente embedding]", e);
+      }
+    }
+
+    return Array.from(encontrados.values())
+      .sort((a, b) => {
+        const aLiteral = a.origem === "literal" ? 1 : 0;
+        const bLiteral = b.origem === "literal" ? 1 : 0;
+        if (aLiteral !== bLiteral) return bLiteral - aLiteral;
+        return (b.similarity ?? 0) - (a.similarity ?? 0);
+      })
+      .slice(0, topK);
+  } catch (e) {
+    console.error("[buscarKnowledgeBaseParaAgente]", e);
+    return [];
+  }
+}
