@@ -456,6 +456,98 @@ export type Database = {
           },
         ]
       }
+      knowledge_base: {
+        Row: {
+          categoria: Database["public"]["Enums"]["knowledge_categoria"]
+          classificacao: Database["public"]["Enums"]["knowledge_classificacao"]
+          conteudo: string
+          created_at: string
+          criado_por: string | null
+          embedding: string | null
+          fonte: string | null
+          id: string
+          importacao_id: string | null
+          tags: string[]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["knowledge_categoria"]
+          classificacao?: Database["public"]["Enums"]["knowledge_classificacao"]
+          conteudo: string
+          created_at?: string
+          criado_por?: string | null
+          embedding?: string | null
+          fonte?: string | null
+          id?: string
+          importacao_id?: string | null
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["knowledge_categoria"]
+          classificacao?: Database["public"]["Enums"]["knowledge_classificacao"]
+          conteudo?: string
+          created_at?: string
+          criado_por?: string | null
+          embedding?: string | null
+          fonte?: string | null
+          id?: string
+          importacao_id?: string | null
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base_importacoes: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          erro_mensagem: string | null
+          id: string
+          nome_arquivo: string
+          status: string
+          tipo: string
+          total_inseridos: number
+          total_registros: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          nome_arquivo: string
+          status?: string
+          tipo: string
+          total_inseridos?: number
+          total_registros?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          nome_arquivo?: string
+          status?: string
+          tipo?: string
+          total_inseridos?: number
+          total_registros?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       links_agente: {
         Row: {
           caso_id: string
@@ -987,6 +1079,26 @@ export type Database = {
           similarity: number
         }[]
       }
+      buscar_knowledge_base: {
+        Args: {
+          match_count?: number
+          p_categoria?: Database["public"]["Enums"]["knowledge_categoria"]
+          p_classificacao?: Database["public"]["Enums"]["knowledge_classificacao"]
+          p_tags?: string[]
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          categoria: Database["public"]["Enums"]["knowledge_categoria"]
+          classificacao: Database["public"]["Enums"]["knowledge_classificacao"]
+          conteudo: string
+          fonte: string
+          id: string
+          similarity: number
+          tags: string[]
+          titulo: string
+        }[]
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1018,6 +1130,15 @@ export type Database = {
         | "em_andamento"
         | "concluido"
         | "cancelado"
+      knowledge_categoria:
+        | "estrutura_documento"
+        | "catalogo_produtos"
+        | "catalogo_materiais"
+        | "regras_tecnicas"
+        | "exemplos_laudos"
+        | "textos_padrao"
+        | "glossario_tecnico"
+      knowledge_classificacao: "OK" | "ATENCAO" | "BLOQUEIO"
       pergunta_tipo:
         | "texto"
         | "foto"
@@ -1168,6 +1289,16 @@ export const Constants = {
         "concluido",
         "cancelado",
       ],
+      knowledge_categoria: [
+        "estrutura_documento",
+        "catalogo_produtos",
+        "catalogo_materiais",
+        "regras_tecnicas",
+        "exemplos_laudos",
+        "textos_padrao",
+        "glossario_tecnico",
+      ],
+      knowledge_classificacao: ["OK", "ATENCAO", "BLOQUEIO"],
       pergunta_tipo: [
         "texto",
         "foto",
