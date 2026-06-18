@@ -27,6 +27,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
+import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
@@ -134,6 +135,11 @@ const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
   path: '/base-conhecimento',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgenteIaRoute = AppAgenteIaRouteImport.update({
+  id: '/agente-ia',
+  path: '/agente-ia',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/configuracoes'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -572,6 +584,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBaseConhecimentoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agente-ia': {
+      id: '/app/agente-ia'
+      path: '/agente-ia'
+      fullPath: '/app/agente-ia'
+      preLoaderRoute: typeof AppAgenteIaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/agenda': {
       id: '/app/agenda'
       path: '/agenda'
@@ -719,6 +738,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
+  AppAgenteIaRoute: typeof AppAgenteIaRoute
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
@@ -742,6 +762,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
+  AppAgenteIaRoute: AppAgenteIaRoute,
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRouteWithChildren,

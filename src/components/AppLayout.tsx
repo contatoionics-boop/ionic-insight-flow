@@ -16,6 +16,7 @@ import {
   Sun,
   CalendarDays,
   ClipboardList,
+  Bot,
   X,
   ChevronLeft,
   ChevronRight,
