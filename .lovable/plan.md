@@ -1,61 +1,128 @@
-Vou implementar as 4 melhorias em fases, com migrações Supabase + frontend.
 
-## 1. Código IONICS (Clientes + Unidades)
+# Plano — Base de Conhecimento estruturada (`knowledge_base`)
 
-**Banco** (migração):
-- `CREATE SEQUENCE empresas_ionics_seq START 1;`
-- Adicionar `codigo_ionics TEXT UNIQUE` em `empresas`, com default `'ION-' || lpad(nextval(...)::text, 5, '0')`.
-- Adicionar `codigo_ionics TEXT` em `unidades`, preenchido por trigger no INSERT como `<codigo_empresa>-<NN>` (NN = sequencial por empresa, baseado em `count(*) + 1` da empresa).
-- Backfill nos registros existentes (empresas e unidades, por ordem de `criado_em`).
+Vamos manter `base_conhecimento` para documentos (PDF/DOCX/TXT) e criar uma nova tabela `knowledge_base` para registros estruturados, com importação por JSON/CSV/Excel, embeddings por registro e filtros por categoria, tags e classificação.
 
-**Frontend**:
-- `app.clients.index.tsx`: coluna + filtro de busca já existente passa a casar também por `codigo_ionics`.
-- `app.clients.$empresaId.tsx`: exibir código em destaque no header da empresa e ao lado de cada unidade.
-- `app.agendamento.$id.tsx`: ao selecionar cliente/unidade, mostrar código IONICS.
-- PDF de mapeamentos: incluir no bloco de identificação do cliente (route que gera PDF — adicionar campo).
+## 1. Banco — migration
 
-## 2. Filtros + Exportação em /app/cases
+**Enums novos**
 
-- Estender `listarMapeamentosComProgresso` para incluir `agendamento_data` (já no caso) e retornar dados que o filtro precisa.
-- Adicionar barra de filtros (Agente select, Cliente texto, Data início/fim, Status select) — filtragem client-side em tempo real.
-- Chips abaixo da barra com botão X individual.
-- Botão "Exportar CSV" que serializa exatamente `rowsFiltradas` (cabeçalhos: ID, Cliente, Unidade, Código IONICS, Agente, Status, Progresso, Data agendamento, Data criação).
+```sql
+create type public.knowledge_classificacao as enum ('OK','ATENCAO','BLOQUEIO');
+create type public.knowledge_categoria as enum (
+  'estrutura_documento','catalogo_produtos','catalogo_materiais',
+  'regras_tecnicas','exemplos_laudos','textos_padrao','glossario_tecnico'
+);
+```
 
-## 3. Conflito de agenda
+**Tabela `public.knowledge_base`**
 
-**Banco**: novo server fn `verificarConflitoAgente({ agente_id, data, ignorar_id? })` que faz SELECT em `agendamentos` por agente_id + mesma data (truncada por dia).
+- `id` uuid PK
+- `categoria` `knowledge_categoria` not null
+- `titulo` text not null
+- `conteudo` text not null  ← gera embedding
+- `tags` text[] not null default '{}'
+- `classificacao` `knowledge_classificacao` not null default 'OK'
+- `fonte` text
+- `importacao_id` uuid (FK → importações; agrupa o que veio de cada arquivo)
+- `embedding` vector(1536)
+- `criado_por` uuid
+- `created_at`, `updated_at` timestamptz
 
-**Frontend** (`app.agendamento.$id.tsx`):
-- Antes de salvar, chamar verificação. Se houver conflito, abrir Dialog "Entendido" com mensagem detalhada e não permitir salvar.
-- Inputs de data e agente recebem classe `border-destructive` enquanto conflito persistir.
-- Em `app.agenda.tsx` (calendário visual): quando agente filtrado, server fn `listarDiasOcupadosPorAgente` retorna lista de datas — pintar células em vermelho.
+**Tabela `public.knowledge_base_importacoes`**
 
-## 4. Aceite de agendamento pelo agente
+- `id`, `nome_arquivo`, `tipo` (json/csv/xlsx), `total_registros`, `total_inseridos`, `status` (processando/pronto/erro), `erro_mensagem`, `criado_por`, `created_at`.
 
-**Banco** (migração):
-- Adicionar em `agendamentos`: `aceite_agente BOOLEAN DEFAULT false`, `data_aceite TIMESTAMPTZ`, `motivo_recusa TEXT`.
-- Atualizar enum/coluna `status` para suportar `aguardando_aceite`, `confirmado`, `recusado_pelo_agente` (manter outros).
-- Trigger: ao criar agendamento com agente, status default = `aguardando_aceite`.
+**Índices**: HNSW em `embedding` (cosine), GIN em `tags`, btree em `categoria` e `classificacao`.
 
-**Frontend**:
-- `app.agendamento.$id.tsx`: ao criar, status fica `aguardando_aceite`; bloquear edição de data/agente quando `status = 'confirmado'`.
-- `app.minhas-vistorias.tsx` (visão do agente): card destacado para agendamentos `aguardando_aceite` com botões "Confirmar agendamento" e "Recusar / Solicitar reagendamento" (dialog com motivo).
-- Server fns: `confirmarAgendamentoAgente(id)` e `recusarAgendamentoAgente(id, motivo)` — usam `requireSupabaseAuth` e validam que o `userId` é o `agente_id` do agendamento.
-- Notificações (tabela `notificacoes` já existe): criar registros para Ian (criador) ao confirmar/recusar; criar para agente ao Ian agendar.
+**RLS + GRANTs**: só `super_admin` (mesmo padrão atual), `GRANT` para `authenticated` e `service_role`. Trigger `set_atualizado_em` adaptado para `updated_at`.
 
-## Detalhes técnicos
+**RPC `buscar_knowledge_base`**
 
-- Todas as alterações de schema em migrações separadas por feature para facilitar review.
-- Sem alterações em CSS variables — uso de tokens semânticos existentes (`bg-destructive/15`, `text-destructive`, `border-destructive`).
-- Server fns ficam em `src/lib/*.functions.ts`; helpers privados em `*.server.ts` quando necessário.
-- Export CSV: gerar Blob no client com `URL.createObjectURL`, sem dependência nova.
-- PDF: identificar arquivo que gera o PDF dos mapeamentos antes de editar (provavelmente um server fn ou rota dedicada).
+```
+buscar_knowledge_base(
+  query_embedding vector,
+  match_count int default 5,
+  similarity_threshold float default 0.5,
+  p_categoria knowledge_categoria default null,
+  p_tags text[] default null,
+  p_classificacao knowledge_classificacao default null
+)
+```
+Retorna `id, titulo, conteudo, categoria, tags, classificacao, fonte, similarity`. Filtros opcionais; `tags` usa overlap `&&`.
 
-## Ordem de execução
+## 2. Server — `src/lib/knowledge-base.functions.ts`
 
-1. Migração #1 — Código IONICS (sequence + colunas + trigger + backfill).
-2. Migração #2 — Conflito + aceite (colunas em agendamentos + status novos).
-3. Após aprovação das migrações, regenera types.
-4. Implementar frontend + server fns das 4 features em paralelo onde possível.
+Todas com `requireSupabaseAuth` + checagem `super_admin`.
 
-Quer que eu prossiga nessa ordem?
+- `listarRegistros({ busca?, categoria?, tags?, classificacao?, page, pageSize })` — paginado, ordena por `updated_at desc`.
+- `criarRegistro` / `atualizarRegistro` / `excluirRegistro` — CRUD manual; ao salvar `conteudo`, gera embedding (modelo `openai/text-embedding-3-small`, 1536 dims, mesmo já usado em `base-conhecimento.server.ts`).
+- `listarImportacoes` / `excluirImportacao(id)` — exclusão remove todos os registros associados.
+- `baixarTemplate(tipo: 'csv'|'json')` — devolve string com exemplo dos campos e valores válidos dos enums.
+- `importarRegistros({ arquivo_path, tipo })`:
+  1. Cria `knowledge_base_importacoes` em `processando`.
+  2. Baixa do bucket `agente-uploads` (limite 5 MB — rejeita antes do parse).
+  3. Parse conforme `tipo`:
+     - JSON: array de objetos.
+     - CSV: `papaparse` com header.
+     - XLSX: `xlsx` (SheetJS) → primeira aba → JSON.
+  4. Limite 5.000 linhas — acima disso retorna erro amigável: "Divida em arquivos menores".
+  5. Valida cada linha com Zod:
+     - `titulo`, `conteudo`, `categoria` obrigatórios.
+     - `categoria` deve ser um dos 7 valores; `classificacao` opcional (default `OK`), deve ser `OK|ATENCAO|BLOQUEIO` (aceita `ATENÇÃO` → normaliza para `ATENCAO`).
+     - `tags` aceita array ou string `"a,b,c"`.
+     - `fonte` opcional.
+  6. Linhas inválidas vão para um array `erros[]` com `{ linha, motivo }` (não derruba o import inteiro).
+  7. Gera embeddings em lotes de 32 a partir de `titulo + "\n\n" + conteudo` (reaproveita `gerarEmbeddings`).
+  8. Insere em lotes de 100 com `importacao_id`.
+  9. Atualiza importação para `pronto` com `total_registros` e `total_inseridos`, ou `erro` com mensagem; devolve `{ inseridos, ignorados, erros }` para a UI mostrar.
+
+Sem rota nova para upload — usa o mesmo bucket `agente-uploads` via cliente Supabase no browser (igual ao fluxo atual de documentos), depois chama a server fn.
+
+## 3. Integração com a IA
+
+Em `buscarContextoRelevante` (`src/lib/base-conhecimento.functions.ts`):
+
+- Continua buscando em `base_conhecimento_chunks`.
+- Busca também em `knowledge_base` via novo RPC (sem filtros por padrão).
+- Mescla por `similarity` desc, devolvendo `topK` no total.
+- Para registros estruturados, formata o `conteudo` com header de metadados, ex.:
+  ```
+  [knowledge_base | catalogo_produtos | classificacao=ATENCAO | tags=a,b]
+  Título: ...
+  ...
+  ```
+  Assinatura pública da função não muda — só melhora o contexto entregue ao agente.
+
+## 4. UI — `src/routes/app.base-conhecimento.tsx`
+
+Abas no topo (mantém visual atual):
+
+- **Documentos** — tela existente, sem mudanças.
+- **Registros** (novo):
+  - Botões: `Importar arquivo`, `Novo registro`, `Baixar modelo` (CSV/JSON).
+  - Filtros: busca por título/conteúdo, select de categoria (7 opções com labels amigáveis), multi-select de tags, select de classificação (OK / ATENÇÃO / BLOQUEIO).
+  - Tabela paginada: Título, Categoria (label PT-BR), Tags (chips, máx 3 visíveis), Classificação (badge colorido: OK verde, ATENÇÃO amarelo, BLOQUEIO vermelho), Fonte, Atualizado em, ações (editar / excluir).
+  - **Modal Importar**: input de arquivo (.json/.csv/.xlsx, até 5 MB), preview das 5 primeiras linhas detectadas + colunas reconhecidas, aviso se faltar `titulo`/`conteudo`/`categoria`; botão Confirmar; mostra progresso e, ao final, resumo `{ inseridos, ignorados, primeiros erros }`. Mensagens de erro amigáveis (tamanho, formato, limite de linhas).
+  - **Modal Novo/Editar**: titulo, categoria (select), tags (input com chips), classificacao (select com labels), fonte, conteudo (textarea grande).
+- **Importações** (sub-aba): histórico com status, total de registros, mensagem de erro e botão "Remover importação" (apaga registros associados após confirmação).
+
+Polling igual ao atual enquanto houver importação `processando`.
+
+Labels PT-BR para enums ficam num helper compartilhado (`src/lib/knowledge-base.ts`) — UI exibe "ATENÇÃO" mesmo com `ATENCAO` no banco.
+
+## 5. Dependências novas
+
+- `xlsx` (SheetJS) — parse de Excel.
+- `papaparse` (+ `@types/papaparse`) — CSV.
+
+Ambos rodam no Worker (puro JS).
+
+## 6. Entregáveis
+
+- 1 migration: enums, 2 tabelas, índices, RLS, GRANTs, trigger `updated_at`, RPC `buscar_knowledge_base`.
+- `src/lib/knowledge-base.functions.ts` + `src/lib/knowledge-base.ts` (labels/enums client-safe).
+- Ajuste em `src/lib/base-conhecimento.functions.ts` → `buscarContextoRelevante` mescla as duas fontes.
+- Refator de `src/routes/app.base-conhecimento.tsx` em componentes:
+  `DocumentosTab` (atual), `RegistrosTab`, `ImportacoesTab`, `ImportarRegistrosModal`, `RegistroFormModal`.
+- Templates de exemplo (CSV e JSON) gerados pela server fn `baixarTemplate`.
