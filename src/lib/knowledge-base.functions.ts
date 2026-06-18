@@ -337,7 +337,13 @@ export const importarRegistros = createServerFn({ method: "POST" })
       });
 
       if (validas.length === 0) {
-        throw new Error("Nenhum registro válido encontrado no arquivo.");
+        const exemplo = erros[0]
+          ? ` Ex.: linha ${erros[0].linha}: ${erros[0].motivo}.`
+          : "";
+        const chaves = Object.keys((linhas[0] ?? {}) as object).join(", ") || "(nenhuma)";
+        throw new Error(
+          `Nenhum registro válido encontrado.${exemplo} Campos esperados: titulo, conteudo, categoria (e opcionalmente classificacao, tags, fonte). Campos detectados: ${chaves}.`,
+        );
       }
 
       // Embeddings em lotes de 32
