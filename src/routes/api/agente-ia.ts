@@ -54,6 +54,9 @@ export const Route = createFileRoute("/api/agente-ia")({
           return new Response("messages required", { status: 400 });
         }
 
+        const lastUserMessage = [...body.messages].reverse().find((m) => m.role === "user");
+        const lastUserText = lastUserMessage ? extractText(lastUserMessage) : "";
+
         const key = process.env.LOVABLE_API_KEY;
         if (!key) return new Response("LOVABLE_API_KEY ausente", { status: 500 });
 
@@ -69,15 +72,13 @@ export const Route = createFileRoute("/api/agente-ia")({
 
         // RAG: busca contexto na base de conhecimento usando a última mensagem do usuário
         try {
-          const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
-          const queryText = lastUser ? extractText(lastUser) : "";
-          if (queryText.trim()) {
+          if (lastUserText.trim()) {
             const { buscarKnowledgeBaseParaAgente } = await import("@/lib/knowledge-base.functions");
-            fontes = await buscarKnowledgeBaseParaAgente(queryText, 8);
+            fontes = await buscarKnowledgeBaseParaAgente(lastUserText, 8);
             if (fontes.length) {
               const bloco = fontes
                 .map((c, i) => {
-                  const trecho = trechoRelevante(c.conteudo, queryText, 700);
+                  const trecho = trechoRelevante(c.conteudo, lastUserText, 700);
                   return `[${i + 1}]\nTítulo: ${c.titulo}\nCategoria: ${c.categoria}\nClassificação: ${c.classificacao}\nFonte: ${c.fonte ?? "não informada"}\nOrigem da busca: ${c.origem}\nTrecho: ${trecho}`;
                 })
                 .join("\n\n---\n\n");
@@ -116,7 +117,7 @@ export const Route = createFileRoute("/api/agente-ia")({
                   categoria: f.categoria,
                   classificacao: f.classificacao,
                   fonte: f.fonte,
-                  trecho: trechoRelevante(f.conteudo, extractText([...body.messages].reverse().find((m) => m.role === "user")!), 320),
+                  trecho: trechoRelevante(f.conteudo, lastUserText, 320),
                   similarity: f.similarity,
                   origem: f.origem,
                 })),
