@@ -59,6 +59,9 @@ export type MapeamentoComProgresso = {
   unidade_codigo_ionics: string | null;
   agente_id: string | null;
   agente_nome: string | null;
+  aceite_status: "aguardando_aceite" | "confirmado" | "recusado_pelo_agente" | null;
+  data_aceite: string | null;
+  motivo_recusa_agente: string | null;
   respondidas_obrigatorias: number;
   total_obrigatorias: number;
   atrasado: boolean;
@@ -71,7 +74,7 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
     const { data: casos, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
+        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
       )
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
@@ -154,6 +157,9 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
         unidade_codigo_ionics: c.unidade?.codigo_ionics ?? null,
         agente_id: c.agente_id ?? null,
         agente_nome: c.agente?.nome ?? null,
+        aceite_status: c.agendamento?.aceite_status ?? null,
+        data_aceite: c.agendamento?.data_aceite ?? null,
+        motivo_recusa_agente: c.agendamento?.motivo_recusa ?? null,
         respondidas_obrigatorias: respondidas,
         total_obrigatorias: obrig.length,
         atrasado,
