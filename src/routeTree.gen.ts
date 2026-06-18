@@ -27,9 +27,11 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
+import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
 import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
+import { Route as ApiAgenteIaRouteImport } from './routes/api/agente-ia'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
 import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
 import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
@@ -133,6 +135,11 @@ const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
   path: '/base-conhecimento',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgenteIaRoute = AppAgenteIaRouteImport.update({
+  id: '/agente-ia',
+  path: '/agente-ia',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -146,6 +153,11 @@ const ApiVistoriaChatRoute = ApiVistoriaChatRouteImport.update({
 const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
   id: '/api/forms-assistant',
   path: '/api/forms-assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgenteIaRoute = ApiAgenteIaRouteImport.update({
+  id: '/api/agente-ia',
+  path: '/api/agente-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
@@ -215,9 +227,11 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -250,9 +264,11 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -284,9 +300,11 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/agent/$token': typeof AgentTokenRoute
+  '/api/agente-ia': typeof ApiAgenteIaRoute
   '/api/forms-assistant': typeof ApiFormsAssistantRoute
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
+  '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -321,9 +339,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -356,9 +376,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/configuracoes'
@@ -389,9 +411,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/reset-password'
     | '/agent/$token'
+    | '/api/agente-ia'
     | '/api/forms-assistant'
     | '/api/vistoria-chat'
     | '/app/agenda'
+    | '/app/agente-ia'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -425,6 +449,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgentTokenRoute: typeof AgentTokenRoute
+  ApiAgenteIaRoute: typeof ApiAgenteIaRoute
   ApiFormsAssistantRoute: typeof ApiFormsAssistantRoute
   ApiVistoriaChatRoute: typeof ApiVistoriaChatRoute
   PreviewFormsIdRoute: typeof PreviewFormsIdRoute
@@ -559,6 +584,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBaseConhecimentoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agente-ia': {
+      id: '/app/agente-ia'
+      path: '/agente-ia'
+      fullPath: '/app/agente-ia'
+      preLoaderRoute: typeof AppAgenteIaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/agenda': {
       id: '/app/agenda'
       path: '/agenda'
@@ -578,6 +610,13 @@ declare module '@tanstack/react-router' {
       path: '/api/forms-assistant'
       fullPath: '/api/forms-assistant'
       preLoaderRoute: typeof ApiFormsAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agente-ia': {
+      id: '/api/agente-ia'
+      path: '/api/agente-ia'
+      fullPath: '/api/agente-ia'
+      preLoaderRoute: typeof ApiAgenteIaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent/$token': {
@@ -699,6 +738,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
+  AppAgenteIaRoute: typeof AppAgenteIaRoute
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
@@ -722,6 +762,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
+  AppAgenteIaRoute: AppAgenteIaRoute,
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
@@ -750,6 +791,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   AgentTokenRoute: AgentTokenRoute,
+  ApiAgenteIaRoute: ApiAgenteIaRoute,
   ApiFormsAssistantRoute: ApiFormsAssistantRoute,
   ApiVistoriaChatRoute: ApiVistoriaChatRoute,
   PreviewFormsIdRoute: PreviewFormsIdRoute,

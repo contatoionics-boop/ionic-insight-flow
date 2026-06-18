@@ -16,6 +16,7 @@ import {
   Sun,
   CalendarDays,
   ClipboardList,
+  Bot,
   X,
   ChevronLeft,
   ChevronRight,
@@ -44,6 +45,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
     { to: "/app/cases", label: "Mapeamentos", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
+    { to: "/app/agente-ia", label: "Agente de IA", icon: Bot },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
   admin: [
