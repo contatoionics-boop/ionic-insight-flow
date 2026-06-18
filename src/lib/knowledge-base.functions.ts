@@ -225,8 +225,14 @@ async function parseLinhas(
   if (tipo === "json") {
     const txt = new TextDecoder().decode(buffer);
     const parsed = JSON.parse(txt);
-    if (!Array.isArray(parsed)) throw new Error("JSON deve ser uma lista de objetos.");
-    return parsed as LinhaBruta[];
+    if (Array.isArray(parsed)) return parsed as LinhaBruta[];
+    if (parsed && typeof parsed === "object") {
+      for (const key of ["registros", "records", "data", "items", "rows"]) {
+        if (Array.isArray((parsed as any)[key])) return (parsed as any)[key] as LinhaBruta[];
+      }
+      return [parsed] as LinhaBruta[];
+    }
+    throw new Error("JSON deve ser um objeto ou uma lista de objetos.");
   }
   if (tipo === "csv") {
     const Papa: any = await import("papaparse");
