@@ -21,8 +21,8 @@ async function assertSuperAdmin(context: any) {
   if (!isAdmin) throw new Error("Acesso negado.");
 }
 
-const CategoriaZ = z.enum(KNOWLEDGE_CATEGORIAS as unknown as [string, ...string[]]);
-const ClassificacaoZ = z.enum(KNOWLEDGE_CLASSIFICACOES as unknown as [string, ...string[]]);
+const CategoriaZ = z.enum(KNOWLEDGE_CATEGORIAS as unknown as [KnowledgeCategoria, ...KnowledgeCategoria[]]);
+const ClassificacaoZ = z.enum(KNOWLEDGE_CLASSIFICACOES as unknown as [KnowledgeClassificacao, ...KnowledgeClassificacao[]]);
 
 // ---------- Listagem ----------
 
