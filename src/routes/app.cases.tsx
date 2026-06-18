@@ -211,9 +211,9 @@ function CasesPage() {
                             ✓ Aceito{c.data_aceite ? ` ${new Date(c.data_aceite).toLocaleDateString("pt-BR")}` : ""}
                           </Badge>
                         ) : c.aceite_status === "recusado_pelo_agente" ? (
-                          <Badge className="bg-destructive/15 text-destructive text-[10px]" title={c.motivo_recusa_agente ?? undefined}>
-                            ✕ Recusado
-                          </Badge>
+                          <span title={c.motivo_recusa_agente ?? undefined}>
+                            <Badge className="bg-destructive/15 text-destructive text-[10px]">✕ Recusado</Badge>
+                          </span>
                         ) : (
                           <Badge className="bg-warning/20 text-warning-foreground text-[10px]">
                             ⏳ Aguardando aceite
