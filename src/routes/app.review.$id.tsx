@@ -466,6 +466,10 @@ function ReviewCasePage() {
                                 onChange={(e) => updateResposta(p.id, { valor_texto: e.target.value })}
                                 placeholder="Sem legenda"
                               />
+                              <MicButton
+                                currentValue={r?.valor_texto ?? ""}
+                                onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                              />
                             </div>
                           </div>
                         );
