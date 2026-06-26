@@ -71,7 +71,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#1a2436" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Ionics Agente" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { title: "Lovable App" },
       { name: "description", content: "Fleet Vision Pro manages fleet technical mapping post-inspection with AI." },
       { name: "author", content: "Lovable" },
@@ -86,10 +91,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e9fa7772-b6d9-4315-bfee-2449a2749353/id-preview-454f7092--f7e6b65a-9f86-4fe2-94b7-329a03be7de6.lovable.app-1779885668474.png" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icons/icon-512.png" },
     ],
   }),
   shellComponent: RootShell,

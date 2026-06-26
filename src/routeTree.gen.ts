@@ -27,6 +27,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
+import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
 import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
@@ -135,6 +136,11 @@ const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
   path: '/base-conhecimento',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgentePerfilRoute = AppAgentePerfilRouteImport.update({
+  id: '/agente-perfil',
+  path: '/agente-perfil',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAgenteIaRoute = AppAgenteIaRouteImport.update({
   id: '/agente-ia',
   path: '/agente-ia',
@@ -232,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/agente-ia': typeof AppAgenteIaRoute
+  '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -269,6 +276,7 @@ export interface FileRoutesByTo {
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/agente-ia': typeof AppAgenteIaRoute
+  '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/api/vistoria-chat': typeof ApiVistoriaChatRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/agente-ia': typeof AppAgenteIaRoute
+  '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -344,6 +353,7 @@ export interface FileRouteTypes {
     | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/agente-ia'
+    | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/agente-ia'
+    | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/configuracoes'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/api/vistoria-chat'
     | '/app/agenda'
     | '/app/agente-ia'
+    | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
     | '/app/clients'
@@ -584,6 +596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBaseConhecimentoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agente-perfil': {
+      id: '/app/agente-perfil'
+      path: '/agente-perfil'
+      fullPath: '/app/agente-perfil'
+      preLoaderRoute: typeof AppAgentePerfilRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/agente-ia': {
       id: '/app/agente-ia'
       path: '/agente-ia'
@@ -739,6 +758,7 @@ const AppFormsRouteWithChildren = AppFormsRoute._addFileChildren(
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAgenteIaRoute: typeof AppAgenteIaRoute
+  AppAgentePerfilRoute: typeof AppAgentePerfilRoute
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppCasesRoute: typeof AppCasesRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
@@ -763,6 +783,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAgenteIaRoute: AppAgenteIaRoute,
+  AppAgentePerfilRoute: AppAgentePerfilRoute,
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppCasesRoute: AppCasesRoute,
   AppClientsRoute: AppClientsRouteWithChildren,

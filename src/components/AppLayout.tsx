@@ -28,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AgentMobileLayout } from "@/components/AgentMobileLayout";
 
 import { roleLabels, type Role } from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
@@ -101,6 +102,10 @@ export function AppLayout() {
         Carregando...
       </div>
     );
+  }
+
+  if (auth.role === "agente_tecnico") {
+    return <AgentMobileLayout />;
   }
 
   const nav = navByRole[auth.role];

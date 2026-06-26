@@ -1,0 +1,16 @@
+{
+  "name": "Ionics Agente Técnico",
+  "short_name": "Ionics Agente",
+  "description": "App de campo do agente técnico Ionics para mapeamentos e vistorias.",
+  "start_url": "/app/minhas-vistorias",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1a2436",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
