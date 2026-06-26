@@ -35,12 +35,12 @@ function ReviewQueuePage() {
     <div>
       <PageHeader
         title="Fila de revisão"
-        description="Casos aguardando análise e aprovação."
+        description="Mapeamentos aguardando análise e aprovação."
       />
       {loading ? (
         <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
       ) : queue.length === 0 ? (
-        <Card><p className="text-sm text-muted-foreground">Nenhum caso aguardando revisão.</p></Card>
+        <Card><p className="text-sm text-muted-foreground">Nenhum mapeamento aguardando revisão.</p></Card>
       ) : (
         <div className="space-y-3">
           {queue.map((c) => (

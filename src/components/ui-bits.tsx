@@ -34,18 +34,43 @@ export function StatCard({
   label,
   value,
   hint,
+  tone = "default",
 }: {
   label: string;
   value: string | number;
   hint?: string;
+  tone?: "default" | "danger";
 }) {
+  const isDanger = tone === "danger" && Number(value) > 0;
   return (
-    <Card>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <Card
+      className={
+        isDanger ? "border-destructive/40 bg-destructive/5" : ""
+      }
+    >
+      <p
+        className={`text-xs font-medium uppercase tracking-wider ${
+          isDanger ? "text-destructive" : "text-muted-foreground"
+        }`}
+      >
         {label}
       </p>
-      <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <p
+        className={`mt-2 text-3xl font-semibold ${
+          isDanger ? "text-destructive" : "text-foreground"
+        }`}
+      >
+        {value}
+      </p>
+      {hint && (
+        <p
+          className={`mt-1 text-xs ${
+            isDanger ? "text-destructive/80" : "text-muted-foreground"
+          }`}
+        >
+          {hint}
+        </p>
+      )}
     </Card>
   );
 }

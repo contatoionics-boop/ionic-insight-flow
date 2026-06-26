@@ -40,7 +40,7 @@ function TrackingPage() {
     <div>
       <PageHeader
         title="Acompanhamento"
-        description="Casos criados por você e seus status atuais."
+        description="Mapeamentos criados por você e seus status atuais."
       />
       <Table>
         <thead>
@@ -56,7 +56,7 @@ function TrackingPage() {
           {loading ? (
             <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Você ainda não criou nenhum caso.</td></tr>
+            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Você ainda não criou nenhum mapeamento.</td></tr>
           ) : (
             rows.map((c) => (
               <tr key={c.id}>
