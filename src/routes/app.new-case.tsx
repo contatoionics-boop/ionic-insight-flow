@@ -302,7 +302,7 @@ function NewCasePage() {
                   ))
                 )}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Cada formulário gera um caso independente dentro deste agendamento.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Cada formulário gera um mapeamento independente dentro deste agendamento.</p>
             </div>
             <div>
               <Label>Agente técnico</Label>

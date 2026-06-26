@@ -92,7 +92,7 @@ function AgendaPage() {
   }, [eventos]);
 
   const handleCancelar = async (id: string) => {
-    if (!confirm("Cancelar esta vistoria?")) return;
+    if (!confirm("Cancelar este mapeamento?")) return;
     await cancelar({ data: { casoId: id } });
     setSel(null);
     setMes(new Date(mes));
@@ -241,7 +241,7 @@ function AgendaPage() {
                     <Button variant="outline" onClick={() => openEdit(sel)}>
                       <Pencil className="mr-1 h-3 w-3" /> Editar
                     </Button>
-                    <Button variant="outline" onClick={() => handleCancelar(sel.id)}>Cancelar vistoria</Button>
+                    <Button variant="outline" onClick={() => handleCancelar(sel.id)}>Cancelar mapeamento</Button>
                   </>
                 )}
                 <Button variant="destructive" onClick={() => setToDelete(sel)}>
@@ -297,7 +297,7 @@ function AgendaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setToDelete(null)}>
           <Card className="w-full max-w-sm" >
             <div onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-base font-semibold">Excluir vistoria</h3>
+              <h3 className="text-base font-semibold">Excluir mapeamento</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 Excluir <strong>{toDelete.codigo}</strong> permanentemente? Esta ação não pode ser desfeita.
               </p>

@@ -278,7 +278,7 @@ function ReviewCasePage() {
   if (!caseData) {
     return (
       <div>
-        <p className="text-sm text-muted-foreground">Caso não encontrado.</p>
+        <p className="text-sm text-muted-foreground">Mapeamento não encontrado.</p>
         <Link to="/app/review-queue" className="mt-2 inline-block text-sm text-primary hover:underline">
           Voltar para fila
         </Link>
@@ -343,7 +343,7 @@ function ReviewCasePage() {
         {secoes.length === 0 && (
           <Card>
             <p className="text-sm text-muted-foreground">
-              Este caso não possui seções/perguntas configuradas no formulário.
+              Este mapeamento não possui seções/perguntas configuradas no formulário.
             </p>
           </Card>
         )}

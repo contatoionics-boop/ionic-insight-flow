@@ -190,7 +190,7 @@ export const aprovarMapeamento = createServerFn({ method: "POST" })
       .select("id, codigo, criado_por, agente_id")
       .eq("id", data.casoId)
       .maybeSingle();
-    if (e1 || !caso) throw new Error(e1?.message ?? "Caso não encontrado");
+    if (e1 || !caso) throw new Error(e1?.message ?? "Mapeamento não encontrado");
 
     const { error } = await supabaseAdmin
       .from("casos")
@@ -219,7 +219,7 @@ export const solicitarCorrecao = createServerFn({ method: "POST" })
       .select("id, codigo, criado_por, agente_id")
       .eq("id", data.casoId)
       .maybeSingle();
-    if (e1 || !caso) throw new Error(e1?.message ?? "Caso não encontrado");
+    if (e1 || !caso) throw new Error(e1?.message ?? "Mapeamento não encontrado");
 
     const { error } = await supabaseAdmin
       .from("casos")
