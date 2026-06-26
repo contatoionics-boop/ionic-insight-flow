@@ -371,15 +371,20 @@ function ReviewCasePage() {
                       )}
 
                       {p.tipo === "texto" && (
-                        <Textarea
-                          rows={3}
-                          value={r?.valor_texto ?? ""}
-                          onChange={(e) =>
-                            updateResposta(p.id, { valor_texto: e.target.value })
-                          }
-                          placeholder="Sem resposta"
-                          className="mt-2"
-                        />
+                        <div className="mt-2 space-y-2">
+                          <Textarea
+                            rows={3}
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
                       )}
 
                       {p.tipo === "selecao_unica" && (
