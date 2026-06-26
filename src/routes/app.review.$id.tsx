@@ -18,6 +18,7 @@ import {
   Save,
   ImageOff,
 } from "lucide-react";
+import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
@@ -370,15 +371,20 @@ function ReviewCasePage() {
                       )}
 
                       {p.tipo === "texto" && (
-                        <Textarea
-                          rows={3}
-                          value={r?.valor_texto ?? ""}
-                          onChange={(e) =>
-                            updateResposta(p.id, { valor_texto: e.target.value })
-                          }
-                          placeholder="Sem resposta"
-                          className="mt-2"
-                        />
+                        <div className="mt-2 space-y-2">
+                          <Textarea
+                            rows={3}
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
                       )}
 
                       {p.tipo === "selecao_unica" && (
@@ -413,6 +419,10 @@ function ReviewCasePage() {
                               updateResposta(p.id, { transcricao: e.target.value })
                             }
                             placeholder="Sem transcrição"
+                          />
+                          <MicButton
+                            currentValue={r?.transcricao ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { transcricao: t })}
                           />
                         </div>
                       )}
@@ -456,20 +466,29 @@ function ReviewCasePage() {
                                 onChange={(e) => updateResposta(p.id, { valor_texto: e.target.value })}
                                 placeholder="Sem legenda"
                               />
+                              <MicButton
+                                currentValue={r?.valor_texto ?? ""}
+                                onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                              />
                             </div>
                           </div>
                         );
                       })()}
 
                       {!["texto", "selecao_unica", "audio", "foto"].includes(p.tipo) && (
-                        <Input
-                          value={r?.valor_texto ?? ""}
-                          onChange={(e) =>
-                            updateResposta(p.id, { valor_texto: e.target.value })
-                          }
-                          placeholder="Sem resposta"
-                          className="mt-2"
-                        />
+                        <div className="mt-2 space-y-2">
+                          <Input
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
                       )}
                     </div>
                   );
@@ -490,6 +509,12 @@ function ReviewCasePage() {
           onChange={(e) => setReopenReason(e.target.value)}
           placeholder="Ex: foto do hodômetro está borrada, refazer..."
         />
+        <div className="mt-2">
+          <MicButton
+            currentValue={reopenReason}
+            onTranscricao={(t) => setReopenReason(t)}
+          />
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setReopenOpen(false)} disabled={working}>
             Cancelar
