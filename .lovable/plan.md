@@ -1,65 +1,60 @@
-# Plano: Renomeação global + Dashboard novo
+# Plano: experiência mobile/PWA para Agente Técnico
 
-## 1. Renomeação global de terminologia
+Quando um usuário com papel `agente_tecnico` faz login, o sistema deve entregar uma interface pensada para celular (uma "mini app") e ser instalável como PWA na tela inicial. Admins, especialistas e super_admin continuam com a experiência desktop atual — sem mudanças.
 
-Varredura em todo `src/` (componentes, rotas, libs, PDFs, mensagens) substituindo nos textos visíveis ao usuário:
+## 1. PWA instalável (escopo manifesto + ícones)
 
-- "caso" / "casos" → "mapeamento" / "mapeamentos"
-- "vistoria" / "vistorias" → "mapeamento" / "mapeamentos"
-- "vistoriador(es)" → "agente(s) técnico(s)"
+- Adicionar `public/manifest.webmanifest` com `name`, `short_name` ("Ionics Agente"), `theme_color` navy (#1a2436), `background_color` branco, `display: "standalone"`, `start_url: "/app/minhas-vistorias"`, `scope: "/"`.
+- Gerar ícones (192, 512, maskable) em `public/icons/`.
+- Registrar `<link rel="manifest">`, `theme-color`, `apple-touch-icon` no `head()` do `src/routes/__root.tsx`.
+- **Sem service worker / sem offline** nesta etapa (regra Lovable: manifest-only para "instalar no celular"). Offline pode entrar depois se pedirem.
 
-Regras:
-- Trocar apenas **strings de UI** (JSX, labels, placeholders, toasts, títulos `<title>`/`head()`, textos de PDF, mensagens de erro do usuário, tooltips, breadcrumbs, cabeçalhos de tabela, estados vazios, notificações).
-- **NÃO renomear**: nomes de tabelas do banco (`casos`, `respostas_agente`, etc.), colunas, tipos TypeScript (`CaseStatus`, `Caso`), nomes de arquivos de rota (`app.cases.tsx`, `app.vistorias.$id.tsx`, `app.minhas-vistorias.tsx`), nomes de funções, chaves de objetos, IDs HTML, query keys. Renomear esses itens quebraria rotas, RLS, tipos gerados do Supabase e o build.
-- Sidebar (`AppLayout.tsx`): atualizar labels mantendo as rotas existentes (ex.: rota `/app/cases` com label "Mapeamentos").
-- PDFs: ajustar textos em `pdf-mapeamento.server.ts` e `casos-pdf.functions.ts`.
+## 2. Layout mobile dedicado para agente técnico
 
-Arquivos com varredura garantida (lista não exaustiva — será feito grep por ocorrência):
-`src/components/AppLayout.tsx`, `src/components/ConfiguracoesNav.tsx`, `src/lib/casos.ts` (somente labels), `src/routes/app.cases.tsx`, `app.dashboard.tsx`, `app.review-queue.tsx`, `app.tracking.tsx`, `app.history.tsx`, `app.minhas-vistorias.tsx`, `app.vistorias.$id.tsx`, `app.vistoria.$casoId.tsx`, `app.new-case.tsx`, `app.review.$id.tsx`, `app.agenda.tsx`, `app.agendamento.$id.tsx`, componentes em `src/components/mapeamento/`, `src/components/agent/`, `NotificacoesBell.tsx`, `notificacoes.functions.ts` (templates de notificação), arquivos `*-pdf*`.
+Criar `src/components/AgentMobileLayout.tsx` — shell otimizado para telefone:
 
-## 2. Dashboard — 6 cards de métricas
+- Topbar fixa compacta (logo + nome do agente + sino de notificações + sair).
+- **Bottom navigation** (estilo app) com 3 abas grandes touch-friendly:
+  - Hoje (mapeamentos do dia)
+  - Agenda (próximos / histórico)
+  - Perfil (dados + sair + tema)
+- Conteúdo em `<main>` com `safe-area-inset` (`pb-[env(safe-area-inset-bottom)]`), tipografia maior, cards full-width, botões com altura mínima 44px.
+- Sem sidebar lateral, sem colapsar/expandir — o `AppLayout.tsx` atual fica só para os outros papéis.
 
-Substituir o grid atual (4 cards) em `src/routes/app.dashboard.tsx` por grid responsivo `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6`:
+## 3. Roteamento condicional por papel
 
-| Card | Métrica (fonte) | Subtítulo |
-|---|---|---|
-| Mapeamentos em aberto | `status in ('em_andamento','agendado')` | Em andamento |
-| Aguardando revisão | `status = 'aguardando_revisao'` | Fila do especialista |
-| Aceitos | `aceite_status = 'confirmado'` (campo já existe em `casos`) | Confirmados pelo agente |
-| Em atraso | `atrasado = true` via `listarMapeamentosComProgresso` (mesma lógica da timeline / `app.cases.tsx`) — destaque vermelho quando > 0 | Prazo excedido |
-| Mapeamentos hoje | `agendado_em` entre 00:00 e 23:59 de hoje | Agendados para hoje |
-| Aprovados | `status = 'aprovado'` | Total no sistema |
+Em `src/components/AppLayout.tsx`:
 
-Fonte única de dados: chamar `listarMapeamentosComProgresso` (server fn já existente, usada em `app.cases.tsx`) — evita múltiplas queries e reaproveita a lógica de `atrasado`. Remover a query atual direta ao Supabase no Dashboard.
+- Após `useAuth()` resolver, se `auth.role === "agente_tecnico"` → renderizar `<AgentMobileLayout><Outlet /></AgentMobileLayout>` em vez do shell desktop.
+- Manter o redirect já existente (`routeForRole` → `/app/minhas-vistorias`) como rota inicial pós-login do agente.
+- Em `src/routes/index.tsx` (login), após `signIn`, continuar usando `routeForRole`; nenhum ajuste de lógica de auth.
 
-Para o card "Em atraso", estender `StatCard` (em `src/components/ui-bits.tsx`) com prop opcional `tone?: 'default' | 'danger'` que aplica classes `text-destructive`/`border-destructive/40` quando ativo e valor > 0. Mudança aditiva, sem alterar CSS variables.
+## 4. Adaptação das telas que o agente usa
 
-## 3. Seção "Agentes técnicos"
+Telas tocadas (apenas as acessíveis ao papel `agente_tecnico`):
 
-Nova seção entre os cards e a lista de recentes:
+- `src/routes/app.minhas-vistorias.tsx` — reorganizar em lista vertical de cards grandes, agrupados por "Hoje / Próximos / Concluídos"; botões "Confirmar / Recusar / Iniciar" em largura total.
+- `src/routes/app.vistoria.$casoId.tsx` (execução do mapeamento via chat) — garantir input fixo no rodapé acima da bottom nav, botões de anexar foto grandes, mensagens em coluna única.
+- Telas não acessíveis ao agente (dashboard, clientes, configurações, etc.) ficam intactas.
 
-- Carregar agentes via `listTechnicalAgents` (já usado em `app.cases.tsx`).
-- Cruzar com os mapeamentos já carregados (em memória) para calcular por agente:
-  - total atribuído (`agente_id === a.id`)
-  - em aberto (status `em_andamento` ou `agendado`)
-  - em atraso (`atrasado === true`)
-- Render: tabela compacta usando `Table/Th/Td` de `ui-bits` com colunas: Agente · Total · Em aberto · Em atraso (badge vermelho se > 0).
-- Status online/offline: **não há dado disponível** no schema atual (`profiles` não tem `last_seen`). Vou omitir a coluna e deixar comentário no código. Se quiser, posso adicionar em uma próxima iteração com migration adicionando `profiles.last_seen_at` atualizado no login.
+## 5. Viewport e meta tags
 
-## 4. Lista "Mapeamentos recentes"
+Em `__root.tsx`:
 
-- Trocar título "Casos recentes" → "Mapeamentos recentes".
-- Continuar usando os 6 mais recentes da mesma lista já carregada (ordenada por `criado_em desc`).
-- Badges já vêm de `statusTones` (sem alteração) — apenas confirmar consistência.
+- Confirmar `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`.
+- Adicionar `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style="black-translucent"`, `apple-mobile-web-app-title="Ionics Agente"`.
 
-## Notas técnicas
+## 6. Fora de escopo (confirmar se quer depois)
 
-- Nenhuma migração de banco. Nenhuma alteração de RLS, tipos do Supabase, rotas, ou tokens de design.
-- `routeForRole('super_admin')` continua apontando para `/app/dashboard`.
-- Tipos `CaseStatus`/`statusLabels` permanecem; apenas os **valores** dos labels mudam ("Caso" não aparece, então nada a alterar lá — verificar).
-- Build risk: renomes só em strings, sem mexer em imports/identificadores → build seguro.
+- Service worker / modo offline / cache de mapeamentos para uso sem internet.
+- Push notifications nativas (hoje o sino é in-app).
+- Câmera nativa via Capacitor / app store.
 
-## Fora de escopo
+## Detalhes técnicos
 
-- Renomear arquivos de rota e tabelas do banco (quebraria URLs salvas, RLS e tipos).
-- Adicionar telemetria de presença (online/offline) — requer nova coluna + heartbeat.
+- Arquivos novos: `src/components/AgentMobileLayout.tsx`, `public/manifest.webmanifest`, `public/icons/icon-192.png`, `public/icons/icon-512.png`, `public/icons/icon-maskable-512.png`.
+- Arquivos alterados: `src/routes/__root.tsx` (head tags), `src/components/AppLayout.tsx` (switch por role), `src/routes/app.minhas-vistorias.tsx` e `src/routes/app.vistoria.$casoId.tsx` (refit mobile).
+- Sem migrações Supabase, sem novas server functions, sem mudanças de auth/roles.
+- Sem `vite-plugin-pwa` (manifest-only, conforme regra Lovable).
+
+Pode confirmar para eu implementar?
