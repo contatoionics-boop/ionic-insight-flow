@@ -509,6 +509,12 @@ function ReviewCasePage() {
           onChange={(e) => setReopenReason(e.target.value)}
           placeholder="Ex: foto do hodômetro está borrada, refazer..."
         />
+        <div className="mt-2">
+          <MicButton
+            currentValue={reopenReason}
+            onTranscricao={(t) => setReopenReason(t)}
+          />
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setReopenOpen(false)} disabled={working}>
             Cancelar
