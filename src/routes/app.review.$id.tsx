@@ -420,6 +420,10 @@ function ReviewCasePage() {
                             }
                             placeholder="Sem transcrição"
                           />
+                          <MicButton
+                            currentValue={r?.transcricao ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { transcricao: t })}
+                          />
                         </div>
                       )}
 
