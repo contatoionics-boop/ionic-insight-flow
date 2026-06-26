@@ -18,6 +18,7 @@ import {
   Save,
   ImageOff,
 } from "lucide-react";
+import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
