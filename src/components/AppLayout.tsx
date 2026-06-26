@@ -104,6 +104,10 @@ export function AppLayout() {
     );
   }
 
+  if (auth.role === "agente_tecnico") {
+    return <AgentMobileLayout />;
+  }
+
   const nav = navByRole[auth.role];
   const displayName = auth.profile?.nome || auth.email || "Usuário";
 
