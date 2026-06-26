@@ -476,14 +476,19 @@ function ReviewCasePage() {
                       })()}
 
                       {!["texto", "selecao_unica", "audio", "foto"].includes(p.tipo) && (
-                        <Input
-                          value={r?.valor_texto ?? ""}
-                          onChange={(e) =>
-                            updateResposta(p.id, { valor_texto: e.target.value })
-                          }
-                          placeholder="Sem resposta"
-                          className="mt-2"
-                        />
+                        <div className="mt-2 space-y-2">
+                          <Input
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
                       )}
                     </div>
                   );
