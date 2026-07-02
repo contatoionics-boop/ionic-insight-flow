@@ -87,6 +87,19 @@ async function notificar(usuarioId: string, titulo: string, mensagem: string, ti
   } as any);
 }
 
+async function notificarAdmins(titulo: string, mensagem: string, tipo: string, casoId: string | null = null) {
+  const { data } = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .in("role", ["admin", "super_admin"]);
+  const ids = Array.from(new Set(((data ?? []) as any[]).map((r) => r.user_id).filter(Boolean)));
+  if (ids.length === 0) return;
+  await supabaseAdmin.from("notificacoes").insert(
+    ids.map((uid) => ({ usuario_id: uid, titulo, mensagem, tipo, caso_id: casoId, lido: false })) as any,
+  );
+}
+
+
 export const confirmarAgendamentoAgente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ agendamentoId: z.string().uuid() }).parse(d))
