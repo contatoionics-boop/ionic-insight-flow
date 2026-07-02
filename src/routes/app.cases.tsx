@@ -250,18 +250,21 @@ function CasesPage() {
                     </div>
                   </Td>
                   <Td>{c.agendado_em ? new Date(c.agendado_em).toLocaleDateString("pt-BR") : new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
-                  <Td onClick={(e) => e.stopPropagation()}>
+                  <Td>
                     {recusado && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReagendarCaso(c)}
-                        className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                      >
-                        <CalendarClock className="mr-1 h-3.5 w-3.5" /> Reagendar
-                      </Button>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setReagendarCaso(c)}
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                        >
+                          <CalendarClock className="mr-1 h-3.5 w-3.5" /> Reagendar
+                        </Button>
+                      </div>
                     )}
                   </Td>
+
                 </tr>
               );
             })
