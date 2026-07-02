@@ -32,6 +32,9 @@ function CasesPage() {
   const [rows, setRows] = useState<MapeamentoComProgresso[]>([]);
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
+  const reagendar = useServerFn(reagendarAposRecusa);
+
 
   const [fAgente, setFAgente] = useState("");
   const [fCliente, setFCliente] = useState("");
