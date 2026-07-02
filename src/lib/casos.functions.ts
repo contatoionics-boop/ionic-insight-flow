@@ -489,10 +489,14 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
     // Bloqueia se outro caso do mesmo agendamento já estiver em andamento
     const { data: alvo } = await supabaseAdmin
       .from("casos")
-      .select("agendamento_id, status")
+      .select("agendamento_id, status, agendamento:agendamentos!agendamento_id(aceite_status)")
       .eq("id", data.casoId)
       .maybeSingle();
     if (!alvo) throw new Error("Caso não encontrado.");
+    if ((alvo as any).agendamento?.aceite_status === "recusado_pelo_agente") {
+      throw new Error("Este mapeamento foi recusado e precisa ser reagendado antes de avançar.");
+    }
+
     if (alvo.status !== "em_andamento") {
       const { data: emAndamento } = await supabaseAdmin
         .from("casos")
