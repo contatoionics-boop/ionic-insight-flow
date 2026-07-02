@@ -526,6 +526,14 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertVistoriador(context.supabase, context.userId);
+    const { data: alvo } = await supabaseAdmin
+      .from("casos")
+      .select("agendamento:agendamentos!agendamento_id(aceite_status)")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if ((alvo as any)?.agendamento?.aceite_status === "recusado_pelo_agente") {
+      throw new Error("Este mapeamento foi recusado e precisa ser reagendado antes de ser entregue.");
+    }
     const { error } = await supabaseAdmin
       .from("casos")
       .update({ status: "aguardando_revisao" })
@@ -534,6 +542,7 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const listarAgendaAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
