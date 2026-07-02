@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button } from "@/components/ui-bits";
+import { toast } from "sonner";
+import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button, Modal } from "@/components/ui-bits";
+import { DatePicker } from "@/components/ui/date-picker";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { Download, X } from "lucide-react";
+import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
+import { AlertTriangle, CalendarClock, Download, X } from "lucide-react";
 
 export const Route = createFileRoute("/app/cases")({
   component: CasesPage,
 });
+
 
 function corBarra(pct: number) {
   if (pct <= 40) return "bg-red-500";
@@ -28,6 +32,9 @@ function CasesPage() {
   const [rows, setRows] = useState<MapeamentoComProgresso[]>([]);
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
+  const reagendar = useServerFn(reagendarAposRecusa);
+
 
   const [fAgente, setFAgente] = useState("");
   const [fCliente, setFCliente] = useState("");
@@ -167,29 +174,38 @@ function CasesPage() {
             <Th>Status</Th>
             <Th>Progresso</Th>
             <Th>Data</Th>
+            <Th>Ações</Th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
           ) : filtradas.length === 0 ? (
-            <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
+            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
           ) : (
             filtradas.map((c) => {
               const pct = c.total_obrigatorias > 0
                 ? Math.round((c.respondidas_obrigatorias / c.total_obrigatorias) * 100)
                 : 0;
+              const recusado = c.aceite_status === "recusado_pelo_agente";
               return (
                 <tr
                   key={c.id}
                   onClick={() => navigate({ to: "/app/vistorias/$id", params: { id: c.id } })}
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                    recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
+                  }`}
                 >
                   <Td className="font-mono text-xs">
                     <div className="flex items-center gap-1">
                       {c.codigo}
                       {c.atrasado && (
                         <Badge className="bg-destructive/15 text-destructive">Aguardando agente</Badge>
+                      )}
+                      {recusado && (
+                        <Badge className="bg-destructive text-destructive-foreground">
+                          <AlertTriangle className="mr-1 h-3 w-3" /> Ação: reagendar
+                        </Badge>
                       )}
                     </div>
                   </Td>
@@ -210,7 +226,7 @@ function CasesPage() {
                           <Badge className="bg-success/15 text-success text-[10px]">
                             ✓ Aceito{c.data_aceite ? ` ${new Date(c.data_aceite).toLocaleDateString("pt-BR")}` : ""}
                           </Badge>
-                        ) : c.aceite_status === "recusado_pelo_agente" ? (
+                        ) : recusado ? (
                           <span title={c.motivo_recusa_agente ?? undefined}>
                             <Badge className="bg-destructive/15 text-destructive text-[10px]">✕ Recusado</Badge>
                           </span>
@@ -234,12 +250,138 @@ function CasesPage() {
                     </div>
                   </Td>
                   <Td>{c.agendado_em ? new Date(c.agendado_em).toLocaleDateString("pt-BR") : new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
+                  <Td>
+                    {recusado && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setReagendarCaso(c)}
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                        >
+                          <CalendarClock className="mr-1 h-3.5 w-3.5" /> Reagendar
+                        </Button>
+                      </div>
+                    )}
+                  </Td>
+
                 </tr>
               );
             })
           )}
         </tbody>
       </Table>
+
+      <ReagendarModal
+        caso={reagendarCaso}
+        agentes={agentes}
+        onClose={() => setReagendarCaso(null)}
+        onDone={async () => {
+          setReagendarCaso(null);
+          toast.success("Reagendamento enviado — aguardando aceite do novo agente.");
+          const data = await listar();
+          setRows(data);
+        }}
+        reagendar={reagendar}
+      />
     </div>
   );
 }
+
+function ReagendarModal({
+  caso,
+  agentes,
+  onClose,
+  onDone,
+  reagendar,
+}: {
+  caso: MapeamentoComProgresso | null;
+  agentes: { id: string; nome: string }[];
+  onClose: () => void;
+  onDone: () => void | Promise<void>;
+  reagendar: (args: { data: { casoId: string; agenteId: string; agendadoEm: string; duracaoMin: number } }) => Promise<unknown>;
+}) {
+  const [agenteId, setAgenteId] = useState("");
+  const [data, setData] = useState("");
+  const [hora, setHora] = useState("09:00");
+  const [working, setWorking] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (caso) {
+      setAgenteId("");
+      setData("");
+      setHora("09:00");
+      setErr(null);
+    }
+  }, [caso?.id]);
+
+  if (!caso) return null;
+
+  const submit = async () => {
+    setErr(null);
+    if (!agenteId || !data) {
+      setErr("Selecione o novo agente e a nova data.");
+      return;
+    }
+    setWorking(true);
+    try {
+      const agendadoEm = new Date(`${data}T${hora || "09:00"}:00`).toISOString();
+      await reagendar({ data: { casoId: caso.id, agenteId, agendadoEm, duracaoMin: 60 } });
+      await onDone();
+    } catch (e: any) {
+      setErr(e?.message ?? "Erro ao reagendar.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <Modal open={!!caso} onClose={onClose} title={`Reagendar ${caso.codigo}`}>
+      <div className="space-y-4 p-5">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <p className="font-semibold">Recusado por {caso.agente_nome ?? "—"}</p>
+          {caso.motivo_recusa_agente && <p className="mt-1">Motivo: {caso.motivo_recusa_agente}</p>}
+          {caso.agendado_em && <p className="mt-1">Data original: {new Date(caso.agendado_em).toLocaleString("pt-BR")}</p>}
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Cliente: <span className="font-medium text-foreground">{caso.empresa_nome ?? "—"}</span>
+          {caso.unidade_nome ? ` · ${caso.unidade_nome}` : ""}
+        </div>
+
+        <div>
+          <Label>Novo agente técnico</Label>
+          <Select value={agenteId} onChange={(e) => setAgenteId(e.target.value)}>
+            <option value="">Selecione</option>
+            {agentes.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </Select>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-2">
+            <Label>Nova data</Label>
+            <DatePicker value={data} onChange={setData} />
+          </div>
+          <div>
+            <Label>Hora</Label>
+            <Input type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+          </div>
+        </div>
+
+        {err && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {err}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={working}>Cancelar</Button>
+          <Button onClick={submit} disabled={working || !agenteId || !data}>
+            {working ? "Reagendando..." : "Confirmar reagendamento"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+

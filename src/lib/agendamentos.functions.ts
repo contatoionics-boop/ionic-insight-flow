@@ -87,6 +87,19 @@ async function notificar(usuarioId: string, titulo: string, mensagem: string, ti
   } as any);
 }
 
+async function notificarAdmins(titulo: string, mensagem: string, tipo: string, casoId: string | null = null) {
+  const { data } = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .in("role", ["admin", "super_admin"]);
+  const ids = Array.from(new Set(((data ?? []) as any[]).map((r) => r.user_id).filter(Boolean)));
+  if (ids.length === 0) return;
+  await supabaseAdmin.from("notificacoes").insert(
+    ids.map((uid) => ({ usuario_id: uid, titulo, mensagem, tipo, caso_id: casoId, lido: false })) as any,
+  );
+}
+
+
 export const confirmarAgendamentoAgente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ agendamentoId: z.string().uuid() }).parse(d))
@@ -131,7 +144,7 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: ag, error: agErr } = await supabaseAdmin
       .from("agendamentos")
-      .select("id, agente_id, criado_por, agendado_em, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
+      .select("id, agente_id, criado_por, agendado_em, unidade:unidades(matriz:matrizes(empresa:empresas(nome))), agente:profiles!agente_id(nome)")
       .eq("id", data.agendamentoId)
       .maybeSingle();
     if (agErr || !ag) throw new Error("Agendamento não encontrado.");
@@ -149,17 +162,146 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     const cliente = (ag as any).unidade?.matriz?.empresa?.nome ?? "cliente";
+    const agenteNome = (ag as any).agente?.nome ?? "agente";
     const dataFmt = new Date((ag as any).agendado_em).toLocaleString("pt-BR");
-    if ((ag as any).criado_por) {
-      await notificar(
-        (ag as any).criado_por,
-        "Agendamento recusado pelo agente",
-        `Cliente ${cliente} em ${dataFmt}. Motivo: ${data.motivo}`,
-        "agendamento_recusado",
+
+    // Busca os casos deste agendamento para citar códigos e registrar observação
+    const { data: casos } = await supabaseAdmin
+      .from("casos")
+      .select("id, codigo")
+      .eq("agendamento_id", data.agendamentoId);
+    const casosList = (casos ?? []) as { id: string; codigo: string }[];
+    const codigos = casosList.map((c) => c.codigo).join(", ") || "—";
+
+    // Registra observação automática em cada caso
+    if (casosList.length > 0) {
+      await supabaseAdmin.from("mapeamento_observacoes").insert(
+        casosList.map((c) => ({
+          caso_id: c.id,
+          usuario_id: context.userId,
+          texto: `Agendamento recusado pelo agente ${agenteNome} em ${new Date().toLocaleString("pt-BR")}. Data original: ${dataFmt}. Motivo: ${data.motivo}`,
+        })) as any,
       );
     }
+
+    const primeiroCasoId = casosList[0]?.id ?? null;
+    const tituloAdmin = "Reagendamento necessário";
+    const mensagemAdmin = `O agente ${agenteNome} recusou o mapeamento ${codigos} — ${cliente}. É necessário reagendar. Motivo: ${data.motivo}`;
+
+    // Notifica criador e admins/gestores
+    if ((ag as any).criado_por) {
+      await notificar((ag as any).criado_por, tituloAdmin, mensagemAdmin, "agendamento_recusado", primeiroCasoId);
+    }
+    await notificarAdmins(tituloAdmin, mensagemAdmin, "agendamento_recusado", primeiroCasoId);
+
     return { ok: true };
   });
+
+// ============================================================
+// Reagendar após recusa
+// ============================================================
+const ReagendarInput = z.object({
+  casoId: z.string().uuid(),
+  agenteId: z.string().uuid(),
+  agendadoEm: z.string().min(1),
+  duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
+});
+
+export const reagendarAposRecusa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ReagendarInput.parse(d))
+  .handler(async ({ data, context }) => {
+    // valida role admin
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .in("role", ["admin", "super_admin"]);
+    if (!roles?.length) throw new Error("Apenas admins podem reagendar.");
+
+    const { data: caso, error: cErr } = await supabaseAdmin
+      .from("casos")
+      .select("id, agendamento_id, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (cErr || !caso) throw new Error("Mapeamento não encontrado.");
+    const agendamentoId = (caso as any).agendamento_id;
+    if (!agendamentoId) throw new Error("Mapeamento sem agendamento.");
+
+    // Verifica conflito para o novo agente/data
+    const ini = new Date(data.agendadoEm);
+    const diaIni = new Date(ini); diaIni.setHours(0, 0, 0, 0);
+    const diaFim = new Date(ini); diaFim.setHours(23, 59, 59, 999);
+    const { data: conflitos } = await supabaseAdmin
+      .from("agendamentos")
+      .select("id")
+      .eq("agente_id", data.agenteId)
+      .neq("id", agendamentoId)
+      .gte("agendado_em", diaIni.toISOString())
+      .lte("agendado_em", diaFim.toISOString())
+      .limit(1);
+    if ((conflitos ?? []).length > 0) {
+      throw new Error("Este agente já tem outro agendamento no mesmo dia. Escolha outra data ou outro agente.");
+    }
+
+    // Atualiza agendamento
+    const { error: uErr } = await supabaseAdmin
+      .from("agendamentos")
+      .update({
+        agente_id: data.agenteId,
+        agendado_em: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+        aceite_agente: null,
+        aceite_status: "aguardando_aceite",
+        data_aceite: null,
+        motivo_recusa: null,
+      } as any)
+      .eq("id", agendamentoId);
+    if (uErr) throw new Error(uErr.message);
+
+    // Atualiza todos os casos vinculados
+    const { data: casosLista } = await supabaseAdmin
+      .from("casos")
+      .select("id, codigo")
+      .eq("agendamento_id", agendamentoId);
+    const casos = (casosLista ?? []) as { id: string; codigo: string }[];
+
+    await supabaseAdmin
+      .from("casos")
+      .update({
+        agente_id: data.agenteId,
+        agendado_em: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+        status: "agendado",
+      } as any)
+      .eq("agendamento_id", agendamentoId);
+
+    // Observação em cada caso
+    if (casos.length > 0) {
+      await supabaseAdmin.from("mapeamento_observacoes").insert(
+        casos.map((c) => ({
+          caso_id: c.id,
+          usuario_id: context.userId,
+          texto: `Reagendado em ${new Date().toLocaleString("pt-BR")} — novo agente e nova data enviados. Aguardando aceite.`,
+        })) as any,
+      );
+    }
+
+    // Notifica novo agente
+    const cliente = (caso as any).unidade?.matriz?.empresa?.nome ?? "cliente";
+    const dataFmt = new Date(data.agendadoEm).toLocaleString("pt-BR");
+    await notificar(
+      data.agenteId,
+      "Novo agendamento — confirmar?",
+      `Você tem um novo agendamento em ${dataFmt} — ${cliente}.`,
+      "agendamento_novo",
+      casos[0]?.id ?? null,
+    );
+
+    return { ok: true };
+  });
+
+
 
 export type AceiteAgendamento = {
   id: string;
