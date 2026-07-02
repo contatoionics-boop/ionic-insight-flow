@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button } from "@/components/ui-bits";
+import { toast } from "sonner";
+import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button, Modal } from "@/components/ui-bits";
+import { DatePicker } from "@/components/ui/date-picker";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { Download, X } from "lucide-react";
+import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
+import { AlertTriangle, CalendarClock, Download, X } from "lucide-react";
 
 export const Route = createFileRoute("/app/cases")({
   component: CasesPage,
 });
+
 
 function corBarra(pct: number) {
   if (pct <= 40) return "bg-red-500";
