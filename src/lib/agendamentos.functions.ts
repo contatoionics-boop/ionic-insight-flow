@@ -247,6 +247,15 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
     const agendamentoId = (caso as any).agendamento_id;
     if (!agendamentoId) throw new Error("Mapeamento sem agendamento.");
 
+    // Captura dados anteriores para o histórico
+    const { data: agAntes } = await supabaseAdmin
+      .from("agendamentos")
+      .select("agente_id, agendado_em, agente:profiles!agente_id(nome)")
+      .eq("id", agendamentoId)
+      .maybeSingle();
+    const { data: novoAgentePerfil } = await supabaseAdmin
+      .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
+
     // Verifica conflito para o novo agente/data
     const ini = new Date(data.agendadoEm);
     const diaIni = new Date(ini); diaIni.setHours(0, 0, 0, 0);
