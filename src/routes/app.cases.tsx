@@ -178,6 +178,7 @@ function CasesPage() {
       <Table>
         <thead>
           <tr>
+            <Th className="w-8"></Th>
             <Th>ID</Th>
             <Th>Cliente</Th>
             <Th>Agente</Th>
@@ -189,16 +190,18 @@ function CasesPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
           ) : filtradas.length === 0 ? (
-            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
+            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
           ) : (
             filtradas.map((c) => {
               const pct = c.total_obrigatorias > 0
                 ? Math.round((c.respondidas_obrigatorias / c.total_obrigatorias) * 100)
                 : 0;
               const recusado = c.aceite_status === "recusado_pelo_agente";
+              const isOpen = expandido.has(c.id);
               return (
+                <>
                 <tr
                   key={c.id}
                   onClick={() => navigate({ to: "/app/vistorias/$id", params: { id: c.id } })}
@@ -206,6 +209,9 @@ function CasesPage() {
                     recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
                   }`}
                 >
+                  <Td onClick={(e) => { e.stopPropagation(); toggleExpandir(c.id); }} className="cursor-pointer">
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </Td>
                   <Td className="font-mono text-xs">
                     <div className="flex items-center gap-1">
                       {c.codigo}
@@ -276,6 +282,15 @@ function CasesPage() {
                   </Td>
 
                 </tr>
+                {isOpen && (
+                  <tr key={`${c.id}-hist`} className="bg-muted/20">
+                    <td></td>
+                    <td colSpan={7} className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <HistoricoEventos casoId={c.id} />
+                    </td>
+                  </tr>
+                )}
+                </>
               );
             })
           )}
