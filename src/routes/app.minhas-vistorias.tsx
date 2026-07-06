@@ -11,6 +11,7 @@ import {
   type AceiteAgendamento,
 } from "@/lib/agendamentos.functions";
 import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
