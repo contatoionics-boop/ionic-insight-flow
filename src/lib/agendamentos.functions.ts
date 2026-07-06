@@ -92,7 +92,7 @@ async function notificarAdmins(titulo: string, mensagem: string, tipo: string, c
   const { data } = await supabaseAdmin
     .from("user_roles")
     .select("user_id")
-    .in("role", ["admin", "super_admin"]);
+    .in("role", ["admin", "super_admin", "especialista"]);
   const ids = Array.from(new Set(((data ?? []) as any[]).map((r) => r.user_id).filter(Boolean)));
   if (ids.length === 0) return;
   await supabaseAdmin.from("notificacoes").insert(
