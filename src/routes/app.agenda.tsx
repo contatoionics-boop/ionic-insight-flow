@@ -263,6 +263,20 @@ function AgendaPage() {
               </div>
               <h3 className="mt-2 text-lg font-semibold">{sel.unidade?.matriz?.empresa?.nome}{sel.unidade?.nome ? <span className="ml-1 text-sm font-normal text-muted-foreground">· {sel.unidade.nome}</span> : null}</h3>
               <p className="text-sm text-muted-foreground">{sel.formulario?.nome}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {sel.agendamento?.data_aceite && (
+                  <Badge className="bg-success/15 text-success">✓ Aceito em {new Date(sel.agendamento.data_aceite).toLocaleDateString("pt-BR")}</Badge>
+                )}
+                <Badge className={execBadgeClass[execEstado(sel)]}>
+                  {execEstado(sel) === "em_campo" && sel.data_execucao
+                    ? `Em campo desde ${new Date(sel.data_execucao).toLocaleDateString("pt-BR")}`
+                    : execEstado(sel) === "entregue" && sel.data_entrega_agente
+                      ? `Entregue em ${new Date(sel.data_entrega_agente).toLocaleDateString("pt-BR")}`
+                      : execEstado(sel) === "aprovado" && sel.data_aprovacao_pablo
+                        ? `Aprovado em ${new Date(sel.data_aprovacao_pablo).toLocaleDateString("pt-BR")}`
+                        : execLabel[execEstado(sel)]}
+                </Badge>
+              </div>
               <div className="mt-3 space-y-1 text-sm">
                 <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {new Date(sel.agendado_em).toLocaleString("pt-BR")} · {sel.duracao_min} min</p>
                 {sel.agente?.nome && <p className="flex items-center gap-2"><User2 className="h-4 w-4" /> {sel.agente.nome}</p>}
