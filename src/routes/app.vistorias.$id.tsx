@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { TimelineMapeamento } from "@/components/mapeamento/TimelineMapeamento";
+import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 
 export const Route = createFileRoute("/app/vistorias/$id")({
