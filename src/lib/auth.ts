@@ -2,7 +2,7 @@ export type Role = "super_admin" | "admin" | "especialista" | "agente_tecnico";
 
 export const roleLabels: Record<Role, string> = {
   super_admin: "Especialista",
-  admin: "IAN",
+  admin: "IAM",
   especialista: "Especialista (revisor)",
   agente_tecnico: "Agente Técnico",
 };
