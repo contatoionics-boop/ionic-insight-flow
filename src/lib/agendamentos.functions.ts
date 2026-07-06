@@ -32,7 +32,7 @@ export const verificarConflitoAgente = createServerFn({ method: "POST" })
 
     let q = supabaseAdmin
       .from("agendamentos")
-      .select("id, agendado_em, agente_id, agente:profiles!agente_id(nome), unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
+      .select("id, agendado_em, agente_id, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
       .eq("agente_id", data.agenteId)
       .gte("agendado_em", diaIni.toISOString())
       .lte("agendado_em", diaFim.toISOString());
@@ -41,12 +41,18 @@ export const verificarConflitoAgente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const row: any = rows?.[0];
     if (!row) return { conflito: false };
+    const { data: agente } = await supabaseAdmin
+      .from("profiles")
+      .select("nome")
+      .eq("id", data.agenteId)
+      .maybeSingle();
     return {
       conflito: true,
-      agenteNome: row.agente?.nome ?? null,
+      agenteNome: (agente as any)?.nome ?? null,
       clienteNome: row.unidade?.matriz?.empresa?.nome ?? null,
       dataConflito: row.agendado_em,
     };
+
   });
 
 export const listarDiasOcupadosAgente = createServerFn({ method: "POST" })
