@@ -326,6 +326,31 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
       casos[0]?.id ?? null,
     );
 
+    await registrarEvento({
+      casoIds: casos.map((c) => c.id),
+      agendamentoId,
+      tipo: "reagendado",
+      atorId: context.userId,
+      metadata: {
+        agente_anterior_id: (agAntes as any)?.agente_id ?? null,
+        agente_anterior_nome: (agAntes as any)?.agente?.nome ?? null,
+        agente_novo_id: data.agenteId,
+        agente_novo_nome: (novoAgentePerfil as any)?.nome ?? null,
+        agendado_em_anterior: (agAntes as any)?.agendado_em ?? null,
+        agendado_em_novo: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+      },
+    });
+
+    return { ok: true };
+  });
+      data.agenteId,
+      "Novo agendamento — confirmar?",
+      `Você tem um novo agendamento em ${dataFmt} — ${cliente}.`,
+      "agendamento_novo",
+      casos[0]?.id ?? null,
+    );
+
     return { ok: true };
   });
 
