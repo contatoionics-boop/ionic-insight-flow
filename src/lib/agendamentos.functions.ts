@@ -134,6 +134,16 @@ export const confirmarAgendamentoAgente = createServerFn({ method: "POST" })
         "agendamento_confirmado",
       );
     }
+
+    const casos = await casosDoAgendamento(data.agendamentoId);
+    await registrarEvento({
+      casoIds: casos,
+      agendamentoId: data.agendamentoId,
+      tipo: "aceite_confirmado",
+      atorId: context.userId,
+      metadata: { agendado_em: (ag as any).agendado_em },
+    });
+
     return { ok: true };
   });
 
