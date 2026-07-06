@@ -178,7 +178,7 @@ function CasesPage() {
       <Table>
         <thead>
           <tr>
-            <Th className="w-8"></Th>
+            <th className="w-8 border-b border-border bg-muted/50 px-2 py-2.5"></th>
             <Th>ID</Th>
             <Th>Cliente</Th>
             <Th>Agente</Th>
