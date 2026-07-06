@@ -205,6 +205,14 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
     }
     await notificarAdmins(tituloAdmin, mensagemAdmin, "agendamento_recusado", primeiroCasoId);
 
+    await registrarEvento({
+      casoIds: casosList.map((c) => c.id),
+      agendamentoId: data.agendamentoId,
+      tipo: "aceite_recusado",
+      atorId: context.userId,
+      metadata: { motivo: data.motivo, agendado_em: (ag as any).agendado_em },
+    });
+
     return { ok: true };
   });
 
