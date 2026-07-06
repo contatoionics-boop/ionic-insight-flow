@@ -80,6 +80,7 @@ function AgendaPage() {
   const [edSaving, setEdSaving] = useState(false);
   const [edError, setEdError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Evento | null>(null);
+  const [diaAberto, setDiaAberto] = useState<Date | null>(null);
 
   useEffect(() => { carregarAgentes().then((d) => setAgentes((d ?? []) as any)); }, [carregarAgentes]);
 
