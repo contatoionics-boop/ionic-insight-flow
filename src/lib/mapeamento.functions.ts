@@ -42,6 +42,12 @@ export const adicionarObservacao = createServerFn({ method: "POST" })
       usuario_id: context.userId,
     });
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      tipo: "observacao_adicionada",
+      atorId: context.userId,
+      metadata: { texto: data.texto.slice(0, 500) },
+    });
     return { ok: true };
   });
 
