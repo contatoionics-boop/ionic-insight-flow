@@ -1,0 +1,1 @@
+ALTER TABLE public.agendamentos ALTER COLUMN aceite_agente DROP NOT NULL;
