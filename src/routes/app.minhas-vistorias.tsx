@@ -116,8 +116,11 @@ function MinhasVistoriasPage() {
     setWorking(true);
     try {
       await recusar({ data: { agendamentoId: recusando.id, motivo: motivo.trim() } });
+      toast.success("Agendamento recusado. Ian foi notificado para reagendar.");
       setRecusando(null); setMotivo("");
       await reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível recusar o agendamento.");
     } finally { setWorking(false); }
   };
 
