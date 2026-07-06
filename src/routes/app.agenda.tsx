@@ -270,6 +270,57 @@ function AgendaPage() {
         {loading && <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>}
       </Card>
 
+      {diaAberto && (() => {
+        const itens = eventosPorDia.get(diaAberto.toDateString()) ?? [];
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDiaAberto(null)}>
+            <Card className="w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" >
+              <div onClick={(e) => e.stopPropagation()} className="flex flex-col min-h-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold capitalize">
+                    {diaAberto.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                  </h3>
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">{itens.length} agendamento{itens.length === 1 ? "" : "s"}</span>
+                </div>
+                <div className="mt-3 space-y-2 overflow-y-auto pr-1">
+                  {itens.map((e) => {
+                    const est = execEstado(e);
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => { setDiaAberto(null); setSel(e); }}
+                        className="w-full rounded-md border border-border bg-card p-3 text-left hover:bg-muted/40"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <span className={`h-2 w-2 rounded-full ${execDotClass[est]}`} />
+                            {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            <span className="text-muted-foreground font-mono text-[10px]">{e.codigo}</span>
+                          </div>
+                          <Badge className={execBadgeClass[est]}>{execLabel[est]}</Badge>
+                        </div>
+                        <div className="mt-1 text-sm">
+                          {e.unidade?.matriz?.empresa?.nome ?? "—"}
+                          {e.unidade?.nome ? <span className="text-muted-foreground"> · {e.unidade.nome}</span> : null}
+                        </div>
+                        {e.agente?.nome && (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <User2 className="h-3 w-3" /> {e.agente.nome}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button variant="outline" onClick={() => setDiaAberto(null)}>Fechar</Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
+
       {sel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSel(null)}>
           <Card className="w-full max-w-md" >
