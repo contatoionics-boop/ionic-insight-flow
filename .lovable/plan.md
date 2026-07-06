@@ -1,60 +1,108 @@
-# Plano: experiência mobile/PWA para Agente Técnico
+## Objetivo
 
-Quando um usuário com papel `agente_tecnico` faz login, o sistema deve entregar uma interface pensada para celular (uma "mini app") e ser instalável como PWA na tela inicial. Admins, especialistas e super_admin continuam com a experiência desktop atual — sem mudanças.
+Registrar de forma estruturada **toda ação** executada sobre um mapeamento (quem, o quê, quando, e detalhes) e exibir esse histórico de forma clara para IAM e Especialista.
 
-## 1. PWA instalável (escopo manifesto + ícones)
+Hoje o sistema já grava alguns marcos soltos em colunas do próprio caso (`data_execucao`, `data_entrega_agente`, `data_aprovacao_pablo`, `data_aceite`, `motivo_recusa`), mas:
+- Não há registro de reagendamento, cancelamento, reabertura, reprovação, criação, alteração de agente, etc.
+- Não guarda **quem** executou a ação nem **quando** de fato ocorreu (a coluna é sobrescrita a cada mudança).
+- Não é possível reconstruir a linha do tempo completa.
 
-- Adicionar `public/manifest.webmanifest` com `name`, `short_name` ("Ionics Agente"), `theme_color` navy (#1a2436), `background_color` branco, `display: "standalone"`, `start_url: "/app/minhas-vistorias"`, `scope: "/"`.
-- Gerar ícones (192, 512, maskable) em `public/icons/`.
-- Registrar `<link rel="manifest">`, `theme-color`, `apple-touch-icon` no `head()` do `src/routes/__root.tsx`.
-- **Sem service worker / sem offline** nesta etapa (regra Lovable: manifest-only para "instalar no celular"). Offline pode entrar depois se pedirem.
+A solução é criar uma **tabela de auditoria única** (`mapeamento_eventos`) que grava cada ação como um registro imutável, alimentada por gatilhos automáticos nas ações do backend.
 
-## 2. Layout mobile dedicado para agente técnico
+---
 
-Criar `src/components/AgentMobileLayout.tsx` — shell otimizado para telefone:
+## 1. Nova tabela `mapeamento_eventos`
 
-- Topbar fixa compacta (logo + nome do agente + sino de notificações + sair).
-- **Bottom navigation** (estilo app) com 3 abas grandes touch-friendly:
-  - Hoje (mapeamentos do dia)
-  - Agenda (próximos / histórico)
-  - Perfil (dados + sair + tema)
-- Conteúdo em `<main>` com `safe-area-inset` (`pb-[env(safe-area-inset-bottom)]`), tipografia maior, cards full-width, botões com altura mínima 44px.
-- Sem sidebar lateral, sem colapsar/expandir — o `AppLayout.tsx` atual fica só para os outros papéis.
+Colunas:
+- `caso_id` (FK obrigatória)
+- `agendamento_id` (FK opcional — quando o evento é do agendamento vinculado)
+- `tipo` (enum, ver abaixo)
+- `ocorrido_em` (timestamp)
+- `ator_id` (uuid do usuário) + `ator_nome` (snapshot, para não sumir se o usuário for removido)
+- `ator_papel` (super_admin / admin / especialista / agente_tecnico / sistema)
+- `metadata` (jsonb — dados extras específicos de cada tipo, ex.: motivo, agente antigo/novo, data antiga/nova, duração)
 
-## 3. Roteamento condicional por papel
+Enum `evento_tipo`:
+- `mapeamento_criado`
+- `agendamento_criado`
+- `agendamento_agente_atribuido`
+- `aceite_confirmado`
+- `aceite_recusado`
+- `reagendado`
+- `agendamento_cancelado`
+- `vistoria_iniciada`
+- `vistoria_finalizada` (entrega para revisão)
+- `revisao_aprovada`
+- `revisao_reprovada` / `reenvio_solicitado`
+- `mapeamento_concluido`
+- `observacao_adicionada`
 
-Em `src/components/AppLayout.tsx`:
+RLS: IAM (admin), especialista e super_admin leem todos os eventos dos casos que já enxergam; agente técnico lê só eventos dos casos onde é o agente atribuído. Inserção só via server functions (service role).
 
-- Após `useAuth()` resolver, se `auth.role === "agente_tecnico"` → renderizar `<AgentMobileLayout><Outlet /></AgentMobileLayout>` em vez do shell desktop.
-- Manter o redirect já existente (`routeForRole` → `/app/minhas-vistorias`) como rota inicial pós-login do agente.
-- Em `src/routes/index.tsx` (login), após `signIn`, continuar usando `routeForRole`; nenhum ajuste de lógica de auth.
+---
 
-## 4. Adaptação das telas que o agente usa
+## 2. Instrumentação nas server functions
 
-Telas tocadas (apenas as acessíveis ao papel `agente_tecnico`):
+Cada função existente passa a inserir um evento na mesma transação:
 
-- `src/routes/app.minhas-vistorias.tsx` — reorganizar em lista vertical de cards grandes, agrupados por "Hoje / Próximos / Concluídos"; botões "Confirmar / Recusar / Iniciar" em largura total.
-- `src/routes/app.vistoria.$casoId.tsx` (execução do mapeamento via chat) — garantir input fixo no rodapé acima da bottom nav, botões de anexar foto grandes, mensagens em coluna única.
-- Telas não acessíveis ao agente (dashboard, clientes, configurações, etc.) ficam intactas.
+| Função existente | Evento a gravar |
+|---|---|
+| `criarCaso` / criação de agendamento | `mapeamento_criado`, `agendamento_criado` |
+| `aceitarAgendamentoAgente` | `aceite_confirmado` |
+| `recusarAgendamentoAgente` | `aceite_recusado` (metadata: motivo) |
+| `reagendarAposRecusa` / `reagendarVistoria` | `reagendado` (metadata: agente antigo/novo, data antiga/nova) |
+| `cancelarVistoria` | `agendamento_cancelado` |
+| `iniciarVistoria` | `vistoria_iniciada` |
+| `finalizarVistoria` | `vistoria_finalizada` |
+| `aprovarMapeamento` (mapeamento.functions) | `revisao_aprovada` |
+| `solicitarReenvio` / reprovar | `revisao_reprovada` (metadata: motivo) |
+| Inserção em `mapeamento_observacoes` | `observacao_adicionada` |
 
-## 5. Viewport e meta tags
+Helper único `registrarEvento(context, { casoId, agendamentoId?, tipo, metadata? })` para padronizar.
 
-Em `__root.tsx`:
+As colunas atuais (`data_aceite`, `data_execucao`, etc.) permanecem — servem como cache para queries rápidas de "atraso". A verdade histórica passa a viver na tabela de eventos.
 
-- Confirmar `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`.
-- Adicionar `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style="black-translucent"`, `apple-mobile-web-app-title="Ionics Agente"`.
+---
 
-## 6. Fora de escopo (confirmar se quer depois)
+## 3. UI — Timeline unificada
 
-- Service worker / modo offline / cache de mapeamentos para uso sem internet.
-- Push notifications nativas (hoje o sino é in-app).
-- Câmera nativa via Capacitor / app store.
+Substituir o `TimelineMapeamento` atual (que hoje mostra 3 marcos fixos: execução / entrega / aprovação) por uma **timeline dirigida a dados**, alimentada por `listarEventosDoMapeamento(casoId)`.
+
+Cada item mostra:
+- ícone e cor por tipo de evento (aceite=verde, recusa=vermelho, reagendado=âmbar, iniciada=azul, finalizada=roxo, aprovada=verde, etc.)
+- rótulo em português ("Aceite confirmado pelo agente")
+- ator ("por Cledir — Agente Técnico")
+- data/hora completa ("26/06/2026 14:32")
+- detalhes do metadata quando houver (motivo da recusa, "de 26/06 10:00 → 28/06 14:00", agente antigo/novo)
+
+Onde exibir:
+- **Detalhe do mapeamento** (`/app/vistorias/$id`) — timeline completa em card dedicado, visível para IAM, especialista e super_admin.
+- **Fila de revisão** (`/app/review-queue` → detalhe) — mesmo componente.
+- **Dashboard e lista de mapeamentos** — coluna extra "Última ação" com o evento mais recente (tipo + tempo relativo, ex.: "Recusado · há 2h").
+
+---
+
+## 4. Backfill do histórico existente
+
+Migração de dados que percorre `casos` e `agendamentos` já cadastrados e cria eventos sintéticos para os marcos conhecidos (`criado_em`, `data_aceite`, `data_execucao`, `data_entrega_agente`, `data_aprovacao_pablo`, `motivo_recusa`) com `ator_papel = 'sistema'` e o ator identificado quando dá pra inferir (ex.: `criado_por`, `agente_id`).
+
+---
+
+## 5. Exportação (opcional, se quiser desde já)
+
+Botão "Exportar histórico (CSV)" na tela de detalhe do mapeamento para IAM/especialista — útil para auditoria externa. Posso incluir nesta entrega ou deixar para uma segunda etapa.
+
+---
 
 ## Detalhes técnicos
 
-- Arquivos novos: `src/components/AgentMobileLayout.tsx`, `public/manifest.webmanifest`, `public/icons/icon-192.png`, `public/icons/icon-512.png`, `public/icons/icon-maskable-512.png`.
-- Arquivos alterados: `src/routes/__root.tsx` (head tags), `src/components/AppLayout.tsx` (switch por role), `src/routes/app.minhas-vistorias.tsx` e `src/routes/app.vistoria.$casoId.tsx` (refit mobile).
-- Sem migrações Supabase, sem novas server functions, sem mudanças de auth/roles.
-- Sem `vite-plugin-pwa` (manifest-only, conforme regra Lovable).
+- Nova migração cria enum `evento_tipo`, tabela `mapeamento_eventos`, índices (`caso_id`, `ocorrido_em desc`), GRANTs (`SELECT` para authenticated; sem INSERT via RLS — só via server functions com service role) e políticas RLS de leitura por papel.
+- Helper `registrarEvento` em `src/lib/eventos.functions.ts` (server-side, usa `supabaseAdmin`).
+- Novo server fn `listarEventosDoMapeamento` com `requireSupabaseAuth` + verificação de papel.
+- Novo componente `src/components/mapeamento/HistoricoEventos.tsx` (substitui/complementa `TimelineMapeamento`).
+- Atualização da coluna "Progresso" em `app.cases.tsx` e do dashboard para mostrar "última ação".
 
-Pode confirmar para eu implementar?
+## Perguntas antes de eu implementar
+
+1. Você quer a exportação CSV do histórico já nesta entrega, ou fica para depois?
+2. O agente técnico deve ver o histórico completo do próprio mapeamento (incluindo notas internas da revisão) ou só até o ponto em que entregou?
