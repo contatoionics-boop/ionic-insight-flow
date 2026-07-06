@@ -211,6 +211,9 @@ export const aprovarMapeamento = createServerFn({ method: "POST" })
       titulo: "Mapeamento aprovado",
       mensagem: `Mapeamento ${caso.codigo} foi aprovado e está liberado.`,
     });
+    await registrarEvento({
+      casoId: caso.id, tipo: "revisao_aprovada", atorId: context.userId,
+    });
     return { ok: true };
   });
 
