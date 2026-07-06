@@ -107,8 +107,13 @@ function MinhasVistoriasPage() {
 
   const handleConfirmar = async (ag: AceiteAgendamento) => {
     setWorking(true);
-    try { await confirmar({ data: { agendamentoId: ag.id } }); await reload(); }
-    finally { setWorking(false); }
+    try {
+      await confirmar({ data: { agendamentoId: ag.id } });
+      toast.success("Agendamento confirmado.");
+      await reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível confirmar.");
+    } finally { setWorking(false); }
   };
 
   const handleRecusar = async () => {
