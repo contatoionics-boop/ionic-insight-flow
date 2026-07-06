@@ -550,6 +550,7 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
         throw new Error("Termine o formulário em andamento deste agendamento antes de abrir outro.");
       }
     }
+    const wasNotStarted = alvo.status !== "em_andamento";
     const { error } = await context.supabase
       .from("casos")
       .update({ status: "em_andamento" })
@@ -557,6 +558,14 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
       .eq("agente_id", context.userId)
       .in("status", ["agendado", "rascunho", "em_andamento"]);
     if (error) throw new Error(error.message);
+    if (wasNotStarted) {
+      await registrarEvento({
+        casoId: data.casoId,
+        agendamentoId: alvo.agendamento_id ?? null,
+        tipo: "vistoria_iniciada",
+        atorId: context.userId,
+      });
+    }
     return { ok: true };
   });
 
