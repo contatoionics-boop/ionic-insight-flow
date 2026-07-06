@@ -257,6 +257,25 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
       // não bloqueia se notificação falhar
     }
 
+    const { data: agentePerfil } = await supabaseAdmin
+      .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
+    const casoIds = casos.map((c) => c.id);
+    await registrarEvento({
+      casoIds, agendamentoId: ag.id, tipo: "mapeamento_criado",
+      atorId: context.userId,
+      metadata: { formulario_ids: data.formIds },
+    });
+    await registrarEvento({
+      casoIds, agendamentoId: ag.id, tipo: "agendamento_criado",
+      atorId: context.userId,
+      metadata: {
+        agendado_em: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+        agente_id: data.agenteId,
+        agente_nome: (agentePerfil as any)?.nome ?? null,
+      },
+    });
+
     return { agendamentoId: ag.id, casos };
   });
 
