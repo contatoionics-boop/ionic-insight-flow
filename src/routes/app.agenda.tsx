@@ -228,15 +228,22 @@ function AgendaPage() {
               <div key={d.toISOString()} className={`min-h-[88px] p-1 ${inMonth ? "" : "opacity-40"} ${ocupadoPorAgente ? "bg-destructive/15 ring-1 ring-inset ring-destructive/40" : "bg-card"}`}>
                 <div className={`text-[10px] font-semibold ${ocupadoPorAgente ? "text-destructive" : "text-muted-foreground"}`}>{d.getDate()}{ocupadoPorAgente ? " · ocupado" : ""}</div>
                 <div className="mt-1 space-y-0.5">
-                  {items.slice(0, 3).map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => setSel(e)}
-                      className="block w-full truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
-                    >
-                      {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
-                    </button>
-                  ))}
+                  {items.slice(0, 3).map((e) => {
+                    const est = execEstado(e);
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => setSel(e)}
+                        title={execLabel[est]}
+                        className="flex w-full items-center gap-1 truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${execDotClass[est]}`} />
+                        <span className="truncate">
+                          {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
                   {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3}</div>}
                 </div>
               </div>
