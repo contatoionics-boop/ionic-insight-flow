@@ -344,15 +344,6 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
-      data.agenteId,
-      "Novo agendamento — confirmar?",
-      `Você tem um novo agendamento em ${dataFmt} — ${cliente}.`,
-      "agendamento_novo",
-      casos[0]?.id ?? null,
-    );
-
-    return { ok: true };
-  });
 
 
 
