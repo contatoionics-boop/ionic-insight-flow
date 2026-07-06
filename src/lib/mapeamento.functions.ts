@@ -249,5 +249,9 @@ export const solicitarCorrecao = createServerFn({ method: "POST" })
       titulo: "Correção solicitada",
       mensagem: `Mapeamento ${caso.codigo} precisa de correção: ${data.motivo}`,
     });
+    await registrarEvento({
+      casoId: caso.id, tipo: "revisao_reprovada", atorId: context.userId,
+      metadata: { motivo: data.motivo },
+    });
     return { ok: true };
   });
