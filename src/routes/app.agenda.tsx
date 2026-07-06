@@ -21,9 +21,39 @@ type Evento = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   agente_id: string | null;
+  data_execucao: string | null;
+  data_entrega_agente: string | null;
+  data_aprovacao_pablo: string | null;
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
+  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null } | null;
+};
+
+type ExecEstado = "nao_iniciado" | "em_campo" | "entregue" | "aprovado";
+function execEstado(e: Pick<Evento, "data_execucao" | "data_entrega_agente" | "data_aprovacao_pablo">): ExecEstado {
+  if (e.data_aprovacao_pablo) return "aprovado";
+  if (e.data_entrega_agente) return "entregue";
+  if (e.data_execucao) return "em_campo";
+  return "nao_iniciado";
+}
+const execDotClass: Record<ExecEstado, string> = {
+  nao_iniciado: "bg-muted-foreground/50",
+  em_campo: "bg-amber-500",
+  entregue: "bg-sky-500",
+  aprovado: "bg-emerald-500",
+};
+const execLabel: Record<ExecEstado, string> = {
+  nao_iniciado: "Não iniciado",
+  em_campo: "Em campo",
+  entregue: "Entregue",
+  aprovado: "Aprovado",
+};
+const execBadgeClass: Record<ExecEstado, string> = {
+  nao_iniciado: "bg-muted text-muted-foreground",
+  em_campo: "bg-amber-500/15 text-amber-600",
+  entregue: "bg-sky-500/15 text-sky-600",
+  aprovado: "bg-emerald-500/15 text-emerald-600",
 };
 
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0, 0, 0, 0); return x; }
