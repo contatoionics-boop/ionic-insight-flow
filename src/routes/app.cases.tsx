@@ -209,9 +209,12 @@ function CasesPage() {
                     recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
                   }`}
                 >
-                  <Td onClick={(e) => { e.stopPropagation(); toggleExpandir(c.id); }} className="cursor-pointer">
+                  <td
+                    onClick={(e) => { e.stopPropagation(); toggleExpandir(c.id); }}
+                    className="cursor-pointer border-b border-border px-2 py-3 text-foreground"
+                  >
                     {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  </Td>
+                  </td>
                   <Td className="font-mono text-xs">
                     <div className="flex items-center gap-1">
                       {c.codigo}
