@@ -201,9 +201,8 @@ function CasesPage() {
               const recusado = c.aceite_status === "recusado_pelo_agente";
               const isOpen = expandido.has(c.id);
               return (
-                <>
+                <Fragment key={c.id}>
                 <tr
-                  key={c.id}
                   onClick={() => navigate({ to: "/app/vistorias/$id", params: { id: c.id } })}
                   className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                     recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
