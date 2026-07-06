@@ -426,7 +426,7 @@ export const reagendarVistoria = createServerFn({ method: "POST" })
     await assertAdminOrSuper(context.supabase, context.userId);
     const { data: caso, error: cErr } = await supabaseAdmin
       .from("casos")
-      .select("agente_id, status")
+      .select("agente_id, status, agendado_em, agendamento_id")
       .eq("id", data.casoId)
       .maybeSingle();
     if (cErr || !caso) throw new Error("Caso não encontrado.");
@@ -450,6 +450,18 @@ export const reagendarVistoria = createServerFn({ method: "POST" })
       })
       .eq("id", data.casoId);
     if (error) throw new Error(error.message);
+
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (caso as any).agendamento_id ?? null,
+      tipo: "reagendado",
+      atorId: context.userId,
+      metadata: {
+        agendado_em_anterior: (caso as any).agendado_em ?? null,
+        agendado_em_novo: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+      },
+    });
     return { ok: true };
   });
 
@@ -460,13 +472,22 @@ export const cancelarVistoria = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdminOrSuper(context.supabase, context.userId);
+    const { data: caso } = await supabaseAdmin
+      .from("casos").select("agendamento_id").eq("id", data.casoId).maybeSingle();
     const { error } = await supabaseAdmin
       .from("casos")
       .update({ status: "cancelado" })
       .eq("id", data.casoId);
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (caso as any)?.agendamento_id ?? null,
+      tipo: "agendamento_cancelado",
+      atorId: context.userId,
+    });
     return { ok: true };
   });
+
 
 export const deletarVistoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
