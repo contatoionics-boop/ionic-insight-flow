@@ -16,7 +16,7 @@ export type Database = {
     Tables: {
       agendamentos: {
         Row: {
-          aceite_agente: boolean
+          aceite_agente: boolean | null
           aceite_status: string
           agendado_em: string
           agente_id: string
@@ -33,7 +33,7 @@ export type Database = {
           unidade_id: string
         }
         Insert: {
-          aceite_agente?: boolean
+          aceite_agente?: boolean | null
           aceite_status?: string
           agendado_em: string
           agente_id: string
@@ -50,7 +50,7 @@ export type Database = {
           unidade_id: string
         }
         Update: {
-          aceite_agente?: boolean
+          aceite_agente?: boolean | null
           aceite_status?: string
           agendado_em?: string
           agente_id?: string
