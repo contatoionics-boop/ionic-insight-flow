@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { registrarEvento } from "@/lib/eventos.server";
 
 async function assertAdminOrSuper(supabase: any, userId: string) {
   const { data, error } = await supabase
@@ -256,6 +257,25 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
       // não bloqueia se notificação falhar
     }
 
+    const { data: agentePerfil } = await supabaseAdmin
+      .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
+    const casoIds = casos.map((c) => c.id);
+    await registrarEvento({
+      casoIds, agendamentoId: ag.id, tipo: "mapeamento_criado",
+      atorId: context.userId,
+      metadata: { formulario_ids: data.formIds },
+    });
+    await registrarEvento({
+      casoIds, agendamentoId: ag.id, tipo: "agendamento_criado",
+      atorId: context.userId,
+      metadata: {
+        agendado_em: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+        agente_id: data.agenteId,
+        agente_nome: (agentePerfil as any)?.nome ?? null,
+      },
+    });
+
     return { agendamentoId: ag.id, casos };
   });
 
@@ -406,7 +426,7 @@ export const reagendarVistoria = createServerFn({ method: "POST" })
     await assertAdminOrSuper(context.supabase, context.userId);
     const { data: caso, error: cErr } = await supabaseAdmin
       .from("casos")
-      .select("agente_id, status")
+      .select("agente_id, status, agendado_em, agendamento_id")
       .eq("id", data.casoId)
       .maybeSingle();
     if (cErr || !caso) throw new Error("Caso não encontrado.");
@@ -430,6 +450,18 @@ export const reagendarVistoria = createServerFn({ method: "POST" })
       })
       .eq("id", data.casoId);
     if (error) throw new Error(error.message);
+
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (caso as any).agendamento_id ?? null,
+      tipo: "reagendado",
+      atorId: context.userId,
+      metadata: {
+        agendado_em_anterior: (caso as any).agendado_em ?? null,
+        agendado_em_novo: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+      },
+    });
     return { ok: true };
   });
 
@@ -440,13 +472,22 @@ export const cancelarVistoria = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdminOrSuper(context.supabase, context.userId);
+    const { data: caso } = await supabaseAdmin
+      .from("casos").select("agendamento_id").eq("id", data.casoId).maybeSingle();
     const { error } = await supabaseAdmin
       .from("casos")
       .update({ status: "cancelado" })
       .eq("id", data.casoId);
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (caso as any)?.agendamento_id ?? null,
+      tipo: "agendamento_cancelado",
+      atorId: context.userId,
+    });
     return { ok: true };
   });
+
 
 export const deletarVistoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -509,6 +550,7 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
         throw new Error("Termine o formulário em andamento deste agendamento antes de abrir outro.");
       }
     }
+    const wasNotStarted = alvo.status !== "em_andamento";
     const { error } = await context.supabase
       .from("casos")
       .update({ status: "em_andamento" })
@@ -516,6 +558,14 @@ export const iniciarVistoria = createServerFn({ method: "POST" })
       .eq("agente_id", context.userId)
       .in("status", ["agendado", "rascunho", "em_andamento"]);
     if (error) throw new Error(error.message);
+    if (wasNotStarted) {
+      await registrarEvento({
+        casoId: data.casoId,
+        agendamentoId: alvo.agendamento_id ?? null,
+        tipo: "vistoria_iniciada",
+        atorId: context.userId,
+      });
+    }
     return { ok: true };
   });
 
@@ -528,7 +578,7 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
     await assertVistoriador(context.supabase, context.userId);
     const { data: alvo } = await supabaseAdmin
       .from("casos")
-      .select("agendamento:agendamentos!agendamento_id(aceite_status)")
+      .select("agendamento_id, agendamento:agendamentos!agendamento_id(aceite_status)")
       .eq("id", data.casoId)
       .maybeSingle();
     if ((alvo as any)?.agendamento?.aceite_status === "recusado_pelo_agente") {
@@ -540,6 +590,12 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
       .eq("id", data.casoId)
       .eq("agente_id", context.userId);
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (alvo as any)?.agendamento_id ?? null,
+      tipo: "vistoria_finalizada",
+      atorId: context.userId,
+    });
     return { ok: true };
   });
 

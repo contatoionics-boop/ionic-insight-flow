@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { registrarEvento } from "@/lib/eventos.server";
 
 export type ObservacaoRow = {
   id: string;
@@ -41,6 +42,12 @@ export const adicionarObservacao = createServerFn({ method: "POST" })
       usuario_id: context.userId,
     });
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      tipo: "observacao_adicionada",
+      atorId: context.userId,
+      metadata: { texto: data.texto.slice(0, 500) },
+    });
     return { ok: true };
   });
 
@@ -204,6 +211,9 @@ export const aprovarMapeamento = createServerFn({ method: "POST" })
       titulo: "Mapeamento aprovado",
       mensagem: `Mapeamento ${caso.codigo} foi aprovado e está liberado.`,
     });
+    await registrarEvento({
+      casoId: caso.id, tipo: "revisao_aprovada", atorId: context.userId,
+    });
     return { ok: true };
   });
 
@@ -238,6 +248,10 @@ export const solicitarCorrecao = createServerFn({ method: "POST" })
       tipo: "recusado",
       titulo: "Correção solicitada",
       mensagem: `Mapeamento ${caso.codigo} precisa de correção: ${data.motivo}`,
+    });
+    await registrarEvento({
+      casoId: caso.id, tipo: "revisao_reprovada", atorId: context.userId,
+      metadata: { motivo: data.motivo },
     });
     return { ok: true };
   });

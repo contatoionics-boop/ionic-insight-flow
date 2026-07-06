@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { registrarEvento, casosDoAgendamento } from "@/lib/eventos.server";
 
 // ============================================================
 // Conflitos de agenda
@@ -133,6 +134,16 @@ export const confirmarAgendamentoAgente = createServerFn({ method: "POST" })
         "agendamento_confirmado",
       );
     }
+
+    const casos = await casosDoAgendamento(data.agendamentoId);
+    await registrarEvento({
+      casoIds: casos,
+      agendamentoId: data.agendamentoId,
+      tipo: "aceite_confirmado",
+      atorId: context.userId,
+      metadata: { agendado_em: (ag as any).agendado_em },
+    });
+
     return { ok: true };
   });
 
@@ -194,6 +205,14 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
     }
     await notificarAdmins(tituloAdmin, mensagemAdmin, "agendamento_recusado", primeiroCasoId);
 
+    await registrarEvento({
+      casoIds: casosList.map((c) => c.id),
+      agendamentoId: data.agendamentoId,
+      tipo: "aceite_recusado",
+      atorId: context.userId,
+      metadata: { motivo: data.motivo, agendado_em: (ag as any).agendado_em },
+    });
+
     return { ok: true };
   });
 
@@ -227,6 +246,15 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
     if (cErr || !caso) throw new Error("Mapeamento não encontrado.");
     const agendamentoId = (caso as any).agendamento_id;
     if (!agendamentoId) throw new Error("Mapeamento sem agendamento.");
+
+    // Captura dados anteriores para o histórico
+    const { data: agAntes } = await supabaseAdmin
+      .from("agendamentos")
+      .select("agente_id, agendado_em, agente:profiles!agente_id(nome)")
+      .eq("id", agendamentoId)
+      .maybeSingle();
+    const { data: novoAgentePerfil } = await supabaseAdmin
+      .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
 
     // Verifica conflito para o novo agente/data
     const ini = new Date(data.agendadoEm);
@@ -297,6 +325,22 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
       "agendamento_novo",
       casos[0]?.id ?? null,
     );
+
+    await registrarEvento({
+      casoIds: casos.map((c) => c.id),
+      agendamentoId,
+      tipo: "reagendado",
+      atorId: context.userId,
+      metadata: {
+        agente_anterior_id: (agAntes as any)?.agente_id ?? null,
+        agente_anterior_nome: (agAntes as any)?.agente?.nome ?? null,
+        agente_novo_id: data.agenteId,
+        agente_novo_nome: (novoAgentePerfil as any)?.nome ?? null,
+        agendado_em_anterior: (agAntes as any)?.agendado_em ?? null,
+        agendado_em_novo: data.agendadoEm,
+        duracao_min: data.duracaoMin,
+      },
+    });
 
     return { ok: true };
   });

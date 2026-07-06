@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { TimelineMapeamento } from "@/components/mapeamento/TimelineMapeamento";
+import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 
 export const Route = createFileRoute("/app/vistorias/$id")({
@@ -265,12 +265,7 @@ function VistoriaDetalhesPage() {
       )}
 
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <TimelineMapeamento
-          agendado={caso.agendado_em}
-          execucao={caso.data_execucao}
-          entrega={caso.data_entrega_agente}
-          aprovacao={caso.data_aprovacao_pablo}
-        />
+        <HistoricoEventos casoId={caso.id} />
         <ObservacoesPanel casoId={caso.id} />
       </div>
 
