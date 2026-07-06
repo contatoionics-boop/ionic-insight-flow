@@ -8,7 +8,8 @@ import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
-import { AlertTriangle, CalendarClock, Download, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, X } from "lucide-react";
+import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 
 export const Route = createFileRoute("/app/cases")({
   component: CasesPage,
