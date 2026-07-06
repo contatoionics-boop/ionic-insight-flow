@@ -239,7 +239,7 @@ function CasesPage() {
                   <Td>
                     {c.agente_nome ?? "—"}
                     {c.agente_id && (
-                      <div className="mt-0.5">
+                      <div className="mt-0.5 flex flex-wrap gap-1">
                         {c.aceite_status === "confirmado" ? (
                           <Badge className="bg-success/15 text-success text-[10px]">
                             ✓ Aceito{c.data_aceite ? ` ${new Date(c.data_aceite).toLocaleDateString("pt-BR")}` : ""}
@@ -252,6 +252,17 @@ function CasesPage() {
                           <Badge className="bg-warning/20 text-warning-foreground text-[10px]">
                             ⏳ Aguardando aceite
                           </Badge>
+                        )}
+                        {c.aceite_status === "confirmado" && (
+                          c.data_aprovacao_pablo ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-600 text-[10px]">✓ Aprovado</Badge>
+                          ) : c.data_entrega_agente ? (
+                            <Badge className="bg-sky-500/15 text-sky-600 text-[10px]">📤 Entregue {new Date(c.data_entrega_agente).toLocaleDateString("pt-BR")}</Badge>
+                          ) : c.data_execucao ? (
+                            <Badge className="bg-amber-500/15 text-amber-600 text-[10px]">▶ Em campo {new Date(c.data_execucao).toLocaleDateString("pt-BR")}</Badge>
+                          ) : (
+                            <Badge className="bg-muted text-muted-foreground text-[10px]">○ Não iniciado</Badge>
+                          )
                         )}
                       </div>
                     )}
