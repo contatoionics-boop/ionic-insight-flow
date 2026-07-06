@@ -155,7 +155,7 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: ag, error: agErr } = await supabaseAdmin
       .from("agendamentos")
-      .select("id, agente_id, criado_por, agendado_em, unidade:unidades(matriz:matrizes(empresa:empresas(nome))), agente:profiles!agente_id(nome)")
+      .select("id, agente_id, criado_por, agendado_em, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
       .eq("id", data.agendamentoId)
       .maybeSingle();
     if (agErr || !ag) throw new Error("Agendamento não encontrado.");
@@ -172,8 +172,14 @@ export const recusarAgendamentoAgente = createServerFn({ method: "POST" })
       .eq("id", data.agendamentoId);
     if (error) throw new Error(error.message);
 
+    const { data: perfilAgente } = await supabaseAdmin
+      .from("profiles")
+      .select("nome")
+      .eq("id", context.userId)
+      .maybeSingle();
+
     const cliente = (ag as any).unidade?.matriz?.empresa?.nome ?? "cliente";
-    const agenteNome = (ag as any).agente?.nome ?? "agente";
+    const agenteNome = (perfilAgente as any)?.nome ?? "agente";
     const dataFmt = new Date((ag as any).agendado_em).toLocaleString("pt-BR");
 
     // Busca os casos deste agendamento para citar códigos e registrar observação
