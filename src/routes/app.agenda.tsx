@@ -21,9 +21,39 @@ type Evento = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   agente_id: string | null;
+  data_execucao: string | null;
+  data_entrega_agente: string | null;
+  data_aprovacao_pablo: string | null;
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
+  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null } | null;
+};
+
+type ExecEstado = "nao_iniciado" | "em_campo" | "entregue" | "aprovado";
+function execEstado(e: Pick<Evento, "data_execucao" | "data_entrega_agente" | "data_aprovacao_pablo">): ExecEstado {
+  if (e.data_aprovacao_pablo) return "aprovado";
+  if (e.data_entrega_agente) return "entregue";
+  if (e.data_execucao) return "em_campo";
+  return "nao_iniciado";
+}
+const execDotClass: Record<ExecEstado, string> = {
+  nao_iniciado: "bg-muted-foreground/50",
+  em_campo: "bg-amber-500",
+  entregue: "bg-sky-500",
+  aprovado: "bg-emerald-500",
+};
+const execLabel: Record<ExecEstado, string> = {
+  nao_iniciado: "Não iniciado",
+  em_campo: "Em campo",
+  entregue: "Entregue",
+  aprovado: "Aprovado",
+};
+const execBadgeClass: Record<ExecEstado, string> = {
+  nao_iniciado: "bg-muted text-muted-foreground",
+  em_campo: "bg-amber-500/15 text-amber-600",
+  entregue: "bg-sky-500/15 text-sky-600",
+  aprovado: "bg-emerald-500/15 text-emerald-600",
 };
 
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0, 0, 0, 0); return x; }
@@ -198,15 +228,22 @@ function AgendaPage() {
               <div key={d.toISOString()} className={`min-h-[88px] p-1 ${inMonth ? "" : "opacity-40"} ${ocupadoPorAgente ? "bg-destructive/15 ring-1 ring-inset ring-destructive/40" : "bg-card"}`}>
                 <div className={`text-[10px] font-semibold ${ocupadoPorAgente ? "text-destructive" : "text-muted-foreground"}`}>{d.getDate()}{ocupadoPorAgente ? " · ocupado" : ""}</div>
                 <div className="mt-1 space-y-0.5">
-                  {items.slice(0, 3).map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => setSel(e)}
-                      className="block w-full truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
-                    >
-                      {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
-                    </button>
-                  ))}
+                  {items.slice(0, 3).map((e) => {
+                    const est = execEstado(e);
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => setSel(e)}
+                        title={execLabel[est]}
+                        className="flex w-full items-center gap-1 truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${execDotClass[est]}`} />
+                        <span className="truncate">
+                          {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
                   {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3}</div>}
                 </div>
               </div>
@@ -226,6 +263,20 @@ function AgendaPage() {
               </div>
               <h3 className="mt-2 text-lg font-semibold">{sel.unidade?.matriz?.empresa?.nome}{sel.unidade?.nome ? <span className="ml-1 text-sm font-normal text-muted-foreground">· {sel.unidade.nome}</span> : null}</h3>
               <p className="text-sm text-muted-foreground">{sel.formulario?.nome}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {sel.agendamento?.data_aceite && (
+                  <Badge className="bg-success/15 text-success">✓ Aceito em {new Date(sel.agendamento.data_aceite).toLocaleDateString("pt-BR")}</Badge>
+                )}
+                <Badge className={execBadgeClass[execEstado(sel)]}>
+                  {execEstado(sel) === "em_campo" && sel.data_execucao
+                    ? `Em campo desde ${new Date(sel.data_execucao).toLocaleDateString("pt-BR")}`
+                    : execEstado(sel) === "entregue" && sel.data_entrega_agente
+                      ? `Entregue em ${new Date(sel.data_entrega_agente).toLocaleDateString("pt-BR")}`
+                      : execEstado(sel) === "aprovado" && sel.data_aprovacao_pablo
+                        ? `Aprovado em ${new Date(sel.data_aprovacao_pablo).toLocaleDateString("pt-BR")}`
+                        : execLabel[execEstado(sel)]}
+                </Badge>
+              </div>
               <div className="mt-3 space-y-1 text-sm">
                 <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {new Date(sel.agendado_em).toLocaleString("pt-BR")} · {sel.duracao_min} min</p>
                 {sel.agente?.nome && <p className="flex items-center gap-2"><User2 className="h-4 w-4" /> {sel.agente.nome}</p>}

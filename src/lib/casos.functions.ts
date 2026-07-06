@@ -616,14 +616,15 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("casos")
       .select(
-        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome), agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa)",
       )
       .not("agendado_em", "is", null)
       .gte("agendado_em", data.inicio)
       .lte("agendado_em", data.fim)
+      .neq("status", "cancelado")
       .order("agendado_em", { ascending: true });
     if (data.agenteId) q = q.eq("agente_id", data.agenteId);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    return (rows ?? []).filter((r: any) => r.agendamento?.aceite_status === "confirmado");
   });
