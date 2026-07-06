@@ -12,7 +12,7 @@ export type EventoRow = {
   ator_id: string | null;
   ator_nome: string | null;
   ator_papel: AtorPapel;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any>;
 };
 
 export const listarEventosDoMapeamento = createServerFn({ method: "POST" })
