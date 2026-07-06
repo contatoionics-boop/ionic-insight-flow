@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button, Modal } from "@/components/ui-bits";
@@ -8,7 +8,8 @@ import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
-import { AlertTriangle, CalendarClock, Download, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, X } from "lucide-react";
+import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 
 export const Route = createFileRoute("/app/cases")({
   component: CasesPage,
@@ -33,7 +34,16 @@ function CasesPage() {
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
+  const [expandido, setExpandido] = useState<Set<string>>(new Set());
   const reagendar = useServerFn(reagendarAposRecusa);
+
+  const toggleExpandir = (id: string) => {
+    setExpandido((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
 
   const [fAgente, setFAgente] = useState("");
@@ -168,6 +178,7 @@ function CasesPage() {
       <Table>
         <thead>
           <tr>
+            <th className="w-8 border-b border-border bg-muted/50 px-2 py-2.5"></th>
             <Th>ID</Th>
             <Th>Cliente</Th>
             <Th>Agente</Th>
@@ -179,23 +190,30 @@ function CasesPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
           ) : filtradas.length === 0 ? (
-            <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
+            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
           ) : (
             filtradas.map((c) => {
               const pct = c.total_obrigatorias > 0
                 ? Math.round((c.respondidas_obrigatorias / c.total_obrigatorias) * 100)
                 : 0;
               const recusado = c.aceite_status === "recusado_pelo_agente";
+              const isOpen = expandido.has(c.id);
               return (
+                <Fragment key={c.id}>
                 <tr
-                  key={c.id}
                   onClick={() => navigate({ to: "/app/vistorias/$id", params: { id: c.id } })}
                   className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                     recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
                   }`}
                 >
+                  <td
+                    onClick={(e) => { e.stopPropagation(); toggleExpandir(c.id); }}
+                    className="cursor-pointer border-b border-border px-2 py-3 text-foreground"
+                  >
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </td>
                   <Td className="font-mono text-xs">
                     <div className="flex items-center gap-1">
                       {c.codigo}
@@ -266,6 +284,15 @@ function CasesPage() {
                   </Td>
 
                 </tr>
+                {isOpen && (
+                  <tr key={`${c.id}-hist`} className="bg-muted/20">
+                    <td></td>
+                    <td colSpan={7} className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <HistoricoEventos casoId={c.id} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })
           )}
