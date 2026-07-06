@@ -265,12 +265,7 @@ function VistoriaDetalhesPage() {
       )}
 
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <TimelineMapeamento
-          agendado={caso.agendado_em}
-          execucao={caso.data_execucao}
-          entrega={caso.data_entrega_agente}
-          aprovacao={caso.data_aprovacao_pablo}
-        />
+        <HistoricoEventos casoId={caso.id} />
         <ObservacoesPanel casoId={caso.id} />
       </div>
 
