@@ -262,9 +262,13 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
     // Captura dados anteriores para o histórico
     const { data: agAntes } = await supabaseAdmin
       .from("agendamentos")
-      .select("agente_id, agendado_em, agente:profiles!agente_id(nome)")
+      .select("agente_id, agendado_em")
       .eq("id", agendamentoId)
       .maybeSingle();
+    const agenteAnteriorId = (agAntes as any)?.agente_id ?? null;
+    const { data: agenteAnteriorPerfil } = agenteAnteriorId
+      ? await supabaseAdmin.from("profiles").select("nome").eq("id", agenteAnteriorId).maybeSingle()
+      : { data: null } as any;
     const { data: novoAgentePerfil } = await supabaseAdmin
       .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
 
