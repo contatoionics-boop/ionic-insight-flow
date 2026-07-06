@@ -348,8 +348,8 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
       tipo: "reagendado",
       atorId: context.userId,
       metadata: {
-        agente_anterior_id: (agAntes as any)?.agente_id ?? null,
-        agente_anterior_nome: (agAntes as any)?.agente?.nome ?? null,
+        agente_anterior_id: agenteAnteriorId,
+        agente_anterior_nome: (agenteAnteriorPerfil as any)?.nome ?? null,
         agente_novo_id: data.agenteId,
         agente_novo_nome: (novoAgentePerfil as any)?.nome ?? null,
         agendado_em_anterior: (agAntes as any)?.agendado_em ?? null,
