@@ -33,6 +33,8 @@ export function NotificacoesBell() {
 
   const load = useCallback(async () => {
     try {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) return;
       const data = await listar();
       const novas = data.filter((n) => !lastIdsRef.current.has(n.id) && !n.lido);
       if (!firstLoadRef.current && novas.length > 0) {
