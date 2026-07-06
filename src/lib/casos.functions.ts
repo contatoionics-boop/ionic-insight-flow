@@ -578,7 +578,7 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
     await assertVistoriador(context.supabase, context.userId);
     const { data: alvo } = await supabaseAdmin
       .from("casos")
-      .select("agendamento:agendamentos!agendamento_id(aceite_status)")
+      .select("agendamento_id, agendamento:agendamentos!agendamento_id(aceite_status)")
       .eq("id", data.casoId)
       .maybeSingle();
     if ((alvo as any)?.agendamento?.aceite_status === "recusado_pelo_agente") {
@@ -590,6 +590,12 @@ export const finalizarVistoria = createServerFn({ method: "POST" })
       .eq("id", data.casoId)
       .eq("agente_id", context.userId);
     if (error) throw new Error(error.message);
+    await registrarEvento({
+      casoId: data.casoId,
+      agendamentoId: (alvo as any)?.agendamento_id ?? null,
+      tipo: "vistoria_finalizada",
+      atorId: context.userId,
+    });
     return { ok: true };
   });
 
