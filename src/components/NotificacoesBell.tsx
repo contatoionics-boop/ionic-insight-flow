@@ -3,12 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listarNotificacoes,
   marcarNotificacaoLida,
   marcarTodasLidas,
   type Notificacao,
 } from "@/lib/notificacoes.functions";
+
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", {
