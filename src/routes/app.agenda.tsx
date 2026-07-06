@@ -226,15 +226,24 @@ function AgendaPage() {
             const items = eventosPorDia.get(d.toDateString()) ?? [];
             const ocupadoPorAgente = !!agenteId && items.length > 0;
             return (
-              <div key={d.toISOString()} className={`min-h-[88px] p-1 ${inMonth ? "" : "opacity-40"} ${ocupadoPorAgente ? "bg-destructive/15 ring-1 ring-inset ring-destructive/40" : "bg-card"}`}>
-                <div className={`text-[10px] font-semibold ${ocupadoPorAgente ? "text-destructive" : "text-muted-foreground"}`}>{d.getDate()}{ocupadoPorAgente ? " · ocupado" : ""}</div>
+              <div
+                key={d.toISOString()}
+                className={`min-h-[88px] p-1 ${inMonth ? "" : "opacity-40"} ${ocupadoPorAgente ? "bg-destructive/15 ring-1 ring-inset ring-destructive/40" : "bg-card"} ${items.length > 0 ? "cursor-pointer hover:bg-muted/30" : ""}`}
+                onClick={() => items.length > 0 && setDiaAberto(d)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`text-[10px] font-semibold ${ocupadoPorAgente ? "text-destructive" : "text-muted-foreground"}`}>{d.getDate()}{ocupadoPorAgente ? " · ocupado" : ""}</div>
+                  {items.length > 0 && (
+                    <span className="rounded-full bg-primary/15 px-1.5 text-[9px] font-semibold text-primary">{items.length}</span>
+                  )}
+                </div>
                 <div className="mt-1 space-y-0.5">
                   {items.slice(0, 3).map((e) => {
                     const est = execEstado(e);
                     return (
                       <button
                         key={e.id}
-                        onClick={() => setSel(e)}
+                        onClick={(ev) => { ev.stopPropagation(); setSel(e); }}
                         title={execLabel[est]}
                         className="flex w-full items-center gap-1 truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
                       >
@@ -245,7 +254,14 @@ function AgendaPage() {
                       </button>
                     );
                   })}
-                  {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3}</div>}
+                  {items.length > 3 && (
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); setDiaAberto(d); }}
+                      className="w-full rounded px-1 py-0.5 text-left text-[10px] font-medium text-primary hover:bg-primary/10"
+                    >
+                      Ver todos (+{items.length - 3})
+                    </button>
+                  )}
                 </div>
               </div>
             );
