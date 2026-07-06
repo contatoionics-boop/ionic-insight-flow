@@ -34,7 +34,16 @@ function CasesPage() {
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
+  const [expandido, setExpandido] = useState<Set<string>>(new Set());
   const reagendar = useServerFn(reagendarAposRecusa);
+
+  const toggleExpandir = (id: string) => {
+    setExpandido((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
 
   const [fAgente, setFAgente] = useState("");
