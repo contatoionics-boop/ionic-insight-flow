@@ -583,6 +583,60 @@ export type Database = {
           },
         ]
       }
+      mapeamento_eventos: {
+        Row: {
+          agendamento_id: string | null
+          ator_id: string | null
+          ator_nome: string | null
+          ator_papel: Database["public"]["Enums"]["ator_papel"]
+          caso_id: string
+          criado_em: string
+          id: string
+          metadata: Json
+          ocorrido_em: string
+          tipo: Database["public"]["Enums"]["mapeamento_evento_tipo"]
+        }
+        Insert: {
+          agendamento_id?: string | null
+          ator_id?: string | null
+          ator_nome?: string | null
+          ator_papel?: Database["public"]["Enums"]["ator_papel"]
+          caso_id: string
+          criado_em?: string
+          id?: string
+          metadata?: Json
+          ocorrido_em?: string
+          tipo: Database["public"]["Enums"]["mapeamento_evento_tipo"]
+        }
+        Update: {
+          agendamento_id?: string | null
+          ator_id?: string | null
+          ator_nome?: string | null
+          ator_papel?: Database["public"]["Enums"]["ator_papel"]
+          caso_id?: string
+          criado_em?: string
+          id?: string
+          metadata?: Json
+          ocorrido_em?: string
+          tipo?: Database["public"]["Enums"]["mapeamento_evento_tipo"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapeamento_eventos_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mapeamento_eventos_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mapeamento_observacoes: {
         Row: {
           caso_id: string
@@ -1120,6 +1174,12 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "especialista" | "agente_tecnico"
+      ator_papel:
+        | "super_admin"
+        | "admin"
+        | "especialista"
+        | "agente_tecnico"
+        | "sistema"
       caso_status:
         | "rascunho"
         | "enviado"
@@ -1139,6 +1199,20 @@ export type Database = {
         | "textos_padrao"
         | "glossario_tecnico"
       knowledge_classificacao: "OK" | "ATENCAO" | "BLOQUEIO"
+      mapeamento_evento_tipo:
+        | "mapeamento_criado"
+        | "agendamento_criado"
+        | "agente_atribuido"
+        | "aceite_confirmado"
+        | "aceite_recusado"
+        | "reagendado"
+        | "agendamento_cancelado"
+        | "vistoria_iniciada"
+        | "vistoria_finalizada"
+        | "revisao_aprovada"
+        | "revisao_reprovada"
+        | "mapeamento_concluido"
+        | "observacao_adicionada"
       pergunta_tipo:
         | "texto"
         | "foto"
@@ -1278,6 +1352,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "especialista", "agente_tecnico"],
+      ator_papel: [
+        "super_admin",
+        "admin",
+        "especialista",
+        "agente_tecnico",
+        "sistema",
+      ],
       caso_status: [
         "rascunho",
         "enviado",
@@ -1299,6 +1380,21 @@ export const Constants = {
         "glossario_tecnico",
       ],
       knowledge_classificacao: ["OK", "ATENCAO", "BLOQUEIO"],
+      mapeamento_evento_tipo: [
+        "mapeamento_criado",
+        "agendamento_criado",
+        "agente_atribuido",
+        "aceite_confirmado",
+        "aceite_recusado",
+        "reagendado",
+        "agendamento_cancelado",
+        "vistoria_iniciada",
+        "vistoria_finalizada",
+        "revisao_aprovada",
+        "revisao_reprovada",
+        "mapeamento_concluido",
+        "observacao_adicionada",
+      ],
       pergunta_tipo: [
         "texto",
         "foto",
