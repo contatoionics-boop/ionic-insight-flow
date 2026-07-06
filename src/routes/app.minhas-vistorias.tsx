@@ -11,6 +11,7 @@ import {
   type AceiteAgendamento,
 } from "@/lib/agendamentos.functions";
 import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
@@ -106,8 +107,13 @@ function MinhasVistoriasPage() {
 
   const handleConfirmar = async (ag: AceiteAgendamento) => {
     setWorking(true);
-    try { await confirmar({ data: { agendamentoId: ag.id } }); await reload(); }
-    finally { setWorking(false); }
+    try {
+      await confirmar({ data: { agendamentoId: ag.id } });
+      toast.success("Agendamento confirmado.");
+      await reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível confirmar.");
+    } finally { setWorking(false); }
   };
 
   const handleRecusar = async () => {
@@ -115,8 +121,11 @@ function MinhasVistoriasPage() {
     setWorking(true);
     try {
       await recusar({ data: { agendamentoId: recusando.id, motivo: motivo.trim() } });
+      toast.success("Agendamento recusado. Ian foi notificado para reagendar.");
       setRecusando(null); setMotivo("");
       await reload();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível recusar o agendamento.");
     } finally { setWorking(false); }
   };
 
