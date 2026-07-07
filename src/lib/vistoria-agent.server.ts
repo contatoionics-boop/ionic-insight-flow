@@ -2,6 +2,7 @@
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { registrarEvento } from "@/lib/eventos.server";
 
 export type AgentPergunta = {
   id: string;
