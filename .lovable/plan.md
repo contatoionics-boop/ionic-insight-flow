@@ -1,47 +1,30 @@
-## Objetivo
+## Problema
 
-Corrigir a tela **Agenda** para mostrar somente agendamentos **aceitos pelo agente** e melhorar o modal de detalhes, e adicionar o indicador **"iniciado / não iniciado"** na tela **Mapeamentos**.
+Quando o agente técnico começa a responder a primeira pergunta do mapeamento (o "sim, quero iniciar"), o caso permanece com status `agendado`. Não é marcado como iniciado — em Mapeamentos aparece "Não iniciado", `data_execucao` fica nulo e o evento `vistoria_iniciada` nunca é registrado.
 
----
+Motivo: existe a server fn `iniciarVistoria` (em `src/lib/casos.functions.ts`) que faria essa transição, mas ela **não é chamada em lugar nenhum**. O fluxo do agente vai direto do chat para `execSalvarResposta`, que só grava em `respostas_agente`, sem tocar em `casos.status`.
 
-## 1) Agenda (`/app/agenda`)
+## Correção
 
-**Problema atual:** o calendário mostra todos os casos com `agendado_em`, independente de o agente ter aceitado ou recusado. Isso diverge da tela de Mapeamentos e não deixa claro o status real.
+Marcar o mapeamento como iniciado na **primeira resposta salva** pelo agente, dentro de `execSalvarResposta` (`src/lib/vistoria-agent.server.ts`).
 
-**Mudanças:**
+Passos, após o `upsert` de sucesso em `respostas_agente`:
 
-- Em `listarAgendaAdmin` (`src/lib/casos.functions.ts`):
-  - Incluir no `select` o join com `agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa)`.
-  - Filtrar somente casos com `aceite_status = 'confirmado'` (agendamentos efetivamente aceitos pelo agente). Casos aguardando aceite ou recusados deixam de aparecer no calendário.
-  - Excluir também casos com `status = 'cancelado'`.
+1. Ler `casos` (id = `casoId`) buscando `status`, `agente_id`, `agendamento_id`.
+2. Se `status` estiver em `('agendado','rascunho')`:
+   - `update casos set status='em_andamento' where id=casoId` (o trigger `casos_timeline_auto` já preenche `data_execucao = now()` automaticamente).
+   - Chamar `registrarEvento({ casoId, agendamentoId, tipo: 'vistoria_iniciada', atorId: agente_id })` — mesmo evento que `iniciarVistoria` emite hoje.
+3. Se já estiver `em_andamento` (ou finalizado), não faz nada — idempotente.
 
-- Em `src/routes/app.agenda.tsx`:
-  - Adicionar no tipo `Evento` os campos `aceite_status`, `data_aceite` e a data de início da vistoria (`data_execucao`) e entrega (`data_entrega_agente`).
-  - No modal de detalhes do agendamento (`sel`), exibir:
-    - Badge "✓ Aceito em {data}" (sempre presente, já que só listamos aceitos).
-    - Badge de execução: "Não iniciado" (cinza) quando `data_execucao` é nulo; "Em campo desde {data}" (âmbar) quando iniciado mas sem entrega; "Entregue em {data}" (verde) quando `data_entrega_agente` presente.
-  - Nas células do calendário, adicionar um pequeno dot/ícone colorido antes do horário indicando o mesmo status de execução (cinza = não iniciado, âmbar = em campo, verde = entregue), para leitura rápida.
+Efeitos automáticos após a mudança:
+- **Mapeamentos** (`/app/cases`) passa a mostrar o badge "▶ Em campo desde {data}".
+- **Agenda** (`/app/agenda`) passa a mostrar o dot âmbar / "Em campo desde {data}" no modal.
+- **Timeline** do mapeamento ganha o evento `vistoria_iniciada` no momento certo.
 
-## 2) Mapeamentos (`/app/cases`)
+Nenhum outro fluxo é alterado. `finalizarVistoria` continua responsável por `data_entrega_agente` / `aguardando_revisao`.
 
-**Problema atual:** a tabela mostra aceite (Aceito / Aguardando / Recusado) mas não mostra se o mapeamento foi **iniciado** em campo.
+## Arquivos afetados
 
-**Mudanças em `src/routes/app.cases.tsx`:**
+- `src/lib/vistoria-agent.server.ts` — acrescentar a lógica de "marcar iniciado" no fim de `execSalvarResposta` (usa `supabaseAdmin`, que já está importado, e `registrarEvento` de `@/lib/eventos.server`).
 
-- Abaixo do badge de aceite (na coluna "Agente"), adicionar um segundo badge de execução usando os campos já disponíveis em `MapeamentoComProgresso` (`data_execucao`, `data_entrega_agente`, `data_aprovacao_pablo`):
-  - `data_aprovacao_pablo` presente → "✓ Aprovado" (verde).
-  - `data_entrega_agente` presente → "📤 Entregue {data}" (azul).
-  - `data_execucao` presente → "▶ Em campo desde {data}" (âmbar).
-  - Nenhum dos três → "○ Não iniciado" (cinza).
-- Nada muda no filtro/carregamento — os dados já vêm de `listarMapeamentosComProgresso`.
-
----
-
-## Detalhes técnicos
-
-- Arquivos a alterar:
-  - `src/lib/casos.functions.ts` — ajustar `listarAgendaAdmin` (select + filtro `aceite_status='confirmado'` + exclusão de cancelados + retornar `data_execucao`/`data_entrega_agente`).
-  - `src/routes/app.agenda.tsx` — tipo `Evento` estendido, badges no modal, dot de execução na célula.
-  - `src/routes/app.cases.tsx` — badge extra de execução na coluna Agente.
-- Não há mudança de schema, migração, RLS ou server-only import — apenas leitura já autorizada.
-- Sem impacto em `/app/minhas-vistorias` (agente técnico) — só admin/pablo vêm a Agenda.
+Sem migração, sem mudança de schema, sem mudança de UI.
