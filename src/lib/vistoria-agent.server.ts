@@ -2,6 +2,7 @@
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { registrarEvento } from "@/lib/eventos.server";
 
 export type AgentPergunta = {
   id: string;
@@ -395,6 +396,33 @@ export async function execSalvarResposta(
     arquivos_paths,
     transcricao,
   };
+
+  // Marca o mapeamento como iniciado na primeira resposta salva.
+  try {
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("status, agente_id, agendamento_id")
+      .eq("id", casoId)
+      .maybeSingle();
+    if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
+      const { error: updErr } = await supabaseAdmin
+        .from("casos")
+        .update({ status: "em_andamento" })
+        .eq("id", casoId)
+        .in("status", ["agendado", "rascunho"]);
+      if (!updErr) {
+        await registrarEvento({
+          casoId,
+          agendamentoId: caso.agendamento_id ?? null,
+          tipo: "vistoria_iniciada",
+          atorId: caso.agente_id ?? null,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[vistoria] falha ao marcar iniciada:", e);
+  }
+
   return { ok: true };
 }
 
