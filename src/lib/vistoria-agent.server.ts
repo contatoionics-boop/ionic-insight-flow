@@ -286,7 +286,9 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Quando o usuário anexar uma ou mais fotos (mensagem contendo "[ANEXO_FOTO arquivo_path=..." ou "[ANEXO_FOTOS arquivos_paths=p1,p2,..."), chame \`validar_foto\` na PRIMEIRA foto e em seguida chame \`salvar_resposta\` UMA ÚNICA VEZ passando \`arquivos_paths\` com a lista completa (ou \`arquivo_path\` se for só uma). Não crie respostas separadas por foto — todas pertencem ao mesmo \`pergunta_id\`.`,
     `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu, consulte o \`state\` ou os dados de cadastro acima e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
     `- A interface mostra apenas a sua última mensagem por vez (estilo ChatGPT). Por isso, cada turno deve conter a pergunta atual completa e autocontida — não diga "como mencionei acima".`,
-    `- Quando todas as perguntas obrigatórias visíveis estiverem respondidas, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
+    `- **Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto \`obrigatorias_faltando > 0\`. Se o usuário pedir para finalizar antes disso, informe quantas obrigatórias ainda faltam e retome imediatamente pela próxima pergunta pendente.`,
+    `- Quando (e SOMENTE quando) \`obrigatorias_faltando === 0\`, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
+    `- Após cada \`salvar_resposta\`, o tool retorna \`estado_pos_salvamento\` com \`obrigatorias_faltando\` e \`proxima_pergunta_id\` — use esse valor como fonte da verdade para decidir se ainda há perguntas pendentes, ignorando qualquer suposição anterior.`,
     ``,
     `## Status atual`,
     `- Perguntas visíveis: ${flat.length}`,
@@ -314,7 +316,7 @@ export async function execSalvarResposta(
     arquivos_paths?: string[];
     transcricao?: string;
   },
-): Promise<{ ok: boolean; motivo?: string }> {
+): Promise<{ ok: boolean; motivo?: string; estado_pos_salvamento?: { obrigatorias_faltando: number; total_obrigatorias: number; respondidas_obrigatorias: number; proxima_pergunta_id: string | null; pode_finalizar: boolean } }> {
   const p = ctx.perguntas.find((x) => x.id === input.pergunta_id);
   if (!p) return { ok: false, motivo: "pergunta_id desconhecido para este formulário." };
 
@@ -423,7 +425,32 @@ export async function execSalvarResposta(
     console.error("[vistoria] falha ao marcar iniciada:", e);
   }
 
-  return { ok: true };
+  // Compute post-save state so the model can see the real numbers immediately.
+  const visiveis = perguntasVisiveis(ctx);
+  const respondida = (id: string) => {
+    const r = ctx.state[id];
+    return !!(
+      (r?.valor_texto && r.valor_texto.trim()) ||
+      r?.arquivo_path ||
+      (r?.transcricao && r.transcricao.trim()) ||
+      (r?.arquivos_paths && r.arquivos_paths.length > 0)
+    );
+  };
+  const obrigatorias = visiveis.filter((x) => x.obrigatoria);
+  const respondidas_obrigatorias = obrigatorias.filter((x) => respondida(x.id)).length;
+  const obrigatorias_faltando = obrigatorias.length - respondidas_obrigatorias;
+  const proxima = visiveis.find((x) => !respondida(x.id)) ?? null;
+
+  return {
+    ok: true,
+    estado_pos_salvamento: {
+      obrigatorias_faltando,
+      total_obrigatorias: obrigatorias.length,
+      respondidas_obrigatorias,
+      proxima_pergunta_id: proxima?.id ?? null,
+      pode_finalizar: obrigatorias_faltando === 0,
+    },
+  };
 }
 
 export async function execValidarFoto(

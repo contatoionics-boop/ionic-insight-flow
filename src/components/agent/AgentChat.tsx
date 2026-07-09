@@ -296,9 +296,12 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   }
 
   const progresso =
-    estado.totalVisiveis > 0
+    estado.totalObrigatorias > 0
+      ? Math.round((estado.respondidasObrigatorias / estado.totalObrigatorias) * 100)
+      : estado.totalVisiveis > 0
       ? Math.round((estado.respondidas / estado.totalVisiveis) * 100)
       : 0;
+
 
   // Find last visible assistant message (ignore empty)
   const lastAssistant = [...messages]
@@ -527,16 +530,19 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
           </div>
 
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            {estado.respondidas}/{estado.totalVisiveis} respondidas
+            {estado.respondidasObrigatorias}/{estado.totalObrigatorias} obrigatórias respondidas
             {estado.obrigatoriasFaltando > 0
-              ? ` · ${estado.obrigatoriasFaltando} obrigatória(s) pendente(s)`
-              : " · todas obrigatórias respondidas"}
+              ? ` · faltam ${estado.obrigatoriasFaltando}`
+              : " · pronto para finalizar"}
+            {estado.totalVisiveis !== estado.totalObrigatorias &&
+              ` (${estado.respondidas}/${estado.totalVisiveis} no total)`}
           </p>
         </div>
       </footer>
     </div>
   );
 }
+
 
 function ShimmerText({ text }: { text: string }) {
   return (

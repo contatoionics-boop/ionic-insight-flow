@@ -13,6 +13,8 @@ export type EstadoVistoria = {
   formularioNome: string;
   totalVisiveis: number;
   respondidas: number;
+  totalObrigatorias: number;
+  respondidasObrigatorias: number;
   obrigatoriasFaltando: number;
   proximaPerguntaTipo: string | null;
   proximaPerguntaId: string | null;
@@ -39,18 +41,20 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
 
     const ctx = await loadAgentContext(casoId);
     const visiveis = perguntasVisiveis(ctx);
-    const respondidas = visiveis.filter((p) => {
-      const r = ctx.state[p.id];
-      return !!(r?.valor_texto || r?.arquivo_path || r?.transcricao);
-    }).length;
-    const obrigatoriasFaltando = visiveis.filter((p) => {
-      const r = ctx.state[p.id];
-      return p.obrigatoria && !(r?.valor_texto || r?.arquivo_path || r?.transcricao);
-    }).length;
-    const proxima = visiveis.find((p) => {
-      const r = ctx.state[p.id];
-      return !(r?.valor_texto || r?.arquivo_path || r?.transcricao);
-    }) ?? null;
+    const respondida = (id: string) => {
+      const r = ctx.state[id];
+      return !!(
+        (r?.valor_texto && r.valor_texto.trim()) ||
+        r?.arquivo_path ||
+        (r?.transcricao && r.transcricao.trim()) ||
+        (r?.arquivos_paths && r.arquivos_paths.length > 0)
+      );
+    };
+    const respondidas = visiveis.filter((p) => respondida(p.id)).length;
+    const obrigatorias = visiveis.filter((p) => p.obrigatoria);
+    const respondidasObrigatorias = obrigatorias.filter((p) => respondida(p.id)).length;
+    const obrigatoriasFaltando = obrigatorias.length - respondidasObrigatorias;
+    const proxima = visiveis.find((p) => !respondida(p.id)) ?? null;
 
     return {
       casoId,
@@ -58,11 +62,14 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       formularioNome: ctx.formularioNome,
       totalVisiveis: visiveis.length,
       respondidas,
+      totalObrigatorias: obrigatorias.length,
+      respondidasObrigatorias,
       obrigatoriasFaltando,
       proximaPerguntaTipo: proxima?.tipo ?? null,
       proximaPerguntaId: proxima?.id ?? null,
     };
   });
+
 
 const FinalizarInput = z.object({
   token: z.string().min(1).optional(),
