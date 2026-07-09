@@ -296,9 +296,12 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   }
 
   const progresso =
-    estado.totalVisiveis > 0
+    estado.totalObrigatorias > 0
+      ? Math.round((estado.respondidasObrigatorias / estado.totalObrigatorias) * 100)
+      : estado.totalVisiveis > 0
       ? Math.round((estado.respondidas / estado.totalVisiveis) * 100)
       : 0;
+
 
   // Find last visible assistant message (ignore empty)
   const lastAssistant = [...messages]
