@@ -59,7 +59,7 @@ export const validarFoto = createServerFn({ method: "POST" })
       pergunta.texto;
 
     const provider = getProvider();
-    const model = provider("google/gemini-3-flash-preview");
+    const model = provider("gpt-4o-mini");
 
     try {
       const { output } = await generateText({
@@ -114,7 +114,7 @@ export const transcreverAudio = createServerFn({ method: "POST" })
     }
 
     const provider = getProvider();
-    const model = provider("google/gemini-3-flash-preview");
+    const model = provider("gpt-4o-mini");
 
     try {
       const mediaType = data.mime.includes("wav")

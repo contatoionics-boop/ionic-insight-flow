@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/forms-assistant")({
         if (!key) return new Response("LOVABLE_API_KEY missing", { status: 500 });
 
         const gateway = createLovableAiGatewayProvider(key);
-        const model = gateway("google/gemini-3-flash-preview");
+        const model = gateway("gpt-4o-mini");
 
         const tools = {
           propose_form: tool({

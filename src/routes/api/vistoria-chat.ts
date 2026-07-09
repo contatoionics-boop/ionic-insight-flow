@@ -107,7 +107,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         }
 
         const provider = createLovableAiGatewayProvider(key);
-        const model = provider("google/gemini-3-flash-preview");
+        const model = provider("gpt-4o-mini");
 
         const tools = {
           salvar_resposta: tool({
