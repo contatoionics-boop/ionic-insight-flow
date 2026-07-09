@@ -1,30 +1,49 @@
-## Problema
+## Diagnóstico do CS-0031
 
-Quando o agente técnico começa a responder a primeira pergunta do mapeamento (o "sim, quero iniciar"), o caso permanece com status `agendado`. Não é marcado como iniciado — em Mapeamentos aparece "Não iniciado", `data_execucao` fica nulo e o evento `vistoria_iniciada` nunca é registrado.
+Consultei o banco para o CS-0031 (formulário 23dd620c…, 67 perguntas / 57 obrigatórias / 0 condicionais).
+`respostas_agente` do caso: **46 linhas**, distribuídas em 46 `pergunta_id` distintos. Nenhuma condicional afeta visibilidade.
 
-Motivo: existe a server fn `iniciarVistoria` (em `src/lib/casos.functions.ts`) que faria essa transição, mas ela **não é chamada em lugar nenhum**. O fluxo do agente vai direto do chat para `execSalvarResposta`, que só grava em `respostas_agente`, sem tocar em `casos.status`.
+Cada tela usa uma fórmula diferente, por isso os números divergem:
 
-## Correção
+| Tela | Fórmula usada hoje | Resultado |
+|---|---|---|
+| Lista de mapeamentos (`/app/cases`) | `respondidas_obrigatórias / total_obrigatórias` — só conta perguntas obrigatórias com `valor_texto/arquivo_path/transcricao` não-vazio (`src/lib/mapeamento.functions.ts` L130-147) | **44 / 57** |
+| Detalhe (`/app/vistorias/:id`) | `perguntas.filter(p => respostasPorPergunta.get(p.id).length > 0)` — conta **qualquer** linha, mesmo vazia (`src/routes/app.vistorias.$id.tsx` L181) | **45 / 67** |
+| Chat do agente (`AgentChat` / `getEstadoVistoria`) | `respondidas = visíveis com algum valor` e `obrigatoriasFaltando = obrigatórias visíveis sem valor` (`src/lib/vistoria-agent.functions.ts` L42-49) | popup: "13 pergunta(s) obrigatória(s) sem resposta" (= 57-44) |
 
-Marcar o mapeamento como iniciado na **primeira resposta salva** pelo agente, dentro de `execSalvarResposta` (`src/lib/vistoria-agent.server.ts`).
+Três coisas quebradas:
+1. **Denominadores inconsistentes** (57 obrigatórias vs 67 totais) → o mesmo caso aparece com progresso 77 %, 67 % e "13 faltando".
+2. **Detalhe conta linhas fantasmas** (44 vs 45): há 1-2 linhas em `respostas_agente` sem valor útil (upsert antigo) ou ligadas a `pergunta_id` não mais no form. A tela de detalhe ignora esse filtro e infla o número.
+3. **IA sugere "Finalizar" com 13 obrigatórias pendentes**: o `buildSystemPrompt` já injeta "Obrigatórias faltando: 13", mas o modelo (`gpt-4o-mini`) alucina fechamento assim que a resposta parece "wrap-up". Falta uma trava dura no lado do servidor.
 
-Passos, após o `upsert` de sucesso em `respostas_agente`:
+## O que vou fazer
 
-1. Ler `casos` (id = `casoId`) buscando `status`, `agente_id`, `agendamento_id`.
-2. Se `status` estiver em `('agendado','rascunho')`:
-   - `update casos set status='em_andamento' where id=casoId` (o trigger `casos_timeline_auto` já preenche `data_execucao = now()` automaticamente).
-   - Chamar `registrarEvento({ casoId, agendamentoId, tipo: 'vistoria_iniciada', atorId: agente_id })` — mesmo evento que `iniciarVistoria` emite hoje.
-3. Se já estiver `em_andamento` (ou finalizado), não faz nada — idempotente.
+### 1. Unificar a fórmula de progresso em torno de "obrigatórias respondidas / obrigatórias totais"
+Um único helper `contarProgresso(casoId)` em `src/lib/mapeamento.functions.ts` que retorne `{respondidas, total, obrigatoriasFaltando, respondidasTotais, totalPerguntas}`. Todas as telas passam a exibir "X / Y obrigatórias" como número principal, com "(Z de W no total)" como sublinha.
 
-Efeitos automáticos após a mudança:
-- **Mapeamentos** (`/app/cases`) passa a mostrar o badge "▶ Em campo desde {data}".
-- **Agenda** (`/app/agenda`) passa a mostrar o dot âmbar / "Em campo desde {data}" no modal.
-- **Timeline** do mapeamento ganha o evento `vistoria_iniciada` no momento certo.
+Consumidores atualizados:
+- `src/routes/app.vistorias.$id.tsx` — trocar o cálculo local pelo helper e filtrar rows sem valor (mesma regra do resto do sistema).
+- `src/components/agent/AgentChat.tsx` — barra de progresso passa a usar `respondidas_obrigatorias / total_obrigatorias`; popup mantém "13 obrigatórias".
+- Lista (`app.cases.tsx`) já usa esta fórmula, apenas garantir o mesmo filtro (`valor_texto || arquivo_path || transcricao`).
 
-Nenhum outro fluxo é alterado. `finalizarVistoria` continua responsável por `data_entrega_agente` / `aguardando_revisao`.
+### 2. Corrigir a contagem-fantasma na página de detalhe
+No `useMemo` de `respostasPorPergunta`, filtrar linhas sem `valor_texto && !arquivo_path && !transcricao && !(arquivos_paths?.length)`. Elimina o 45 vs 44.
+
+### 3. Trava dura para "Finalizar" (chat)
+- `execSalvarResposta` já persiste a resposta; após salvar, **recomputar o estado** e devolver ao modelo `estado_pos_salvamento: { obrigatorias_faltando, proxima_pergunta_id }`. Isso força o próximo turno a ver o número real.
+- Reforçar o system prompt: "**Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto `obrigatorias_faltando > 0`. Se o usuário pedir para finalizar antes disso, responda listando quantas ainda faltam e retome a próxima pergunta."
+- Como cinto-de-segurança, o botão "Finalizar" no `AgentChat` já usa `obrigatoriasFaltando` do servidor (correto); o `confirm()` continua a exibir o número real, então mesmo com o modelo pedindo para finalizar o usuário vê "Ainda há 13 sem resposta".
+
+### 4. Sanidade dos dados
+Migração pontual (não destrutiva) que apaga linhas em `respostas_agente` onde `coalesce(valor_texto,'')='' AND arquivo_path IS NULL AND coalesce(transcricao,'')='' AND coalesce(array_length(arquivos_paths,1),0)=0`. Assim casos antigos param de contar respostas vazias.
 
 ## Arquivos afetados
+- `src/lib/mapeamento.functions.ts` (novo helper + reuso)
+- `src/lib/vistoria-agent.functions.ts` e `src/lib/vistoria-agent.server.ts` (retorno pós-salvar + prompt)
+- `src/routes/app.vistorias.$id.tsx` (fórmula + filtro)
+- `src/components/agent/AgentChat.tsx` (barra em cima do total de obrigatórias)
+- 1 migração SQL de limpeza de respostas vazias
 
-- `src/lib/vistoria-agent.server.ts` — acrescentar a lógica de "marcar iniciado" no fim de `execSalvarResposta` (usa `supabaseAdmin`, que já está importado, e `registrarEvento` de `@/lib/eventos.server`).
-
-Sem migração, sem mudança de schema, sem mudança de UI.
+## Não incluído
+- Não vou mexer no fluxo de perguntas condicionais (não afeta o CS-0031, que tem 0 condicionais).
+- Não vou trocar de modelo de IA — a trava de servidor resolve a alucinação sem custo extra.
