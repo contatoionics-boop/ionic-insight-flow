@@ -20,8 +20,8 @@ async function validarToken(token: string): Promise<string> {
 }
 
 function getProvider() {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("LOVABLE_API_KEY ausente.");
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY ausente.");
   return createLovableAiGatewayProvider(key);
 }
 
