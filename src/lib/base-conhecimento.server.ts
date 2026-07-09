@@ -1,7 +1,7 @@
 // Server-only helpers for the knowledge base (text extraction, chunking, embeddings).
 
-const EMBED_MODEL = "openai/text-embedding-3-small"; // 1536 dims
-const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
+const EMBED_MODEL = "text-embedding-3-small"; // 1536 dims
+const EMBED_URL = "https://api.openai.com/v1/embeddings";
 
 export async function extrairTexto(
   tipo: "pdf" | "docx" | "txt",
@@ -69,8 +69,7 @@ export async function gerarEmbeddings(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ model: EMBED_MODEL, input: batch }),
     });

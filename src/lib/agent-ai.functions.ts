@@ -20,8 +20,8 @@ async function validarToken(token: string): Promise<string> {
 }
 
 function getProvider() {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("LOVABLE_API_KEY ausente.");
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY ausente.");
   return createLovableAiGatewayProvider(key);
 }
 
@@ -59,7 +59,7 @@ export const validarFoto = createServerFn({ method: "POST" })
       pergunta.texto;
 
     const provider = getProvider();
-    const model = provider("google/gemini-3-flash-preview");
+    const model = provider("gpt-4o-mini");
 
     try {
       const { output } = await generateText({
@@ -113,11 +113,11 @@ export const transcreverAudio = createServerFn({ method: "POST" })
       await validarToken(data.token);
     }
 
-    const provider = getProvider();
-    const model = provider("google/gemini-3-flash-preview");
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY ausente.");
 
     try {
-      const mediaType = data.mime.includes("wav")
+      const mime = data.mime.includes("wav")
         ? "audio/wav"
         : data.mime.includes("mp3") || data.mime.includes("mpeg")
         ? "audio/mpeg"
@@ -126,33 +126,35 @@ export const transcreverAudio = createServerFn({ method: "POST" })
         : data.mime.includes("ogg") || data.mime.includes("opus")
         ? "audio/ogg"
         : "audio/wav";
+      const ext = mime === "audio/wav" ? "wav" : mime === "audio/mpeg" ? "mp3" : mime === "audio/mp4" ? "m4a" : "ogg";
 
-      const { text } = await generateText({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Transcreva o áudio em português do Brasil. Responda APENAS com a transcrição, sem comentários.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Transcreva este áudio:" },
-              { type: "file", data: data.audioBase64, mediaType },
-            ],
-          },
-        ],
+      const bin = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bin], { type: mime });
+      const form = new FormData();
+      form.append("file", blob, `audio.${ext}`);
+      form.append("model", "whisper-1");
+      form.append("language", "pt");
+      form.append("response_format", "json");
+
+      const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
       });
-      return { transcricao: text.trim() };
-
+      if (!res.ok) {
+        const msg = await res.text();
+        if (res.status === 429) throw new Error("Limite de uso da IA atingido. Tente novamente em instantes.");
+        if (res.status === 402) throw new Error("Créditos de IA esgotados. Avise o administrador.");
+        throw new Error(`Whisper ${res.status}: ${msg}`);
+      }
+      const json = (await res.json()) as { text?: string };
+      return { transcricao: (json.text ?? "").trim() };
     } catch (e: any) {
       const msg = String(e?.message ?? e);
-      if (msg.includes("429")) throw new Error("Limite de uso da IA atingido. Tente novamente em instantes.");
-      if (msg.includes("402")) throw new Error("Créditos de IA esgotados. Avise o administrador.");
       throw new Error("Falha ao transcrever o áudio: " + msg);
     }
   });
+
 
 const FinalizarInput = z.object({ token: z.string().min(1) });
 

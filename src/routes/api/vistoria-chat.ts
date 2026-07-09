@@ -65,8 +65,8 @@ export const Route = createFileRoute("/api/vistoria-chat")({
           return new Response(e?.message ?? "Sem acesso", { status: 401 });
         }
 
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("LOVABLE_API_KEY ausente", { status: 500 });
+        const key = process.env.OPENAI_API_KEY;
+        if (!key) return new Response("OPENAI_API_KEY ausente", { status: 500 });
 
         const ctx: AgentContext = await loadAgentContext(casoId);
         let system = buildSystemPrompt(ctx);
@@ -107,7 +107,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         }
 
         const provider = createLovableAiGatewayProvider(key);
-        const model = provider("google/gemini-3-flash-preview");
+        const model = provider("gpt-4o-mini");
 
         const tools = {
           salvar_resposta: tool({

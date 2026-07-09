@@ -97,8 +97,8 @@ async function processarDocumentoInterno(documentoId: string) {
     "@/lib/base-conhecimento.server"
   );
 
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("LOVABLE_API_KEY ausente.");
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY ausente.");
 
   const { data: doc, error: dErr } = await supabaseAdmin
     .from("base_conhecimento")
@@ -157,7 +157,7 @@ export async function buscarContextoRelevante(
   threshold = 0.5,
 ): Promise<{ conteudo: string; similarity: number }[]> {
   if (!texto?.trim()) return [];
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return [];
   try {
     const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");

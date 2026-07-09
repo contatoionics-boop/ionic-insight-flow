@@ -72,7 +72,7 @@ const RegistroInput = z.object({
 });
 
 async function gerarEmbeddingSafe(texto: string): Promise<number[] | null> {
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   try {
     const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");
@@ -347,8 +347,8 @@ export const importarRegistros = createServerFn({ method: "POST" })
       }
 
       // Embeddings em lotes de 32
-      const key = process.env.LOVABLE_API_KEY;
-      if (!key) throw new Error("LOVABLE_API_KEY ausente. Não foi possível gerar embeddings.");
+      const key = process.env.OPENAI_API_KEY;
+      if (!key) throw new Error("OPENAI_API_KEY ausente. Não foi possível gerar embeddings.");
       const { gerarEmbeddings } = await import("@/lib/base-conhecimento.server");
       const textos = validas.map((v) => `${v.titulo}\n\n${v.conteudo}`);
       let embeddings: number[][] = [];
@@ -412,7 +412,7 @@ export async function buscarKnowledgeBase(
   }[]
 > {
   if (!texto?.trim()) return [];
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return [];
   try {
     const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");
@@ -501,7 +501,7 @@ export async function buscarKnowledgeBaseParaAgente(
       }
     }
 
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env.OPENAI_API_KEY;
     if (key) {
       try {
         const { gerarEmbedding } = await import("@/lib/base-conhecimento.server");

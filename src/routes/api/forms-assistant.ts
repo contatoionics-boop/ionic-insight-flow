@@ -34,11 +34,11 @@ export const Route = createFileRoute("/api/forms-assistant")({
         if (!Array.isArray(body.messages)) {
           return new Response("Messages required", { status: 400 });
         }
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return new Response("LOVABLE_API_KEY missing", { status: 500 });
+        const key = process.env.OPENAI_API_KEY;
+        if (!key) return new Response("OPENAI_API_KEY missing", { status: 500 });
 
         const gateway = createLovableAiGatewayProvider(key);
-        const model = gateway("google/gemini-3-flash-preview");
+        const model = gateway("gpt-4o-mini");
 
         const tools = {
           propose_form: tool({
