@@ -452,10 +452,10 @@ export async function execValidarFoto(
   const { generateText, Output } = await import("ai");
   const { z } = await import("zod");
   const { createLovableAiGatewayProvider } = await import("@/lib/ai-gateway.server");
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return { erro: "LOVABLE_API_KEY ausente." };
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return { erro: "OPENAI_API_KEY ausente." };
   const provider = createLovableAiGatewayProvider(key);
-  const model = provider("google/gemini-3-flash-preview");
+  const model = provider("gpt-4o-mini");
 
   const schema = z.object({
     status: z.enum(["aprovada", "parcial", "incorreta"]),
