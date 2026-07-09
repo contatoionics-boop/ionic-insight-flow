@@ -431,9 +431,9 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
       {/* Composer */}
       <footer
-        className={`fixed right-0 left-0 ${casoId ? SIDEBAR_OFFSET_CLASS : ""} z-10 bg-gradient-to-t from-background via-background to-transparent pb-4 pt-6`}
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 4rem)" }}
+        className={`fixed right-0 left-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] sm:bottom-0 ${casoId ? SIDEBAR_OFFSET_CLASS : ""} z-10 bg-gradient-to-t from-background via-background to-transparent pb-4 pt-6`}
       >
+
 
 
         <div className="mx-auto w-full max-w-3xl px-4">
