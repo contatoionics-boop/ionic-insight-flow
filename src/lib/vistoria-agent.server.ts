@@ -425,7 +425,32 @@ export async function execSalvarResposta(
     console.error("[vistoria] falha ao marcar iniciada:", e);
   }
 
-  return { ok: true };
+  // Compute post-save state so the model can see the real numbers immediately.
+  const visiveis = perguntasVisiveis(ctx);
+  const respondida = (id: string) => {
+    const r = ctx.state[id];
+    return !!(
+      (r?.valor_texto && r.valor_texto.trim()) ||
+      r?.arquivo_path ||
+      (r?.transcricao && r.transcricao.trim()) ||
+      (r?.arquivos_paths && r.arquivos_paths.length > 0)
+    );
+  };
+  const obrigatorias = visiveis.filter((x) => x.obrigatoria);
+  const respondidas_obrigatorias = obrigatorias.filter((x) => respondida(x.id)).length;
+  const obrigatorias_faltando = obrigatorias.length - respondidas_obrigatorias;
+  const proxima = visiveis.find((x) => !respondida(x.id)) ?? null;
+
+  return {
+    ok: true,
+    estado_pos_salvamento: {
+      obrigatorias_faltando,
+      total_obrigatorias: obrigatorias.length,
+      respondidas_obrigatorias,
+      proxima_pergunta_id: proxima?.id ?? null,
+      pode_finalizar: obrigatorias_faltando === 0,
+    },
+  };
 }
 
 export async function execValidarFoto(
