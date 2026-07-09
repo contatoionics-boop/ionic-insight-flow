@@ -69,8 +69,7 @@ export async function gerarEmbeddings(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ model: EMBED_MODEL, input: batch }),
     });
