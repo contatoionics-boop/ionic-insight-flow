@@ -261,12 +261,16 @@ function VistoriaDetalhesPage() {
 
         <div className="mt-5">
           <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Progresso</span>
-            <span className="font-medium text-foreground">{respondidas} de {total} respondidas ({progresso}%)</span>
+            <span>Progresso (obrigatórias)</span>
+            <span className="font-medium text-foreground">
+              {respondidasObrig} de {obrigatorias.length} obrigatórias ({progresso}%)
+              {total !== obrigatorias.length && ` · ${respondidas}/${total} no total`}
+            </span>
           </div>
           <Progress value={progresso} />
         </div>
       </Card>
+
 
       {caso.motivo_recusa && (
         <Card className="mb-4 border-destructive/40 bg-destructive/5">
