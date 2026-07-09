@@ -160,6 +160,12 @@ function VistoriaDetalhesPage() {
   const respostasPorPergunta = useMemo(() => {
     const map = new Map<string, Resposta[]>();
     for (const r of respostas) {
+      const temValor =
+        (r.valor_texto && r.valor_texto.trim() !== "") ||
+        !!r.arquivo_path ||
+        (r.transcricao && r.transcricao.trim() !== "") ||
+        (Array.isArray((r as any).arquivos_paths) && (r as any).arquivos_paths.length > 0);
+      if (!temValor) continue;
       const arr = map.get(r.pergunta_id) ?? [];
       arr.push(r);
       map.set(r.pergunta_id, arr);
@@ -179,7 +185,12 @@ function VistoriaDetalhesPage() {
 
   const total = perguntas.length;
   const respondidas = perguntas.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
-  const progresso = total > 0 ? Math.round((respondidas / total) * 100) : 0;
+  const obrigatorias = perguntas.filter((p) => p.obrigatoria);
+  const respondidasObrig = obrigatorias.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
+  const progresso = obrigatorias.length > 0
+    ? Math.round((respondidasObrig / obrigatorias.length) * 100)
+    : total > 0 ? Math.round((respondidas / total) * 100) : 0;
+
 
   const podeAbrirRevisao =
     auth.role === "super_admin" &&
