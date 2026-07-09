@@ -367,7 +367,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       </header>
 
       {/* Main: only current question */}
-      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 pb-44 pt-8">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 pb-[calc(env(safe-area-inset-bottom)+11rem)] pt-8 sm:pb-44">
         <div className="w-full">
           {busy ? (
             <div className="flex flex-col items-center justify-center gap-4">
