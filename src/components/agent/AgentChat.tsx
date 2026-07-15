@@ -558,7 +558,7 @@ function ShimmerText({ text }: { text: string }) {
 function friendlyChatError(message?: string) {
   if (!message) return "Não foi possível enviar sua resposta. Tente novamente.";
   if (message.includes("Forbidden") || message.includes("credit_limit_reached")) {
-    return "A IA ainda está bloqueada por limite de créditos na versão publicada. Publique a versão atual com OpenAI ou revise a chave OPENAI_API_KEY.";
+    return "A IA está bloqueada por limite de créditos ou chave inválida. Revise a OPENAI_API_KEY configurada no projeto.";
   }
   if (message.includes("Não autenticado") || message.includes("Sessão inválida")) {
     return "Sua sessão expirou. Entre novamente para continuar o mapeamento.";

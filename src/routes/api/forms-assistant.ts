@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createOpenAIProvider } from "@/lib/openai.server";
 import { draftSchema } from "@/lib/form-assistant-schema";
 
 const SYSTEM = `Você é um assistente que ajuda administradores a criar formulários de vistoria técnica em um sistema brasileiro.
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/forms-assistant")({
         const key = process.env.OPENAI_API_KEY;
         if (!key) return new Response("OPENAI_API_KEY missing", { status: 500 });
 
-        const gateway = createLovableAiGatewayProvider(key);
+        const gateway = createOpenAIProvider(key);
         const model = gateway("gpt-4o-mini");
 
         const tools = {

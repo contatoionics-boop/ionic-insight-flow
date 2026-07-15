@@ -478,10 +478,10 @@ export async function execValidarFoto(
 
   const { generateText, Output } = await import("ai");
   const { z } = await import("zod");
-  const { createLovableAiGatewayProvider } = await import("@/lib/ai-gateway.server");
+  const { createOpenAIProvider } = await import("@/lib/openai.server");
   const key = process.env.OPENAI_API_KEY;
   if (!key) return { erro: "OPENAI_API_KEY ausente." };
-  const provider = createLovableAiGatewayProvider(key);
+  const provider = createOpenAIProvider(key);
   const model = provider("gpt-4o-mini");
 
   const schema = z.object({

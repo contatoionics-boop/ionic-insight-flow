@@ -10,7 +10,7 @@ import {
   validarUsuarioCaso,
   type AgentContext,
 } from "@/lib/vistoria-agent.server";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createOpenAIProvider } from "@/lib/openai.server";
 
 type Body = {
   messages: UIMessage[];
@@ -106,7 +106,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
           console.error("[RAG] falha ao buscar contexto:", e);
         }
 
-        const provider = createLovableAiGatewayProvider(key);
+        const provider = createOpenAIProvider(key);
         const model = provider("gpt-4o-mini");
 
         const tools = {

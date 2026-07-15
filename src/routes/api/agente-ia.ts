@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createOpenAIProvider } from "@/lib/openai.server";
 
 type Body = { messages: UIMessage[] };
 
@@ -98,7 +98,7 @@ export const Route = createFileRoute("/api/agente-ia")({
         }
 
         try {
-          const provider = createLovableAiGatewayProvider(key);
+          const provider = createOpenAIProvider(key);
           const model = provider("gpt-4o-mini");
           const result = streamText({
             model,
