@@ -3,7 +3,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createOpenAIProvider } from "@/lib/openai.server";
 
 async function validarToken(token: string): Promise<string> {
   const { data, error } = await supabaseAdmin
@@ -22,7 +22,7 @@ async function validarToken(token: string): Promise<string> {
 function getProvider() {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY ausente.");
-  return createLovableAiGatewayProvider(key);
+  return createOpenAIProvider(key);
 }
 
 const ValidarFotoInput = z.object({
