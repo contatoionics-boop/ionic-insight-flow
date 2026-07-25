@@ -123,7 +123,7 @@ function VistoriaDetalhesPage() {
           const secIds = secs.map((s) => s.id);
           const { data: pData } = await supabase
             .from("perguntas")
-            .select("id, secao_id, texto, tipo, obrigatoria, ordem")
+            .select("id, secao_id, texto, tipo, obrigatoria, ordem, condicional_pergunta_id, condicional_operador, condicional_valor")
             .in("secao_id", secIds)
             .order("ordem", { ascending: true });
           const ps = (pData ?? []) as Pergunta[];
