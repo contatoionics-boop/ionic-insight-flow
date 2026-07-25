@@ -48,6 +48,9 @@ type Pergunta = {
   tipo: string;
   obrigatoria: boolean;
   ordem: number;
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
 };
 type Opcao = { id: string; pergunta_id: string; texto: string };
 type Resposta = {
