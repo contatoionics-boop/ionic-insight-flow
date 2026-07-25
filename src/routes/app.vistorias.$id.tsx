@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
+import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+
 
 export const Route = createFileRoute("/app/vistorias/$id")({
   component: VistoriaDetalhesPage,
