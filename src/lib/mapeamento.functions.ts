@@ -105,14 +105,23 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
       }
     }
 
+    // Todas as perguntas de todos os formulários envolvidos, com dados de condicional
     const allSecaoIds = Array.from(secoesPorForm.values()).flat();
-    const perguntasObrigPorForm = new Map<string, string[]>();
+    type PerguntaMeta = {
+      id: string;
+      obrigatoria: boolean;
+      condicional_pergunta_id: string | null;
+      condicional_operador: string | null;
+      condicional_valor: string | null;
+    };
+    const perguntasPorForm = new Map<string, PerguntaMeta[]>();
     if (allSecaoIds.length > 0) {
       const { data: perguntas } = await supabase
         .from("perguntas")
-        .select("id, secao_id, obrigatoria")
-        .in("secao_id", allSecaoIds)
-        .eq("obrigatoria", true);
+        .select(
+          "id, secao_id, obrigatoria, condicional_pergunta_id, condicional_operador, condicional_valor",
+        )
+        .in("secao_id", allSecaoIds);
       const secaoParaForm = new Map<string, string>();
       for (const [form, secs] of secoesPorForm.entries()) {
         for (const s of secs) secaoParaForm.set(s, form);
@@ -120,33 +129,55 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
       for (const p of perguntas ?? []) {
         const form = secaoParaForm.get((p as any).secao_id);
         if (!form) continue;
-        const arr = perguntasObrigPorForm.get(form) ?? [];
-        arr.push((p as any).id);
-        perguntasObrigPorForm.set(form, arr);
+        const arr = perguntasPorForm.get(form) ?? [];
+        arr.push({
+          id: (p as any).id,
+          obrigatoria: !!(p as any).obrigatoria,
+          condicional_pergunta_id: (p as any).condicional_pergunta_id ?? null,
+          condicional_operador: (p as any).condicional_operador ?? null,
+          condicional_valor: (p as any).condicional_valor ?? null,
+        });
+        perguntasPorForm.set(form, arr);
       }
     }
 
     const casoIds = list.map((c) => c.id);
+    // Estado por caso: { perguntaId -> { text, transcription } } para avaliar condicional
     const respPorCaso = new Map<string, Set<string>>();
+    const statePorCaso = new Map<string, Record<string, { text?: string; transcription?: string }>>();
     if (casoIds.length > 0) {
       const { data: respostas } = await supabase
         .from("respostas_agente")
-        .select("caso_id, pergunta_id, valor_texto, arquivo_path, transcricao")
+        .select("caso_id, pergunta_id, valor_texto, arquivo_path, transcricao, arquivos_paths")
         .in("caso_id", casoIds);
       for (const r of respostas ?? []) {
         const row = r as any;
-        if (!row.valor_texto && !row.arquivo_path && !row.transcricao) continue;
+        const temValor =
+          (row.valor_texto && String(row.valor_texto).trim() !== "") ||
+          !!row.arquivo_path ||
+          (row.transcricao && String(row.transcricao).trim() !== "") ||
+          (Array.isArray(row.arquivos_paths) && row.arquivos_paths.length > 0);
+        if (!temValor) continue;
         const set = respPorCaso.get(row.caso_id) ?? new Set<string>();
         set.add(row.pergunta_id);
         respPorCaso.set(row.caso_id, set);
+        const st = statePorCaso.get(row.caso_id) ?? {};
+        st[row.pergunta_id] = {
+          text: row.valor_texto ?? undefined,
+          transcription: row.transcricao ?? undefined,
+        };
+        statePorCaso.set(row.caso_id, st);
       }
     }
 
     const agora = Date.now();
     return list.map((c) => {
-      const obrig = c.formulario_id ? perguntasObrigPorForm.get(c.formulario_id) ?? [] : [];
+      const perguntas = c.formulario_id ? perguntasPorForm.get(c.formulario_id) ?? [] : [];
+      const state = statePorCaso.get(c.id) ?? {};
+      const visiveis = perguntas.filter((p) => avaliarCondicional(p, state as any));
+      const obrig = visiveis.filter((p) => p.obrigatoria);
       const respSet = respPorCaso.get(c.id) ?? new Set<string>();
-      const respondidas = obrig.filter((id) => respSet.has(id)).length;
+      const respondidas = obrig.filter((p) => respSet.has(p.id)).length;
       const atrasado =
         !!c.data_execucao &&
         !c.data_entrega_agente &&
@@ -175,6 +206,7 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
       };
     });
   });
+
 
 async function notificarUsuarios(
   ctx: { supabase: any },
