@@ -188,13 +188,29 @@ function VistoriaDetalhesPage() {
     return map;
   }, [opcoes]);
 
-  const total = perguntas.length;
-  const respondidas = perguntas.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
-  const obrigatorias = perguntas.filter((p) => p.obrigatoria);
+  // Estado para avaliar condicionais (usa texto/transcrição da primeira resposta válida)
+  const condicionalState = useMemo(() => {
+    const st: Record<string, { text?: string; transcription?: string }> = {};
+    for (const [pid, arr] of respostasPorPergunta.entries()) {
+      const r = arr[0];
+      st[pid] = { text: r?.valor_texto ?? undefined, transcription: r?.transcricao ?? undefined };
+    }
+    return st;
+  }, [respostasPorPergunta]);
+
+  const perguntasVisiveis = useMemo(
+    () => perguntas.filter((p) => avaliarCondicional(p, condicionalState as any)),
+    [perguntas, condicionalState],
+  );
+
+  const total = perguntasVisiveis.length;
+  const respondidas = perguntasVisiveis.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
+  const obrigatorias = perguntasVisiveis.filter((p) => p.obrigatoria);
   const respondidasObrig = obrigatorias.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
   const progresso = obrigatorias.length > 0
     ? Math.round((respondidasObrig / obrigatorias.length) * 100)
     : total > 0 ? Math.round((respondidas / total) * 100) : 0;
+
 
 
   const podeAbrirRevisao =
