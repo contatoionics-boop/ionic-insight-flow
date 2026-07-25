@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
+import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+
 
 export const Route = createFileRoute("/app/vistorias/$id")({
   component: VistoriaDetalhesPage,
@@ -46,6 +48,9 @@ type Pergunta = {
   tipo: string;
   obrigatoria: boolean;
   ordem: number;
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
 };
 type Opcao = { id: string; pergunta_id: string; texto: string };
 type Resposta = {
@@ -118,7 +123,7 @@ function VistoriaDetalhesPage() {
           const secIds = secs.map((s) => s.id);
           const { data: pData } = await supabase
             .from("perguntas")
-            .select("id, secao_id, texto, tipo, obrigatoria, ordem")
+            .select("id, secao_id, texto, tipo, obrigatoria, ordem, condicional_pergunta_id, condicional_operador, condicional_valor")
             .in("secao_id", secIds)
             .order("ordem", { ascending: true });
           const ps = (pData ?? []) as Pergunta[];
@@ -183,13 +188,29 @@ function VistoriaDetalhesPage() {
     return map;
   }, [opcoes]);
 
-  const total = perguntas.length;
-  const respondidas = perguntas.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
-  const obrigatorias = perguntas.filter((p) => p.obrigatoria);
+  // Estado para avaliar condicionais (usa texto/transcrição da primeira resposta válida)
+  const condicionalState = useMemo(() => {
+    const st: Record<string, { text?: string; transcription?: string }> = {};
+    for (const [pid, arr] of respostasPorPergunta.entries()) {
+      const r = arr[0];
+      st[pid] = { text: r?.valor_texto ?? undefined, transcription: r?.transcricao ?? undefined };
+    }
+    return st;
+  }, [respostasPorPergunta]);
+
+  const perguntasVisiveis = useMemo(
+    () => perguntas.filter((p) => avaliarCondicional(p, condicionalState as any)),
+    [perguntas, condicionalState],
+  );
+
+  const total = perguntasVisiveis.length;
+  const respondidas = perguntasVisiveis.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
+  const obrigatorias = perguntasVisiveis.filter((p) => p.obrigatoria);
   const respondidasObrig = obrigatorias.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
   const progresso = obrigatorias.length > 0
     ? Math.round((respondidasObrig / obrigatorias.length) * 100)
     : total > 0 ? Math.round((respondidas / total) * 100) : 0;
+
 
 
   const podeAbrirRevisao =
