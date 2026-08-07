@@ -1,0 +1,1 @@
+ALTER TYPE public.pergunta_tipo ADD VALUE IF NOT EXISTS 'video';
