@@ -110,9 +110,11 @@ export type ResumoItem = {
   secao: string;
   pergunta: string;
   tipo: string;
+  obrigatoria: boolean;
   resposta: string | null;
   arquivos: number;
 };
+
 
 export type ResumoRespostas = {
   casoId: string;
