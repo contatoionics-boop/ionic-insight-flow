@@ -108,13 +108,22 @@ function MinhasVistoriasPage() {
   const [recusando, setRecusando] = useState<AceiteAgendamento | null>(null);
   const [motivo, setMotivo] = useState("");
   const [working, setWorking] = useState(false);
+  const loadProgresso = useServerFn(listarProgressoMeusCasos);
+  const [progresso, setProgresso] = useState<ProgressoCaso[]>([]);
+  const [resumoCasoId, setResumoCasoId] = useState<string | null>(null);
+  const progressoMap = useMemo(
+    () => new Map(progresso.map((p) => [p.casoId, p])),
+    [progresso],
+  );
 
   const reload = async () => {
-    const [d, ags] = await Promise.all([load(), loadAgendamentos()]);
+    const [d, ags, prog] = await Promise.all([load(), loadAgendamentos(), loadProgresso()]);
     setRows((d ?? []) as unknown as Vistoria[]);
     setAgendamentos(ags ?? []);
+    setProgresso(prog ?? []);
     setLoading(false);
   };
+
 
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
 
