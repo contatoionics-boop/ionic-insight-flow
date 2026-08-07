@@ -286,7 +286,9 @@ function MinhasVistoriasPage() {
         </div>
       )}
     </div>
+    </ProgressoContext.Provider>
   );
+
 }
 
 function Section({ title, items, empty }: { title: string; items: Grupo[]; empty: string }) {
