@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Camera,
+  Video,
   Check,
   Loader2,
   Mic,
@@ -71,6 +72,7 @@ export type TipoPergunta =
   | "texto"
   | "numero"
   | "foto"
+  | "video"
   | "audio"
   | "checkbox"
   | "data"
@@ -143,6 +145,8 @@ export function isComplete(
       if (r.ia.status === "incorreta") return false;
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
+    case "video":
+      return mode === "preview" ? !!r.filePreview : !!r.filePath;
     case "audio":
       if (mode === "preview") return !!r.transcription?.trim() || !!r.audioPath;
       return !!r.transcription?.trim() && !!r.transcriptionConfirmed;
@@ -287,6 +291,10 @@ export function PerguntaBloco({
 
       {pergunta.tipo === "foto" && (
         <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} validarImagensIa={validarImagensIa} />
+      )}
+
+      {pergunta.tipo === "video" && (
+        <CampoVideo casoId={casoId} resposta={resposta} update={update} mode={mode} />
       )}
 
       {pergunta.tipo === "audio" && (
