@@ -1,49 +1,79 @@
-## Diagnóstico do CS-0031
+# Corrigir o fluxo do chat de mapeamento: nunca finalizar com pendências
 
-Consultei o banco para o CS-0031 (formulário 23dd620c…, 67 perguntas / 57 obrigatórias / 0 condicionais).
-`respostas_agente` do caso: **46 linhas**, distribuídas em 46 `pergunta_id` distintos. Nenhuma condicional afeta visibilidade.
+## O que eu verifiquei no banco (caso CS-0031, formulário BB0001)
 
-Cada tela usa uma fórmula diferente, por isso os números divergem:
+- O formulário tem **67 perguntas, sendo 57 obrigatórias** e **nenhuma condicional**.
+- O caso tem **44 de 57 obrigatórias respondidas** e **46 de 67 no total**.
+- Ou seja: os números das telas estão corretos (44/57 e 46/67, "ainda faltam 21").
+  O erro está no **chat**, que sugeriu finalizar com **13 obrigatórias pendentes**.
 
-| Tela | Fórmula usada hoje | Resultado |
-|---|---|---|
-| Lista de mapeamentos (`/app/cases`) | `respondidas_obrigatórias / total_obrigatórias` — só conta perguntas obrigatórias com `valor_texto/arquivo_path/transcricao` não-vazio (`src/lib/mapeamento.functions.ts` L130-147) | **44 / 57** |
-| Detalhe (`/app/vistorias/:id`) | `perguntas.filter(p => respostasPorPergunta.get(p.id).length > 0)` — conta **qualquer** linha, mesmo vazia (`src/routes/app.vistorias.$id.tsx` L181) | **45 / 67** |
-| Chat do agente (`AgentChat` / `getEstadoVistoria`) | `respondidas = visíveis com algum valor` e `obrigatoriasFaltando = obrigatórias visíveis sem valor` (`src/lib/vistoria-agent.functions.ts` L42-49) | popup: "13 pergunta(s) obrigatória(s) sem resposta" (= 57-44) |
+## Causa
 
-Três coisas quebradas:
-1. **Denominadores inconsistentes** (57 obrigatórias vs 67 totais) → o mesmo caso aparece com progresso 77 %, 67 % e "13 faltando".
-2. **Detalhe conta linhas fantasmas** (44 vs 45): há 1-2 linhas em `respostas_agente` sem valor útil (upsert antigo) ou ligadas a `pergunta_id` não mais no form. A tela de detalhe ignora esse filtro e infla o número.
-3. **IA sugere "Finalizar" com 13 obrigatórias pendentes**: o `buildSystemPrompt` já injeta "Obrigatórias faltando: 13", mas o modelo (`gpt-4o-mini`) alucina fechamento assim que a resposta parece "wrap-up". Falta uma trava dura no lado do servidor.
+1. **A regra de "não finalizar" existe apenas como texto no prompt.** Não há
+   nenhuma trava real: se o modelo "achar" que acabou, ele anuncia o fim.
+2. **O botão Finalizar não valida nada.** A função `finalizarVistoriaChat`
+   muda o status para "aguardando revisão" sem conferir pendências — então o
+   agente consegue encerrar um mapeamento incompleto.
+3. **A condução da conversa é 100% do modelo.** Não existe um mecanismo que
+   force "a próxima pergunta pendente"; em formulários longos (67 itens) o
+   modelo perde o fio e pula para o encerramento.
+4. **Contagens divergentes dentro do próprio motor.** O prompt considera
+   respondida qualquer pergunta com texto/arquivo/transcrição, ignorando
+   respostas com múltiplas fotos (`arquivos_paths`) e aceitando texto vazio,
+   enquanto o retorno de cada salvamento usa uma regra diferente (mais
+   rigorosa). O modelo recebe dois sinais conflitantes.
 
 ## O que vou fazer
 
-### 1. Unificar a fórmula de progresso em torno de "obrigatórias respondidas / obrigatórias totais"
-Um único helper `contarProgresso(casoId)` em `src/lib/mapeamento.functions.ts` que retorne `{respondidas, total, obrigatoriasFaltando, respondidasTotais, totalPerguntas}`. Todas as telas passam a exibir "X / Y obrigatórias" como número principal, com "(Z de W no total)" como sublinha.
+### 1. Uma única fonte de verdade para "respondida"
+Criar uma função única de avaliação (texto não vazio, arquivo, lista de
+arquivos ou transcrição) e usá-la no prompt, no retorno do salvamento, no
+estado do rodapé do chat, no resumo e nas telas de lista/detalhe. Fim das
+divergências entre 44/57, 46/67 e o que o chat enxerga.
 
-Consumidores atualizados:
-- `src/routes/app.vistorias.$id.tsx` — trocar o cálculo local pelo helper e filtrar rows sem valor (mesma regra do resto do sistema).
-- `src/components/agent/AgentChat.tsx` — barra de progresso passa a usar `respondidas_obrigatorias / total_obrigatorias`; popup mantém "13 obrigatórias".
-- Lista (`app.cases.tsx`) já usa esta fórmula, apenas garantir o mesmo filtro (`valor_texto || arquivo_path || transcricao`).
+### 2. Trava real no encerramento
+- `finalizarVistoriaChat` recalcula as pendências no servidor e **recusa**
+  finalizar enquanto houver obrigatória em aberto, devolvendo quantas e quais.
+- O botão "Finalizar" fica desabilitado (com dica "faltam N obrigatórias")
+  enquanto houver pendências, e mostra o erro caso o servidor recuse.
 
-### 2. Corrigir a contagem-fantasma na página de detalhe
-No `useMemo` de `respostasPorPergunta`, filtrar linhas sem `valor_texto && !arquivo_path && !transcricao && !(arquivos_paths?.length)`. Elimina o 45 vs 44.
+### 3. Condução determinística da conversa
+- A cada turno, o prompt passa a receber, no topo, um bloco curto e explícito:
+  contagem atual, a **próxima pergunta pendente** e a lista das pendentes
+  restantes — em vez de depender do modelo varrer o JSON completo.
+- Depois de cada `salvar_resposta`, o modelo é obrigado a seguir para o
+  `proxima_pergunta_id` retornado pelo próprio servidor.
+- Uma nova ferramenta `proximas_pendentes` permite ao modelo reconsultar as
+  pendências a qualquer momento (útil quando o usuário pede para finalizar).
+- Se o usuário pedir para encerrar com pendências, o assistente responde com
+  quantas faltam e retoma pela próxima.
 
-### 3. Trava dura para "Finalizar" (chat)
-- `execSalvarResposta` já persiste a resposta; após salvar, **recomputar o estado** e devolver ao modelo `estado_pos_salvamento: { obrigatorias_faltando, proxima_pergunta_id }`. Isso força o próximo turno a ver o número real.
-- Reforçar o system prompt: "**Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto `obrigatorias_faltando > 0`. Se o usuário pedir para finalizar antes disso, responda listando quantas ainda faltam e retome a próxima pergunta."
-- Como cinto-de-segurança, o botão "Finalizar" no `AgentChat` já usa `obrigatoriasFaltando` do servidor (correto); o `confirm()` continua a exibir o número real, então mesmo com o modelo pedindo para finalizar o usuário vê "Ainda há 13 sem resposta".
+### 4. Retomada e visibilidade
+- No resumo "Respostas já preenchidas", separar claramente
+  **Obrigatórias pendentes** de **Opcionais pendentes** (hoje aparecem juntas
+  como "Ainda faltam 21", o que confunde com as 13 obrigatórias).
+- O rodapé do chat mostra as duas contagens (obrigatórias e total).
 
-### 4. Sanidade dos dados
-Migração pontual (não destrutiva) que apaga linhas em `respostas_agente` onde `coalesce(valor_texto,'')='' AND arquivo_path IS NULL AND coalesce(transcricao,'')='' AND coalesce(array_length(arquivos_paths,1),0)=0`. Assim casos antigos param de contar respostas vazias.
+## Detalhes técnicos
 
-## Arquivos afetados
-- `src/lib/mapeamento.functions.ts` (novo helper + reuso)
-- `src/lib/vistoria-agent.functions.ts` e `src/lib/vistoria-agent.server.ts` (retorno pós-salvar + prompt)
-- `src/routes/app.vistorias.$id.tsx` (fórmula + filtro)
-- `src/components/agent/AgentChat.tsx` (barra em cima do total de obrigatórias)
-- 1 migração SQL de limpeza de respostas vazias
+- `src/lib/vistoria-agent.server.ts`: extrair `estaRespondida()`; usar em
+  `buildSystemPrompt` e `execSalvarResposta`; adicionar `calcularPendencias(ctx)`
+  retornando `{ obrigatoriasFaltando, pendentes[], proxima }`; injetar bloco
+  determinístico no prompt.
+- `src/routes/api/vistoria-chat.ts`: registrar a ferramenta `proximas_pendentes`.
+- `src/lib/vistoria-agent.functions.ts`: validar pendências dentro de
+  `finalizarVistoriaChat` (erro claro em vez de status alterado).
+- `src/components/agent/AgentChat.tsx`: desabilitar/rotular o botão Finalizar
+  conforme o estado e tratar o erro do servidor.
+- `src/components/agent/ResumoRespostas.tsx`: separar pendentes obrigatórias
+  das opcionais.
+- `src/lib/mapeamento.functions.ts` e `src/lib/agente-progresso.functions.ts`:
+  passar a usar a mesma regra de "respondida".
 
-## Não incluído
-- Não vou mexer no fluxo de perguntas condicionais (não afeta o CS-0031, que tem 0 condicionais).
-- Não vou trocar de modelo de IA — a trava de servidor resolve a alucinação sem custo extra.
+Sem mudanças de banco de dados.
+
+## Validação antes de fechar
+
+Reproduzir com CS-0031: confirmar que o chat lista as 13 obrigatórias
+pendentes, que o botão Finalizar fica bloqueado e que os números batem entre
+chat, resumo, lista de mapeamentos e tela de detalhe.
