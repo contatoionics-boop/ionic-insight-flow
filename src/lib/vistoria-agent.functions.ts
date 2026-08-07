@@ -146,11 +146,25 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
         .eq("token", data.token);
     }
 
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("agendamento_id, agente_id")
+      .eq("id", casoId)
+      .maybeSingle();
+
     const { error } = await supabaseAdmin
       .from("casos")
       .update({ status: "aguardando_revisao" })
       .eq("id", casoId);
     if (error) throw new Error(error.message);
+
+    const { registrarEvento } = await import("@/lib/eventos.server");
+    await registrarEvento({
+      casoId,
+      agendamentoId: (caso as any)?.agendamento_id ?? null,
+      tipo: "vistoria_finalizada",
+      atorId: (caso as any)?.agente_id ?? null,
+    });
     return { ok: true };
   });
 
