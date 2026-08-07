@@ -262,7 +262,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     if (!estado || !isVideoPergunta) return;
     if (!file.size) return alert("O vídeo selecionado está vazio.");
     if (file.size > 100 * 1024 * 1024) return alert("O vídeo deve ter no máximo 100 MB.");
-    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) return alert("Formato não aceito. Use MP4, WebM ou MOV.");
+    if (!file.type.startsWith("video/")) return alert("Formato não aceito. Envie um arquivo de vídeo (MP4, WebM ou MOV).");
     setUploadingFoto(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
