@@ -612,9 +612,41 @@ function ReviewCasePage() {
                         );
                       })()}
 
-                      {p.tipo === "video" && r?.arquivo_path && fotoUrls[r.arquivo_path] && (
-                        <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="mt-2 w-full max-w-2xl rounded-md border border-border" />
+                      {p.tipo === "video" && (
+                        <div className="mt-2 space-y-2">
+                          {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
+                            <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="w-full max-w-2xl rounded-md border border-border" />
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem vídeo anexado.</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+                              {uploading[p.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                              {r?.arquivo_path ? "Substituir vídeo" : "Anexar vídeo"}
+                              <input
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                disabled={!!uploading[p.id]}
+                                onChange={(e) => {
+                                  void adicionarArquivos(p.id, p.tipo, e.target.files, true);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                            {r?.arquivo_path && (
+                              <Button
+                                variant="outline"
+                                onClick={() => removerArquivo(p.id, p.tipo, r.arquivo_path!)}
+                                disabled={!!uploading[p.id]}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remover
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       )}
+
 
                       {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
                         <div className="mt-2 space-y-2">
