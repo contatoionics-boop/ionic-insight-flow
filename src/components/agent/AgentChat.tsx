@@ -49,6 +49,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const [finalizado, setFinalizado] = useState(false);
   const [historico, setHistorico] = useState<UIMessage[] | null>(null);
   const persistedIdsRef = useRef<Set<string>>(new Set());
+  const enviouNestaAberturaRef = useRef(false);
 
   const refreshEstado = async () => {
     try {
@@ -162,6 +163,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       }
     }
     setAuthErro(null);
+    enviouNestaAberturaRef.current = true;
     setInput("");
     // Persistir mensagem do usuário no Supabase (não bloqueia o envio)
     void salvarMensagem({
@@ -319,6 +321,16 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         .trim()
     : "";
 
+  const textoIndicaFinalizacao = /tudo registrado|pode finalizar|finalizar o mapeamento/i.test(
+    lastAssistantText,
+  );
+  const deveMostrarRetomada =
+    !!estado.proximaPerguntaTexto &&
+    estado.obrigatoriasFaltando > 0 &&
+    (!enviouNestaAberturaRef.current || textoIndicaFinalizacao);
+  const textoRetomada = formatarPerguntaRetomada(estado);
+  const textoAtual = deveMostrarRetomada ? textoRetomada : lastAssistantText;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
@@ -390,12 +402,12 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               <LumaSpin size={65} />
               <span className="text-sm text-muted-foreground">Pensando…</span>
             </div>
-          ) : lastAssistantText ? (
+          ) : textoAtual ? (
             <div
-              key={lastAssistant?.id}
+              key={deveMostrarRetomada ? estado.proximaPerguntaId ?? "retomada" : lastAssistant?.id}
               className="mx-auto max-w-2xl animate-fade-in whitespace-pre-wrap text-balance text-center text-2xl font-medium leading-relaxed text-foreground sm:text-3xl"
             >
-              {lastAssistantText}
+              {textoAtual}
             </div>
           ) : null}
 
@@ -577,6 +589,17 @@ function friendlyChatError(message?: string) {
     return "Sua sessão expirou. Entre novamente para continuar o mapeamento.";
   }
   return message;
+}
+
+function formatarPerguntaRetomada(estado: EstadoVistoria) {
+  if (!estado.proximaPerguntaTexto) return "";
+  const opcoes = estado.proximaPerguntaOpcoes.length
+    ? `\n\n${estado.proximaPerguntaOpcoes.map((opcao, index) => `${index + 1}. ${opcao.texto}`).join("\n")}`
+    : "";
+  const orientacao = estado.proximaPerguntaInstrucao?.trim()
+    ? `\n\n${estado.proximaPerguntaInstrucao.trim()}`
+    : "";
+  return `Vamos continuar de onde você parou.\n\n${estado.proximaPerguntaTexto}${orientacao}${opcoes}`;
 }
 
 function VoiceButton({

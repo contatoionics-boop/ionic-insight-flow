@@ -8,6 +8,7 @@ export type AgentPergunta = {
   id: string;
   secao_id: string;
   secao_titulo: string;
+  secao_ordem: number;
   texto: string;
   tipo: string;
   obrigatoria: boolean;
@@ -164,10 +165,12 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   }
 
   const secaoTitulo = new Map((secoes ?? []).map((s) => [s.id, s.titulo as string]));
+  const secaoOrdem = new Map((secoes ?? []).map((s) => [s.id, Number(s.ordem) || 0]));
   const perguntas: AgentPergunta[] = (perguntasRaw ?? []).map((p: any) => ({
     id: p.id,
     secao_id: p.secao_id,
     secao_titulo: secaoTitulo.get(p.secao_id) ?? "",
+    secao_ordem: secaoOrdem.get(p.secao_id) ?? 0,
     texto: p.texto,
     tipo: p.tipo,
     obrigatoria: !!p.obrigatoria,
@@ -178,7 +181,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     condicional_pergunta_id: p.condicional_pergunta_id ?? null,
     condicional_operador: p.condicional_operador ?? null,
     condicional_valor: p.condicional_valor ?? null,
-  }));
+  })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
@@ -264,7 +267,9 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
     obrigatoriasFaltando: pendentesObrigatorias.length,
     pendentesObrigatorias,
     pendentesOpcionais,
-    proxima: pendentesObrigatorias[0] ?? pendentesOpcionais[0] ?? null,
+    // Retoma exatamente na primeira lacuna da sequência oficial do formulário.
+    // O bloqueio de finalização continua dependendo apenas das obrigatórias.
+    proxima: pendentes[0] ?? null,
     podeFinalizar: pendentesObrigatorias.length === 0,
   };
 }
@@ -322,7 +327,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Total respondidas (incluindo opcionais): ${pend.respondidas}/${pend.totalVisiveis}`,
     `- PODE FINALIZAR: ${pend.podeFinalizar ? "SIM" : "NÃO"}`,
     proxima
-      ? `- PRÓXIMA PERGUNTA OBRIGATÓRIA A FAZER AGORA: ${proxima.id} :: "${proxima.texto}"`
+      ? `- PRÓXIMA PERGUNTA A FAZER AGORA: ${proxima.id} :: "${proxima.texto}"`
       : `- Não há perguntas pendentes.`,
     ``,
     `## Obrigatórias pendentes (${pend.pendentesObrigatorias.length})`,

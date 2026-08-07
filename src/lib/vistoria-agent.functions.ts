@@ -18,6 +18,10 @@ export type EstadoVistoria = {
   obrigatoriasFaltando: number;
   proximaPerguntaTipo: string | null;
   proximaPerguntaId: string | null;
+  proximaPerguntaTexto: string | null;
+  proximaPerguntaSecao: string | null;
+  proximaPerguntaInstrucao: string | null;
+  proximaPerguntaOpcoes: { id: string; texto: string }[];
 };
 
 /** Public-or-auth: pass either token (link público) OU casoId (sessão autenticada). */
@@ -43,6 +47,18 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
     const ctx = await loadAgentContext(casoId);
     const pend = calcularPendencias(ctx);
 
+    // Casos antigos podem ter respostas persistidas sem que o status tenha
+    // acompanhado o primeiro salvamento. Corrige o estado sem recriar evento.
+    if (pend.respondidas > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("casos")
+        .update({ status: "em_andamento" })
+        .eq("id", casoId)
+        .in("status", ["agendado", "rascunho"]);
+      if (error) console.error("[vistoria] falha ao normalizar status:", error.message);
+    }
+
     return {
       casoId,
       clienteNome: ctx.clienteNome,
@@ -54,6 +70,10 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       obrigatoriasFaltando: pend.obrigatoriasFaltando,
       proximaPerguntaTipo: pend.proxima?.tipo ?? null,
       proximaPerguntaId: pend.proxima?.id ?? null,
+      proximaPerguntaTexto: pend.proxima?.texto ?? null,
+      proximaPerguntaSecao: pend.proxima?.secao_titulo ?? null,
+      proximaPerguntaInstrucao: pend.proxima?.instrucao_agente ?? null,
+      proximaPerguntaOpcoes: pend.proxima?.opcoes ?? [],
     };
   });
 
