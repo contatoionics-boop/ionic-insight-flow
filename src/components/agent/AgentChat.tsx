@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Paperclip, ArrowLeft } from "lucide-react";
+import { Camera, Loader2, Mic, Send, Square, Check, X, ChevronDown, Paperclip, ArrowLeft, Video } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui-bits";
@@ -50,11 +50,13 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const [historico, setHistorico] = useState<UIMessage[] | null>(null);
   const persistedIdsRef = useRef<Set<string>>(new Set());
   const enviouNestaAberturaRef = useRef(false);
+  const perguntaAtualRef = useRef<string | null>(null);
 
   const refreshEstado = async () => {
     try {
       const e = await getEstado({ data: { token, casoId } });
       setEstado(e);
+      perguntaAtualRef.current = e.proximaPerguntaId;
     } catch (err: any) {
       setEstadoErro(err?.message ?? "Erro ao carregar mapeamento.");
     }
@@ -82,6 +84,18 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casoId]);
 
+  useEffect(() => {
+    const reconcile = () => {
+      if (document.visibilityState === "visible") void refreshEstado();
+    };
+    document.addEventListener("visibilitychange", reconcile);
+    window.addEventListener("focus", reconcile);
+    return () => {
+      document.removeEventListener("visibilitychange", reconcile);
+      window.removeEventListener("focus", reconcile);
+    };
+  });
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -92,6 +106,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             ...(token ? { token } : {}),
             ...(casoId ? { casoId } : {}),
             ...(accessToken ? { accessToken } : {}),
+            ...(perguntaAtualRef.current ? { perguntaAtualId: perguntaAtualRef.current } : {}),
           };
         },
         headers: async (): Promise<Record<string, string>> => {
@@ -125,11 +140,11 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     id: estado?.casoId ?? "vistoria",
     transport,
     messages: initialMessages,
-    onFinish: ({ message }) => {
+    onFinish: async ({ message }) => {
       // Persistir mensagem final do assistente
       if (message?.id && !persistedIdsRef.current.has(message.id)) {
         persistedIdsRef.current.add(message.id);
-        void salvarMensagem({
+        await salvarMensagem({
           data: {
             token,
             casoId,
@@ -138,7 +153,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
           },
         }).catch(() => persistedIdsRef.current.delete(message.id));
       }
-      void refreshEstado();
+      await refreshEstado();
     },
   });
 
@@ -165,15 +180,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     setAuthErro(null);
     enviouNestaAberturaRef.current = true;
     setInput("");
-    // Persistir mensagem do usuário no Supabase (não bloqueia o envio)
-    void salvarMensagem({
+    await salvarMensagem({
       data: {
         token,
         casoId,
         role: "user",
         parts: [{ type: "text", text: t }],
       },
-    }).catch(() => undefined);
+    });
     await sendMessage({ text: t });
   };
 
@@ -184,12 +198,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFoto, setUploadingFoto] = useState(false);
 
   // Buffer de fotos para a pergunta atual (multi-foto). Permanece local até o
   // usuário clicar em "Não, continuar" — só então enviamos ao agente.
   const [fotosBuffer, setFotosBuffer] = useState<string[]>([]);
   const isFotoPergunta = estado?.proximaPerguntaTipo === "foto";
+  const isVideoPergunta = estado?.proximaPerguntaTipo === "video";
   const aguardandoMaisFotos = isFotoPergunta && fotosBuffer.length > 0;
 
   const onFotoSelecionada = async (file: File) => {
@@ -238,6 +254,27 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   };
 
   const descartarFotosBuffer = () => setFotosBuffer([]);
+
+  const onVideoSelecionado = async (file: File) => {
+    if (!estado || !isVideoPergunta) return;
+    if (!file.size) return alert("O vídeo selecionado está vazio.");
+    if (file.size > 100 * 1024 * 1024) return alert("O vídeo deve ter no máximo 100 MB.");
+    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) return alert("Formato não aceito. Use MP4, WebM ou MOV.");
+    setUploadingFoto(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+      const path = `casos/${estado.casoId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const text = `[ANEXO_VIDEO arquivo_path=${path} mime=${file.type}] Vídeo anexado à pergunta atual.`;
+      await salvarMensagem({ data: { token, casoId, role: "user", parts: [{ type: "text", text }] } });
+      await sendMessage({ text });
+    } catch (error) {
+      alert("Falha ao enviar vídeo: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setUploadingFoto(false);
+    }
+  };
 
   const handleFinalizar = async () => {
     if (!estado) return;
@@ -411,6 +448,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             </div>
           ) : null}
 
+          {!busy && estado.ultimaResposta && estado.ultimaResposta.perguntaId !== estado.proximaPerguntaId && (
+            <div className="mx-auto mt-6 max-w-lg rounded-md border border-success/30 bg-success/10 px-4 py-3 text-left">
+              <div className="flex items-center gap-2 text-sm font-semibold text-success"><Check className="h-4 w-4" /> Resposta registrada</div>
+              <p className="mt-1 text-xs text-muted-foreground">{estado.ultimaResposta.perguntaTexto}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-foreground">{estado.ultimaResposta.valor}</p>
+            </div>
+          )}
+
           {!busy && aguardandoMaisFotos && (
             <div className="mx-auto mt-8 max-w-md animate-fade-in">
               <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -489,6 +534,18 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
                 e.target.value = "";
               }}
             />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              capture="environment"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void onVideoSelecionado(file);
+                event.target.value = "";
+              }}
+            />
             <button
               type="button"
               onClick={() => fotoInputRef.current?.click()}
@@ -513,6 +570,11 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             >
               <Camera className="h-5 w-5" />
             </button>
+            {isVideoPergunta && (
+              <button type="button" onClick={() => videoInputRef.current?.click()} disabled={busy || uploadingFoto} title="Gravar ou anexar vídeo" aria-label="Gravar ou anexar vídeo" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50">
+                <Video className="h-5 w-5" />
+              </button>
+            )}
 
 
             <textarea
