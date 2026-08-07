@@ -302,6 +302,14 @@ function ReviewStep({
 }
 
 function renderResumo(p: Pergunta, r: Resposta) {
+  if (p.tipo === "video") {
+    return r.filePath ? (
+      <div className="flex items-center gap-2 text-sm">
+        {r.filePreview && <video controls preload="metadata" src={r.filePreview} className="h-24 max-w-xs rounded border border-border" />}
+        <span>Vídeo enviado</span>
+      </div>
+    ) : <span className="text-xs text-muted-foreground">Sem vídeo.</span>;
+  }
   if (p.tipo === "foto") {
     return r.filePath ? (
       <div className="flex items-center gap-2 text-sm">

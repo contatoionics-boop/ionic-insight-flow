@@ -941,7 +941,9 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
           ctx,
           g.items.map((p) => ({
             label: p.texto,
-            value: respostaToString(p, input.respostas.get(p.id)),
+            value: p.tipo === "video" && input.respostas.get(p.id)?.arquivo_path
+              ? `Vídeo anexado: ${input.respostas.get(p.id)?.arquivo_path}`
+              : respostaToString(p, input.respostas.get(p.id)),
           })),
         );
       } else if (g.tipo === "fotos") {

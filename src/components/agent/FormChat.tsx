@@ -400,6 +400,14 @@ function SecaoDivider({ titulo }: { titulo: string }) {
 }
 
 function ResumoResposta({ pergunta, resposta }: { pergunta: Pergunta; resposta: Resposta }) {
+  if (pergunta.tipo === "video") {
+    return resposta.filePath ? (
+      <div className="space-y-2">
+        {resposta.filePreview && <video controls preload="metadata" src={resposta.filePreview} className="max-h-48 w-full rounded border border-border" />}
+        <span className="text-xs">Vídeo enviado</span>
+      </div>
+    ) : <p className="text-sm">Sem vídeo</p>;
+  }
   if (pergunta.tipo === "foto") {
     return (
       <div className="flex items-center gap-2">
