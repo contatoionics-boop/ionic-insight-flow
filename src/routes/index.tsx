@@ -7,6 +7,16 @@ import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "IONICS | Acesso ao sistema" },
+      { name: "description", content: "Acesse a plataforma IONICS para gerenciar mapeamentos técnicos." },
+      { property: "og:title", content: "IONICS | Acesso ao sistema" },
+      { property: "og:description", content: "Acesse a plataforma IONICS para gerenciar mapeamentos técnicos." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
     typeof search.redirect === "string" ? { redirect: search.redirect } : {},
 
