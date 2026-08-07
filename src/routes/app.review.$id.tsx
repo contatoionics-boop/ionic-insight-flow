@@ -475,7 +475,11 @@ function ReviewCasePage() {
                         );
                       })()}
 
-                      {!["texto", "selecao_unica", "audio", "foto"].includes(p.tipo) && (
+                      {p.tipo === "video" && r?.arquivo_path && fotoUrls[r.arquivo_path] && (
+                        <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="mt-2 w-full max-w-2xl rounded-md border border-border" />
+                      )}
+
+                      {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
                         <div className="mt-2 space-y-2">
                           <Input
                             value={r?.valor_texto ?? ""}

@@ -36,6 +36,7 @@ type TipoPergunta =
   | "texto"
   | "numero"
   | "foto"
+  | "video"
   | "audio"
   | "checkbox"
   | "data"
@@ -50,6 +51,7 @@ const TIPOS: { value: TipoPergunta; label: string }[] = [
   { value: "toggle", label: "Sim / Não" },
   { value: "checkbox", label: "Confirmação" },
   { value: "foto", label: "Foto (com IA)" },
+  { value: "video", label: "Vídeo" },
   { value: "audio", label: "Áudio (transcrição)" },
 ];
 
@@ -695,7 +697,7 @@ function PropertiesPanel({
     };
   }, [pergunta.id]);
 
-  const mostraContexto = tipo === "foto" || tipo === "audio";
+  const mostraContexto = tipo === "foto" || tipo === "video" || tipo === "audio";
   const mostraOpcoes = tipo === "selecao_unica";
 
   const addOpcao = () =>

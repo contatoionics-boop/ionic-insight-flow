@@ -19,16 +19,22 @@ export const listarObservacoes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<ObservacaoRow[]> => {
     const { data: rows, error } = await context.supabase
       .from("mapeamento_observacoes")
-      .select("id, texto, criado_em, usuario_id, usuario:profiles!usuario_id(nome)")
+      .select("id, texto, criado_em, usuario_id")
       .eq("caso_id", data.casoId)
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
+    const ids = Array.from(new Set((rows ?? []).map((row) => row.usuario_id)));
+    const { data: profiles, error: profilesError } = ids.length
+      ? await context.supabase.from("profiles").select("id, nome").in("id", ids)
+      : { data: [], error: null };
+    if (profilesError) throw new Error(profilesError.message);
+    const nomes = new Map((profiles ?? []).map((profile) => [profile.id, profile.nome]));
     return ((rows ?? []) as any[]).map((r) => ({
       id: r.id,
       texto: r.texto,
       criado_em: r.criado_em,
       usuario_id: r.usuario_id,
-      usuario_nome: r.usuario?.nome ?? null,
+      usuario_nome: nomes.get(r.usuario_id) ?? null,
     }));
   });
 

@@ -4,6 +4,7 @@ export const TIPOS_PERGUNTA = [
   "texto",
   "numero",
   "foto",
+  "video",
   "audio",
   "checkbox",
   "data",

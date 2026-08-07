@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Camera,
+  Video,
   Check,
   Loader2,
   Mic,
@@ -71,6 +72,7 @@ export type TipoPergunta =
   | "texto"
   | "numero"
   | "foto"
+  | "video"
   | "audio"
   | "checkbox"
   | "data"
@@ -143,6 +145,8 @@ export function isComplete(
       if (r.ia.status === "incorreta") return false;
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
+    case "video":
+      return mode === "preview" ? !!r.filePreview : !!r.filePath;
     case "audio":
       if (mode === "preview") return !!r.transcription?.trim() || !!r.audioPath;
       return !!r.transcription?.trim() && !!r.transcriptionConfirmed;
@@ -287,6 +291,10 @@ export function PerguntaBloco({
 
       {pergunta.tipo === "foto" && (
         <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} validarImagensIa={validarImagensIa} />
+      )}
+
+      {pergunta.tipo === "video" && (
+        <CampoVideo casoId={casoId} resposta={resposta} update={update} mode={mode} />
       )}
 
       {pergunta.tipo === "audio" && (
@@ -816,6 +824,75 @@ function CampoFoto({
         </>
       )}
       {err && <p className="text-xs text-destructive">{err}</p>}
+    </div>
+  );
+}
+
+function CampoVideo({
+  casoId,
+  resposta,
+  update,
+  mode,
+}: {
+  casoId: string;
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+  mode: RendererMode;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const enviar = async (file: File) => {
+    setErro(null);
+    if (!file.size) return setErro("O vídeo selecionado está vazio.");
+    if (file.size > 100 * 1024 * 1024) return setErro("O vídeo deve ter no máximo 100 MB.");
+    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) {
+      return setErro("Formato não aceito. Use MP4, WebM ou MOV.");
+    }
+    const preview = URL.createObjectURL(file);
+    if (mode === "preview") {
+      update({ filePath: "preview", fileName: file.name, filePreview: preview });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("agente-uploads")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) throw error;
+      update({ filePath: path, fileName: file.name, filePreview: preview });
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao enviar vídeo.");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void enviar(file);
+        }}
+      />
+      {resposta.filePreview && (
+        <video controls preload="metadata" src={resposta.filePreview} className="w-full rounded-md border border-border" />
+      )}
+      <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="h-12 w-full">
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+        {resposta.filePath ? "Substituir vídeo" : "Gravar / anexar vídeo"}
+      </Button>
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
   );
 }

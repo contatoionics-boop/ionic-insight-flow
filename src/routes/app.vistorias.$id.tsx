@@ -396,6 +396,8 @@ function RespostaPergunta({
                       alt="Resposta"
                       className="max-h-64 rounded-md border border-border object-contain"
                     />
+                  ) : pergunta.tipo === "video" ? (
+                    <video controls preload="metadata" src={signedUrls[r.arquivo_path]} className="w-full max-w-xl rounded-md border border-border" />
                   ) : pergunta.tipo === "audio" ? (
                     <audio controls src={signedUrls[r.arquivo_path]} className="w-full" />
                   ) : (
