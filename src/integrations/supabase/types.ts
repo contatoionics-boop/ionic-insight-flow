@@ -268,6 +268,7 @@ export type Database = {
       chat_mensagens: {
         Row: {
           caso_id: string
+          client_message_id: string | null
           criado_em: string
           id: string
           parts: Json
@@ -275,6 +276,7 @@ export type Database = {
         }
         Insert: {
           caso_id: string
+          client_message_id?: string | null
           criado_em?: string
           id?: string
           parts: Json
@@ -282,6 +284,7 @@ export type Database = {
         }
         Update: {
           caso_id?: string
+          client_message_id?: string | null
           criado_em?: string
           id?: string
           parts?: Json
