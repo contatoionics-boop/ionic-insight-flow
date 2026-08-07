@@ -30,7 +30,11 @@ export function ResumoRespostasModal({
   }, [open, casoId]);
 
   const respondidas = data?.itens.filter((i) => i.resposta) ?? [];
-  const pendentes = data?.itens.filter((i) => !i.resposta) ?? [];
+  const pendentesObrig = data?.itens.filter((i) => !i.resposta && i.obrigatoria) ?? [];
+  const pendentesOpcionais = data?.itens.filter((i) => !i.resposta && !i.obrigatoria) ?? [];
+  const totalObrig = data?.itens.filter((i) => i.obrigatoria).length ?? 0;
+  const respObrig = data?.itens.filter((i) => i.obrigatoria && i.resposta).length ?? 0;
+
 
   return (
     <Modal open={open} onClose={onClose} title="Respostas já preenchidas">
