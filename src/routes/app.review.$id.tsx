@@ -17,6 +17,10 @@ import {
   Loader2,
   Save,
   ImageOff,
+  Trash2,
+  Upload,
+  RefreshCw,
+
 } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +63,12 @@ type Resposta = {
   arquivos_paths: string[] | null;
   transcricao: string | null;
 };
+
+function arquivosDe(r: Resposta | undefined): string[] {
+  if (!r) return [];
+  if (Array.isArray(r.arquivos_paths) && r.arquivos_paths.length) return r.arquivos_paths;
+  return r.arquivo_path ? [r.arquivo_path] : [];
+}
 
 function ReviewCasePage() {
   const { id } = Route.useParams();
@@ -200,6 +210,93 @@ function ReviewCasePage() {
     setDirty((d) => ({ ...d, [perguntaId]: true }));
   };
 
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  const persistirArquivos = async (
+    perguntaId: string,
+    tipo: string,
+    lista: string[],
+  ) => {
+    if (!caseData) return;
+    const patch = {
+      arquivos_paths: lista,
+      arquivo_path: lista[0] ?? null,
+    };
+    const { data: upd } = await supabase
+      .from("respostas_agente")
+      .update(patch)
+      .eq("caso_id", caseData.id)
+      .eq("pergunta_id", perguntaId)
+      .select("pergunta_id");
+    if (!upd || upd.length === 0) {
+      await supabase.from("respostas_agente").insert({
+        caso_id: caseData.id,
+        pergunta_id: perguntaId,
+        tipo: tipo as never,
+        ...patch,
+      });
+    }
+    setRespostas((prev) => ({
+      ...prev,
+      [perguntaId]: {
+        pergunta_id: perguntaId,
+        valor_texto: prev[perguntaId]?.valor_texto ?? null,
+        transcricao: prev[perguntaId]?.transcricao ?? null,
+        arquivos_paths: lista,
+        arquivo_path: lista[0] ?? null,
+      },
+    }));
+    setSavedAt(Date.now());
+  };
+
+  const adicionarArquivos = async (
+    perguntaId: string,
+    tipo: string,
+    files: FileList | null,
+    substituirTudo = false,
+  ) => {
+    if (!caseData || !files || files.length === 0) return;
+    setUploading((u) => ({ ...u, [perguntaId]: true }));
+    try {
+      const novos: string[] = [];
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+        const path = `casos/${caseData.id}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("agente-uploads")
+          .upload(path, file, { upsert: false, contentType: file.type });
+        if (error) throw error;
+        novos.push(path);
+      }
+      const atual = substituirTudo || tipo === "video" ? [] : arquivosDe(respostas[perguntaId]);
+      const lista = [...atual, ...novos];
+      const { data: signed } = await supabase.storage
+        .from("agente-uploads")
+        .createSignedUrls(novos, 60 * 60);
+      setFotoUrls((prev) => {
+        const next = { ...prev };
+        for (const s of signed ?? []) if (s.path && s.signedUrl) next[s.path] = s.signedUrl;
+        return next;
+      });
+      await persistirArquivos(perguntaId, tipo, lista);
+    } catch (e) {
+      alert("Falha ao enviar arquivo: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setUploading((u) => ({ ...u, [perguntaId]: false }));
+    }
+  };
+
+  const removerArquivo = async (perguntaId: string, tipo: string, path: string) => {
+    if (!confirm("Remover este arquivo do mapeamento?")) return;
+    setUploading((u) => ({ ...u, [perguntaId]: true }));
+    try {
+      const lista = arquivosDe(respostas[perguntaId]).filter((p) => p !== path);
+      await persistirArquivos(perguntaId, tipo, lista);
+    } finally {
+      setUploading((u) => ({ ...u, [perguntaId]: false }));
+    }
+  };
+
   const salvarTudo = async () => {
     if (!caseData) return;
     setSavingAll(true);
@@ -223,6 +320,7 @@ function ReviewCasePage() {
       setSavingAll(false);
     }
   };
+
 
   const approve = async () => {
     if (!caseData) return;
@@ -428,12 +526,10 @@ function ReviewCasePage() {
                       )}
 
                       {p.tipo === "foto" && (() => {
-                        const fotoList: string[] =
-                          Array.isArray(r?.arquivos_paths) && r!.arquivos_paths!.length
-                            ? r!.arquivos_paths!
-                            : r?.arquivo_path ? [r.arquivo_path] : [];
+                        const fotoList: string[] = arquivosDe(r);
+                        const busy = !!uploading[p.id];
                         return (
-                          <div className="mt-2 grid gap-3 md:grid-cols-[200px_1fr]">
+                          <div className="mt-2 grid gap-3 md:grid-cols-[220px_1fr]">
                             <div className="space-y-2">
                               {fotoList.length === 0 ? (
                                 <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
@@ -442,7 +538,7 @@ function ReviewCasePage() {
                               ) : (
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {fotoList.map((pth, i) => (
-                                    <div key={pth + i} className="overflow-hidden rounded-md border border-border bg-muted">
+                                    <div key={pth + i} className="group relative overflow-hidden rounded-md border border-border bg-muted">
                                       {fotoUrls[pth] ? (
                                         <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
                                       ) : (
@@ -450,6 +546,15 @@ function ReviewCasePage() {
                                           <ImageOff className="h-5 w-5" />
                                         </div>
                                       )}
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => removerArquivo(p.id, p.tipo, pth)}
+                                        title="Remover imagem"
+                                        className="absolute right-1 top-1 rounded-md bg-destructive/90 p-1 text-destructive-foreground opacity-90 hover:opacity-100 disabled:opacity-50"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
                                     </div>
                                   ))}
                                 </div>
@@ -457,7 +562,39 @@ function ReviewCasePage() {
                               {fotoList.length > 1 && (
                                 <p className="text-center text-[11px] text-muted-foreground">{fotoList.length} fotos</p>
                               )}
+                              <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted">
+                                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                {busy ? "Enviando..." : "Adicionar imagens"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  disabled={busy}
+                                  onChange={(e) => {
+                                    void adicionarArquivos(p.id, p.tipo, e.target.files);
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              {fotoList.length > 0 && (
+                                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-foreground hover:bg-muted">
+                                  <RefreshCw className="h-3.5 w-3.5" /> Substituir todas
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    disabled={busy}
+                                    onChange={(e) => {
+                                      void adicionarArquivos(p.id, p.tipo, e.target.files, true);
+                                      e.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
                             </div>
+
                             <div className="space-y-2">
                               <div className="text-xs text-muted-foreground">Legenda / observação</div>
                               <Textarea
@@ -475,9 +612,41 @@ function ReviewCasePage() {
                         );
                       })()}
 
-                      {p.tipo === "video" && r?.arquivo_path && fotoUrls[r.arquivo_path] && (
-                        <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="mt-2 w-full max-w-2xl rounded-md border border-border" />
+                      {p.tipo === "video" && (
+                        <div className="mt-2 space-y-2">
+                          {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
+                            <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="w-full max-w-2xl rounded-md border border-border" />
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem vídeo anexado.</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+                              {uploading[p.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                              {r?.arquivo_path ? "Substituir vídeo" : "Anexar vídeo"}
+                              <input
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                disabled={!!uploading[p.id]}
+                                onChange={(e) => {
+                                  void adicionarArquivos(p.id, p.tipo, e.target.files, true);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                            {r?.arquivo_path && (
+                              <Button
+                                variant="outline"
+                                onClick={() => removerArquivo(p.id, p.tipo, r.arquivo_path!)}
+                                disabled={!!uploading[p.id]}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remover
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       )}
+
 
                       {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
                         <div className="mt-2 space-y-2">
