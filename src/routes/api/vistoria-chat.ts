@@ -132,7 +132,30 @@ export const Route = createFileRoute("/api/vistoria-chat")({
             }),
             execute: async (input) => execValidarFoto(ctx, input),
           }),
+          proximas_pendentes: tool({
+            description:
+              "Recalcula no servidor quais perguntas ainda estão pendentes. Chame SEMPRE antes de sugerir finalizar o mapeamento ou quando o usuário pedir para encerrar.",
+            inputSchema: z.object({}),
+            execute: async () => {
+              const { calcularPendencias } = await import("@/lib/vistoria-agent.server");
+              const pend = calcularPendencias(ctx);
+              return {
+                obrigatorias_faltando: pend.obrigatoriasFaltando,
+                total_obrigatorias: pend.totalObrigatorias,
+                respondidas_obrigatorias: pend.respondidasObrigatorias,
+                pode_finalizar: pend.podeFinalizar,
+                proxima_pergunta_id: pend.proxima?.id ?? null,
+                pendentes_obrigatorias: pend.pendentesObrigatorias
+                  .slice(0, 30)
+                  .map((p) => ({ pergunta_id: p.id, texto: p.texto })),
+                pendentes_opcionais: pend.pendentesOpcionais
+                  .slice(0, 20)
+                  .map((p) => ({ pergunta_id: p.id, texto: p.texto })),
+              };
+            },
+          }),
         };
+
 
         try {
           const result = streamText({
