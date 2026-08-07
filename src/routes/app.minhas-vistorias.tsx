@@ -315,39 +315,65 @@ function AgendamentoCard({ g }: { g: Grupo }) {
       <div className="space-y-2 border-t border-border pt-3">
         {g.casos.map((c) => {
           const finalizado = FINALIZADOS.includes(c.status);
+          const prog = progressoMap.get(c.id);
+          const iniciado = c.status === "em_andamento" || (prog?.respondidas ?? 0) > 0;
           const isCurrent = c.status === "em_andamento";
           const podeIniciar = !finalizado && (!emAndamento || isCurrent);
+          const pct =
+            prog && prog.total > 0 ? Math.round((prog.respondidas / prog.total) * 100) : 0;
           return (
             <div
               key={c.id}
               className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[11px] text-muted-foreground">{c.codigo}</span>
                   <Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge>
+                  {!finalizado && !iniciado && (
+                    <Badge className="bg-muted text-muted-foreground">Não iniciado</Badge>
+                  )}
                 </div>
                 <p className="mt-0.5 text-sm font-medium text-foreground">
                   {c.formulario?.nome ?? "—"}
                 </p>
+                {prog && prog.total > 0 && (
+                  <div className="mt-1.5 max-w-xs">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {prog.respondidas}/{prog.total} respondidas ({pct}%)
+                    </p>
+                  </div>
+                )}
               </div>
-              {podeIniciar ? (
-                <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
-                  <Button>
-                    <Play className="mr-1 h-4 w-4" />
-                    {isCurrent ? "Continuar" : "Iniciar"}
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {(iniciado || finalizado) && (
+                  <Button variant="outline" onClick={() => onVerRespostas(c.id)}>
+                    <Eye className="mr-1 h-4 w-4" />
+                    Ver respostas
                   </Button>
-                </Link>
-              ) : !finalizado ? (
-                <Button disabled title="Termine o formulário em andamento antes">
-                  <Lock className="mr-1 h-4 w-4" />
-                  Bloqueado
-                </Button>
-              ) : null}
+                )}
+                {podeIniciar ? (
+                  <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
+                    <Button>
+                      <Play className="mr-1 h-4 w-4" />
+                      {iniciado ? "Continuar" : "Iniciar"}
+                    </Button>
+                  </Link>
+                ) : !finalizado ? (
+                  <Button disabled title="Termine o formulário em andamento antes">
+                    <Lock className="mr-1 h-4 w-4" />
+                    Bloqueado
+                  </Button>
+                ) : null}
+              </div>
             </div>
           );
         })}
       </div>
+
     </Card>
   );
 }
