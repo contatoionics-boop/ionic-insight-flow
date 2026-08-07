@@ -262,7 +262,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     if (!estado || !isVideoPergunta) return;
     if (!file.size) return alert("O vídeo selecionado está vazio.");
     if (file.size > 100 * 1024 * 1024) return alert("O vídeo deve ter no máximo 100 MB.");
-    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) return alert("Formato não aceito. Use MP4, WebM ou MOV.");
+    if (!file.type.startsWith("video/")) return alert("Formato não aceito. Envie um arquivo de vídeo (MP4, WebM ou MOV).");
     setUploadingFoto(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
@@ -517,31 +517,34 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             <input
               ref={fotoInputRef}
               type="file"
-              accept="image/*"
+              accept={isVideoPergunta ? "video/mp4,video/webm,video/quicktime,video/*" : "image/*"}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void onFotoSelecionada(f);
+                if (!f) return;
+                if (isVideoPergunta || f.type.startsWith("video/")) void onVideoSelecionado(f);
+                else void onFotoSelecionada(f);
                 e.target.value = "";
               }}
             />
             <input
               ref={cameraInputRef}
               type="file"
-              accept="image/*"
+              accept={isVideoPergunta ? "video/*" : "image/*"}
               capture="environment"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void onFotoSelecionada(f);
+                if (!f) return;
+                if (isVideoPergunta || f.type.startsWith("video/")) void onVideoSelecionado(f);
+                else void onFotoSelecionada(f);
                 e.target.value = "";
               }}
             />
             <input
               ref={videoInputRef}
               type="file"
-              accept="video/mp4,video/webm,video/quicktime"
-              capture="environment"
+              accept="video/mp4,video/webm,video/quicktime,video/*"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -549,6 +552,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
                 event.target.value = "";
               }}
             />
+
             <button
               type="button"
               onClick={() => fotoInputRef.current?.click()}
