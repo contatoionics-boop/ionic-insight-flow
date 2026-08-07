@@ -275,8 +275,18 @@ function MinhasVistoriasPage() {
         <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
       ) : tab === "lista" ? (
         <div className="space-y-6">
-          <Section title="Pendentes" items={pendentes} empty="Nenhum agendamento pendente." />
+          <Section
+            title="Em andamento"
+            items={pendentes.filter((g) => g.status === "em_andamento")}
+            empty="Nenhum mapeamento em andamento."
+          />
+          <Section
+            title="Não iniciados"
+            items={pendentes.filter((g) => g.status !== "em_andamento")}
+            empty="Nenhum mapeamento pendente."
+          />
           <Section title="Concluídos" items={concluidos} empty="Nenhum agendamento concluído." />
+
         </div>
       ) : (
         <div className="space-y-4">
