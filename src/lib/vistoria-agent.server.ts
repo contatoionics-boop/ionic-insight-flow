@@ -223,11 +223,58 @@ export function perguntasVisiveis(ctx: AgentContext): AgentPergunta[] {
   );
 }
 
+/**
+ * Fonte única da verdade: uma pergunta só é considerada respondida quando há
+ * texto não vazio, arquivo, lista de arquivos ou transcrição.
+ */
+export function estaRespondida(r: AgentResposta | undefined): boolean {
+  return !!(
+    (r?.valor_texto && r.valor_texto.trim()) ||
+    r?.arquivo_path ||
+    (r?.transcricao && r.transcricao.trim()) ||
+    (r?.arquivos_paths && r.arquivos_paths.length > 0)
+  );
+}
+
+export type Pendencias = {
+  totalVisiveis: number;
+  respondidas: number;
+  totalObrigatorias: number;
+  respondidasObrigatorias: number;
+  obrigatoriasFaltando: number;
+  pendentesObrigatorias: AgentPergunta[];
+  pendentesOpcionais: AgentPergunta[];
+  proxima: AgentPergunta | null;
+  podeFinalizar: boolean;
+};
+
+/** Recalcula pendências a partir do estado atual do contexto. */
+export function calcularPendencias(ctx: AgentContext): Pendencias {
+  const visiveis = perguntasVisiveis(ctx);
+  const resp = (p: AgentPergunta) => estaRespondida(ctx.state[p.id]);
+  const obrigatorias = visiveis.filter((p) => p.obrigatoria);
+  const pendentes = visiveis.filter((p) => !resp(p));
+  const pendentesObrigatorias = pendentes.filter((p) => p.obrigatoria);
+  const pendentesOpcionais = pendentes.filter((p) => !p.obrigatoria);
+  return {
+    totalVisiveis: visiveis.length,
+    respondidas: visiveis.filter(resp).length,
+    totalObrigatorias: obrigatorias.length,
+    respondidasObrigatorias: obrigatorias.filter(resp).length,
+    obrigatoriasFaltando: pendentesObrigatorias.length,
+    pendentesObrigatorias,
+    pendentesOpcionais,
+    proxima: pendentesObrigatorias[0] ?? pendentesOpcionais[0] ?? null,
+    podeFinalizar: pendentesObrigatorias.length === 0,
+  };
+}
+
 export function buildSystemPrompt(ctx: AgentContext): string {
   const visiveis = perguntasVisiveis(ctx);
   const flat = visiveis.map((p) => {
     const resp = ctx.state[p.id];
-    const respondida = !!(resp?.valor_texto || resp?.arquivo_path || resp?.transcricao);
+    const respondida = estaRespondida(resp);
+
     return {
       pergunta_id: p.id,
       secao: p.secao_titulo,
@@ -255,14 +302,35 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     };
   });
 
-  const proxima = flat.find((p) => !p.respondida);
-  const faltando = flat.filter((p) => p.obrigatoria && !p.respondida).length;
+  const pend = calcularPendencias(ctx);
+  const proxima = pend.proxima;
+  const faltando = pend.obrigatoriasFaltando;
+
+  const listaPendentes = (arr: AgentPergunta[]) =>
+    arr.length
+      ? arr.map((p) => `  - ${p.id} :: ${p.texto}`).join("\n")
+      : "  - (nenhuma)";
 
   const cadastroBloco = ctx.cadastro.length
     ? ctx.cadastro.map((c) => `- ${c.label}: ${c.valor}`).join("\n")
     : "- (nenhum dado de cadastro disponível)";
 
   return [
+    `# ESTADO OFICIAL (fonte da verdade — recalculado pelo servidor neste turno)`,
+    `- Obrigatórias respondidas: ${pend.respondidasObrigatorias}/${pend.totalObrigatorias}`,
+    `- Obrigatórias faltando: ${faltando}`,
+    `- Total respondidas (incluindo opcionais): ${pend.respondidas}/${pend.totalVisiveis}`,
+    `- PODE FINALIZAR: ${pend.podeFinalizar ? "SIM" : "NÃO"}`,
+    proxima
+      ? `- PRÓXIMA PERGUNTA OBRIGATÓRIA A FAZER AGORA: ${proxima.id} :: "${proxima.texto}"`
+      : `- Não há perguntas pendentes.`,
+    ``,
+    `## Obrigatórias pendentes (${pend.pendentesObrigatorias.length})`,
+    listaPendentes(pend.pendentesObrigatorias.slice(0, 40)),
+    `## Opcionais pendentes (${pend.pendentesOpcionais.length})`,
+    listaPendentes(pend.pendentesOpcionais.slice(0, 20)),
+    ``,
+
     `Você é o assistente técnico da Ionics conduzindo o **mapeamento técnico** de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
     ``,
     `## Contexto exclusivo`,
@@ -286,15 +354,17 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Quando o usuário anexar uma ou mais fotos (mensagem contendo "[ANEXO_FOTO arquivo_path=..." ou "[ANEXO_FOTOS arquivos_paths=p1,p2,..."), chame \`validar_foto\` na PRIMEIRA foto e em seguida chame \`salvar_resposta\` UMA ÚNICA VEZ passando \`arquivos_paths\` com a lista completa (ou \`arquivo_path\` se for só uma). Não crie respostas separadas por foto — todas pertencem ao mesmo \`pergunta_id\`.`,
     `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu, consulte o \`state\` ou os dados de cadastro acima e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
     `- A interface mostra apenas a sua última mensagem por vez (estilo ChatGPT). Por isso, cada turno deve conter a pergunta atual completa e autocontida — não diga "como mencionei acima".`,
-    `- **Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto \`obrigatorias_faltando > 0\`. Se o usuário pedir para finalizar antes disso, informe quantas obrigatórias ainda faltam e retome imediatamente pela próxima pergunta pendente.`,
-    `- Quando (e SOMENTE quando) \`obrigatorias_faltando === 0\`, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
-    `- Após cada \`salvar_resposta\`, o tool retorna \`estado_pos_salvamento\` com \`obrigatorias_faltando\` e \`proxima_pergunta_id\` — use esse valor como fonte da verdade para decidir se ainda há perguntas pendentes, ignorando qualquer suposição anterior.`,
+    `- **Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto \`Obrigatórias faltando > 0\`. Se o usuário pedir para finalizar antes disso, informe quantas obrigatórias ainda faltam, liste as próximas e retome imediatamente pela PRÓXIMA PERGUNTA indicada no ESTADO OFICIAL.`,
+    `- Quando (e SOMENTE quando) \`PODE FINALIZAR: SIM\`, agradeça e informe que o mapeamento pode ser finalizado pelo botão "Finalizar" no topo.`,
+    `- Em caso de dúvida sobre o que falta, chame a ferramenta \`proximas_pendentes\` antes de responder. Nunca conclua o mapeamento por suposição.`,
+    `- Após cada \`salvar_resposta\`, o tool retorna \`estado_pos_salvamento\` com \`obrigatorias_faltando\` e \`proxima_pergunta_id\` — siga OBRIGATORIAMENTE para \`proxima_pergunta_id\`, ignorando qualquer suposição anterior.`,
     ``,
     `## Status atual`,
     `- Perguntas visíveis: ${flat.length}`,
     `- Já respondidas: ${flat.filter((p) => p.respondida).length}`,
     `- Obrigatórias faltando: ${faltando}`,
-    proxima ? `- Próxima sugerida: ${proxima.pergunta_id} ("${proxima.texto}")` : `- Todas respondidas.`,
+    proxima ? `- Próxima sugerida: ${proxima.id} ("${proxima.texto}")` : `- Todas respondidas.`,
+
     ``,
     `## Formulário (perguntas visíveis com estado atual)`,
     `\`\`\`json`,
@@ -426,31 +496,19 @@ export async function execSalvarResposta(
   }
 
   // Compute post-save state so the model can see the real numbers immediately.
-  const visiveis = perguntasVisiveis(ctx);
-  const respondida = (id: string) => {
-    const r = ctx.state[id];
-    return !!(
-      (r?.valor_texto && r.valor_texto.trim()) ||
-      r?.arquivo_path ||
-      (r?.transcricao && r.transcricao.trim()) ||
-      (r?.arquivos_paths && r.arquivos_paths.length > 0)
-    );
-  };
-  const obrigatorias = visiveis.filter((x) => x.obrigatoria);
-  const respondidas_obrigatorias = obrigatorias.filter((x) => respondida(x.id)).length;
-  const obrigatorias_faltando = obrigatorias.length - respondidas_obrigatorias;
-  const proxima = visiveis.find((x) => !respondida(x.id)) ?? null;
+  const pend = calcularPendencias(ctx);
 
   return {
     ok: true,
     estado_pos_salvamento: {
-      obrigatorias_faltando,
-      total_obrigatorias: obrigatorias.length,
-      respondidas_obrigatorias,
-      proxima_pergunta_id: proxima?.id ?? null,
-      pode_finalizar: obrigatorias_faltando === 0,
+      obrigatorias_faltando: pend.obrigatoriasFaltando,
+      total_obrigatorias: pend.totalObrigatorias,
+      respondidas_obrigatorias: pend.respondidasObrigatorias,
+      proxima_pergunta_id: pend.proxima?.id ?? null,
+      pode_finalizar: pend.podeFinalizar,
     },
   };
+
 }
 
 export async function execValidarFoto(

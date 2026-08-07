@@ -240,10 +240,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const handleFinalizar = async () => {
     if (!estado) return;
     if (estado.obrigatoriasFaltando > 0) {
-      const ok = confirm(
-        `Ainda há ${estado.obrigatoriasFaltando} pergunta(s) obrigatória(s) sem resposta. Finalizar mesmo assim?`,
+      alert(
+        `Ainda há ${estado.obrigatoriasFaltando} pergunta(s) obrigatória(s) sem resposta. Responda todas antes de finalizar.`,
       );
-      if (!ok) return;
+      return;
     }
     setFinalizando(true);
     try {
@@ -256,6 +256,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       setFinalizando(false);
     }
   };
+
 
   if (estadoErro && !estado) {
     return (
@@ -354,11 +355,23 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             <Button
               variant="primary"
               onClick={handleFinalizar}
-              disabled={finalizando}
+              disabled={finalizando || estado.obrigatoriasFaltando > 0}
+              title={
+                estado.obrigatoriasFaltando > 0
+                  ? `Faltam ${estado.obrigatoriasFaltando} pergunta(s) obrigatória(s)`
+                  : "Finalizar mapeamento"
+              }
               className="h-8 rounded-full px-4 text-xs"
             >
-              {finalizando ? <Loader2 className="h-3 w-3 animate-spin" /> : "Finalizar"}
+              {finalizando ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : estado.obrigatoriasFaltando > 0 ? (
+                `Faltam ${estado.obrigatoriasFaltando}`
+              ) : (
+                "Finalizar"
+              )}
             </Button>
+
           </div>
         </div>
         <div className="h-0.5 w-full bg-muted">

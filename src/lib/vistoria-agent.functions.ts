@@ -24,7 +24,7 @@ export type EstadoVistoria = {
 export const getEstadoVistoria = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => EstadoInput.parse(input))
   .handler(async ({ data }): Promise<EstadoVistoria> => {
-    const { loadAgentContext, validarTokenAcesso, perguntasVisiveis } = await import(
+    const { loadAgentContext, validarTokenAcesso } = await import(
       "@/lib/vistoria-agent.server"
     );
 
@@ -39,34 +39,21 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       throw new Error("Informe token ou casoId.");
     }
 
+    const { calcularPendencias } = await import("@/lib/vistoria-agent.server");
     const ctx = await loadAgentContext(casoId);
-    const visiveis = perguntasVisiveis(ctx);
-    const respondida = (id: string) => {
-      const r = ctx.state[id];
-      return !!(
-        (r?.valor_texto && r.valor_texto.trim()) ||
-        r?.arquivo_path ||
-        (r?.transcricao && r.transcricao.trim()) ||
-        (r?.arquivos_paths && r.arquivos_paths.length > 0)
-      );
-    };
-    const respondidas = visiveis.filter((p) => respondida(p.id)).length;
-    const obrigatorias = visiveis.filter((p) => p.obrigatoria);
-    const respondidasObrigatorias = obrigatorias.filter((p) => respondida(p.id)).length;
-    const obrigatoriasFaltando = obrigatorias.length - respondidasObrigatorias;
-    const proxima = visiveis.find((p) => !respondida(p.id)) ?? null;
+    const pend = calcularPendencias(ctx);
 
     return {
       casoId,
       clienteNome: ctx.clienteNome,
       formularioNome: ctx.formularioNome,
-      totalVisiveis: visiveis.length,
-      respondidas,
-      totalObrigatorias: obrigatorias.length,
-      respondidasObrigatorias,
-      obrigatoriasFaltando,
-      proximaPerguntaTipo: proxima?.tipo ?? null,
-      proximaPerguntaId: proxima?.id ?? null,
+      totalVisiveis: pend.totalVisiveis,
+      respondidas: pend.respondidas,
+      totalObrigatorias: pend.totalObrigatorias,
+      respondidasObrigatorias: pend.respondidasObrigatorias,
+      obrigatoriasFaltando: pend.obrigatoriasFaltando,
+      proximaPerguntaTipo: pend.proxima?.tipo ?? null,
+      proximaPerguntaId: pend.proxima?.id ?? null,
     };
   });
 
@@ -79,20 +66,41 @@ const FinalizarInput = z.object({
 export const finalizarVistoriaChat = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => FinalizarInput.parse(input))
   .handler(async ({ data }) => {
-    const { validarTokenAcesso } = await import("@/lib/vistoria-agent.server");
+    const { validarTokenAcesso, loadAgentContext, calcularPendencias } = await import(
+      "@/lib/vistoria-agent.server"
+    );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let casoId: string;
     if (data.token) {
       casoId = await validarTokenAcesso(data.token);
-      await supabaseAdmin
-        .from("links_agente")
-        .update({ utilizado_em: new Date().toISOString() })
-        .eq("token", data.token);
     } else if (data.casoId) {
       casoId = data.casoId;
     } else {
       throw new Error("Informe token ou casoId.");
     }
+
+    // Trava real: não permite encerrar com perguntas obrigatórias em aberto.
+    const ctx = await loadAgentContext(casoId);
+    const pend = calcularPendencias(ctx);
+    if (!pend.podeFinalizar) {
+      const exemplos = pend.pendentesObrigatorias
+        .slice(0, 5)
+        .map((p) => `• ${p.texto}`)
+        .join("\n");
+      throw new Error(
+        `Não é possível finalizar: ainda faltam ${pend.obrigatoriasFaltando} pergunta(s) obrigatória(s).\n${exemplos}${
+          pend.obrigatoriasFaltando > 5 ? `\n… e mais ${pend.obrigatoriasFaltando - 5}.` : ""
+        }`,
+      );
+    }
+
+    if (data.token) {
+      await supabaseAdmin
+        .from("links_agente")
+        .update({ utilizado_em: new Date().toISOString() })
+        .eq("token", data.token);
+    }
+
     const { error } = await supabaseAdmin
       .from("casos")
       .update({ status: "aguardando_revisao" })
@@ -100,6 +108,7 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 // ============= Histórico de chat =============
 

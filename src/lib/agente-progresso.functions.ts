@@ -110,9 +110,11 @@ export type ResumoItem = {
   secao: string;
   pergunta: string;
   tipo: string;
+  obrigatoria: boolean;
   resposta: string | null;
   arquivos: number;
 };
+
 
 export type ResumoRespostas = {
   casoId: string;
@@ -145,10 +147,12 @@ export const getResumoRespostas = createServerFn({ method: "POST" })
         secao: p.secao_titulo,
         pergunta: p.texto,
         tipo: p.tipo,
+        obrigatoria: !!p.obrigatoria,
         resposta: texto || null,
         arquivos,
       };
     });
+
     return {
       casoId: ctx.casoId,
       clienteNome: ctx.clienteNome,
