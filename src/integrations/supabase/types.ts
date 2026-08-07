@@ -1224,6 +1224,7 @@ export type Database = {
         | "toggle"
         | "cep"
         | "cnpj"
+        | "video"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1406,6 +1407,7 @@ export const Constants = {
         "toggle",
         "cep",
         "cnpj",
+        "video",
       ],
     },
   },
