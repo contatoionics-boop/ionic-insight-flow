@@ -28,6 +28,14 @@ export type AgentResposta = {
   transcricao: string | null;
 };
 
+export type RespostaSalva = {
+  perguntaId: string;
+  perguntaTexto: string;
+  valor: string;
+  tipo: string;
+  criadoEm: string;
+};
+
 export type CadastroFato = { label: string; valor: string };
 
 export type AgentContext = {
@@ -274,6 +282,28 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
   };
 }
 
+function normalizarRotulo(value: string) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+/** Persiste dados cadastrais inequívocos antes de iniciar a conversa. */
+export async function sincronizarCadastro(ctx: AgentContext): Promise<void> {
+  const fatos = new Map(ctx.cadastro.map((f) => [normalizarRotulo(f.label), f.valor]));
+  for (const pergunta of ctx.perguntas) {
+    if (estaRespondida(ctx.state[pergunta.id])) continue;
+    const texto = normalizarRotulo(pergunta.texto);
+    let valor: string | undefined;
+    if (pergunta.tipo === "cnpj" || texto.includes("cnpj")) valor = fatos.get("cnpj");
+    else if (pergunta.tipo === "cep" || texto.includes("cep")) {
+      valor = fatos.get("endereco da unidade")?.match(/\b\d{5}-?\d{3}\b/)?.[0];
+    } else if (texto.includes("endereco") && !texto.includes("foto")) {
+      valor = fatos.get("endereco do mapeamento") ?? fatos.get("endereco da unidade");
+    }
+    if (!valor) continue;
+    await execSalvarResposta(ctx.casoId, ctx, { pergunta_id: pergunta.id, valor_texto: valor });
+  }
+}
+
 export function buildSystemPrompt(ctx: AgentContext): string {
   const visiveis = perguntasVisiveis(ctx);
   const flat = visiveis.map((p) => {
@@ -418,6 +448,9 @@ export async function execSalvarResposta(
   // Type-specific validation
   if (p.tipo === "foto" && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path ou arquivos_paths." };
+  }
+  if (p.tipo === "video" && !arquivo_path) {
+    return { ok: false, motivo: "Pergunta tipo vídeo exige arquivo_path." };
   }
   if (p.tipo === "audio" && !transcricao && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo audio exige transcricao ou arquivo_path." };

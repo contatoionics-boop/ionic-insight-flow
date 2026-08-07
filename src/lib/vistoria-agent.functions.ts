@@ -22,6 +22,13 @@ export type EstadoVistoria = {
   proximaPerguntaSecao: string | null;
   proximaPerguntaInstrucao: string | null;
   proximaPerguntaOpcoes: { id: string; texto: string }[];
+  ultimaResposta: {
+    perguntaId: string;
+    perguntaTexto: string;
+    valor: string;
+    tipo: string;
+    criadoEm: string;
+  } | null;
 };
 
 /** Public-or-auth: pass either token (link público) OU casoId (sessão autenticada). */
@@ -43,14 +50,23 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       throw new Error("Informe token ou casoId.");
     }
 
-    const { calcularPendencias } = await import("@/lib/vistoria-agent.server");
+    const { calcularPendencias, sincronizarCadastro } = await import("@/lib/vistoria-agent.server");
     const ctx = await loadAgentContext(casoId);
+    await sincronizarCadastro(ctx);
     const pend = calcularPendencias(ctx);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ultima } = await supabaseAdmin
+      .from("respostas_agente")
+      .select("pergunta_id, tipo, valor_texto, arquivo_path, arquivos_paths, transcricao, criado_em, pergunta:perguntas(texto)")
+      .eq("caso_id", casoId)
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     // Casos antigos podem ter respostas persistidas sem que o status tenha
     // acompanhado o primeiro salvamento. Corrige o estado sem recriar evento.
     if (pend.respondidas > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("casos")
         .update({ status: "em_andamento" })
@@ -74,6 +90,15 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       proximaPerguntaSecao: pend.proxima?.secao_titulo ?? null,
       proximaPerguntaInstrucao: pend.proxima?.instrucao_agente ?? null,
       proximaPerguntaOpcoes: pend.proxima?.opcoes ?? [],
+      ultimaResposta: ultima
+        ? {
+            perguntaId: ultima.pergunta_id,
+            perguntaTexto: (ultima.pergunta as { texto?: string } | null)?.texto ?? "Resposta anterior",
+            valor: ultima.valor_texto || ultima.transcricao || (ultima.arquivos_paths?.length ? `${ultima.arquivos_paths.length} anexo(s)` : ultima.arquivo_path ? "Anexo enviado" : "Registrada"),
+            tipo: ultima.tipo,
+            criadoEm: ultima.criado_em,
+          }
+        : null,
     };
   });
 

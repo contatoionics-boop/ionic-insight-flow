@@ -17,6 +17,7 @@ type Body = {
   token?: string;
   casoId?: string;
   accessToken?: string;
+  perguntaAtualId?: string;
 };
 
 async function resolveAccess(body: Body, request: Request): Promise<string> {
@@ -69,6 +70,27 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         if (!key) return new Response("OPENAI_API_KEY ausente", { status: 500 });
 
         const ctx: AgentContext = await loadAgentContext(casoId);
+        const { calcularPendencias, sincronizarCadastro } = await import("@/lib/vistoria-agent.server");
+        await sincronizarCadastro(ctx);
+        const ultimaMensagem = [...body.messages].reverse().find((message) => message.role === "user");
+        const textoAtual = ultimaMensagem?.parts
+          ?.filter((part: any) => part?.type === "text")
+          .map((part: any) => part.text)
+          .join(" ")
+          .trim() ?? "";
+        const pendenciaAtual = calcularPendencias(ctx).proxima;
+        if (body.perguntaAtualId && pendenciaAtual?.id === body.perguntaAtualId && textoAtual) {
+          const videoMatch = textoAtual.match(/\[ANEXO_VIDEO arquivo_path=([^\]\s]+)/);
+          const tipo = pendenciaAtual.tipo;
+          if (videoMatch && tipo === "video") {
+            await execSalvarResposta(casoId, ctx, { pergunta_id: pendenciaAtual.id, arquivo_path: videoMatch[1] });
+          } else if (!["foto", "video"].includes(tipo) && !textoAtual.startsWith("[ANEXO_")) {
+            await execSalvarResposta(casoId, ctx, {
+              pergunta_id: pendenciaAtual.id,
+              ...(tipo === "audio" ? { transcricao: textoAtual } : { valor_texto: textoAtual }),
+            });
+          }
+        }
         let system = buildSystemPrompt(ctx);
 
         // Inject RAG context based on the last user message
