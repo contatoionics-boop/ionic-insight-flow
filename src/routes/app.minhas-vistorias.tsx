@@ -1,17 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Badge, Button, Modal } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
+import {
+  listarProgressoMeusCasos,
+  type ProgressoCaso,
+} from "@/lib/agente-progresso.functions";
+import { ResumoRespostasModal } from "@/components/agent/ResumoRespostas";
 import {
   listarAgendamentosDoAgente,
   confirmarAgendamentoAgente,
   recusarAgendamentoAgente,
   type AceiteAgendamento,
 } from "@/lib/agendamentos.functions";
-import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { CalendarDays, Eye, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
 import { toast } from "sonner";
+
+type ProgressoCtx = {
+  progressoMap: Map<string, ProgressoCaso>;
+  onVerRespostas: (casoId: string) => void;
+};
+const ProgressoContext = createContext<ProgressoCtx>({
+  progressoMap: new Map(),
+  onVerRespostas: () => {},
+});
+
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
