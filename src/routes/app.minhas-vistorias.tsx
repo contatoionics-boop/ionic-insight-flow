@@ -1,17 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Badge, Button, Modal } from "@/components/ui-bits";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
+import {
+  listarProgressoMeusCasos,
+  type ProgressoCaso,
+} from "@/lib/agente-progresso.functions";
+import { ResumoRespostasModal } from "@/components/agent/ResumoRespostas";
 import {
   listarAgendamentosDoAgente,
   confirmarAgendamentoAgente,
   recusarAgendamentoAgente,
   type AceiteAgendamento,
 } from "@/lib/agendamentos.functions";
-import { CalendarDays, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import { CalendarDays, Eye, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
 import { toast } from "sonner";
+
+type ProgressoCtx = {
+  progressoMap: Map<string, ProgressoCaso>;
+  onVerRespostas: (casoId: string) => void;
+};
+const ProgressoContext = createContext<ProgressoCtx>({
+  progressoMap: new Map(),
+  onVerRespostas: () => {},
+});
+
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   component: MinhasVistoriasPage,
@@ -93,13 +108,22 @@ function MinhasVistoriasPage() {
   const [recusando, setRecusando] = useState<AceiteAgendamento | null>(null);
   const [motivo, setMotivo] = useState("");
   const [working, setWorking] = useState(false);
+  const loadProgresso = useServerFn(listarProgressoMeusCasos);
+  const [progresso, setProgresso] = useState<ProgressoCaso[]>([]);
+  const [resumoCasoId, setResumoCasoId] = useState<string | null>(null);
+  const progressoMap = useMemo(
+    () => new Map(progresso.map((p) => [p.casoId, p])),
+    [progresso],
+  );
 
   const reload = async () => {
-    const [d, ags] = await Promise.all([load(), loadAgendamentos()]);
+    const [d, ags, prog] = await Promise.all([load(), loadAgendamentos(), loadProgresso()]);
     setRows((d ?? []) as unknown as Vistoria[]);
     setAgendamentos(ags ?? []);
+    setProgresso(prog ?? []);
     setLoading(false);
   };
+
 
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
 
@@ -152,7 +176,14 @@ function MinhasVistoriasPage() {
   }, [futuras]);
 
   return (
+    <ProgressoContext.Provider value={{ progressoMap, onVerRespostas: setResumoCasoId }}>
     <div>
+      <ResumoRespostasModal
+        casoId={resumoCasoId}
+        open={!!resumoCasoId}
+        onClose={() => setResumoCasoId(null)}
+      />
+
       <PageHeader
         title="Meus mapeamentos"
         description="Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo."
@@ -244,8 +275,18 @@ function MinhasVistoriasPage() {
         <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
       ) : tab === "lista" ? (
         <div className="space-y-6">
-          <Section title="Pendentes" items={pendentes} empty="Nenhum agendamento pendente." />
+          <Section
+            title="Em andamento"
+            items={pendentes.filter((g) => g.status === "em_andamento")}
+            empty="Nenhum mapeamento em andamento."
+          />
+          <Section
+            title="Não iniciados"
+            items={pendentes.filter((g) => g.status !== "em_andamento")}
+            empty="Nenhum mapeamento pendente."
+          />
           <Section title="Concluídos" items={concluidos} empty="Nenhum agendamento concluído." />
+
         </div>
       ) : (
         <div className="space-y-4">
@@ -264,7 +305,9 @@ function MinhasVistoriasPage() {
         </div>
       )}
     </div>
+    </ProgressoContext.Provider>
   );
+
 }
 
 function Section({ title, items, empty }: { title: string; items: Grupo[]; empty: string }) {
@@ -285,7 +328,9 @@ function Section({ title, items, empty }: { title: string; items: Grupo[]; empty
 }
 
 function AgendamentoCard({ g }: { g: Grupo }) {
+  const { progressoMap, onVerRespostas } = useContext(ProgressoContext);
   const emAndamento = g.casos.find((c) => c.status === "em_andamento");
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
@@ -315,39 +360,65 @@ function AgendamentoCard({ g }: { g: Grupo }) {
       <div className="space-y-2 border-t border-border pt-3">
         {g.casos.map((c) => {
           const finalizado = FINALIZADOS.includes(c.status);
+          const prog = progressoMap.get(c.id);
+          const iniciado = c.status === "em_andamento" || (prog?.respondidas ?? 0) > 0;
           const isCurrent = c.status === "em_andamento";
           const podeIniciar = !finalizado && (!emAndamento || isCurrent);
+          const pct =
+            prog && prog.total > 0 ? Math.round((prog.respondidas / prog.total) * 100) : 0;
           return (
             <div
               key={c.id}
               className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[11px] text-muted-foreground">{c.codigo}</span>
                   <Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge>
+                  {!finalizado && !iniciado && (
+                    <Badge className="bg-muted text-muted-foreground">Não iniciado</Badge>
+                  )}
                 </div>
                 <p className="mt-0.5 text-sm font-medium text-foreground">
                   {c.formulario?.nome ?? "—"}
                 </p>
+                {prog && prog.total > 0 && (
+                  <div className="mt-1.5 max-w-xs">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {prog.respondidas}/{prog.total} respondidas ({pct}%)
+                    </p>
+                  </div>
+                )}
               </div>
-              {podeIniciar ? (
-                <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
-                  <Button>
-                    <Play className="mr-1 h-4 w-4" />
-                    {isCurrent ? "Continuar" : "Iniciar"}
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {(iniciado || finalizado) && (
+                  <Button variant="outline" onClick={() => onVerRespostas(c.id)}>
+                    <Eye className="mr-1 h-4 w-4" />
+                    Ver respostas
                   </Button>
-                </Link>
-              ) : !finalizado ? (
-                <Button disabled title="Termine o formulário em andamento antes">
-                  <Lock className="mr-1 h-4 w-4" />
-                  Bloqueado
-                </Button>
-              ) : null}
+                )}
+                {podeIniciar ? (
+                  <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
+                    <Button>
+                      <Play className="mr-1 h-4 w-4" />
+                      {iniciado ? "Continuar" : "Iniciar"}
+                    </Button>
+                  </Link>
+                ) : !finalizado ? (
+                  <Button disabled title="Termine o formulário em andamento antes">
+                    <Lock className="mr-1 h-4 w-4" />
+                    Bloqueado
+                  </Button>
+                ) : null}
+              </div>
             </div>
           );
         })}
       </div>
+
     </Card>
   );
 }
