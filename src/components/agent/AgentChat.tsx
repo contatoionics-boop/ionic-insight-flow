@@ -150,6 +150,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             casoId,
             role: "assistant",
             parts: message.parts as any,
+            clientMessageId: message.id,
           },
         }).catch(() => persistedIdsRef.current.delete(message.id));
       }
@@ -180,12 +181,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     setAuthErro(null);
     enviouNestaAberturaRef.current = true;
     setInput("");
+    const clientMessageId = crypto.randomUUID();
     await salvarMensagem({
       data: {
         token,
         casoId,
         role: "user",
         parts: [{ type: "text", text: t }],
+        clientMessageId,
       },
     });
     await sendMessage({ text: t });
@@ -267,7 +270,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       const { error: uploadError } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false, contentType: file.type });
       if (uploadError) throw uploadError;
       const text = `[ANEXO_VIDEO arquivo_path=${path} mime=${file.type}] Vídeo anexado à pergunta atual.`;
-      await salvarMensagem({ data: { token, casoId, role: "user", parts: [{ type: "text", text }] } });
+      await salvarMensagem({ data: { token, casoId, role: "user", parts: [{ type: "text", text }], clientMessageId: crypto.randomUUID() } });
       await sendMessage({ text });
     } catch (error) {
       alert("Falha ao enviar vídeo: " + (error instanceof Error ? error.message : String(error)));

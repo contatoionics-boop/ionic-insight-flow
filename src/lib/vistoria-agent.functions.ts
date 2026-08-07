@@ -197,6 +197,7 @@ const SalvarMensagemInput = z.object({
   casoId: z.string().uuid().optional(),
   role: z.enum(["user", "assistant", "system"]),
   parts: z.array(z.any()).min(1),
+  clientMessageId: z.string().min(1).max(200).optional(),
 });
 
 export const salvarMensagemChat = createServerFn({ method: "POST" })
@@ -204,11 +205,15 @@ export const salvarMensagemChat = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("chat_mensagens").insert({
-      caso_id: casoId,
-      role: data.role,
-      parts: data.parts,
-    });
+    const { error } = await supabaseAdmin.from("chat_mensagens").upsert(
+      {
+        caso_id: casoId,
+        role: data.role,
+        parts: data.parts,
+        client_message_id: data.clientMessageId ?? null,
+      },
+      { onConflict: "caso_id,client_message_id", ignoreDuplicates: true },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
