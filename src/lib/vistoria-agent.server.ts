@@ -302,14 +302,35 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     };
   });
 
-  const proxima = flat.find((p) => !p.respondida);
-  const faltando = flat.filter((p) => p.obrigatoria && !p.respondida).length;
+  const pend = calcularPendencias(ctx);
+  const proxima = pend.proxima;
+  const faltando = pend.obrigatoriasFaltando;
+
+  const listaPendentes = (arr: AgentPergunta[]) =>
+    arr.length
+      ? arr.map((p) => `  - ${p.id} :: ${p.texto}`).join("\n")
+      : "  - (nenhuma)";
 
   const cadastroBloco = ctx.cadastro.length
     ? ctx.cadastro.map((c) => `- ${c.label}: ${c.valor}`).join("\n")
     : "- (nenhum dado de cadastro disponível)";
 
   return [
+    `# ESTADO OFICIAL (fonte da verdade — recalculado pelo servidor neste turno)`,
+    `- Obrigatórias respondidas: ${pend.respondidasObrigatorias}/${pend.totalObrigatorias}`,
+    `- Obrigatórias faltando: ${faltando}`,
+    `- Total respondidas (incluindo opcionais): ${pend.respondidas}/${pend.totalVisiveis}`,
+    `- PODE FINALIZAR: ${pend.podeFinalizar ? "SIM" : "NÃO"}`,
+    proxima
+      ? `- PRÓXIMA PERGUNTA OBRIGATÓRIA A FAZER AGORA: ${proxima.id} :: "${proxima.texto}"`
+      : `- Não há perguntas pendentes.`,
+    ``,
+    `## Obrigatórias pendentes (${pend.pendentesObrigatorias.length})`,
+    listaPendentes(pend.pendentesObrigatorias.slice(0, 40)),
+    `## Opcionais pendentes (${pend.pendentesOpcionais.length})`,
+    listaPendentes(pend.pendentesOpcionais.slice(0, 20)),
+    ``,
+
     `Você é o assistente técnico da Ionics conduzindo o **mapeamento técnico** de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
     ``,
     `## Contexto exclusivo`,
