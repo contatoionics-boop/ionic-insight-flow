@@ -240,10 +240,10 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const handleFinalizar = async () => {
     if (!estado) return;
     if (estado.obrigatoriasFaltando > 0) {
-      const ok = confirm(
-        `Ainda há ${estado.obrigatoriasFaltando} pergunta(s) obrigatória(s) sem resposta. Finalizar mesmo assim?`,
+      alert(
+        `Ainda há ${estado.obrigatoriasFaltando} pergunta(s) obrigatória(s) sem resposta. Responda todas antes de finalizar.`,
       );
-      if (!ok) return;
+      return;
     }
     setFinalizando(true);
     try {
@@ -256,6 +256,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       setFinalizando(false);
     }
   };
+
 
   if (estadoErro && !estado) {
     return (
