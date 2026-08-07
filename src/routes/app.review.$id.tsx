@@ -200,6 +200,93 @@ function ReviewCasePage() {
     setDirty((d) => ({ ...d, [perguntaId]: true }));
   };
 
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  const persistirArquivos = async (
+    perguntaId: string,
+    tipo: string,
+    lista: string[],
+  ) => {
+    if (!caseData) return;
+    const patch = {
+      arquivos_paths: lista,
+      arquivo_path: lista[0] ?? null,
+    };
+    const { data: upd } = await supabase
+      .from("respostas_agente")
+      .update(patch)
+      .eq("caso_id", caseData.id)
+      .eq("pergunta_id", perguntaId)
+      .select("pergunta_id");
+    if (!upd || upd.length === 0) {
+      await supabase.from("respostas_agente").insert({
+        caso_id: caseData.id,
+        pergunta_id: perguntaId,
+        tipo: tipo as never,
+        ...patch,
+      });
+    }
+    setRespostas((prev) => ({
+      ...prev,
+      [perguntaId]: {
+        pergunta_id: perguntaId,
+        valor_texto: prev[perguntaId]?.valor_texto ?? null,
+        transcricao: prev[perguntaId]?.transcricao ?? null,
+        arquivos_paths: lista,
+        arquivo_path: lista[0] ?? null,
+      },
+    }));
+    setSavedAt(Date.now());
+  };
+
+  const adicionarArquivos = async (
+    perguntaId: string,
+    tipo: string,
+    files: FileList | null,
+    substituirTudo = false,
+  ) => {
+    if (!caseData || !files || files.length === 0) return;
+    setUploading((u) => ({ ...u, [perguntaId]: true }));
+    try {
+      const novos: string[] = [];
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+        const path = `casos/${caseData.id}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("agente-uploads")
+          .upload(path, file, { upsert: false, contentType: file.type });
+        if (error) throw error;
+        novos.push(path);
+      }
+      const atual = substituirTudo || tipo === "video" ? [] : arquivosDe(respostas[perguntaId]);
+      const lista = [...atual, ...novos];
+      const { data: signed } = await supabase.storage
+        .from("agente-uploads")
+        .createSignedUrls(novos, 60 * 60);
+      setFotoUrls((prev) => {
+        const next = { ...prev };
+        for (const s of signed ?? []) if (s.path && s.signedUrl) next[s.path] = s.signedUrl;
+        return next;
+      });
+      await persistirArquivos(perguntaId, tipo, lista);
+    } catch (e) {
+      alert("Falha ao enviar arquivo: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setUploading((u) => ({ ...u, [perguntaId]: false }));
+    }
+  };
+
+  const removerArquivo = async (perguntaId: string, tipo: string, path: string) => {
+    if (!confirm("Remover este arquivo do mapeamento?")) return;
+    setUploading((u) => ({ ...u, [perguntaId]: true }));
+    try {
+      const lista = arquivosDe(respostas[perguntaId]).filter((p) => p !== path);
+      await persistirArquivos(perguntaId, tipo, lista);
+    } finally {
+      setUploading((u) => ({ ...u, [perguntaId]: false }));
+    }
+  };
+
   const salvarTudo = async () => {
     if (!caseData) return;
     setSavingAll(true);
@@ -223,6 +310,7 @@ function ReviewCasePage() {
       setSavingAll(false);
     }
   };
+
 
   const approve = async () => {
     if (!caseData) return;
