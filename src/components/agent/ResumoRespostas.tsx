@@ -48,7 +48,8 @@ export function ResumoRespostasModal({
             <p className="text-sm font-semibold text-foreground">{data.formularioNome}</p>
             <p className="text-xs text-muted-foreground">{data.clienteNome}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {respondidas.length} de {data.itens.length} perguntas respondidas
+              {respObrig} de {totalObrig} obrigatórias respondidas · {respondidas.length} de{" "}
+              {data.itens.length} no total
             </p>
           </div>
 
@@ -66,13 +67,13 @@ export function ResumoRespostasModal({
             </div>
           )}
 
-          {pendentes.length > 0 && (
+          {pendentesObrig.length > 0 && (
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">
-                Ainda faltam <Badge className="ml-1">{pendentes.length}</Badge>
+              <p className="mb-2 text-sm font-semibold text-destructive">
+                Obrigatórias pendentes <Badge className="ml-1">{pendentesObrig.length}</Badge>
               </p>
               <ul className="space-y-1">
-                {pendentes.map((i) => (
+                {pendentesObrig.map((i) => (
                   <li key={i.perguntaId} className="text-sm text-muted-foreground">
                     • {i.pergunta}
                   </li>
@@ -80,6 +81,22 @@ export function ResumoRespostasModal({
               </ul>
             </div>
           )}
+
+          {pendentesOpcionais.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-semibold text-foreground">
+                Opcionais pendentes <Badge className="ml-1">{pendentesOpcionais.length}</Badge>
+              </p>
+              <ul className="space-y-1">
+                {pendentesOpcionais.map((i) => (
+                  <li key={i.perguntaId} className="text-sm text-muted-foreground">
+                    • {i.pergunta}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
         </div>
       ) : null}
     </Modal>
