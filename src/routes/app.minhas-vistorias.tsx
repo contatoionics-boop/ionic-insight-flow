@@ -300,7 +300,9 @@ function Section({ title, items, empty }: { title: string; items: Grupo[]; empty
 }
 
 function AgendamentoCard({ g }: { g: Grupo }) {
+  const { progressoMap, onVerRespostas } = useContext(ProgressoContext);
   const emAndamento = g.casos.find((c) => c.status === "em_andamento");
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
