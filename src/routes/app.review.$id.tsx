@@ -17,6 +17,10 @@ import {
   Loader2,
   Save,
   ImageOff,
+  Trash2,
+  Upload,
+  RefreshCw,
+
 } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
