@@ -60,6 +60,12 @@ type Resposta = {
   transcricao: string | null;
 };
 
+function arquivosDe(r: Resposta | undefined): string[] {
+  if (!r) return [];
+  if (Array.isArray(r.arquivos_paths) && r.arquivos_paths.length) return r.arquivos_paths;
+  return r.arquivo_path ? [r.arquivo_path] : [];
+}
+
 function ReviewCasePage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
