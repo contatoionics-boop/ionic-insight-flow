@@ -223,11 +223,58 @@ export function perguntasVisiveis(ctx: AgentContext): AgentPergunta[] {
   );
 }
 
+/**
+ * Fonte única da verdade: uma pergunta só é considerada respondida quando há
+ * texto não vazio, arquivo, lista de arquivos ou transcrição.
+ */
+export function estaRespondida(r: AgentResposta | undefined): boolean {
+  return !!(
+    (r?.valor_texto && r.valor_texto.trim()) ||
+    r?.arquivo_path ||
+    (r?.transcricao && r.transcricao.trim()) ||
+    (r?.arquivos_paths && r.arquivos_paths.length > 0)
+  );
+}
+
+export type Pendencias = {
+  totalVisiveis: number;
+  respondidas: number;
+  totalObrigatorias: number;
+  respondidasObrigatorias: number;
+  obrigatoriasFaltando: number;
+  pendentesObrigatorias: AgentPergunta[];
+  pendentesOpcionais: AgentPergunta[];
+  proxima: AgentPergunta | null;
+  podeFinalizar: boolean;
+};
+
+/** Recalcula pendências a partir do estado atual do contexto. */
+export function calcularPendencias(ctx: AgentContext): Pendencias {
+  const visiveis = perguntasVisiveis(ctx);
+  const resp = (p: AgentPergunta) => estaRespondida(ctx.state[p.id]);
+  const obrigatorias = visiveis.filter((p) => p.obrigatoria);
+  const pendentes = visiveis.filter((p) => !resp(p));
+  const pendentesObrigatorias = pendentes.filter((p) => p.obrigatoria);
+  const pendentesOpcionais = pendentes.filter((p) => !p.obrigatoria);
+  return {
+    totalVisiveis: visiveis.length,
+    respondidas: visiveis.filter(resp).length,
+    totalObrigatorias: obrigatorias.length,
+    respondidasObrigatorias: obrigatorias.filter(resp).length,
+    obrigatoriasFaltando: pendentesObrigatorias.length,
+    pendentesObrigatorias,
+    pendentesOpcionais,
+    proxima: pendentesObrigatorias[0] ?? pendentesOpcionais[0] ?? null,
+    podeFinalizar: pendentesObrigatorias.length === 0,
+  };
+}
+
 export function buildSystemPrompt(ctx: AgentContext): string {
   const visiveis = perguntasVisiveis(ctx);
   const flat = visiveis.map((p) => {
     const resp = ctx.state[p.id];
-    const respondida = !!(resp?.valor_texto || resp?.arquivo_path || resp?.transcricao);
+    const respondida = estaRespondida(resp);
+
     return {
       pergunta_id: p.id,
       secao: p.secao_titulo,
