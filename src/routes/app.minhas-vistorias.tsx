@@ -167,7 +167,14 @@ function MinhasVistoriasPage() {
   }, [futuras]);
 
   return (
+    <ProgressoContext.Provider value={{ progressoMap, onVerRespostas: setResumoCasoId }}>
     <div>
+      <ResumoRespostasModal
+        casoId={resumoCasoId}
+        open={!!resumoCasoId}
+        onClose={() => setResumoCasoId(null)}
+      />
+
       <PageHeader
         title="Meus mapeamentos"
         description="Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo."
