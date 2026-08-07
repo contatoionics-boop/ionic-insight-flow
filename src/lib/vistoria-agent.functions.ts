@@ -24,7 +24,7 @@ export type EstadoVistoria = {
 export const getEstadoVistoria = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => EstadoInput.parse(input))
   .handler(async ({ data }): Promise<EstadoVistoria> => {
-    const { loadAgentContext, validarTokenAcesso, perguntasVisiveis } = await import(
+    const { loadAgentContext, validarTokenAcesso } = await import(
       "@/lib/vistoria-agent.server"
     );
 
