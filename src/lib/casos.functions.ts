@@ -409,7 +409,7 @@ export const adicionarFormularioAoAgendamento = createServerFn({ method: "POST" 
     await assertAdminOrSuper(context.supabase, context.userId);
     const { data: ag, error } = await supabaseAdmin
       .from("agendamentos")
-      .select("id, unidade_id, agente_id, criado_por, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento")
+      .select("id, unidade_id, agente_id, agente_nome_manual, tipo_solicitacao, modalidade, nivel, criado_por, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento")
       .eq("id", data.agendamentoId)
       .maybeSingle();
     if (error || !ag) throw new Error("Agendamento não encontrado.");
@@ -427,6 +427,10 @@ export const adicionarFormularioAoAgendamento = createServerFn({ method: "POST" 
       unidadeId: ag.unidade_id,
       formId: data.formId,
       agenteId: ag.agente_id,
+      agenteNomeManual: (ag as any).agente_nome_manual ?? null,
+      tipoSolicitacao: (ag as any).tipo_solicitacao ?? "instalacao",
+      modalidade: (ag as any).modalidade ?? "presencial",
+      nivel: (ag as any).nivel ?? "nivel_1",
       criadoPor: ag.criado_por,
       agendadoEm: ag.agendado_em,
       duracaoMin: ag.duracao_min,
