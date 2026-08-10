@@ -158,7 +158,11 @@ async function criarCaso(opts: {
   agendamentoId: string;
   unidadeId: string;
   formId: string;
-  agenteId: string;
+  agenteId: string | null;
+  agenteNomeManual?: string | null;
+  tipoSolicitacao?: "instalacao" | "upgrade";
+  modalidade?: "presencial" | "remoto";
+  nivel?: "nivel_1" | "nivel_2" | "nivel_3";
   criadoPor: string;
   agendadoEm: string;
   duracaoMin: number;
@@ -172,13 +176,17 @@ async function criarCaso(opts: {
       unidade_id: opts.unidadeId,
       formulario_id: opts.formId,
       agente_id: opts.agenteId,
+      agente_nome_manual: opts.agenteNomeManual ?? null,
+      tipo_solicitacao: opts.tipoSolicitacao ?? "instalacao",
+      modalidade: opts.modalidade ?? "presencial",
+      nivel: opts.nivel ?? "nivel_1",
       criado_por: opts.criadoPor,
       status: "agendado",
       agendado_em: opts.agendadoEm,
       duracao_min: opts.duracaoMin,
       endereco_vistoria: opts.enderecoVistoria,
       observacoes_agendamento: opts.observacoes,
-    })
+    } as any)
     .select("id, codigo")
     .single();
   if (error || !data) throw new Error(error?.message ?? "Erro ao criar caso.");
@@ -190,11 +198,15 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => AgendarInput.parse(input))
   .handler(async ({ data, context }) => {
     await assertAdminOrSuper(context.supabase, context.userId);
-    await checarConflito({
-      agenteId: data.agenteId,
-      inicio: data.agendadoEm,
-      duracaoMin: data.duracaoMin,
-    });
+    const agenteId = data.agenteId ?? null;
+    const agenteNomeManual = data.agenteNomeManual?.trim() || null;
+    if (agenteId) {
+      await checarConflito({
+        agenteId,
+        inicio: data.agendadoEm,
+        duracaoMin: data.duracaoMin,
+      });
+    }
 
     const unidadeId = await resolveUnidadeId({
       unidadeId: data.unidadeId,
@@ -219,13 +231,17 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
       .insert({
         unidade_id: unidadeId,
         matriz_id: matrizId,
-        agente_id: data.agenteId,
+        agente_id: agenteId,
+        agente_nome_manual: agenteNomeManual,
+        tipo_solicitacao: data.tipoSolicitacao,
+        modalidade: data.modalidade,
+        nivel: data.nivel,
         criado_por: context.userId,
         agendado_em: data.agendadoEm,
         duracao_min: data.duracaoMin,
         endereco_vistoria: enderecoVistoria,
         observacoes_agendamento: data.observacoes ?? null,
-      })
+      } as any)
       .select("id")
       .single();
     if (agErr || !ag) throw new Error(agErr?.message ?? "Erro ao criar agendamento.");
@@ -236,7 +252,11 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
         agendamentoId: ag.id,
         unidadeId,
         formId,
-        agenteId: data.agenteId,
+        agenteId,
+        agenteNomeManual,
+        tipoSolicitacao: data.tipoSolicitacao,
+        modalidade: data.modalidade,
+        nivel: data.nivel,
         criadoPor: context.userId,
         agendadoEm: data.agendadoEm,
         duracaoMin: data.duracaoMin,
@@ -247,27 +267,30 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
     }
 
     // Notifica o agente que tem um novo agendamento aguardando aceite
-    try {
-      const cliente = await supabaseAdmin
-        .from("unidades")
-        .select("nome, matriz:matrizes(empresa:empresas(nome))")
-        .eq("id", unidadeId)
-        .maybeSingle();
-      const empNome = (cliente.data as any)?.matriz?.empresa?.nome ?? "cliente";
-      const dataFmt = new Date(data.agendadoEm).toLocaleString("pt-BR");
-      await supabaseAdmin.from("notificacoes").insert({
-        usuario_id: data.agenteId,
-        titulo: "Novo agendamento — confirmar?",
-        mensagem: `Você tem um novo agendamento em ${dataFmt} — ${empNome}.`,
-        tipo: "agendamento_novo",
-        lido: false,
-      } as any);
-    } catch {
-      // não bloqueia se notificação falhar
+    if (agenteId) {
+      try {
+        const cliente = await supabaseAdmin
+          .from("unidades")
+          .select("nome, matriz:matrizes(empresa:empresas(nome))")
+          .eq("id", unidadeId)
+          .maybeSingle();
+        const empNome = (cliente.data as any)?.matriz?.empresa?.nome ?? "cliente";
+        const dataFmt = new Date(data.agendadoEm).toLocaleString("pt-BR");
+        await supabaseAdmin.from("notificacoes").insert({
+          usuario_id: agenteId,
+          titulo: "Novo agendamento — confirmar?",
+          mensagem: `Você tem um novo agendamento em ${dataFmt} — ${empNome}.`,
+          tipo: "agendamento_novo",
+          lido: false,
+        } as any);
+      } catch {
+        // não bloqueia se notificação falhar
+      }
     }
 
-    const { data: agentePerfil } = await supabaseAdmin
-      .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
+    const agentePerfil = agenteId
+      ? (await supabaseAdmin.from("profiles").select("nome").eq("id", agenteId).maybeSingle()).data
+      : null;
     const casoIds = casos.map((c) => c.id);
     await registrarEvento({
       casoIds, agendamentoId: ag.id, tipo: "mapeamento_criado",
@@ -280,13 +303,99 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
       metadata: {
         agendado_em: data.agendadoEm,
         duracao_min: data.duracaoMin,
-        agente_id: data.agenteId,
-        agente_nome: (agentePerfil as any)?.nome ?? null,
+        agente_id: agenteId,
+        agente_nome: (agentePerfil as any)?.nome ?? agenteNomeManual,
+        tipo_solicitacao: data.tipoSolicitacao,
+        modalidade: data.modalidade,
+        nivel: data.nivel,
       },
     });
 
     return { agendamentoId: ag.id, casos };
   });
+
+export const atribuirAgenteAgendamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        agendamentoId: z.string().uuid(),
+        agenteId: z.string().uuid().optional().nullable(),
+        agenteNomeManual: z.string().max(200).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdminOrSuper(context.supabase, context.userId);
+    const agenteId = data.agenteId ?? null;
+    const agenteNomeManual = data.agenteNomeManual?.trim() || null;
+    if (!agenteId && !agenteNomeManual) throw new Error("Informe um agente ou um nome.");
+
+    const { data: ag, error } = await supabaseAdmin
+      .from("agendamentos")
+      .select("id, agendado_em, duracao_min, unidade_id")
+      .eq("id", data.agendamentoId)
+      .maybeSingle();
+    if (error || !ag) throw new Error("Agendamento não encontrado.");
+
+    if (agenteId) {
+      await checarConflito({
+        agenteId,
+        inicio: ag.agendado_em,
+        duracaoMin: ag.duracao_min ?? 60,
+      });
+    }
+
+    const patch: Record<string, unknown> = {
+      agente_id: agenteId,
+      agente_nome_manual: agenteNomeManual,
+    };
+    if (agenteId) {
+      patch["aceite_status"] = "pendente";
+      patch["aceite_agente"] = null;
+      patch["data_aceite"] = null;
+      patch["motivo_recusa"] = null;
+    }
+    const { error: upErr } = await supabaseAdmin
+      .from("agendamentos")
+      .update(patch as any)
+      .eq("id", ag.id);
+    if (upErr) throw new Error(upErr.message);
+
+    const { error: casosErr } = await supabaseAdmin
+      .from("casos")
+      .update({ agente_id: agenteId, agente_nome_manual: agenteNomeManual } as any)
+      .eq("agendamento_id", ag.id);
+    if (casosErr) throw new Error(casosErr.message);
+
+    if (agenteId) {
+      try {
+        const dataFmt = new Date(ag.agendado_em).toLocaleString("pt-BR");
+        await supabaseAdmin.from("notificacoes").insert({
+          usuario_id: agenteId,
+          titulo: "Novo agendamento — confirmar?",
+          mensagem: `Você foi atribuído a um agendamento em ${dataFmt}.`,
+          tipo: "agendamento_novo",
+          lido: false,
+        } as any);
+      } catch {
+        // ignora
+      }
+    }
+
+    const casoIds = await casosDoAgendamento(ag.id);
+    await registrarEvento({
+      casoIds,
+      agendamentoId: ag.id,
+      tipo: "agente_atribuido",
+      atorId: context.userId,
+      metadata: { agente_id: agenteId, agente_nome: agenteNomeManual },
+    });
+
+    return { ok: true };
+  });
+
+
 
 export const adicionarFormularioAoAgendamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
