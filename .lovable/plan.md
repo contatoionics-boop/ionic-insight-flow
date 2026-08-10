@@ -6,15 +6,16 @@ Adicionar ao fluxo de "Agendar mapeamento" (disponível para IAM e Especialista,
 2. **Modalidade**: Presencial ou Remoto (obrigatório)
 3. **Nível**: Nível 1, Nível 2 ou Nível 3 (obrigatório)
 4. **Agente técnico**:
-   - Presencial → seleção do agente obrigatória (como hoje)
-   - Remoto → agente opcional; pode ser agendado sem agente e definido depois
+   - Presencial → seleção do agente na lista, obrigatória (como hoje)
+   - Remoto → seleção opcional; é possível escolher um agente da lista, **digitar o nome manualmente** (texto livre, quando a pessoa não está cadastrada) ou deixar em branco para definir depois
 
-## Comportamento do agendamento remoto sem agente
+## Comportamento do agendamento remoto sem agente cadastrado
 
-- O agendamento e os mapeamentos são criados normalmente, com status "agendado" e sem agente.
-- Não há verificação de conflito de agenda nem notificação/aceite enquanto não houver agente.
-- Na agenda e na lista de mapeamentos aparece "Agente a definir".
-- Uma ação "Atribuir agente" na tela do agendamento permite definir o agente depois: valida conflito, grava o agente no agendamento e nos mapeamentos, notifica o agente para aceite e registra o evento `agente_atribuido` no histórico.
+- O agendamento e os mapeamentos são criados normalmente, com status "agendado".
+- Quando o nome é apenas digitado, ele fica registrado como "agente informado" no agendamento e aparece na agenda/mapeamentos, mas não gera aceite nem notificação (não há usuário vinculado).
+- Sem agente vinculado não há verificação de conflito de agenda.
+- Na agenda e na lista de mapeamentos aparece o nome digitado ou "Agente a definir".
+- Uma ação "Atribuir agente" na tela do agendamento permite vincular um agente cadastrado depois: valida conflito, grava o agente no agendamento e nos mapeamentos, notifica para aceite e registra o evento `agente_atribuido` no histórico.
 
 ## Onde os novos campos aparecem
 
@@ -27,6 +28,7 @@ Adicionar ao fluxo de "Agendar mapeamento" (disponível para IAM e Especialista,
 Banco (migração):
 - Novos tipos enum: `tipo_solicitacao` (`instalacao`, `upgrade`), `modalidade_atendimento` (`presencial`, `remoto`), `nivel_mapeamento` (`nivel_1`, `nivel_2`, `nivel_3`).
 - Colunas em `agendamentos` e `casos`: `tipo_solicitacao`, `modalidade`, `nivel` (default `instalacao` / `presencial` / `nivel_1` para as linhas existentes).
+- Nova coluna `agente_nome_manual` (texto, opcional) em `agendamentos` e `casos`, para o nome digitado quando não há usuário cadastrado.
 - `agendamentos.agente_id` passa a aceitar nulo (hoje é obrigatório); `casos.agente_id` já aceita nulo.
 - Revisar políticas de leitura/escrita existentes que assumem `agente_id` preenchido, mantendo a paridade IAM/Especialista.
 
