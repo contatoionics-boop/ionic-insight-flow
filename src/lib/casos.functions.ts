@@ -467,7 +467,7 @@ export const obterAgendamento = createServerFn({ method: "POST" })
     const { data: ag, error } = await supabase
       .from("agendamentos")
       .select(
-        "id, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, criado_por, unidade:unidades(id, nome, matriz:matrizes(id, nome, empresa:empresas(id, nome))), casos(id, codigo, status, formulario:formularios(id, nome))",
+        "id, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, agente_nome_manual, tipo_solicitacao, modalidade, nivel, criado_por, unidade:unidades(id, nome, matriz:matrizes(id, nome, empresa:empresas(id, nome))), casos(id, codigo, status, formulario:formularios(id, nome))",
       )
       .eq("id", data.agendamentoId)
       .maybeSingle();
