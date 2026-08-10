@@ -74,9 +74,14 @@ export type MapeamentoComProgresso = {
   unidade_codigo_ionics: string | null;
   agente_id: string | null;
   agente_nome: string | null;
+  agente_nome_manual: string | null;
+  tipo_solicitacao: string | null;
+  modalidade: string | null;
+  nivel: string | null;
   aceite_status: "aguardando_aceite" | "confirmado" | "recusado_pelo_agente" | null;
   data_aceite: string | null;
   motivo_recusa_agente: string | null;
+
   respondidas_obrigatorias: number;
   total_obrigatorias: number;
   atrasado: boolean;
