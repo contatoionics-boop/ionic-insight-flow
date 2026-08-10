@@ -291,6 +291,39 @@ function NewCasePage() {
 
           </div>
 
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label>Tipo de solicitação</Label>
+              <Select value={tipoSolicitacao} onChange={(e) => setTipoSolicitacao(e.target.value as any)} required>
+                <option value="instalacao">Instalação</option>
+                <option value="upgrade">Upgrade</option>
+              </Select>
+            </div>
+            <div>
+              <Label>Modalidade</Label>
+              <Select
+                value={modalidade}
+                onChange={(e) => {
+                  const v = e.target.value as "presencial" | "remoto";
+                  setModalidade(v);
+                  if (v === "presencial") setAgenteNomeManual("");
+                }}
+                required
+              >
+                <option value="presencial">Presencial</option>
+                <option value="remoto">Remoto</option>
+              </Select>
+            </div>
+            <div>
+              <Label>Nível do mapeamento</Label>
+              <Select value={nivel} onChange={(e) => setNivel(e.target.value as any)} required>
+                <option value="nivel_1">Nível 1</option>
+                <option value="nivel_2">Nível 2</option>
+                <option value="nivel_3">Nível 3</option>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <Label>Formulários ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
@@ -317,17 +350,33 @@ function NewCasePage() {
               <p className="mt-1 text-xs text-muted-foreground">Cada formulário gera um mapeamento independente dentro deste agendamento.</p>
             </div>
             <div>
-              <Label>Agente técnico</Label>
+              <Label>Agente técnico{modalidade === "remoto" ? " (opcional)" : ""}</Label>
               <Select
                 value={agentId}
                 onChange={(e) => setAgentId(e.target.value)}
-                required
+                required={modalidade === "presencial"}
                 className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
               >
-                <option value="">Selecione o agente técnico</option>
+                <option value="">
+                  {modalidade === "remoto" ? "Selecione ou deixe em branco" : "Selecione o agente técnico"}
+                </option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
+              {modalidade === "remoto" && !agentId && (
+                <>
+                  <Input
+                    className="mt-2"
+                    value={agenteNomeManual}
+                    onChange={(e) => setAgenteNomeManual(e.target.value)}
+                    placeholder="Ou digite o nome do agente (opcional)"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No atendimento remoto o nome pode ser digitado manualmente ou definido depois.
+                  </p>
+                </>
+              )}
             </div>
+
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <Label>Data</Label>
