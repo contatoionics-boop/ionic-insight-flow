@@ -174,6 +174,10 @@ function NewCasePage() {
       setError("Selecione ao menos um formulário.");
       return;
     }
+    if (modalidade === "presencial" && !agentId) {
+      setError("Selecione o agente técnico para atendimento presencial.");
+      return;
+    }
     if (conflito) {
       // Bloqueia completamente
       return;
@@ -187,7 +191,11 @@ function NewCasePage() {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
           formIds,
-          agenteId: agentId,
+          agenteId: agentId || null,
+          agenteNomeManual: agentId ? null : agenteNomeManual.trim() || null,
+          tipoSolicitacao,
+          modalidade,
+          nivel,
           agendadoEm,
           duracaoMin: 60,
           enderecoVistoria: endereco || null,
