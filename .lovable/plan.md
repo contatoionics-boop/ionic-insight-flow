@@ -28,6 +28,7 @@ Adicionar ao fluxo de "Agendar mapeamento" (disponível para IAM e Especialista,
 Banco (migração):
 - Novos tipos enum: `tipo_solicitacao` (`instalacao`, `upgrade`), `modalidade_atendimento` (`presencial`, `remoto`), `nivel_mapeamento` (`nivel_1`, `nivel_2`, `nivel_3`).
 - Colunas em `agendamentos` e `casos`: `tipo_solicitacao`, `modalidade`, `nivel` (default `instalacao` / `presencial` / `nivel_1` para as linhas existentes).
+- Nova coluna `agente_nome_manual` (texto, opcional) em `agendamentos` e `casos`, para o nome digitado quando não há usuário cadastrado.
 - `agendamentos.agente_id` passa a aceitar nulo (hoje é obrigatório); `casos.agente_id` já aceita nulo.
 - Revisar políticas de leitura/escrita existentes que assumem `agente_id` preenchido, mantendo a paridade IAM/Especialista.
 
