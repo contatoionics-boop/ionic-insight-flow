@@ -48,27 +48,57 @@ function AgendamentoDetalhe() {
   const obter = useServerFn(obterAgendamento);
   const adicionar = useServerFn(adicionarFormularioAoAgendamento);
   const remover = useServerFn(removerCasoDoAgendamento);
+  const atribuir = useServerFn(atribuirAgenteAgendamento);
+  const loadAgents = useServerFn(listTechnicalAgents);
 
   const [ag, setAg] = useState<Ag | null>(null);
   const [forms, setForms] = useState<Form[]>([]);
+  const [agents, setAgents] = useState<Agente[]>([]);
+  const [novoAgenteId, setNovoAgenteId] = useState("");
+  const [novoAgenteNome, setNovoAgenteNome] = useState("");
   const [novoFormId, setNovoFormId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [a, f] = await Promise.all([
+      const [a, f, ags] = await Promise.all([
         obter({ data: { agendamentoId: id } }),
         supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
+        loadAgents(),
       ]);
       setAg(a as unknown as Ag);
       setForms((f.data ?? []) as Form[]);
+      setAgents((ags ?? []) as Agente[]);
     } catch (e: any) {
       setError(e?.message ?? "Erro ao carregar agendamento.");
     }
-  }, [id, obter]);
+  }, [id, obter, loadAgents]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const salvarAgente = async () => {
+    if (!novoAgenteId && !novoAgenteNome.trim()) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await atribuir({
+        data: {
+          agendamentoId: id,
+          agenteId: novoAgenteId || null,
+          agenteNomeManual: novoAgenteId ? null : novoAgenteNome.trim() || null,
+        },
+      });
+      setNovoAgenteId("");
+      setNovoAgenteNome("");
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao atribuir agente.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
 
   const addForm = async () => {
     if (!novoFormId) return;
