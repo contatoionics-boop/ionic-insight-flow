@@ -1,21 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-bits";
-import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
+import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
+import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import {
   obterAgendamento,
   adicionarFormularioAoAgendamento,
   removerCasoDoAgendamento,
+  atribuirAgenteAgendamento,
 } from "@/lib/casos.functions";
+import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/app/agendamento/$id")({
   component: AgendamentoDetalhe,
 });
 
 type Form = { id: string; nome: string };
+type Agente = { id: string; nome: string };
 type Caso = { id: string; codigo: string; status: CaseStatus; formulario: { id: string; nome: string } | null };
 type Ag = {
   id: string;
@@ -23,6 +26,11 @@ type Ag = {
   duracao_min: number;
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
+  agente_id: string | null;
+  agente_nome_manual: string | null;
+  tipo_solicitacao: string | null;
+  modalidade: string | null;
+  nivel: string | null;
   unidade: { id: string; nome: string; matriz: { id: string; nome: string; empresa: { id: string; nome: string } | null } | null } | null;
   casos: Caso[];
 };
@@ -33,6 +41,7 @@ function fmtData(iso: string | null) {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
+
 
 function AgendamentoDetalhe() {
   const { id } = Route.useParams();
