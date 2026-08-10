@@ -1,21 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-bits";
-import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
+import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
+import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import {
   obterAgendamento,
   adicionarFormularioAoAgendamento,
   removerCasoDoAgendamento,
+  atribuirAgenteAgendamento,
 } from "@/lib/casos.functions";
+import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/app/agendamento/$id")({
   component: AgendamentoDetalhe,
 });
 
 type Form = { id: string; nome: string };
+type Agente = { id: string; nome: string };
 type Caso = { id: string; codigo: string; status: CaseStatus; formulario: { id: string; nome: string } | null };
 type Ag = {
   id: string;
@@ -23,6 +26,11 @@ type Ag = {
   duracao_min: number;
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
+  agente_id: string | null;
+  agente_nome_manual: string | null;
+  tipo_solicitacao: string | null;
+  modalidade: string | null;
+  nivel: string | null;
   unidade: { id: string; nome: string; matriz: { id: string; nome: string; empresa: { id: string; nome: string } | null } | null } | null;
   casos: Caso[];
 };
@@ -34,32 +42,63 @@ function fmtData(iso: string | null) {
   });
 }
 
+
 function AgendamentoDetalhe() {
   const { id } = Route.useParams();
   const obter = useServerFn(obterAgendamento);
   const adicionar = useServerFn(adicionarFormularioAoAgendamento);
   const remover = useServerFn(removerCasoDoAgendamento);
+  const atribuir = useServerFn(atribuirAgenteAgendamento);
+  const loadAgents = useServerFn(listTechnicalAgents);
 
   const [ag, setAg] = useState<Ag | null>(null);
   const [forms, setForms] = useState<Form[]>([]);
+  const [agents, setAgents] = useState<Agente[]>([]);
+  const [novoAgenteId, setNovoAgenteId] = useState("");
+  const [novoAgenteNome, setNovoAgenteNome] = useState("");
   const [novoFormId, setNovoFormId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [a, f] = await Promise.all([
+      const [a, f, ags] = await Promise.all([
         obter({ data: { agendamentoId: id } }),
         supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
+        loadAgents(),
       ]);
       setAg(a as unknown as Ag);
       setForms((f.data ?? []) as Form[]);
+      setAgents((ags ?? []) as Agente[]);
     } catch (e: any) {
       setError(e?.message ?? "Erro ao carregar agendamento.");
     }
-  }, [id, obter]);
+  }, [id, obter, loadAgents]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const salvarAgente = async () => {
+    if (!novoAgenteId && !novoAgenteNome.trim()) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await atribuir({
+        data: {
+          agendamentoId: id,
+          agenteId: novoAgenteId || null,
+          agenteNomeManual: novoAgenteId ? null : novoAgenteNome.trim() || null,
+        },
+      });
+      setNovoAgenteId("");
+      setNovoAgenteNome("");
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Erro ao atribuir agente.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
 
   const addForm = async () => {
     if (!novoFormId) return;
@@ -125,10 +164,44 @@ function AgendamentoDetalhe() {
           <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" /> {fmtData(ag.agendado_em)} · {ag.duracao_min} min</span>
           {ag.endereco_vistoria && <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {ag.endereco_vistoria}</span>}
         </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge className="bg-accent text-accent-foreground">{resumoAtendimento(ag) || "—"}</Badge>
+          <Badge className="bg-muted text-muted-foreground">
+            {ag.agente_id
+              ? `Agente: ${agents.find((a) => a.id === ag.agente_id)?.nome ?? "vinculado"}`
+              : ag.agente_nome_manual
+                ? `Agente informado: ${ag.agente_nome_manual}`
+                : "Agente a definir"}
+          </Badge>
+        </div>
         {ag.observacoes_agendamento && (
           <p className="mt-2 text-xs italic text-muted-foreground">{ag.observacoes_agendamento}</p>
         )}
+
+        {!ag.agente_id && (
+          <div className="mt-4 border-t border-border pt-4">
+            <Label>Definir agente técnico</Label>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+              <Select value={novoAgenteId} onChange={(e) => setNovoAgenteId(e.target.value)} className="flex-1">
+                <option value="">Selecione um agente cadastrado</option>
+                {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
+              </Select>
+              {!novoAgenteId && (
+                <Input
+                  className="flex-1"
+                  value={novoAgenteNome}
+                  onChange={(e) => setNovoAgenteNome(e.target.value)}
+                  placeholder="Ou digite o nome do agente"
+                />
+              )}
+              <Button onClick={salvarAgente} disabled={working || (!novoAgenteId && !novoAgenteNome.trim())}>
+                <UserPlus className="mr-1 h-4 w-4" /> Salvar
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
+
 
       <Card>
         <h3 className="mb-3 text-sm font-semibold text-foreground">Formulários ({ag.casos.length})</h3>

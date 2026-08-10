@@ -19,7 +19,8 @@ export type Database = {
           aceite_agente: boolean | null
           aceite_status: string
           agendado_em: string
-          agente_id: string
+          agente_id: string | null
+          agente_nome_manual: string | null
           atualizado_em: string
           criado_em: string
           criado_por: string
@@ -28,15 +29,19 @@ export type Database = {
           endereco_vistoria: string | null
           id: string
           matriz_id: string | null
+          modalidade: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa: string | null
+          nivel: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento: string | null
+          tipo_solicitacao: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id: string
         }
         Insert: {
           aceite_agente?: boolean | null
           aceite_status?: string
           agendado_em: string
-          agente_id: string
+          agente_id?: string | null
+          agente_nome_manual?: string | null
           atualizado_em?: string
           criado_em?: string
           criado_por: string
@@ -45,15 +50,19 @@ export type Database = {
           endereco_vistoria?: string | null
           id?: string
           matriz_id?: string | null
+          modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
+          nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento?: string | null
+          tipo_solicitacao?: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id: string
         }
         Update: {
           aceite_agente?: boolean | null
           aceite_status?: string
           agendado_em?: string
-          agente_id?: string
+          agente_id?: string | null
+          agente_nome_manual?: string | null
           atualizado_em?: string
           criado_em?: string
           criado_por?: string
@@ -62,8 +71,11 @@ export type Database = {
           endereco_vistoria?: string | null
           id?: string
           matriz_id?: string | null
+          modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
+          nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento?: string | null
+          tipo_solicitacao?: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id?: string
         }
         Relationships: [
@@ -171,6 +183,7 @@ export type Database = {
           agendado_em: string | null
           agendamento_id: string
           agente_id: string | null
+          agente_nome_manual: string | null
           atualizado_em: string
           codigo: string
           criado_em: string
@@ -182,15 +195,19 @@ export type Database = {
           endereco_vistoria: string | null
           formulario_id: string | null
           id: string
+          modalidade: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa: string | null
+          nivel: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento: string | null
           status: Database["public"]["Enums"]["caso_status"]
+          tipo_solicitacao: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id: string
         }
         Insert: {
           agendado_em?: string | null
           agendamento_id: string
           agente_id?: string | null
+          agente_nome_manual?: string | null
           atualizado_em?: string
           codigo?: string
           criado_em?: string
@@ -202,15 +219,19 @@ export type Database = {
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
+          nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
+          tipo_solicitacao?: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id: string
         }
         Update: {
           agendado_em?: string | null
           agendamento_id?: string
           agente_id?: string | null
+          agente_nome_manual?: string | null
           atualizado_em?: string
           codigo?: string
           criado_em?: string
@@ -222,9 +243,12 @@ export type Database = {
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
+          nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
           observacoes_agendamento?: string | null
           status?: Database["public"]["Enums"]["caso_status"]
+          tipo_solicitacao?: Database["public"]["Enums"]["tipo_solicitacao"]
           unidade_id?: string
         }
         Relationships: [
@@ -1216,6 +1240,8 @@ export type Database = {
         | "revisao_reprovada"
         | "mapeamento_concluido"
         | "observacao_adicionada"
+      modalidade_atendimento: "presencial" | "remoto"
+      nivel_mapeamento: "nivel_1" | "nivel_2" | "nivel_3"
       pergunta_tipo:
         | "texto"
         | "foto"
@@ -1228,6 +1254,7 @@ export type Database = {
         | "cep"
         | "cnpj"
         | "video"
+      tipo_solicitacao: "instalacao" | "upgrade"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1399,6 +1426,8 @@ export const Constants = {
         "mapeamento_concluido",
         "observacao_adicionada",
       ],
+      modalidade_atendimento: ["presencial", "remoto"],
+      nivel_mapeamento: ["nivel_1", "nivel_2", "nivel_3"],
       pergunta_tipo: [
         "texto",
         "foto",
@@ -1412,6 +1441,7 @@ export const Constants = {
         "cnpj",
         "video",
       ],
+      tipo_solicitacao: ["instalacao", "upgrade"],
     },
   },
 } as const

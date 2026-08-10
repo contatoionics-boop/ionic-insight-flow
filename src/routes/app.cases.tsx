@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button, Modal } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
-import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
+import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
@@ -235,9 +235,18 @@ function CasesPage() {
                         {c.unidade_codigo_ionics ?? c.cliente_codigo_ionics}
                       </div>
                     )}
+                    {resumoAtendimento(c) && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground">{resumoAtendimento(c)}</div>
+                    )}
                   </Td>
                   <Td>
-                    {c.agente_nome ?? "—"}
+                    {c.agente_nome ?? c.agente_nome_manual ?? "—"}
+                    {!c.agente_id && c.agente_nome_manual && (
+                      <div className="text-[10px] text-muted-foreground">informado manualmente</div>
+                    )}
+                    {!c.agente_id && !c.agente_nome_manual && (
+                      <div className="text-[10px] text-muted-foreground">a definir</div>
+                    )}
                     {c.agente_id && (
                       <div className="mt-0.5 flex flex-wrap gap-1">
                         {c.aceite_status === "confirmado" ? (
