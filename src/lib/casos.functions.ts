@@ -738,7 +738,7 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("casos")
       .select(
-        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome), agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa)",
+        "id, codigo, status, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, agente_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome), agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa, agente_nome_manual, tipo_solicitacao, modalidade, nivel)",
       )
       .not("agendado_em", "is", null)
       .gte("agendado_em", data.inicio)
