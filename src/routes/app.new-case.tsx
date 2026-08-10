@@ -56,6 +56,10 @@ function NewCasePage() {
   const [unidadeId, setUnidadeId] = useState("");
   const [formIds, setFormIds] = useState<string[]>([]);
   const [agentId, setAgentId] = useState("");
+  const [agenteNomeManual, setAgenteNomeManual] = useState("");
+  const [tipoSolicitacao, setTipoSolicitacao] = useState<"instalacao" | "upgrade">("instalacao");
+  const [modalidade, setModalidade] = useState<"presencial" | "remoto">("presencial");
+  const [nivel, setNivel] = useState<"nivel_1" | "nivel_2" | "nivel_3">("nivel_1");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
   const [endereco, setEndereco] = useState("");
