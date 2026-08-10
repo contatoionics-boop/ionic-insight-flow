@@ -65,7 +65,11 @@ const AgendarInput = z
     unidadeId: z.string().uuid().optional().nullable(),
     matrizId: z.string().uuid().optional().nullable(),
     formIds: z.array(z.string().uuid()).min(1, "Selecione ao menos um formulário."),
-    agenteId: z.string().uuid(),
+    agenteId: z.string().uuid().optional().nullable(),
+    agenteNomeManual: z.string().max(200).optional().nullable(),
+    tipoSolicitacao: z.enum(["instalacao", "upgrade"]),
+    modalidade: z.enum(["presencial", "remoto"]),
+    nivel: z.enum(["nivel_1", "nivel_2", "nivel_3"]),
     agendadoEm: z.string().min(1),
     duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
     enderecoVistoria: z.string().max(500).optional().nullable(),
@@ -73,7 +77,12 @@ const AgendarInput = z
   })
   .refine((v) => !!v.unidadeId || !!v.matrizId, {
     message: "Informe unidade ou matriz.",
+  })
+  .refine((v) => v.modalidade === "remoto" || !!v.agenteId, {
+    message: "Selecione o agente técnico para atendimento presencial.",
+    path: ["agenteId"],
   });
+
 
 async function resolveUnidadeId(input: { unidadeId?: string | null; matrizId?: string | null; userId: string }) {
   if (input.unidadeId) return input.unidadeId;
