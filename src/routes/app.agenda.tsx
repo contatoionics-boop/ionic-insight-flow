@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
-import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
+import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import { listarAgendaAdmin, cancelarVistoria, deletarVistoria, reagendarVistoria } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, Pencil, Trash2 } from "lucide-react";
@@ -27,7 +27,7 @@ type Evento = {
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
-  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null } | null;
+  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null; agente_nome_manual: string | null; tipo_solicitacao: string | null; modalidade: string | null; nivel: string | null } | null;
 };
 
 type ExecEstado = "nao_iniciado" | "em_campo" | "entregue" | "aprovado";
@@ -347,7 +347,12 @@ function AgendaPage() {
               </div>
               <div className="mt-3 space-y-1 text-sm">
                 <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {new Date(sel.agendado_em).toLocaleString("pt-BR")} · {sel.duracao_min} min</p>
-                {sel.agente?.nome && <p className="flex items-center gap-2"><User2 className="h-4 w-4" /> {sel.agente.nome}</p>}
+                {(sel.agente?.nome || sel.agendamento?.agente_nome_manual) && (
+                  <p className="flex items-center gap-2"><User2 className="h-4 w-4" /> {sel.agente?.nome ?? sel.agendamento?.agente_nome_manual}</p>
+                )}
+                {sel.agendamento && resumoAtendimento(sel.agendamento) && (
+                  <p className="text-xs text-muted-foreground">{resumoAtendimento(sel.agendamento)}</p>
+                )}
                 {sel.endereco_vistoria && <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {sel.endereco_vistoria}</p>}
               </div>
               {sel.observacoes_agendamento && (
