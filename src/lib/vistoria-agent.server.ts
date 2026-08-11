@@ -805,6 +805,12 @@ export async function execSalvarResposta(
     valor_texto = v === "não" ? "nao" : v;
   }
 
+  const ia_motivo = opts?.origemCadastro
+    ? MOTIVO_CADASTRO_PENDENTE
+    : opts?.confirmadoCadastro
+    ? MOTIVO_CADASTRO_CONFIRMADO
+    : null;
+
   const { error } = await supabaseAdmin
     .from("respostas_agente")
     .upsert(
@@ -816,6 +822,7 @@ export async function execSalvarResposta(
         arquivo_path,
         arquivos_paths,
         transcricao,
+        ia_motivo,
       },
       { onConflict: "caso_id,pergunta_id" },
     );
@@ -827,32 +834,36 @@ export async function execSalvarResposta(
     arquivo_path,
     arquivos_paths,
     transcricao,
+    origem_cadastro: !!opts?.origemCadastro,
   };
 
-  // Marca o mapeamento como iniciado na primeira resposta salva.
-  try {
-    const { data: caso } = await supabaseAdmin
-      .from("casos")
-      .select("status, agente_id, agendamento_id")
-      .eq("id", casoId)
-      .maybeSingle();
-    if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
-      const { error: updErr } = await supabaseAdmin
+  // Marca o mapeamento como iniciado na primeira resposta salva do agente.
+  // Pré-preenchimento do cadastro não conta como início.
+  if (!opts?.origemCadastro) {
+    try {
+      const { data: caso } = await supabaseAdmin
         .from("casos")
-        .update({ status: "em_andamento" })
+        .select("status, agente_id, agendamento_id")
         .eq("id", casoId)
-        .in("status", ["agendado", "rascunho"]);
-      if (!updErr) {
-        await registrarEvento({
-          casoId,
-          agendamentoId: caso.agendamento_id ?? null,
-          tipo: "vistoria_iniciada",
-          atorId: caso.agente_id ?? null,
-        });
+        .maybeSingle();
+      if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
+        const { error: updErr } = await supabaseAdmin
+          .from("casos")
+          .update({ status: "em_andamento" })
+          .eq("id", casoId)
+          .in("status", ["agendado", "rascunho"]);
+        if (!updErr) {
+          await registrarEvento({
+            casoId,
+            agendamentoId: caso.agendamento_id ?? null,
+            tipo: "vistoria_iniciada",
+            atorId: caso.agente_id ?? null,
+          });
+        }
       }
+    } catch (e) {
+      console.error("[vistoria] falha ao marcar iniciada:", e);
     }
-  } catch (e) {
-    console.error("[vistoria] falha ao marcar iniciada:", e);
   }
 
   // Compute post-save state so the model can see the real numbers immediately.
