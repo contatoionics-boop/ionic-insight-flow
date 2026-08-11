@@ -368,11 +368,13 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const textoIndicaFinalizacao = /tudo registrado|pode finalizar|finalizar o mapeamento/i.test(
     lastAssistantText,
   );
+  const precisaConfirmarCadastro = estado.cadastroPendente.length > 0;
   const deveMostrarRetomada =
+    !precisaConfirmarCadastro &&
     !!estado.proximaPerguntaTexto &&
     estado.obrigatoriasFaltando > 0 &&
     (!enviouNestaAberturaRef.current || textoIndicaFinalizacao);
-  const textoRetomada = formatarPerguntaRetomada(estado);
+  const textoRetomada = formatarPerguntaRetomada(estado, estado.iniciado);
   const textoAtual = deveMostrarRetomada ? textoRetomada : lastAssistantText;
 
   return (
