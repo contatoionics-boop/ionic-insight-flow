@@ -79,7 +79,8 @@ export const Route = createFileRoute("/api/vistoria-chat")({
           .join(" ")
           .trim() ?? "";
         const pendenciaAtual = calcularPendencias(ctx).proxima;
-        if (body.perguntaAtualId && pendenciaAtual?.id === body.perguntaAtualId && textoAtual) {
+        const ehMensagemBloco = textoAtual.startsWith("[BLOCO_SALVO");
+        if (!ehMensagemBloco && body.perguntaAtualId && pendenciaAtual?.id === body.perguntaAtualId && textoAtual) {
           const videoMatch = textoAtual.match(/\[ANEXO_VIDEO arquivo_path=([^\]\s]+)/);
           const tipo = pendenciaAtual.tipo;
           if (videoMatch && tipo === "video") {

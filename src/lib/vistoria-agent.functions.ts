@@ -7,6 +7,27 @@ const EstadoInput = z.object({
   casoId: z.string().uuid().optional(),
 });
 
+export type BlocoPerguntaDTO = {
+  id: string;
+  texto: string;
+  tipo: string;
+  obrigatoria: boolean;
+  instrucao_agente: string | null;
+  contexto_ia: string | null;
+  opcoes: { id: string; texto: string }[];
+  bloco_linha: string | null;
+  bloco_coluna: string | null;
+};
+
+export type BlocoDTO = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  layout: "cartao" | "matriz" | "fotos";
+  secaoTitulo: string;
+  perguntas: BlocoPerguntaDTO[];
+};
+
 export type EstadoVistoria = {
   casoId: string;
   clienteNome: string;
@@ -22,6 +43,11 @@ export type EstadoVistoria = {
   proximaPerguntaSecao: string | null;
   proximaPerguntaInstrucao: string | null;
   proximaPerguntaOpcoes: { id: string; texto: string }[];
+  proximoBloco: BlocoDTO | null;
+  secaoAtual: number;
+  totalSecoes: number;
+  totalMomentos: number;
+  momentosConcluidos: number;
   ultimaResposta: {
     perguntaId: string;
     perguntaTexto: string;
@@ -90,6 +116,30 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       proximaPerguntaSecao: pend.proxima?.secao_titulo ?? null,
       proximaPerguntaInstrucao: pend.proxima?.instrucao_agente ?? null,
       proximaPerguntaOpcoes: pend.proxima?.opcoes ?? [],
+      proximoBloco: pend.proximoBloco
+        ? {
+            id: pend.proximoBloco.id,
+            titulo: pend.proximoBloco.titulo,
+            descricao: pend.proximoBloco.descricao,
+            layout: pend.proximoBloco.layout,
+            secaoTitulo: pend.proximoBloco.secao_titulo,
+            perguntas: pend.proximoBloco.perguntas.map((p) => ({
+              id: p.id,
+              texto: p.texto,
+              tipo: p.tipo,
+              obrigatoria: p.obrigatoria,
+              instrucao_agente: p.instrucao_agente,
+              contexto_ia: p.contexto_ia,
+              opcoes: p.opcoes,
+              bloco_linha: p.bloco_linha,
+              bloco_coluna: p.bloco_coluna,
+            })),
+          }
+        : null,
+      secaoAtual: pend.secaoAtualIndice + 1,
+      totalSecoes: pend.totalSecoes,
+      totalMomentos: pend.totalMomentos,
+      momentosConcluidos: pend.momentosConcluidos,
       ultimaResposta: ultima
         ? {
             perguntaId: ultima.pergunta_id,
@@ -230,4 +280,83 @@ export const salvarMensagemChat = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+
+// ============= Salvamento em lote (blocos agrupados) =============
+
+const SalvarBlocoInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  blocoId: z.string().uuid(),
+  respostas: z
+    .array(
+      z.object({
+        perguntaId: z.string().uuid(),
+        valorTexto: z.string().optional(),
+        transcricao: z.string().optional(),
+        arquivosPaths: z.array(z.string()).optional(),
+      }),
+    )
+    .min(1)
+    .max(60),
+});
+
+export type SalvarBlocoResult = {
+  ok: boolean;
+  salvas: number;
+  erros: { perguntaId: string; motivo: string }[];
+  resumo: string;
+};
+
+/** Salva de uma vez todas as respostas de um bloco agrupado. */
+export const salvarRespostasBloco = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => SalvarBlocoInput.parse(input))
+  .handler(async ({ data }): Promise<SalvarBlocoResult> => {
+    const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
+    const { loadAgentContext, execSalvarResposta } = await import(
+      "@/lib/vistoria-agent.server"
+    );
+    const ctx = await loadAgentContext(casoId);
+
+    const erros: { perguntaId: string; motivo: string }[] = [];
+    const partesResumo: string[] = [];
+    let salvas = 0;
+
+    for (const r of data.respostas) {
+      const pergunta = ctx.perguntas.find((p) => p.id === r.perguntaId);
+      if (!pergunta || pergunta.bloco_id !== data.blocoId) {
+        erros.push({ perguntaId: r.perguntaId, motivo: "Pergunta não pertence a este bloco." });
+        continue;
+      }
+      const temConteudo =
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length;
+      if (!temConteudo) continue;
+
+      const res = await execSalvarResposta(casoId, ctx, {
+        pergunta_id: r.perguntaId,
+        ...(r.valorTexto?.trim() ? { valor_texto: r.valorTexto.trim() } : {}),
+        ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
+        ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
+      });
+      if (!res.ok) {
+        erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });
+        continue;
+      }
+      salvas++;
+      const rotulo = [pergunta.bloco_linha, pergunta.bloco_coluna].filter(Boolean).join(" · ") ||
+        pergunta.texto;
+      const valor =
+        r.valorTexto?.trim() ||
+        r.transcricao?.trim() ||
+        (r.arquivosPaths?.length ? `${r.arquivosPaths.length} arquivo(s)` : "");
+      partesResumo.push(`${rotulo}: ${valor}`);
+    }
+
+    return {
+      ok: erros.length === 0,
+      salvas,
+      erros,
+      resumo: partesResumo.join(" · "),
+    };
   });

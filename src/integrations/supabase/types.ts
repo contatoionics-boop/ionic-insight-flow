@@ -882,8 +882,52 @@ export type Database = {
           },
         ]
       }
+      pergunta_blocos: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          descricao: string | null
+          id: string
+          layout: Database["public"]["Enums"]["bloco_layout"]
+          ordem: number
+          secao_id: string
+          titulo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          layout?: Database["public"]["Enums"]["bloco_layout"]
+          ordem?: number
+          secao_id: string
+          titulo: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          layout?: Database["public"]["Enums"]["bloco_layout"]
+          ordem?: number
+          secao_id?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pergunta_blocos_secao_id_fkey"
+            columns: ["secao_id"]
+            isOneToOne: false
+            referencedRelation: "secoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       perguntas: {
         Row: {
+          bloco_coluna: string | null
+          bloco_id: string | null
+          bloco_linha: string | null
           chave_laudo: string | null
           condicional_operador: string | null
           condicional_pergunta_id: string | null
@@ -899,6 +943,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Insert: {
+          bloco_coluna?: string | null
+          bloco_id?: string | null
+          bloco_linha?: string | null
           chave_laudo?: string | null
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
@@ -914,6 +961,9 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Update: {
+          bloco_coluna?: string | null
+          bloco_id?: string | null
+          bloco_linha?: string | null
           chave_laudo?: string | null
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
@@ -929,6 +979,13 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Relationships: [
+          {
+            foreignKeyName: "perguntas_bloco_id_fkey"
+            columns: ["bloco_id"]
+            isOneToOne: false
+            referencedRelation: "pergunta_blocos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "perguntas_condicional_pergunta_id_fkey"
             columns: ["condicional_pergunta_id"]
@@ -1264,6 +1321,7 @@ export type Database = {
         | "especialista"
         | "agente_tecnico"
         | "sistema"
+      bloco_layout: "cartao" | "matriz" | "fotos"
       caso_status:
         | "rascunho"
         | "enviado"
@@ -1447,6 +1505,7 @@ export const Constants = {
         "agente_tecnico",
         "sistema",
       ],
+      bloco_layout: ["cartao", "matriz", "fotos"],
       caso_status: [
         "rascunho",
         "enviado",

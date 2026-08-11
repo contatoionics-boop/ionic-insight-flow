@@ -4,6 +4,17 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 
+export type BlocoLayout = "cartao" | "matriz" | "fotos";
+
+export type AgentBloco = {
+  id: string;
+  secao_id: string;
+  titulo: string;
+  descricao: string | null;
+  layout: BlocoLayout;
+  ordem: number;
+};
+
 export type AgentPergunta = {
   id: string;
   secao_id: string;
@@ -19,6 +30,9 @@ export type AgentPergunta = {
   condicional_pergunta_id: string | null;
   condicional_operador: string | null;
   condicional_valor: string | null;
+  bloco_id: string | null;
+  bloco_linha: string | null;
+  bloco_coluna: string | null;
 };
 
 export type AgentResposta = {
@@ -38,11 +52,15 @@ export type RespostaSalva = {
 
 export type CadastroFato = { label: string; valor: string };
 
+export type AgentSecao = { id: string; titulo: string; ordem: number };
+
 export type AgentContext = {
   casoId: string;
   clienteNome: string;
   formularioNome: string;
   perguntas: AgentPergunta[];
+  blocos: AgentBloco[];
+  secoes: AgentSecao[];
   state: Record<string, AgentResposta>;
   cadastro: CadastroFato[];
 };
@@ -150,8 +168,16 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     ? await supabaseAdmin
         .from("perguntas")
         .select(
-          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor",
+          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna",
         )
+        .in("secao_id", secoesIds)
+        .order("ordem")
+    : { data: [] };
+
+  const { data: blocosRaw } = secoesIds.length
+    ? await supabaseAdmin
+        .from("pergunta_blocos")
+        .select("id, secao_id, titulo, descricao, layout, ordem")
         .in("secao_id", secoesIds)
         .order("ordem")
     : { data: [] };
@@ -189,7 +215,19 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     condicional_pergunta_id: p.condicional_pergunta_id ?? null,
     condicional_operador: p.condicional_operador ?? null,
     condicional_valor: p.condicional_valor ?? null,
+    bloco_id: p.bloco_id ?? null,
+    bloco_linha: p.bloco_linha ?? null,
+    bloco_coluna: p.bloco_coluna ?? null,
   })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
+
+  const blocos: AgentBloco[] = (blocosRaw ?? []).map((b: any) => ({
+    id: b.id,
+    secao_id: b.secao_id,
+    titulo: b.titulo,
+    descricao: b.descricao ?? null,
+    layout: (b.layout ?? "cartao") as BlocoLayout,
+    ordem: Number(b.ordem) || 0,
+  }));
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
@@ -210,6 +248,12 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     clienteNome,
     formularioNome: formulario?.nome ?? "",
     perguntas,
+    blocos,
+    secoes: (secoes ?? []).map((s: any) => ({
+      id: s.id,
+      titulo: s.titulo,
+      ordem: Number(s.ordem) || 0,
+    })),
     state,
     cadastro,
   };
@@ -247,6 +291,11 @@ export function estaRespondida(r: AgentResposta | undefined): boolean {
   );
 }
 
+export type BlocoPendente = AgentBloco & {
+  secao_titulo: string;
+  perguntas: AgentPergunta[];
+};
+
 export type Pendencias = {
   totalVisiveis: number;
   respondidas: number;
@@ -256,6 +305,12 @@ export type Pendencias = {
   pendentesObrigatorias: AgentPergunta[];
   pendentesOpcionais: AgentPergunta[];
   proxima: AgentPergunta | null;
+  proximoBloco: BlocoPendente | null;
+  secaoAtualIndice: number;
+  totalSecoes: number;
+  /** "Momentos" de resposta: blocos contam como 1 interação. */
+  totalMomentos: number;
+  momentosConcluidos: number;
   podeFinalizar: boolean;
 };
 
@@ -267,6 +322,48 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
   const pendentes = visiveis.filter((p) => !resp(p));
   const pendentesObrigatorias = pendentes.filter((p) => p.obrigatoria);
   const pendentesOpcionais = pendentes.filter((p) => !p.obrigatoria);
+  const proxima = pendentes[0] ?? null;
+
+  // Bloco da próxima pendência (com todas as perguntas visíveis do grupo).
+  let proximoBloco: BlocoPendente | null = null;
+  if (proxima?.bloco_id) {
+    const bloco = ctx.blocos.find((b) => b.id === proxima.bloco_id);
+    if (bloco) {
+      const perguntasBloco = visiveis.filter((p) => p.bloco_id === bloco.id);
+      if (perguntasBloco.length > 0) {
+        proximoBloco = {
+          ...bloco,
+          secao_titulo: proxima.secao_titulo,
+          perguntas: perguntasBloco,
+        };
+      }
+    }
+  }
+
+  // Momentos: cada bloco visível conta 1; perguntas soltas contam 1 cada.
+  const blocosVisiveis = new Map<string, AgentPergunta[]>();
+  let soltas = 0;
+  let soltasRespondidas = 0;
+  for (const p of visiveis) {
+    if (p.bloco_id) {
+      const arr = blocosVisiveis.get(p.bloco_id) ?? [];
+      arr.push(p);
+      blocosVisiveis.set(p.bloco_id, arr);
+    } else {
+      soltas++;
+      if (resp(p)) soltasRespondidas++;
+    }
+  }
+  let blocosConcluidos = 0;
+  for (const arr of blocosVisiveis.values()) {
+    if (arr.every(resp)) blocosConcluidos++;
+  }
+
+  const secoesOrdenadas = [...ctx.secoes].sort((a, b) => a.ordem - b.ordem);
+  const secaoAtualIndice = proxima
+    ? Math.max(0, secoesOrdenadas.findIndex((s) => s.id === proxima.secao_id))
+    : Math.max(0, secoesOrdenadas.length - 1);
+
   return {
     totalVisiveis: visiveis.length,
     respondidas: visiveis.filter(resp).length,
@@ -277,7 +374,12 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
     pendentesOpcionais,
     // Retoma exatamente na primeira lacuna da sequência oficial do formulário.
     // O bloqueio de finalização continua dependendo apenas das obrigatórias.
-    proxima: pendentes[0] ?? null,
+    proxima,
+    proximoBloco,
+    secaoAtualIndice,
+    totalSecoes: secoesOrdenadas.length,
+    totalMomentos: soltas + blocosVisiveis.size,
+    momentosConcluidos: soltasRespondidas + blocosConcluidos,
     podeFinalizar: pendentesObrigatorias.length === 0,
   };
 }
@@ -319,6 +421,15 @@ export function buildSystemPrompt(ctx: AgentContext): string {
       instrucao: p.instrucao_agente,
       contexto_ia: p.contexto_ia,
       opcoes: p.opcoes.length ? p.opcoes : undefined,
+      bloco: p.bloco_id
+        ? {
+            id: p.bloco_id,
+            titulo: ctx.blocos.find((b) => b.id === p.bloco_id)?.titulo ?? "",
+            layout: ctx.blocos.find((b) => b.id === p.bloco_id)?.layout ?? "cartao",
+            linha: p.bloco_linha,
+            coluna: p.bloco_coluna,
+          }
+        : undefined,
       condicional: p.condicional_pergunta_id
         ? {
             depende_de: p.condicional_pergunta_id,
@@ -380,6 +491,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Idioma: português do Brasil. Tom: formal técnico ("Por favor, informe…", "Poderia confirmar…").`,
     `- **Inicie a conversa direto pela primeira pergunta pendente** — não faça apresentação longa nem pergunte dados de cliente/endereço que já constam acima. Um cumprimento curto ("Olá! Vamos continuar o mapeamento.") seguido imediatamente da próxima pergunta basta.`,
     `- Faça **uma pergunta por vez**, reformulando o texto cru de forma natural e clara. Não leia o texto da pergunta literalmente — explique o que precisa.`,
+    `- **Blocos agrupados:** quando a próxima pendência pertence a um bloco (campo \`bloco\` no JSON abaixo), a interface exibe um cartão com TODOS os campos do bloco de uma vez e o agente técnico preenche tudo junto. Nesse caso, anuncie o bloco em uma frase curta (ex.: \"Vamos registrar os dados da Bomba.\") e NÃO repita as perguntas campo a campo nem chame \`salvar_resposta\` — o cartão salva sozinho. Quando receber a mensagem \"[BLOCO_SALVO ...]\", apenas confirme brevemente e siga para a próxima pendência.`,
     `- Para perguntas tipo "foto", peça que o agente técnico anexe a imagem pelo botão de câmera.`,
     `- Para perguntas tipo "audio", aceite a transcrição enviada como texto.`,
     `- Para perguntas com \`opcoes\`, apresente as opções numeradas.`,
