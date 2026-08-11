@@ -48,7 +48,7 @@ Alertas divididos em dois níveis:
 **Produtos IONICS** — catálogo fixo no código, com as regras que você definiu:
 - Terminal: T1000 `2.0.08.00.00S`, T1000 GPS `2.0.08.00.00T`, T1000 Multi BW `2.0.08.00.00V` (RFID ou múltiplos bicos).
 - Comunicação: WIFI `2.0.02.02.001`; 4G WIFI Antena Externa `2.0.02.02.004`.
-- NLDIV Wireless **somente no Nível 2**: 1/2" `2.0.03.01.025`, 3/4" `2.0.03.01.026`, 1" `2.0.03.01.027` (o NLDIV é o que define o nível).
+- NLDIV Wireless: a direção é **`nivel_servico` (entrada do formulário) decide a inclusão do NLDIV (saída na tabela)** — o nível nunca é inferido a partir do produto. Nível 2 → inclui o NLDIV na bitola informada: 1/2" `2.0.03.01.025`, 3/4" `2.0.03.01.026`, 1" `2.0.03.01.027`. Nível 1 → não inclui.
 - Válvula solenoide 1" 12V TPL `2.2.08.04.00F` — sempre.
 - Sensor: industrial `2.0.01.03.008` (posto/pista) ou bloco medidor `2.0.01.03.015` (comboio).
 - Fonte chaveada, repetidor, caixa de painel `2.2.0D.02.01M` e base modem para posto/pista, conforme o caso.
