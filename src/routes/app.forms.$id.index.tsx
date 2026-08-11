@@ -132,7 +132,7 @@ function FormBuilderPage() {
     if (list.length) {
       const { data: ps } = await supabase
         .from("perguntas")
-        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia")
+        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
         .in("secao_id", list.map((s) => s.id))
         .order("ordem");
       setPerguntas((ps ?? []) as Pergunta[]);
@@ -226,7 +226,7 @@ function FormBuilderPage() {
         obrigatoria: true,
         ordem,
       })
-      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia")
+      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
       .single();
     if (data) {
       setPerguntas((p) => [...p, data as Pergunta]);
