@@ -37,6 +37,15 @@ export type BlocoLaudo =
       severidade: "info" | "bloqueante";
       codigo: string;
       texto: string;
+    }
+  | {
+      id: string;
+      tipo: "image";
+      url: string;
+      alt: string;
+      legenda: string | null;
+      /** largura máxima em pt (PDF) / px (prévia) */
+      larguraMax?: number;
     };
 
 export type LaudoConteudo = {
