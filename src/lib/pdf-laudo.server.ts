@@ -347,9 +347,72 @@ function alerta(ctx: Ctx, severidade: "info" | "bloqueante", texto: string) {
   ctx.y -= 10;
 }
 
+const cacheFiguras = new Map<string, { bytes: Uint8Array; mime: string } | null>();
+
+async function carregarFigura(url: string, baseUrl?: string | null) {
+  if (cacheFiguras.has(url)) return cacheFiguras.get(url) ?? null;
+  let out: { bytes: Uint8Array; mime: string } | null = null;
+  try {
+    const absoluta = url.startsWith("http") ? url : `${(baseUrl ?? "").replace(/\/$/, "")}${url}`;
+    if (absoluta.startsWith("http")) {
+      const res = await fetch(absoluta);
+      if (res.ok) {
+        out = {
+          bytes: new Uint8Array(await res.arrayBuffer()),
+          mime: res.headers.get("content-type") ?? "image/png",
+        };
+      }
+    }
+  } catch {
+    out = null;
+  }
+  cacheFiguras.set(url, out);
+  return out;
+}
+
+async function figura(
+  ctx: Ctx,
+  bloco: Extract<BlocoLaudo, { tipo: "image" }>,
+  baseUrl?: string | null,
+) {
+  const dados = await carregarFigura(bloco.url, baseUrl);
+  if (!dados) return;
+  let img: any;
+  try {
+    img = dados.mime.includes("jpeg") || dados.mime.includes("jpg")
+      ? await ctx.pdf.embedJpg(dados.bytes)
+      : await ctx.pdf.embedPng(dados.bytes);
+  } catch {
+    return;
+  }
+  const maxW = Math.min(bloco.larguraMax ?? 360, CONTENT_W);
+  const w = Math.min(maxW, img.width);
+  const h = (img.height / img.width) * w;
+  const legendaLines = bloco.legenda ? wrap(bloco.legenda, ctx.font, 8.5, CONTENT_W) : [];
+  need(ctx, h + legendaLines.length * 11 + 16);
+  const x = MARGIN_X + (CONTENT_W - w) / 2;
+  ctx.y -= 6;
+  ctx.page.drawImage(img, { x, y: ctx.y - h, width: w, height: h });
+  ctx.y -= h + 10;
+  for (const line of legendaLines) {
+    const lw = ctx.font.widthOfTextAtSize(line, 8.5);
+    ctx.page.drawText(line, {
+      x: MARGIN_X + (CONTENT_W - lw) / 2,
+      y: ctx.y,
+      size: 8.5,
+      font: ctx.font,
+      color: GREY,
+    });
+    ctx.y -= 11;
+  }
+  ctx.y -= 6;
+}
+
 export async function buildLaudoPdf(input: {
   meta: LaudoPdfMeta;
   blocos: BlocoLaudo[];
+  /** origem absoluta usada para resolver URLs de figuras relativas */
+  baseUrl?: string | null;
 }): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
