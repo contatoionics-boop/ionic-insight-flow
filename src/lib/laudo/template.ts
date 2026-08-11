@@ -322,6 +322,16 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     texto:
       "Somente componentes homologados pela IONICS devem ser utilizados na linha de abastecimento. O uso de itens não homologados invalida a garantia do equipamento.",
   });
+  if (nivel === "nivel_2") {
+    blocos.push({
+      id: bid("img"),
+      tipo: "image",
+      url: FIGURA_SUPORTE_BICO.url,
+      alt: FIGURA_SUPORTE_BICO.alt,
+      legenda: `Figura ${proximaFigura()} — ${FIGURA_SUPORTE_BICO.legendaBase}`,
+      larguraMax: FIGURA_SUPORTE_BICO.larguraMax,
+    });
+  }
 
   // ---------- 3. Instruções gerais ----------
   blocos.push({
