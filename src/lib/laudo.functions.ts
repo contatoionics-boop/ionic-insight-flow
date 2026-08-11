@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getWebRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { montarBlocos } from "@/lib/laudo/template";
@@ -326,7 +327,13 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         agente: meta.agente,
       },
       blocos: conteudo.blocos as BlocoLaudo[],
-      baseUrl: origemRequisicao(),
+      baseUrl: (() => {
+        try {
+          return new URL(getWebRequest().url).origin;
+        } catch {
+          return null;
+        }
+      })(),
     });
 
     return {
