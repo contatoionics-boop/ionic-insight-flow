@@ -40,7 +40,13 @@ export type AgentResposta = {
   arquivo_path: string | null;
   arquivos_paths: string[];
   transcricao: string | null;
+  /** Origem: preenchido automaticamente do cadastro e ainda não confirmado. */
+  origem_cadastro?: boolean;
 };
+
+/** Marcadores gravados em respostas_agente.ia_motivo. */
+export const MOTIVO_CADASTRO_PENDENTE = "preenchido_do_cadastro";
+export const MOTIVO_CADASTRO_CONFIRMADO = "confirmado_do_cadastro";
 
 export type RespostaSalva = {
   perguntaId: string;
