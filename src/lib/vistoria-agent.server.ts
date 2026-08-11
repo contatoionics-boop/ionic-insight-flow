@@ -216,7 +216,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     ? await supabaseAdmin
         .from("perguntas")
         .select(
-          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna",
+          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna, chave_laudo",
         )
         .in("secao_id", secoesIds)
         .order("ordem")
