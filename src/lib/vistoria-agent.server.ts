@@ -211,7 +211,19 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     condicional_pergunta_id: p.condicional_pergunta_id ?? null,
     condicional_operador: p.condicional_operador ?? null,
     condicional_valor: p.condicional_valor ?? null,
+    bloco_id: p.bloco_id ?? null,
+    bloco_linha: p.bloco_linha ?? null,
+    bloco_coluna: p.bloco_coluna ?? null,
   })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
+
+  const blocos: AgentBloco[] = (blocosRaw ?? []).map((b: any) => ({
+    id: b.id,
+    secao_id: b.secao_id,
+    titulo: b.titulo,
+    descricao: b.descricao ?? null,
+    layout: (b.layout ?? "cartao") as BlocoLayout,
+    ordem: Number(b.ordem) || 0,
+  }));
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
@@ -232,6 +244,12 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     clienteNome,
     formularioNome: formulario?.nome ?? "",
     perguntas,
+    blocos,
+    secoes: (secoes ?? []).map((s: any) => ({
+      id: s.id,
+      titulo: s.titulo,
+      ordem: Number(s.ordem) || 0,
+    })),
     state,
     cadastro,
   };
