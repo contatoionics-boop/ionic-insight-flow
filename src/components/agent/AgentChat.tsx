@@ -701,7 +701,7 @@ function friendlyChatError(message?: string) {
   return message;
 }
 
-function formatarPerguntaRetomada(estado: EstadoVistoria) {
+function formatarPerguntaRetomada(estado: EstadoVistoria, iniciado = true) {
   if (!estado.proximaPerguntaTexto) return "";
   const opcoes = estado.proximaPerguntaOpcoes.length
     ? `\n\n${estado.proximaPerguntaOpcoes.map((opcao, index) => `${index + 1}. ${opcao.texto}`).join("\n")}`
@@ -709,7 +709,10 @@ function formatarPerguntaRetomada(estado: EstadoVistoria) {
   const orientacao = estado.proximaPerguntaInstrucao?.trim()
     ? `\n\n${estado.proximaPerguntaInstrucao.trim()}`
     : "";
-  return `Vamos continuar de onde você parou.\n\n${estado.proximaPerguntaTexto}${orientacao}${opcoes}`;
+  const abertura = iniciado
+    ? "Vamos continuar de onde você parou."
+    : "Dados confirmados. Vamos começar o mapeamento.";
+  return `${abertura}\n\n${estado.proximaPerguntaTexto}${orientacao}${opcoes}`;
 }
 
 function VoiceButton({
