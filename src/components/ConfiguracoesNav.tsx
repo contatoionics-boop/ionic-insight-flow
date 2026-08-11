@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Building2, Users, Sparkles, Send, BookOpen } from "lucide-react";
+import { Building2, Users, Sparkles, Send, BookOpen, Package } from "lucide-react";
 
 const items = [
   { to: "/app/configuracoes", label: "Empresa", icon: Building2 },
   { to: "/app/users", label: "Usuários", icon: Users },
   { to: "/app/prompts", label: "Prompts de IA", icon: Sparkles },
   { to: "/app/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
+  { to: "/app/catalogo-materiais", label: "Catálogo de materiais", icon: Package },
   { to: "/app/outputs", label: "Saídas", icon: Send },
 ];
 
