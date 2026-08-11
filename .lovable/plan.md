@@ -32,7 +32,16 @@ Capa/cabeçalho com Empresa/Unidade, data, analista, especialista e agente (ou "
    - 2.4 Bicos de abastecimento — texto completo no Nível 2, reduzido/omitido no Nível 1; tabela fixa de dimensões e parágrafo fixo de homologação.
 3. **Instruções gerais** — fixo, com `nome_solucao`; rodapé IAM fixo.
 
-Condicionais técnicas aplicadas no texto e nas tabelas: bico 1" + Nível 2 → recomendar 3/4" e adicionar niple/luva; T850 → nota de upgrade GPS; conversor 24/12VCC → alerta de bloqueio (não homologado); item que o cliente já possui → marcado como "verificar se já possui"; RFID → nota de compatibilidade do T1000. Notas de rodapé com marcadores `*`, `#`, `@`, `º`.
+Condicionais técnicas aplicadas no texto e nas tabelas: bico 1" + Nível 2 → recomendar 3/4" e adicionar niple/luva; T850 → nota de upgrade GPS; conversor 24/12VCC → **alerta bloqueante** (não homologado); item que o cliente já possui → marcado como "verificar se já possui"; RFID → nota de compatibilidade do T1000. Notas de rodapé com marcadores `*`, `#`, `@`, `º`.
+
+**Dimensão do compartimento do T1000** — vira campo de formulário com chave própria `compartimento_dimensao` (o agente mede em campo), com as opções conhecidas 550×550×250 mm e 550×550×300 mm mais entrada livre. Não fica valor fixo no texto: se o campo não vier respondido, sai `[CONFIRMAR: dimensão do compartimento]`.
+
+## Alertas bloqueantes
+
+Alertas divididos em dois níveis:
+- **Informativo** (ex. nota de upgrade GPS do T850): aparece no laudo e na revisão, não impede nada.
+- **Bloqueante** (ex. conversor 24/12VCC não homologado, e qualquer regra futura que envolva garantia): o PDF final **não é gerado** enquanto o especialista não abrir o alerta e registrar uma confirmação explícita — escolhendo "corrigido" (ajusta a especificação) ou "ciente do risco" com justificativa em texto. A confirmação fica registrada no caso, com autor e data, e aparece na timeline do mapeamento. Sem isso, o botão de gerar PDF fica desabilitado com o motivo à vista.
+
 
 ## Tabelas
 
