@@ -266,6 +266,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     bloco_id: p.bloco_id ?? null,
     bloco_linha: p.bloco_linha ?? null,
     bloco_coluna: p.bloco_coluna ?? null,
+    chave_laudo: p.chave_laudo ?? null,
   })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
 
   const blocos: AgentBloco[] = (blocosRaw ?? []).map((b: any) => ({
