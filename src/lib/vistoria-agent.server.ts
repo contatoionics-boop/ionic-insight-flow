@@ -685,6 +685,10 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `## Opcionais pendentes (${pend.pendentesOpcionais.length})`,
     listaPendentes(pend.pendentesOpcionais.slice(0, 20)),
     ``,
+    `## Dados já preenchidos pelo cadastro/agendamento`,
+    `Os campos de cliente, unidade, endereço, CNPJ, CEP, agente técnico, data/hora, tipo de solicitação, modalidade e nível JÁ ESTÃO SALVOS a partir do cadastro e foram confirmados pelo agente no início. NUNCA pergunte esses dados novamente; se a mensagem do agente começar com [CADASTRO_CONFIRMADO], apenas agradeça em uma frase curta e siga direto para a PRÓXIMA PERGUNTA acima.`,
+    ``,
+
 
     `Você é o assistente técnico da Ionics conduzindo o **mapeamento técnico** de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
     ``,
