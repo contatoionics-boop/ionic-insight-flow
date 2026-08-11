@@ -465,7 +465,31 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             </div>
           ) : null}
 
-          {!busy && estado.proximoBloco && (
+          {!busy && precisaConfirmarCadastro && (
+            <div className="mt-8">
+              <ConfirmacaoCadastro
+                estado={estado}
+                token={token}
+                casoId={casoId}
+                onConfirmado={async (resumo) => {
+                  await refreshEstado();
+                  const texto = `[CADASTRO_CONFIRMADO] ${resumo}`;
+                  await salvarMensagem({
+                    data: {
+                      token,
+                      casoId,
+                      role: "user",
+                      parts: [{ type: "text", text: texto }],
+                      clientMessageId: crypto.randomUUID(),
+                    },
+                  });
+                  await sendMessage({ text: texto });
+                }}
+              />
+            </div>
+          )}
+
+          {!busy && !precisaConfirmarCadastro && estado.proximoBloco && (
             <div className="mt-8">
               <BlocoResposta
                 key={estado.proximoBloco.id}
