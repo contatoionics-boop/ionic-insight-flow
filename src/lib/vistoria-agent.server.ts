@@ -52,11 +52,15 @@ export type RespostaSalva = {
 
 export type CadastroFato = { label: string; valor: string };
 
+export type AgentSecao = { id: string; titulo: string; ordem: number };
+
 export type AgentContext = {
   casoId: string;
   clienteNome: string;
   formularioNome: string;
   perguntas: AgentPergunta[];
+  blocos: AgentBloco[];
+  secoes: AgentSecao[];
   state: Record<string, AgentResposta>;
   cadastro: CadastroFato[];
 };
