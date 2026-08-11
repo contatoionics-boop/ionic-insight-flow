@@ -1,3 +1,4 @@
+import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -78,6 +79,7 @@ type Pergunta = {
   obrigatoria: boolean;
   ordem: number;
   contexto_ia: string | null;
+  chave_laudo?: string | null;
   condicional_pergunta_id: string | null;
   condicional_operador: string | null;
   condicional_valor: string | null;
@@ -131,7 +133,7 @@ function FormBuilderPage() {
     if (list.length) {
       const { data: ps } = await supabase
         .from("perguntas")
-        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia")
+        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
         .in("secao_id", list.map((s) => s.id))
         .order("ordem");
       setPerguntas((ps ?? []) as Pergunta[]);
@@ -225,7 +227,7 @@ function FormBuilderPage() {
         obrigatoria: true,
         ordem,
       })
-      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia")
+      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
       .single();
     if (data) {
       setPerguntas((p) => [...p, data as Pergunta]);
@@ -624,6 +626,7 @@ function PropertiesPanel({
   const [tipo, setTipo] = useState<TipoPergunta>(pergunta.tipo);
   const [obrigatoria, setObrigatoria] = useState(pergunta.obrigatoria);
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
+  const [chaveLaudo, setChaveLaudo] = useState(pergunta.chave_laudo ?? "");
   const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
   const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
   const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
@@ -720,6 +723,7 @@ function PropertiesPanel({
         tipo,
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
+        chave_laudo: chaveLaudo || null,
         condicional_pergunta_id,
         condicional_operador,
         condicional_valor,
@@ -767,6 +771,7 @@ function PropertiesPanel({
       tipo,
       obrigatoria,
       contexto_ia: mostraContexto ? contextoIa || null : null,
+      chave_laudo: chaveLaudo || null,
       condicional_pergunta_id,
       condicional_operador,
       condicional_valor,
@@ -813,6 +818,22 @@ function PropertiesPanel({
             className="h-4 w-4"
           />
         </label>
+
+        <div>
+          <Label>Chave do laudo</Label>
+          <Select value={chaveLaudo} onChange={(e) => setChaveLaudo(e.target.value)}>
+            <option value="">Nao vincular</option>
+            {CHAVES_LAUDO.map((c) => (
+              <option key={c.chave} value={c.chave}>
+                {c.rotulo}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {CHAVES_LAUDO.find((c) => c.chave === chaveLaudo)?.descricao ??
+              "Vincule a resposta a uma variavel usada na montagem do laudo estruturado."}
+          </p>
+        </div>
 
         <div className="rounded-md border border-border p-3">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

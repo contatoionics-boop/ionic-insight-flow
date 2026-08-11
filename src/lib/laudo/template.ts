@@ -1,0 +1,346 @@
+// Monta a árvore de blocos do laudo no padrão FR-31-10.
+
+import { montarProdutos, normalizarBitola, type ContextoProduto } from "./catalogo-produtos";
+import {
+  alertasDoContexto,
+  materiaisAplicaveis,
+  type ContextoRegras,
+  type MaterialCatalogo,
+} from "./regras";
+import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
+
+export type CabecalhoLaudo = {
+  cliente: string;
+  unidade: string;
+  data: string;
+  agente: string;
+  especialista: string;
+  modalidade: string | null;
+};
+
+export type EntradaTemplate = {
+  variaveis: VariaveisLaudo;
+  materiais: MaterialCatalogo[];
+  cabecalho: CabecalhoLaudo;
+};
+
+function v(vars: VariaveisLaudo, chave: string, rotulo?: string): string {
+  const item = vars[chave];
+  if (!item || !item.valor) return pendencia(chave, rotulo);
+  return item.valor;
+}
+
+function raw(vars: VariaveisLaudo, chave: string): string | null {
+  return vars[chave]?.valor ?? null;
+}
+
+function bool(vars: VariaveisLaudo, chave: string): boolean | null {
+  const val = (raw(vars, chave) ?? "").toLowerCase().trim();
+  if (!val) return null;
+  if (["sim", "s", "true", "yes", "1"].includes(val)) return true;
+  if (["nao", "não", "n", "false", "no", "0"].includes(val)) return false;
+  return null;
+}
+
+function num(vars: VariaveisLaudo, chave: string): number | null {
+  const val = raw(vars, chave);
+  if (!val) return null;
+  const n = parseInt(val.replace(/[^0-9]/g, ""), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function idsObjetos(vars: VariaveisLaudo): string[] {
+  const val = raw(vars, "ids_objetos");
+  if (!val) return [];
+  return val
+    .split(/[,;\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+let seq = 0;
+const bid = (p: string) => `${p}-${++seq}`;
+
+export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
+  seq = 0;
+  const vars = entrada.variaveis;
+  const blocos: BlocoLaudo[] = [];
+
+  const nivel = raw(vars, "nivel_servico");
+  const bitola = normalizarBitola(raw(vars, "bitola_bico"));
+  const tipoObjeto = (raw(vars, "tipo_objeto") ?? "").toLowerCase() || null;
+  const ctxRegras: ContextoRegras = {
+    nivel,
+    bitola,
+    tipoObjeto,
+    areaClassificada: bool(vars, "area_classificada"),
+    usaConversor: bool(vars, "usa_conversor_24_12"),
+    terminalAtual: raw(vars, "terminal_atual"),
+    rfid: bool(vars, "rfid"),
+  };
+
+  // ---------- Alertas no topo ----------
+  for (const a of alertasDoContexto(ctxRegras)) blocos.push(a);
+
+  // ---------- 1. Introdução ----------
+  blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
+  blocos.push({
+    id: bid("p"),
+    tipo: "paragraph",
+    texto:
+      `Este documento apresenta o resultado do mapeamento técnico realizado para ${v(vars, "nome_cliente", "nome do cliente")}, ` +
+      `em atendimento ${v(vars, "modalidade", "modalidade")}, referente à ${v(vars, "tipo_acao", "tipo de ação (instalação ou upgrade)")} ` +
+      `da solução ${v(vars, "nome_solucao", "nome da solução")} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.`,
+  });
+  blocos.push({
+    id: bid("p"),
+    tipo: "paragraph",
+    texto:
+      "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
+      "Itens sinalizados como [CONFIRMAR: ...] dependem de validação antes da emissão definitiva do documento.",
+  });
+
+  // ---------- 2. Requisitos de infraestrutura ----------
+  blocos.push({
+    id: bid("h"),
+    tipo: "heading",
+    numero: "2",
+    texto: "Requisitos de infraestrutura",
+    nivel: 1,
+  });
+
+  // 2.1 TI
+  const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
+  const postoFixo = tipoObjeto === "posto" || tipoObjeto === "pista";
+  const variante = (raw(vars, "infra_ti_variante") ?? (jaTemSaaf ? "D" : "A")).toUpperCase();
+  if (!(postoFixo && jaTemSaaf)) {
+    blocos.push({
+      id: bid("h"),
+      tipo: "heading",
+      numero: "2.1",
+      texto: "Equipamentos de TI e banco de dados",
+      nivel: 2,
+    });
+    if (variante === "D") {
+      blocos.push({
+        id: bid("p"),
+        tipo: "paragraph",
+        texto:
+          "O cliente já dispõe de automação instalada e de estrutura de TI compatível. Serão utilizados os equipamentos e o banco de dados existentes, sem necessidade de novos investimentos em servidor.",
+      });
+    } else if (variante === "B_REDUZIDA") {
+      blocos.push({
+        id: bid("p"),
+        tipo: "paragraph",
+        texto:
+          "É necessário um microcomputador dedicado à aplicação, com acesso à rede local e ao ponto de comunicação do terminal, mantido ligado durante a operação.",
+      });
+    } else {
+      blocos.push({
+        id: bid("p"),
+        tipo: "paragraph",
+        texto:
+          "É necessário um servidor ou microcomputador dedicado à aplicação, com banco de dados instalado, acesso à rede local e comunicação com os terminais em campo.",
+      });
+      blocos.push({
+        id: bid("t"),
+        tipo: "table",
+        titulo: "Especificação mínima do equipamento",
+        colunas: ["Item", "Especificação mínima"],
+        linhas: [
+          { celulas: ["Processador", "Intel Core i5 ou superior"] },
+          { celulas: ["Memória", "8 GB RAM"] },
+          { celulas: ["Armazenamento", "256 GB SSD"] },
+          { celulas: ["Sistema operacional", "Windows 10/11 ou Windows Server"] },
+          { celulas: ["Banco de dados", "SQL Server / PostgreSQL conforme projeto"] },
+          {
+            celulas: [
+              "Rede",
+              "Ethernet 100/1000 Mbps com acesso ao ponto de comunicação do terminal",
+            ],
+          },
+          ...(variante === "B_COMPLETA"
+            ? [{ celulas: ["Expansão", "Slot disponível para módulo GSM"] }]
+            : []),
+        ],
+      });
+    }
+  }
+
+  // 2.2 Transferência de dados
+  blocos.push({
+    id: bid("h"),
+    tipo: "heading",
+    numero: "2.2",
+    texto: "Transferência de dados",
+    nivel: 2,
+  });
+  blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.1", texto: "WiFi", nivel: 3 });
+  blocos.push({
+    id: bid("p"),
+    tipo: "paragraph",
+    texto:
+      "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
+  });
+  const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
+  if (comunicacao.includes("4g") || comunicacao.includes("gsm")) {
+    blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.2", texto: "GSM / 4G", nivel: 3 });
+    blocos.push({
+      id: bid("p"),
+      tipo: "paragraph",
+      texto:
+        "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
+    });
+  }
+  blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.3", texto: "Rádio 2.4GHz", nivel: 3 });
+  blocos.push({
+    id: bid("p"),
+    tipo: "paragraph",
+    texto:
+      "A comunicação entre o terminal e os periféricos sem fio ocorre em rádio 2.4GHz, com alcance sujeito a obstruções metálicas e à distância entre os módulos.",
+  });
+
+  // 2.3 Objeto do mapeamento — repetível
+  blocos.push({
+    id: bid("h"),
+    tipo: "heading",
+    numero: "2.3",
+    texto: "Objeto do mapeamento",
+    nivel: 2,
+  });
+
+  const ids = idsObjetos(vars);
+  const grupos = ids.length ? ids : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
+  const ctxProduto: ContextoProduto = {
+    nivel,
+    bitola,
+    tipoObjeto,
+    rfid: ctxRegras.rfid,
+    qtdBicos: num(vars, "qtd_bicos"),
+    terminalAtual: ctxRegras.terminalAtual,
+    comunicacao,
+  };
+  const materiais = materiaisAplicaveis(entrada.materiais, ctxRegras);
+
+  grupos.forEach((grupo, i) => {
+    const numero = `2.3.${i + 1}`;
+    blocos.push({ id: bid("h"), tipo: "heading", numero, texto: grupo, nivel: 3 });
+    blocos.push({
+      id: bid("p"),
+      tipo: "paragraph",
+      texto:
+        `Objeto ${grupo} — ${v(vars, "marca_veiculo", "marca/modelo do objeto")}, ` +
+        `com ${v(vars, "qtd_bicos", "quantidade de bicos")} bico(s) de abastecimento, bitola ${v(vars, "bitola_bico", "bitola do bico")}, ` +
+        `vazão de ${v(vars, "vazao", "vazão")} e tensão disponível de ${v(vars, "tensao_veiculo", "tensão do objeto")}. ` +
+        `O terminal T1000 será instalado em compartimento de ${v(vars, "compartimento_dimensao", "dimensão do compartimento")}.`,
+    });
+
+    const produtos = montarProdutos(ctxProduto);
+    blocos.push({
+      id: bid("t"),
+      tipo: "table",
+      titulo: "Produtos IONICS",
+      colunas: ["Código", "Descrição", "Qtd."],
+      linhas: produtos.map((p) => ({
+        celulas: [p.codigo, p.descricao, String(p.quantidade)],
+        nota: p.nota ?? null,
+      })),
+    });
+
+    blocos.push({
+      id: bid("t"),
+      tipo: "table",
+      titulo: "Materiais de infraestrutura",
+      colunas: ["Código", "Descrição", "Aplicação", "Un.", "Qtd."],
+      linhas: materiais.length
+        ? materiais.map((m) => ({
+            celulas: [
+              m.codigo,
+              m.descricao,
+              m.aplicacao ?? "—",
+              m.unidade,
+              String(m.quantidade_padrao),
+            ],
+          }))
+        : [
+            {
+              celulas: [
+                "—",
+                `Nenhum material aplicável às regras atuais ${pendencia("materiais", "materiais de infraestrutura")}`,
+                "—",
+                "—",
+                "—",
+              ],
+            },
+          ],
+    });
+
+    const notas = produtos.map((p) => p.nota).filter((n): n is string => !!n);
+    if (notas.length) blocos.push({ id: bid("n"), tipo: "notes", itens: notas });
+  });
+
+  // 2.4 Bicos de abastecimento
+  blocos.push({
+    id: bid("h"),
+    tipo: "heading",
+    numero: "2.4",
+    texto: "Bicos de abastecimento",
+    nivel: 2,
+  });
+  if (nivel === "nivel_2") {
+    blocos.push({
+      id: bid("p"),
+      tipo: "paragraph",
+      texto:
+        "No nível 2 o controle de vazão é feito pelo NLDIV Wireless instalado na linha de abastecimento. A instalação exige a interrupção da linha para inserção do medidor, com adequação de bitola quando necessário. " +
+        (bitola === '1"'
+          ? 'Para bico de 1", recomenda-se a redução para 3/4" com niple e luva de redução, garantindo a faixa de vazão homologada.'
+          : ""),
+    });
+  } else {
+    blocos.push({
+      id: bid("p"),
+      tipo: "paragraph",
+      texto:
+        "No nível de serviço contratado não há instalação de medidor de vazão na linha; o controle é feito pelo terminal e pelos sensores de acionamento.",
+    });
+  }
+  blocos.push({
+    id: bid("t"),
+    tipo: "table",
+    titulo: "Dimensões de referência",
+    colunas: ["Bitola", "Faixa de vazão", "Conexão"],
+    linhas: [
+      { celulas: ['1/2"', "5 a 40 L/min", "Rosca BSP"] },
+      { celulas: ['3/4"', "10 a 90 L/min", "Rosca BSP"] },
+      { celulas: ['1"', "20 a 150 L/min", "Rosca BSP"] },
+    ],
+  });
+  blocos.push({
+    id: bid("p"),
+    tipo: "paragraph",
+    texto:
+      "Somente componentes homologados pela IONICS devem ser utilizados na linha de abastecimento. O uso de itens não homologados invalida a garantia do equipamento.",
+  });
+
+  // ---------- 3. Instruções gerais ----------
+  blocos.push({
+    id: bid("h"),
+    tipo: "heading",
+    numero: "3",
+    texto: "Instruções gerais",
+    nivel: 1,
+  });
+  blocos.push({
+    id: bid("bl"),
+    tipo: "bullets",
+    itens: [
+      `A infraestrutura elétrica e hidráulica é de responsabilidade do cliente e deve estar concluída antes da instalação da solução ${v(vars, "nome_solucao", "nome da solução")}.`,
+      "O local de instalação deve permitir acesso seguro ao terminal e aos sensores para manutenção.",
+      "Alterações de escopo após a emissão deste documento exigem novo mapeamento técnico.",
+      "A IONICS não se responsabiliza por instalações executadas fora das especificações deste documento.",
+    ],
+  });
+
+  return blocos;
+}

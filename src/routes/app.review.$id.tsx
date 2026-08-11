@@ -25,6 +25,7 @@ import {
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
+import { LaudoPanel } from "@/components/laudo/LaudoPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -72,6 +73,7 @@ function arquivosDe(r: Resposta | undefined): string[] {
 
 function ReviewCasePage() {
   const { id } = Route.useParams();
+  const [tab, setTab] = useState<"respostas" | "laudo">("respostas");
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
@@ -438,7 +440,31 @@ function ReviewCasePage() {
         </Card>
       )}
 
-      <div className="space-y-4">
+      <div className="mb-4 flex gap-1 border-b border-border">
+        {(
+          [
+            ["respostas", "Respostas"],
+            ["laudo", "Laudo estruturado"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === key
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "laudo" && <LaudoPanel casoId={id} />}
+
+      <div className="space-y-4" hidden={tab !== "respostas"}>
         {secoes.length === 0 && (
           <Card>
             <p className="text-sm text-muted-foreground">

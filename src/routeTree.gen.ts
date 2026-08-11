@@ -25,6 +25,7 @@ import { Route as AppFormsRouteImport } from './routes/app.forms'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
+import { Route as AppCatalogoMateriaisRouteImport } from './routes/app.catalogo-materiais'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
 import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
@@ -124,6 +125,11 @@ const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
 const AppClientsRoute = AppClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogoMateriaisRoute = AppCatalogoMateriaisRouteImport.update({
+  id: '/catalogo-materiais',
+  path: '/catalogo-materiais',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCasesRoute = AppCasesRouteImport.update({
@@ -241,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/forms-assistant': typeof AppFormsAssistantRoute
@@ -316,6 +324,7 @@ export interface FileRoutesById {
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
+    | '/app/catalogo-materiais'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
+    | '/app/catalogo-materiais'
     | '/app/configuracoes'
     | '/app/dashboard'
     | '/app/forms-assistant'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
     | '/app/cases'
+    | '/app/catalogo-materiais'
     | '/app/clients'
     | '/app/configuracoes'
     | '/app/dashboard'
@@ -580,6 +592,13 @@ declare module '@tanstack/react-router' {
       path: '/clients'
       fullPath: '/app/clients'
       preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/catalogo-materiais': {
+      id: '/app/catalogo-materiais'
+      path: '/catalogo-materiais'
+      fullPath: '/app/catalogo-materiais'
+      preLoaderRoute: typeof AppCatalogoMateriaisRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/cases': {
@@ -761,6 +780,7 @@ interface AppRouteChildren {
   AppAgentePerfilRoute: typeof AppAgentePerfilRoute
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppCasesRoute: typeof AppCasesRoute
+  AppCatalogoMateriaisRoute: typeof AppCatalogoMateriaisRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -786,6 +806,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgentePerfilRoute: AppAgentePerfilRoute,
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppCasesRoute: AppCasesRoute,
+  AppCatalogoMateriaisRoute: AppCatalogoMateriaisRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
@@ -821,13 +842,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
