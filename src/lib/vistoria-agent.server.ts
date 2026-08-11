@@ -742,6 +742,7 @@ export async function execSalvarResposta(
     arquivos_paths?: string[];
     transcricao?: string;
   },
+  opts?: { origemCadastro?: boolean; confirmadoCadastro?: boolean },
 ): Promise<{ ok: boolean; motivo?: string; estado_pos_salvamento?: { obrigatorias_faltando: number; total_obrigatorias: number; respondidas_obrigatorias: number; proxima_pergunta_id: string | null; pode_finalizar: boolean } }> {
   const p = ctx.perguntas.find((x) => x.id === input.pergunta_id);
   if (!p) return { ok: false, motivo: "pergunta_id desconhecido para este formulário." };
