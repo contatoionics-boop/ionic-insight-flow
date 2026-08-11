@@ -92,8 +92,14 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
 
     const { calcularPendencias, sincronizarCadastro } = await import("@/lib/vistoria-agent.server");
     const ctx = await loadAgentContext(casoId);
-    await sincronizarCadastro(ctx);
+    const cadastroPendente = await sincronizarCadastro(ctx);
     const pend = calcularPendencias(ctx);
+
+    const iniciado = Object.values(ctx.state).some(
+      (r) =>
+        !r.origem_cadastro &&
+        !!(r.valor_texto || r.arquivo_path || r.transcricao || r.arquivos_paths?.length),
+    );
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: ultima } = await supabaseAdmin
@@ -106,7 +112,7 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
 
     // Casos antigos podem ter respostas persistidas sem que o status tenha
     // acompanhado o primeiro salvamento. Corrige o estado sem recriar evento.
-    if (pend.respondidas > 0) {
+    if (iniciado) {
       const { error } = await supabaseAdmin
         .from("casos")
         .update({ status: "em_andamento" })
@@ -119,6 +125,9 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       casoId,
       clienteNome: ctx.clienteNome,
       formularioNome: ctx.formularioNome,
+      cadastroPendente,
+      resumoCadastro: ctx.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
+      iniciado,
       totalVisiveis: pend.totalVisiveis,
       respondidas: pend.respondidas,
       totalObrigatorias: pend.totalObrigatorias,
