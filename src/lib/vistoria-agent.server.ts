@@ -155,6 +155,48 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   if (unidade?.telefone) cadastro.push({ label: "Telefone da unidade", valor: unidade.telefone });
   if (unidade?.email) cadastro.push({ label: "E-mail da unidade", valor: unidade.email });
   if (enderecoVistoria) cadastro.push({ label: "Endereço do mapeamento", valor: enderecoVistoria });
+  if (unidade?.cidade) cadastro.push({ label: "Cidade", valor: unidade.cidade });
+  if (unidade?.estado) cadastro.push({ label: "Estado", valor: unidade.estado });
+  if (unidade?.bairro) cadastro.push({ label: "Bairro", valor: unidade.bairro });
+  if (unidade?.cep) cadastro.push({ label: "CEP", valor: unidade.cep });
+
+  const agenteNome =
+    (caso as any).agente?.nome ?? (caso as any).agente_nome_manual ?? null;
+  if (agenteNome) cadastro.push({ label: "Agente técnico", valor: agenteNome });
+
+  const agendadoEm = (caso as any).agendado_em as string | null;
+  if (agendadoEm) {
+    const d = new Date(agendadoEm);
+    cadastro.push({
+      label: "Data do mapeamento",
+      valor: d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    });
+    cadastro.push({
+      label: "Hora do mapeamento",
+      valor: d.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+  }
+
+  const rotulosEnum: Record<string, string> = {
+    instalacao: "Instalação",
+    upgrade: "Upgrade",
+    presencial: "Presencial",
+    remoto: "Remoto",
+    nivel_1: "Nível 1",
+    nivel_2: "Nível 2",
+    nivel_3: "Nível 3",
+  };
+  const tipoSolicitacao = (caso as any).tipo_solicitacao as string | null;
+  const modalidade = (caso as any).modalidade as string | null;
+  const nivel = (caso as any).nivel as string | null;
+  if (tipoSolicitacao)
+    cadastro.push({ label: "Tipo de solicitação", valor: rotulosEnum[tipoSolicitacao] ?? tipoSolicitacao });
+  if (modalidade) cadastro.push({ label: "Modalidade", valor: rotulosEnum[modalidade] ?? modalidade });
+  if (nivel) cadastro.push({ label: "Nível do serviço", valor: rotulosEnum[nivel] ?? nivel });
   if ((caso as any).observacoes_agendamento) cadastro.push({ label: "Observações do agendamento", valor: (caso as any).observacoes_agendamento });
 
   const { data: formulario } = await supabaseAdmin
