@@ -439,21 +439,179 @@ function normalizarRotulo(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-/** Persiste dados cadastrais inequívocos antes de iniciar a conversa. */
-export async function sincronizarCadastro(ctx: AgentContext): Promise<void> {
+export type PreenchimentoCadastro = {
+  perguntaId: string;
+  perguntaTexto: string;
+  secaoTitulo: string;
+  tipo: string;
+  valor: string;
+  obrigatoria: boolean;
+  opcoes: { id: string; texto: string }[];
+};
+
+/** Chaves canônicas resolvidas a partir dos fatos de cadastro. */
+function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   const fatos = new Map(ctx.cadastro.map((f) => [normalizarRotulo(f.label), f.valor]));
-  for (const pergunta of ctx.perguntas) {
-    if (estaRespondida(ctx.state[pergunta.id])) continue;
-    const texto = normalizarRotulo(pergunta.texto);
-    let valor: string | undefined;
-    if (pergunta.tipo === "cnpj" || texto.includes("cnpj")) valor = fatos.get("cnpj");
-    else if (pergunta.tipo === "cep" || texto.includes("cep")) {
-      valor = fatos.get("endereco da unidade")?.match(/\b\d{5}-?\d{3}\b/)?.[0];
-    } else if (texto.includes("endereco") && !texto.includes("foto")) {
-      valor = fatos.get("endereco do mapeamento") ?? fatos.get("endereco da unidade");
+  const get = (...labels: string[]) => {
+    for (const l of labels) {
+      const v = fatos.get(normalizarRotulo(l));
+      if (v && v.trim()) return v.trim();
     }
+    return undefined;
+  };
+  const enderecoUnidade = get("Endereço da unidade");
+  const canon = new Map<string, string>();
+  const set = (k: string, v?: string) => {
+    if (v) canon.set(k, v);
+  };
+
+  set("nome_cliente", get("Empresa (cliente)", "Razão social da matriz", "Nome da matriz"));
+  set("unidade", get("Unidade"));
+  set(
+    "cliente_unidade",
+    [get("Empresa (cliente)", "Razão social da matriz", "Nome da matriz"), get("Unidade")]
+      .filter(Boolean)
+      .join(" · ") || undefined,
+  );
+  set("cnpj", get("CNPJ"));
+  set("endereco", get("Endereço do mapeamento", "Endereço da unidade"));
+  set("cep", get("CEP") ?? enderecoUnidade?.match(/\b\d{5}-?\d{3}\b/)?.[0]);
+  set("cidade", get("Cidade"));
+  set("estado", get("Estado"));
+  set("bairro", get("Bairro"));
+  set("telefone", get("Telefone da unidade", "Telefone da matriz"));
+  set("email", get("E-mail da unidade", "E-mail da matriz"));
+  set("agente_tecnico", get("Agente técnico"));
+  set("data_mapeamento", get("Data do mapeamento"));
+  set("hora_mapeamento", get("Hora do mapeamento"));
+  set("tipo_acao", get("Tipo de solicitação"));
+  set("modalidade", get("Modalidade"));
+  set("nivel_servico", get("Nível do serviço"));
+  return canon;
+}
+
+/** Mapeia chave_laudo → chave canônica de cadastro. */
+const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
+  nome_cliente: "nome_cliente",
+  tipo_acao: "tipo_acao",
+  modalidade: "modalidade",
+  nivel_servico: "nivel_servico",
+};
+
+/** Heurística por texto da pergunta → chave canônica. */
+function chavePorTexto(pergunta: AgentPergunta): string | null {
+  const t = normalizarRotulo(pergunta.texto);
+  if (t.includes("foto") || t.includes("imagem") || t.includes("video") || t.includes("audio"))
+    return null;
+  if (pergunta.tipo === "cnpj" || t.includes("cnpj")) return "cnpj";
+  if (pergunta.tipo === "cep" || t.includes("cep")) return "cep";
+  if (t.includes("agente tecnico") || t.includes("agente técnico") || t.includes("vistoriador") || t.includes("responsavel pelo mapeamento") || t.includes("tecnico responsavel"))
+    return "agente_tecnico";
+  if (t.includes("data") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento") || t.includes("visita")))
+    return "data_mapeamento";
+  if (t.includes("hora") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento")))
+    return "hora_mapeamento";
+  if (t.includes("cliente") && t.includes("unidade")) return "cliente_unidade";
+  if (t.includes("razao social") || t.includes("nome do cliente") || t.includes("nome da empresa") || t === "cliente" || t.includes("cliente:"))
+    return "nome_cliente";
+  if (t.includes("unidade") || t.includes("loja") || t.includes("posto") || t.includes("filial"))
+    return "unidade";
+  if (t.includes("endereco")) return "endereco";
+  if (t.includes("cidade")) return "cidade";
+  if (t.includes("estado") || t === "uf") return "estado";
+  if (t.includes("bairro")) return "bairro";
+  if (t.includes("telefone") || t.includes("contato telefonico")) return "telefone";
+  if (t.includes("e-mail") || t.includes("email")) return "email";
+  if (t.includes("tipo de solicitacao") || t.includes("instalacao ou upgrade")) return "tipo_acao";
+  if (t.includes("modalidade") || t.includes("presencial ou remoto")) return "modalidade";
+  if (t.includes("nivel")) return "nivel_servico";
+  return null;
+}
+
+const TIPOS_NAO_PREENCHIVEIS = new Set(["foto", "video", "audio", "checkbox"]);
+
+/**
+ * Persiste dados cadastrais inequívocos antes de iniciar a conversa.
+ * Só toca em perguntas ainda sem resposta e nunca em campos de mídia.
+ * Retorna o que foi (ou já estava) preenchido a partir do cadastro.
+ */
+export async function sincronizarCadastro(
+  ctx: AgentContext,
+): Promise<PreenchimentoCadastro[]> {
+  const canon = resolverFatosCanonicos(ctx);
+  const preenchidos: PreenchimentoCadastro[] = [];
+
+  for (const pergunta of ctx.perguntas) {
+    const atual = ctx.state[pergunta.id];
+    const jaRespondida = estaRespondida(atual);
+
+    // Já preenchida antes pelo cadastro e ainda pendente de confirmação.
+    if (jaRespondida && atual?.origem_cadastro) {
+      preenchidos.push({
+        perguntaId: pergunta.id,
+        perguntaTexto: pergunta.texto,
+        secaoTitulo: pergunta.secao_titulo,
+        tipo: pergunta.tipo,
+        valor: atual.valor_texto ?? "",
+        obrigatoria: pergunta.obrigatoria,
+        opcoes: pergunta.opcoes,
+      });
+      continue;
+    }
+    if (jaRespondida) continue;
+    if (TIPOS_NAO_PREENCHIVEIS.has(pergunta.tipo)) continue;
+
+    const chave =
+      (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
+      chavePorTexto(pergunta);
+    if (!chave) continue;
+    const valor = canon.get(chave);
     if (!valor) continue;
-    await execSalvarResposta(ctx.casoId, ctx, { pergunta_id: pergunta.id, valor_texto: valor });
+
+    // Seleção única só é preenchida quando o valor bate com uma opção.
+    if (pergunta.tipo === "selecao_unica") {
+      const match = pergunta.opcoes.find(
+        (o) => normalizarRotulo(o.texto) === normalizarRotulo(valor),
+      );
+      if (!match) continue;
+    }
+
+    const r = await execSalvarResposta(
+      ctx.casoId,
+      ctx,
+      { pergunta_id: pergunta.id, valor_texto: valor },
+      { origemCadastro: true },
+    );
+    if (!r.ok) continue;
+    preenchidos.push({
+      perguntaId: pergunta.id,
+      perguntaTexto: pergunta.texto,
+      secaoTitulo: pergunta.secao_titulo,
+      tipo: pergunta.tipo,
+      valor,
+      obrigatoria: pergunta.obrigatoria,
+      opcoes: pergunta.opcoes,
+    });
+  }
+  return preenchidos;
+}
+
+/** Confirma (com eventuais correções) os dados vindos do cadastro. */
+export async function confirmarCadastro(
+  ctx: AgentContext,
+  correcoes: { perguntaId: string; valor: string }[],
+): Promise<void> {
+  const mapa = new Map(correcoes.map((c) => [c.perguntaId, c.valor]));
+  const pendentes = ctx.perguntas.filter((p) => ctx.state[p.id]?.origem_cadastro);
+  for (const p of pendentes) {
+    const valor = (mapa.get(p.id) ?? ctx.state[p.id]?.valor_texto ?? "").trim();
+    if (!valor) continue;
+    await execSalvarResposta(
+      ctx.casoId,
+      ctx,
+      { pergunta_id: p.id, valor_texto: valor },
+      { confirmadoCadastro: true },
+    );
   }
 }
 
