@@ -383,3 +383,51 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
       resumo: partesResumo.join(" · "),
     };
   });
+
+const ConfirmarCadastroInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  correcoes: z
+    .array(z.object({ perguntaId: z.string().uuid(), valor: z.string() }))
+    .default([]),
+});
+
+/** Confirma os dados vindos do cadastro/agendamento e inicia o mapeamento. */
+export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => ConfirmarCadastroInput.parse(input))
+  .handler(async ({ data }) => {
+    const { loadAgentContext, validarTokenAcesso, confirmarCadastro } = await import(
+      "@/lib/vistoria-agent.server"
+    );
+    let casoId: string;
+    if (data.token) casoId = await validarTokenAcesso(data.token);
+    else if (data.casoId) casoId = data.casoId;
+    else throw new Error("Informe token ou casoId.");
+
+    const ctx = await loadAgentContext(casoId);
+    await confirmarCadastro(ctx, data.correcoes);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { registrarEvento } = await import("@/lib/eventos.server");
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("status, agente_id, agendamento_id")
+      .eq("id", casoId)
+      .maybeSingle();
+    if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
+      const { error } = await supabaseAdmin
+        .from("casos")
+        .update({ status: "em_andamento" })
+        .eq("id", casoId)
+        .in("status", ["agendado", "rascunho"]);
+      if (!error) {
+        await registrarEvento({
+          casoId,
+          agendamentoId: caso.agendamento_id ?? null,
+          tipo: "vistoria_iniciada",
+          atorId: caso.agente_id ?? null,
+        });
+      }
+    }
+    return { ok: true };
+  });
