@@ -33,6 +33,7 @@ export type AgentPergunta = {
   bloco_id: string | null;
   bloco_linha: string | null;
   bloco_coluna: string | null;
+  chave_laudo: string | null;
 };
 
 export type AgentResposta = {
