@@ -7,6 +7,27 @@ const EstadoInput = z.object({
   casoId: z.string().uuid().optional(),
 });
 
+export type BlocoPerguntaDTO = {
+  id: string;
+  texto: string;
+  tipo: string;
+  obrigatoria: boolean;
+  instrucao_agente: string | null;
+  contexto_ia: string | null;
+  opcoes: { id: string; texto: string }[];
+  bloco_linha: string | null;
+  bloco_coluna: string | null;
+};
+
+export type BlocoDTO = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  layout: "cartao" | "matriz" | "fotos";
+  secaoTitulo: string;
+  perguntas: BlocoPerguntaDTO[];
+};
+
 export type EstadoVistoria = {
   casoId: string;
   clienteNome: string;
@@ -22,6 +43,11 @@ export type EstadoVistoria = {
   proximaPerguntaSecao: string | null;
   proximaPerguntaInstrucao: string | null;
   proximaPerguntaOpcoes: { id: string; texto: string }[];
+  proximoBloco: BlocoDTO | null;
+  secaoAtual: number;
+  totalSecoes: number;
+  totalMomentos: number;
+  momentosConcluidos: number;
   ultimaResposta: {
     perguntaId: string;
     perguntaTexto: string;
