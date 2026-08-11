@@ -123,6 +123,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const initialMessages = useMemo<UIMessage[]>(() => {
     if (!estado || historico === null) return [];
     if (historico.length > 0) return historico;
+    const precisaConfirmar = estado.cadastroPendente.length > 0;
     return [
       {
         id: "greeting",
@@ -130,7 +131,9 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         parts: [
           {
             type: "text",
-            text: `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nVamos iniciar o mapeamento técnico de ${estado.clienteNome}.\n\nEnvie qualquer mensagem para começar.`,
+            text: precisaConfirmar
+              ? `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nMapeamento de ${estado.clienteNome}. Confira abaixo os dados que já temos do agendamento antes de começar.`
+              : `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nVamos iniciar o mapeamento técnico de ${estado.clienteNome}.\n\nEnvie qualquer mensagem para começar.`,
           },
         ],
       },
