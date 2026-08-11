@@ -722,6 +722,7 @@ function PropertiesPanel({
         tipo,
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
+        chave_laudo: chaveLaudo || null,
         condicional_pergunta_id,
         condicional_operador,
         condicional_valor,
@@ -769,6 +770,7 @@ function PropertiesPanel({
       tipo,
       obrigatoria,
       contexto_ia: mostraContexto ? contextoIa || null : null,
+      chave_laudo: chaveLaudo || null,
       condicional_pergunta_id,
       condicional_operador,
       condicional_valor,
@@ -815,6 +817,22 @@ function PropertiesPanel({
             className="h-4 w-4"
           />
         </label>
+
+        <div>
+          <Label>Chave do laudo</Label>
+          <Select value={chaveLaudo} onChange={(e) => setChaveLaudo(e.target.value)}>
+            <option value="">Nao vincular</option>
+            {CHAVES_LAUDO.map((c) => (
+              <option key={c.chave} value={c.chave}>
+                {c.rotulo}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {CHAVES_LAUDO.find((c) => c.chave === chaveLaudo)?.descricao ??
+              "Vincule a resposta a uma variavel usada na montagem do laudo estruturado."}
+          </p>
+        </div>
 
         <div className="rounded-md border border-border p-3">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
