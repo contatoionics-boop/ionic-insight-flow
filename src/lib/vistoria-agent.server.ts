@@ -291,6 +291,11 @@ export function estaRespondida(r: AgentResposta | undefined): boolean {
   );
 }
 
+export type BlocoPendente = AgentBloco & {
+  secao_titulo: string;
+  perguntas: AgentPergunta[];
+};
+
 export type Pendencias = {
   totalVisiveis: number;
   respondidas: number;
@@ -300,6 +305,12 @@ export type Pendencias = {
   pendentesObrigatorias: AgentPergunta[];
   pendentesOpcionais: AgentPergunta[];
   proxima: AgentPergunta | null;
+  proximoBloco: BlocoPendente | null;
+  secaoAtualIndice: number;
+  totalSecoes: number;
+  /** "Momentos" de resposta: blocos contam como 1 interação. */
+  totalMomentos: number;
+  momentosConcluidos: number;
   podeFinalizar: boolean;
 };
 
@@ -311,6 +322,50 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
   const pendentes = visiveis.filter((p) => !resp(p));
   const pendentesObrigatorias = pendentes.filter((p) => p.obrigatoria);
   const pendentesOpcionais = pendentes.filter((p) => !p.obrigatoria);
+  const proxima = pendentes[0] ?? null;
+
+  // Bloco da próxima pendência (com todas as perguntas visíveis do grupo).
+  let proximoBloco: BlocoPendente | null = null;
+  if (proxima?.bloco_id) {
+    const bloco = ctx.blocos.find((b) => b.id === proxima.bloco_id);
+    if (bloco) {
+      const perguntasBloco = visiveis.filter((p) => p.bloco_id === bloco.id);
+      if (perguntasBloco.length > 0) {
+        proximoBloco = {
+          ...bloco,
+          secao_titulo: proxima.secao_titulo,
+          perguntas: perguntasBloco,
+        };
+      }
+    }
+  }
+
+  // Momentos: cada bloco visível conta 1; perguntas soltas contam 1 cada.
+  const blocosVisiveis = new Map<string, AgentPergunta[]>();
+  let soltas = 0;
+  let soltasRespondidas = 0;
+  for (const p of visiveis) {
+    if (p.bloco_id) {
+      const arr = blocosVisiveis.get(p.bloco_id) ?? [];
+      arr.push(p);
+      blocosVisiveis.set(p.bloco_id, arr);
+    } else {
+      soltas++;
+      if (resp(p)) soltasRespondidas++;
+    }
+  }
+  let blocosConcluidos = 0;
+  for (const arr of blocosVisiveis.values()) {
+    if (arr.every((p) => resp(p) || !p.obrigatoria ? resp(p) : false) || arr.every(resp)) {
+      blocosConcluidos++;
+    }
+  }
+
+  const secoesOrdenadas = [...ctx.secoes].sort((a, b) => a.ordem - b.ordem);
+  const secaoAtualIndice = proxima
+    ? Math.max(0, secoesOrdenadas.findIndex((s) => s.id === proxima.secao_id))
+    : Math.max(0, secoesOrdenadas.length - 1);
+
   return {
     totalVisiveis: visiveis.length,
     respondidas: visiveis.filter(resp).length,
@@ -321,7 +376,12 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
     pendentesOpcionais,
     // Retoma exatamente na primeira lacuna da sequência oficial do formulário.
     // O bloqueio de finalização continua dependendo apenas das obrigatórias.
-    proxima: pendentes[0] ?? null,
+    proxima,
+    proximoBloco,
+    secaoAtualIndice,
+    totalSecoes: secoesOrdenadas.length,
+    totalMomentos: soltas + blocosVisiveis.size,
+    momentosConcluidos: soltasRespondidas + blocosConcluidos,
     podeFinalizar: pendentesObrigatorias.length === 0,
   };
 }
