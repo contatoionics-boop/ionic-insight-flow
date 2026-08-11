@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Modal, Select } from "@/components/ui-bits";
+import { BlocosModal } from "@/components/forms/BlocosModal";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/forms/$id/")({
@@ -99,6 +100,7 @@ function FormBuilderPage() {
 
   // Info modal
   const [infoOpen, setInfoOpen] = useState(false);
+  const [blocosOpen, setBlocosOpen] = useState(false);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [iNome, setINome] = useState("");
   const [iDesc, setIDesc] = useState("");
@@ -319,6 +321,9 @@ function FormBuilderPage() {
           >
             <ExternalLink className="h-4 w-4" /> Preview em nova aba
           </a>
+          <Button variant="outline" onClick={() => setBlocosOpen(true)}>
+            <Layers className="h-4 w-4" /> Blocos
+          </Button>
           <Button variant="outline" onClick={openInfo}>
             <Pencil className="h-4 w-4" /> Editar info
           </Button>
@@ -459,6 +464,13 @@ function FormBuilderPage() {
           </div>
         </form>
       </Modal>
+
+      <BlocosModal
+        formularioId={id}
+        open={blocosOpen}
+        onClose={() => setBlocosOpen(false)}
+        onChanged={() => void load()}
+      />
     </div>
   );
 }
