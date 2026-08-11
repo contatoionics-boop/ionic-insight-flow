@@ -164,8 +164,16 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     ? await supabaseAdmin
         .from("perguntas")
         .select(
-          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor",
+          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna",
         )
+        .in("secao_id", secoesIds)
+        .order("ordem")
+    : { data: [] };
+
+  const { data: blocosRaw } = secoesIds.length
+    ? await supabaseAdmin
+        .from("pergunta_blocos")
+        .select("id, secao_id, titulo, descricao, layout, ordem")
         .in("secao_id", secoesIds)
         .order("ordem")
     : { data: [] };
