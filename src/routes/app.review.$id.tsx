@@ -25,6 +25,7 @@ import {
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
+import { LaudoPanel } from "@/components/laudo/LaudoPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
 export const Route = createFileRoute("/app/review/$id")({
