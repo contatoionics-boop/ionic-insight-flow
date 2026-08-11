@@ -142,6 +142,23 @@ function Bloco({ bloco }: { bloco: BlocoLaudo }) {
           <span>{bloco.texto}</span>
         </div>
       );
+    case "image":
+      return (
+        <figure className="mt-4 flex flex-col items-center gap-2">
+          <img
+            src={bloco.url}
+            alt={bloco.alt}
+            loading="lazy"
+            className="w-full rounded-lg border border-border bg-background object-contain p-2"
+            style={{ maxWidth: bloco.larguraMax ?? 360 }}
+          />
+          {bloco.legenda ? (
+            <figcaption className="text-center text-xs text-muted-foreground">
+              {bloco.legenda}
+            </figcaption>
+          ) : null}
+        </figure>
+      );
   }
 }
 
