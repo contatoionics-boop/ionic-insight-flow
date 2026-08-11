@@ -4,6 +4,17 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 
+export type BlocoLayout = "cartao" | "matriz" | "fotos";
+
+export type AgentBloco = {
+  id: string;
+  secao_id: string;
+  titulo: string;
+  descricao: string | null;
+  layout: BlocoLayout;
+  ordem: number;
+};
+
 export type AgentPergunta = {
   id: string;
   secao_id: string;
@@ -19,6 +30,9 @@ export type AgentPergunta = {
   condicional_pergunta_id: string | null;
   condicional_operador: string | null;
   condicional_valor: string | null;
+  bloco_id: string | null;
+  bloco_linha: string | null;
+  bloco_coluna: string | null;
 };
 
 export type AgentResposta = {
