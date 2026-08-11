@@ -438,7 +438,31 @@ function ReviewCasePage() {
         </Card>
       )}
 
-      <div className="space-y-4">
+      <div className="mb-4 flex gap-1 border-b border-border">
+        {(
+          [
+            ["respostas", "Respostas"],
+            ["laudo", "Laudo estruturado"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === key
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "laudo" && <LaudoPanel casoId={id} />}
+
+      <div className="space-y-4" hidden={tab !== "respostas"}>
         {secoes.length === 0 && (
           <Card>
             <p className="text-sm text-muted-foreground">
