@@ -58,15 +58,17 @@ Alertas divididos em dois níveis:
 
 ## Detalhes técnicos
 
-- Banco: `laudo_variaveis` (jsonb) + `laudo_conteudo` (jsonb com o documento montado e as edições) em `casos`; nova tabela `catalogo_materiais` com RLS (leitura autenticada, escrita para super_admin/IAM/especialista) e grants; coluna `chave_laudo` em `perguntas`.
-- Novo módulo `src/lib/laudo/` (server-only): `variaveis.ts` (extração híbrida), `catalogo-produtos.ts` (seed fixo + regras), `regras.ts` (condicionais), `template.ts` (blocos e slots) e `montar.ts` — devolve uma árvore de blocos tipada (`heading`, `paragraph`, `bullets`, `table`, `notes`, `alert`).
+- Banco: `laudo_variaveis` (jsonb, com origem e confiança por campo) + `laudo_conteudo` (jsonb com o documento montado e as edições) + `laudo_alertas` (jsonb com confirmações de alertas bloqueantes) em `casos`; nova tabela `catalogo_materiais` com RLS (leitura autenticada, escrita para super_admin/IAM/especialista) e grants; coluna `chave_laudo` em `perguntas`.
+- Novo módulo `src/lib/laudo/` (server-only): `variaveis.ts` (extração híbrida + limiar de confiança), `catalogo-produtos.ts` (seed fixo + regras), `regras.ts` (condicionais e alertas), `template.ts` (blocos e slots) e `montar.ts` — devolve uma árvore de blocos tipada (`heading`, `paragraph`, `bullets`, `table`, `notes`, `alert`).
 - Novo renderer `src/lib/pdf-laudo.server.ts` usando pdf-lib (mesmo padrão do atual): capa, numeração automática, tabelas com bordas, notas de rodapé, rodapé IAM. O gerador atual de pergunta/resposta continua disponível como "PDF de respostas (bruto)".
-- Server fns em `src/lib/laudo.functions.ts`: `montarLaudo`, `salvarLaudo`, `gerarPdfLaudo` — todas com `requireSupabaseAuth`.
-- UI: aba "Laudo" em `app.review.$id.tsx` com editor por bloco e destaque dos `[CONFIRMAR]`; tela de catálogo de materiais em Configurações.
+- Server fns em `src/lib/laudo.functions.ts`: `montarLaudo`, `salvarLaudo`, `confirmarAlerta`, `gerarPdfLaudo` — todas com `requireSupabaseAuth`. `gerarPdfLaudo` recusa no servidor se houver alerta bloqueante sem confirmação (não só no botão).
+- UI: aba "Laudo" em `app.review.$id.tsx` com editor por bloco, destaque dos `[CONFIRMAR]`, painel de sugestões da IA de baixa confiança e painel de alertas bloqueantes; tela de catálogo de materiais em Configurações.
 
 ## Entrega em etapas
 
-1. Banco + catálogo de materiais editável + `chave_laudo` nas perguntas.
-2. Motor de template (seções, condicionais, repetição, tabelas) + extração híbrida.
+1a. Banco (colunas do laudo, `catalogo_materiais`) + `chave_laudo` nas perguntas, incluindo `compartimento_dimensao`.
+1b. Tela do catálogo de materiais editável.
+2. Motor de template (seções, condicionais, repetição, tabelas) + extração híbrida com limiar de confiança.
 3. Renderer PDF no padrão FR-31-10.
-4. Tela de revisão do laudo com edição e geração final.
+4. Tela de revisão do laudo com edição, confirmação de alertas e geração final.
+
