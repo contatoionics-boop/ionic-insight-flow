@@ -625,6 +625,7 @@ function PropertiesPanel({
   const [tipo, setTipo] = useState<TipoPergunta>(pergunta.tipo);
   const [obrigatoria, setObrigatoria] = useState(pergunta.obrigatoria);
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
+  const [chaveLaudo, setChaveLaudo] = useState(pergunta.chave_laudo ?? "");
   const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
   const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
   const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
