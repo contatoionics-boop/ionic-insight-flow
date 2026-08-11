@@ -10,6 +10,7 @@ import { LumaSpin } from "@/components/ui/luma-spin";
 import { supabase } from "@/integrations/supabase/client";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
+import { BlocoResposta } from "@/components/agent/BlocoResposta";
 import {
   getEstadoVistoria,
   finalizarVistoriaChat,
@@ -426,6 +427,14 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
           </div>
         </div>
+        {estado.totalSecoes > 0 && (
+          <div className="mx-auto max-w-3xl px-4 pb-2 text-xs text-muted-foreground">
+            Seção {Math.min(estado.secaoAtual, estado.totalSecoes)} de {estado.totalSecoes}
+            {estado.totalMomentos > 0 && (
+              <> · {estado.momentosConcluidos}/{estado.totalMomentos} etapas</>
+            )}
+          </div>
+        )}
         <div className="h-0.5 w-full bg-muted">
           <div
             className="h-full bg-primary transition-all duration-500"
@@ -450,6 +459,33 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
               {textoAtual}
             </div>
           ) : null}
+
+          {!busy && estado.proximoBloco && (
+            <div className="mt-8">
+              <BlocoResposta
+                key={estado.proximoBloco.id}
+                bloco={estado.proximoBloco}
+                casoId={estado.casoId}
+                token={token ?? "app"}
+                tokenLink={token}
+                casoIdAuth={casoId}
+                onSaved={async (resumo) => {
+                  await refreshEstado();
+                  const texto = `[BLOCO_SALVO ${estado.proximoBloco!.titulo}] ${resumo}`;
+                  await salvarMensagem({
+                    data: {
+                      token,
+                      casoId,
+                      role: "user",
+                      parts: [{ type: "text", text: texto }],
+                      clientMessageId: crypto.randomUUID(),
+                    },
+                  });
+                  await sendMessage({ text: texto });
+                }}
+              />
+            </div>
+          )}
 
           {!busy && estado.ultimaResposta && estado.ultimaResposta.perguntaId !== estado.proximaPerguntaId && (
             <div className="mx-auto mt-6 max-w-lg rounded-md border border-success/30 bg-success/10 px-4 py-3 text-left">
