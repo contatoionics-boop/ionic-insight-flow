@@ -25,6 +25,7 @@ import {
   Plus,
   Trash2,
   X,
+  Layers,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Modal, Select } from "@/components/ui-bits";
 import { BlocosModal } from "@/components/forms/BlocosModal";
