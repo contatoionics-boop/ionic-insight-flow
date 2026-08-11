@@ -48,6 +48,20 @@ export type EstadoVistoria = {
   totalSecoes: number;
   totalMomentos: number;
   momentosConcluidos: number;
+  /** Dados vindos do cadastro/agendamento aguardando confirmação do agente. */
+  cadastroPendente: {
+    perguntaId: string;
+    perguntaTexto: string;
+    secaoTitulo: string;
+    tipo: string;
+    valor: string;
+    obrigatoria: boolean;
+    opcoes: { id: string; texto: string }[];
+  }[];
+  /** Resumo do agendamento (cliente, endereço, agente, data, nível...). */
+  resumoCadastro: { label: string; valor: string }[];
+  /** true quando o agente já respondeu algo por conta própria. */
+  iniciado: boolean;
   ultimaResposta: {
     perguntaId: string;
     perguntaTexto: string;
