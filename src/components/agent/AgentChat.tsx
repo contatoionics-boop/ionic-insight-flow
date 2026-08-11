@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { BlocoResposta } from "@/components/agent/BlocoResposta";
+import { ConfirmacaoCadastro } from "@/components/agent/ConfirmacaoCadastro";
 import {
   getEstadoVistoria,
   finalizarVistoriaChat,
