@@ -33,6 +33,7 @@ export type AgentPergunta = {
   bloco_id: string | null;
   bloco_linha: string | null;
   bloco_coluna: string | null;
+  chave_laudo: string | null;
 };
 
 export type AgentResposta = {
@@ -40,7 +41,13 @@ export type AgentResposta = {
   arquivo_path: string | null;
   arquivos_paths: string[];
   transcricao: string | null;
+  /** Origem: preenchido automaticamente do cadastro e ainda não confirmado. */
+  origem_cadastro?: boolean;
 };
+
+/** Marcadores gravados em respostas_agente.ia_motivo. */
+export const MOTIVO_CADASTRO_PENDENTE = "preenchido_do_cadastro";
+export const MOTIVO_CADASTRO_CONFIRMADO = "confirmado_do_cadastro";
 
 export type RespostaSalva = {
   perguntaId: string;
@@ -103,7 +110,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")
     .select(
-      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
+      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, tipo_solicitacao, modalidade, nivel, agente_nome_manual, agente:profiles!casos_agente_id_fkey(nome), unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
     )
     .eq("id", casoId)
     .maybeSingle();
@@ -149,6 +156,48 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   if (unidade?.telefone) cadastro.push({ label: "Telefone da unidade", valor: unidade.telefone });
   if (unidade?.email) cadastro.push({ label: "E-mail da unidade", valor: unidade.email });
   if (enderecoVistoria) cadastro.push({ label: "Endereço do mapeamento", valor: enderecoVistoria });
+  if (unidade?.cidade) cadastro.push({ label: "Cidade", valor: unidade.cidade });
+  if (unidade?.estado) cadastro.push({ label: "Estado", valor: unidade.estado });
+  if (unidade?.bairro) cadastro.push({ label: "Bairro", valor: unidade.bairro });
+  if (unidade?.cep) cadastro.push({ label: "CEP", valor: unidade.cep });
+
+  const agenteNome =
+    (caso as any).agente?.nome ?? (caso as any).agente_nome_manual ?? null;
+  if (agenteNome) cadastro.push({ label: "Agente técnico", valor: agenteNome });
+
+  const agendadoEm = (caso as any).agendado_em as string | null;
+  if (agendadoEm) {
+    const d = new Date(agendadoEm);
+    cadastro.push({
+      label: "Data do mapeamento",
+      valor: d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    });
+    cadastro.push({
+      label: "Hora do mapeamento",
+      valor: d.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+  }
+
+  const rotulosEnum: Record<string, string> = {
+    instalacao: "Instalação",
+    upgrade: "Upgrade",
+    presencial: "Presencial",
+    remoto: "Remoto",
+    nivel_1: "Nível 1",
+    nivel_2: "Nível 2",
+    nivel_3: "Nível 3",
+  };
+  const tipoSolicitacao = (caso as any).tipo_solicitacao as string | null;
+  const modalidade = (caso as any).modalidade as string | null;
+  const nivel = (caso as any).nivel as string | null;
+  if (tipoSolicitacao)
+    cadastro.push({ label: "Tipo de solicitação", valor: rotulosEnum[tipoSolicitacao] ?? tipoSolicitacao });
+  if (modalidade) cadastro.push({ label: "Modalidade", valor: rotulosEnum[modalidade] ?? modalidade });
+  if (nivel) cadastro.push({ label: "Nível do serviço", valor: rotulosEnum[nivel] ?? nivel });
   if ((caso as any).observacoes_agendamento) cadastro.push({ label: "Observações do agendamento", valor: (caso as any).observacoes_agendamento });
 
   const { data: formulario } = await supabaseAdmin
@@ -168,7 +217,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     ? await supabaseAdmin
         .from("perguntas")
         .select(
-          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna",
+          "id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia, condicional_pergunta_id, condicional_operador, condicional_valor, bloco_id, bloco_linha, bloco_coluna, chave_laudo",
         )
         .in("secao_id", secoesIds)
         .order("ordem")
@@ -218,6 +267,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     bloco_id: p.bloco_id ?? null,
     bloco_linha: p.bloco_linha ?? null,
     bloco_coluna: p.bloco_coluna ?? null,
+    chave_laudo: p.chave_laudo ?? null,
   })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
 
   const blocos: AgentBloco[] = (blocosRaw ?? []).map((b: any) => ({
@@ -231,7 +281,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
-    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
+    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_motivo")
     .eq("caso_id", casoId);
   const state: Record<string, AgentResposta> = {};
   for (const r of respostas ?? []) {
@@ -240,6 +290,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
       arquivo_path: r.arquivo_path ?? null,
       arquivos_paths: (r as any).arquivos_paths ?? [],
       transcricao: r.transcricao ?? null,
+      origem_cadastro: (r as any).ia_motivo === MOTIVO_CADASTRO_PENDENTE,
     };
   }
 
@@ -388,21 +439,179 @@ function normalizarRotulo(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-/** Persiste dados cadastrais inequívocos antes de iniciar a conversa. */
-export async function sincronizarCadastro(ctx: AgentContext): Promise<void> {
+export type PreenchimentoCadastro = {
+  perguntaId: string;
+  perguntaTexto: string;
+  secaoTitulo: string;
+  tipo: string;
+  valor: string;
+  obrigatoria: boolean;
+  opcoes: { id: string; texto: string }[];
+};
+
+/** Chaves canônicas resolvidas a partir dos fatos de cadastro. */
+function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   const fatos = new Map(ctx.cadastro.map((f) => [normalizarRotulo(f.label), f.valor]));
-  for (const pergunta of ctx.perguntas) {
-    if (estaRespondida(ctx.state[pergunta.id])) continue;
-    const texto = normalizarRotulo(pergunta.texto);
-    let valor: string | undefined;
-    if (pergunta.tipo === "cnpj" || texto.includes("cnpj")) valor = fatos.get("cnpj");
-    else if (pergunta.tipo === "cep" || texto.includes("cep")) {
-      valor = fatos.get("endereco da unidade")?.match(/\b\d{5}-?\d{3}\b/)?.[0];
-    } else if (texto.includes("endereco") && !texto.includes("foto")) {
-      valor = fatos.get("endereco do mapeamento") ?? fatos.get("endereco da unidade");
+  const get = (...labels: string[]) => {
+    for (const l of labels) {
+      const v = fatos.get(normalizarRotulo(l));
+      if (v && v.trim()) return v.trim();
     }
+    return undefined;
+  };
+  const enderecoUnidade = get("Endereço da unidade");
+  const canon = new Map<string, string>();
+  const set = (k: string, v?: string) => {
+    if (v) canon.set(k, v);
+  };
+
+  set("nome_cliente", get("Empresa (cliente)", "Razão social da matriz", "Nome da matriz"));
+  set("unidade", get("Unidade"));
+  set(
+    "cliente_unidade",
+    [get("Empresa (cliente)", "Razão social da matriz", "Nome da matriz"), get("Unidade")]
+      .filter(Boolean)
+      .join(" · ") || undefined,
+  );
+  set("cnpj", get("CNPJ"));
+  set("endereco", get("Endereço do mapeamento", "Endereço da unidade"));
+  set("cep", get("CEP") ?? enderecoUnidade?.match(/\b\d{5}-?\d{3}\b/)?.[0]);
+  set("cidade", get("Cidade"));
+  set("estado", get("Estado"));
+  set("bairro", get("Bairro"));
+  set("telefone", get("Telefone da unidade", "Telefone da matriz"));
+  set("email", get("E-mail da unidade", "E-mail da matriz"));
+  set("agente_tecnico", get("Agente técnico"));
+  set("data_mapeamento", get("Data do mapeamento"));
+  set("hora_mapeamento", get("Hora do mapeamento"));
+  set("tipo_acao", get("Tipo de solicitação"));
+  set("modalidade", get("Modalidade"));
+  set("nivel_servico", get("Nível do serviço"));
+  return canon;
+}
+
+/** Mapeia chave_laudo → chave canônica de cadastro. */
+const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
+  nome_cliente: "nome_cliente",
+  tipo_acao: "tipo_acao",
+  modalidade: "modalidade",
+  nivel_servico: "nivel_servico",
+};
+
+/** Heurística por texto da pergunta → chave canônica. */
+function chavePorTexto(pergunta: AgentPergunta): string | null {
+  const t = normalizarRotulo(pergunta.texto);
+  if (t.includes("foto") || t.includes("imagem") || t.includes("video") || t.includes("audio"))
+    return null;
+  if (pergunta.tipo === "cnpj" || t.includes("cnpj")) return "cnpj";
+  if (pergunta.tipo === "cep" || t.includes("cep")) return "cep";
+  if (t.includes("agente tecnico") || t.includes("agente técnico") || t.includes("vistoriador") || t.includes("responsavel pelo mapeamento") || t.includes("tecnico responsavel"))
+    return "agente_tecnico";
+  if (t.includes("data") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento") || t.includes("visita")))
+    return "data_mapeamento";
+  if (t.includes("hora") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento")))
+    return "hora_mapeamento";
+  if (t.includes("cliente") && t.includes("unidade")) return "cliente_unidade";
+  if (t.includes("razao social") || t.includes("nome do cliente") || t.includes("nome da empresa") || t === "cliente" || t.includes("cliente:"))
+    return "nome_cliente";
+  if (t.includes("unidade") || t.includes("loja") || t.includes("posto") || t.includes("filial"))
+    return "unidade";
+  if (t.includes("endereco")) return "endereco";
+  if (t.includes("cidade")) return "cidade";
+  if (t.includes("estado") || t === "uf") return "estado";
+  if (t.includes("bairro")) return "bairro";
+  if (t.includes("telefone") || t.includes("contato telefonico")) return "telefone";
+  if (t.includes("e-mail") || t.includes("email")) return "email";
+  if (t.includes("tipo de solicitacao") || t.includes("instalacao ou upgrade")) return "tipo_acao";
+  if (t.includes("modalidade") || t.includes("presencial ou remoto")) return "modalidade";
+  if (t.includes("nivel")) return "nivel_servico";
+  return null;
+}
+
+const TIPOS_NAO_PREENCHIVEIS = new Set(["foto", "video", "audio", "checkbox"]);
+
+/**
+ * Persiste dados cadastrais inequívocos antes de iniciar a conversa.
+ * Só toca em perguntas ainda sem resposta e nunca em campos de mídia.
+ * Retorna o que foi (ou já estava) preenchido a partir do cadastro.
+ */
+export async function sincronizarCadastro(
+  ctx: AgentContext,
+): Promise<PreenchimentoCadastro[]> {
+  const canon = resolverFatosCanonicos(ctx);
+  const preenchidos: PreenchimentoCadastro[] = [];
+
+  for (const pergunta of ctx.perguntas) {
+    const atual = ctx.state[pergunta.id];
+    const jaRespondida = estaRespondida(atual);
+
+    // Já preenchida antes pelo cadastro e ainda pendente de confirmação.
+    if (jaRespondida && atual?.origem_cadastro) {
+      preenchidos.push({
+        perguntaId: pergunta.id,
+        perguntaTexto: pergunta.texto,
+        secaoTitulo: pergunta.secao_titulo,
+        tipo: pergunta.tipo,
+        valor: atual.valor_texto ?? "",
+        obrigatoria: pergunta.obrigatoria,
+        opcoes: pergunta.opcoes,
+      });
+      continue;
+    }
+    if (jaRespondida) continue;
+    if (TIPOS_NAO_PREENCHIVEIS.has(pergunta.tipo)) continue;
+
+    const chave =
+      (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
+      chavePorTexto(pergunta);
+    if (!chave) continue;
+    const valor = canon.get(chave);
     if (!valor) continue;
-    await execSalvarResposta(ctx.casoId, ctx, { pergunta_id: pergunta.id, valor_texto: valor });
+
+    // Seleção única só é preenchida quando o valor bate com uma opção.
+    if (pergunta.tipo === "selecao_unica") {
+      const match = pergunta.opcoes.find(
+        (o) => normalizarRotulo(o.texto) === normalizarRotulo(valor),
+      );
+      if (!match) continue;
+    }
+
+    const r = await execSalvarResposta(
+      ctx.casoId,
+      ctx,
+      { pergunta_id: pergunta.id, valor_texto: valor },
+      { origemCadastro: true },
+    );
+    if (!r.ok) continue;
+    preenchidos.push({
+      perguntaId: pergunta.id,
+      perguntaTexto: pergunta.texto,
+      secaoTitulo: pergunta.secao_titulo,
+      tipo: pergunta.tipo,
+      valor,
+      obrigatoria: pergunta.obrigatoria,
+      opcoes: pergunta.opcoes,
+    });
+  }
+  return preenchidos;
+}
+
+/** Confirma (com eventuais correções) os dados vindos do cadastro. */
+export async function confirmarCadastro(
+  ctx: AgentContext,
+  correcoes: { perguntaId: string; valor: string }[],
+): Promise<void> {
+  const mapa = new Map(correcoes.map((c) => [c.perguntaId, c.valor]));
+  const pendentes = ctx.perguntas.filter((p) => ctx.state[p.id]?.origem_cadastro);
+  for (const p of pendentes) {
+    const valor = (mapa.get(p.id) ?? ctx.state[p.id]?.valor_texto ?? "").trim();
+    if (!valor) continue;
+    await execSalvarResposta(
+      ctx.casoId,
+      ctx,
+      { pergunta_id: p.id, valor_texto: valor },
+      { confirmadoCadastro: true },
+    );
   }
 }
 
@@ -476,6 +685,10 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `## Opcionais pendentes (${pend.pendentesOpcionais.length})`,
     listaPendentes(pend.pendentesOpcionais.slice(0, 20)),
     ``,
+    `## Dados já preenchidos pelo cadastro/agendamento`,
+    `Os campos de cliente, unidade, endereço, CNPJ, CEP, agente técnico, data/hora, tipo de solicitação, modalidade e nível JÁ ESTÃO SALVOS a partir do cadastro e foram confirmados pelo agente no início. NUNCA pergunte esses dados novamente; se a mensagem do agente começar com [CADASTRO_CONFIRMADO], apenas agradeça em uma frase curta e siga direto para a PRÓXIMA PERGUNTA acima.`,
+    ``,
+
 
     `Você é o assistente técnico da Ionics conduzindo o **mapeamento técnico** de **${ctx.clienteNome}** usando o formulário **${ctx.formularioNome}**.`,
     ``,
@@ -533,6 +746,7 @@ export async function execSalvarResposta(
     arquivos_paths?: string[];
     transcricao?: string;
   },
+  opts?: { origemCadastro?: boolean; confirmadoCadastro?: boolean },
 ): Promise<{ ok: boolean; motivo?: string; estado_pos_salvamento?: { obrigatorias_faltando: number; total_obrigatorias: number; respondidas_obrigatorias: number; proxima_pergunta_id: string | null; pode_finalizar: boolean } }> {
   const p = ctx.perguntas.find((x) => x.id === input.pergunta_id);
   if (!p) return { ok: false, motivo: "pergunta_id desconhecido para este formulário." };
@@ -595,6 +809,12 @@ export async function execSalvarResposta(
     valor_texto = v === "não" ? "nao" : v;
   }
 
+  const ia_motivo = opts?.origemCadastro
+    ? MOTIVO_CADASTRO_PENDENTE
+    : opts?.confirmadoCadastro
+    ? MOTIVO_CADASTRO_CONFIRMADO
+    : null;
+
   const { error } = await supabaseAdmin
     .from("respostas_agente")
     .upsert(
@@ -606,6 +826,7 @@ export async function execSalvarResposta(
         arquivo_path,
         arquivos_paths,
         transcricao,
+        ia_motivo,
       },
       { onConflict: "caso_id,pergunta_id" },
     );
@@ -617,32 +838,36 @@ export async function execSalvarResposta(
     arquivo_path,
     arquivos_paths,
     transcricao,
+    origem_cadastro: !!opts?.origemCadastro,
   };
 
-  // Marca o mapeamento como iniciado na primeira resposta salva.
-  try {
-    const { data: caso } = await supabaseAdmin
-      .from("casos")
-      .select("status, agente_id, agendamento_id")
-      .eq("id", casoId)
-      .maybeSingle();
-    if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
-      const { error: updErr } = await supabaseAdmin
+  // Marca o mapeamento como iniciado na primeira resposta salva do agente.
+  // Pré-preenchimento do cadastro não conta como início.
+  if (!opts?.origemCadastro) {
+    try {
+      const { data: caso } = await supabaseAdmin
         .from("casos")
-        .update({ status: "em_andamento" })
+        .select("status, agente_id, agendamento_id")
         .eq("id", casoId)
-        .in("status", ["agendado", "rascunho"]);
-      if (!updErr) {
-        await registrarEvento({
-          casoId,
-          agendamentoId: caso.agendamento_id ?? null,
-          tipo: "vistoria_iniciada",
-          atorId: caso.agente_id ?? null,
-        });
+        .maybeSingle();
+      if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
+        const { error: updErr } = await supabaseAdmin
+          .from("casos")
+          .update({ status: "em_andamento" })
+          .eq("id", casoId)
+          .in("status", ["agendado", "rascunho"]);
+        if (!updErr) {
+          await registrarEvento({
+            casoId,
+            agendamentoId: caso.agendamento_id ?? null,
+            tipo: "vistoria_iniciada",
+            atorId: caso.agente_id ?? null,
+          });
+        }
       }
+    } catch (e) {
+      console.error("[vistoria] falha ao marcar iniciada:", e);
     }
-  } catch (e) {
-    console.error("[vistoria] falha ao marcar iniciada:", e);
   }
 
   // Compute post-save state so the model can see the real numbers immediately.

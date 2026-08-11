@@ -48,6 +48,20 @@ export type EstadoVistoria = {
   totalSecoes: number;
   totalMomentos: number;
   momentosConcluidos: number;
+  /** Dados vindos do cadastro/agendamento aguardando confirmação do agente. */
+  cadastroPendente: {
+    perguntaId: string;
+    perguntaTexto: string;
+    secaoTitulo: string;
+    tipo: string;
+    valor: string;
+    obrigatoria: boolean;
+    opcoes: { id: string; texto: string }[];
+  }[];
+  /** Resumo do agendamento (cliente, endereço, agente, data, nível...). */
+  resumoCadastro: { label: string; valor: string }[];
+  /** true quando o agente já respondeu algo por conta própria. */
+  iniciado: boolean;
   ultimaResposta: {
     perguntaId: string;
     perguntaTexto: string;
@@ -78,8 +92,14 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
 
     const { calcularPendencias, sincronizarCadastro } = await import("@/lib/vistoria-agent.server");
     const ctx = await loadAgentContext(casoId);
-    await sincronizarCadastro(ctx);
+    const cadastroPendente = await sincronizarCadastro(ctx);
     const pend = calcularPendencias(ctx);
+
+    const iniciado = Object.values(ctx.state).some(
+      (r) =>
+        !r.origem_cadastro &&
+        !!(r.valor_texto || r.arquivo_path || r.transcricao || r.arquivos_paths?.length),
+    );
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: ultima } = await supabaseAdmin
@@ -92,7 +112,7 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
 
     // Casos antigos podem ter respostas persistidas sem que o status tenha
     // acompanhado o primeiro salvamento. Corrige o estado sem recriar evento.
-    if (pend.respondidas > 0) {
+    if (iniciado) {
       const { error } = await supabaseAdmin
         .from("casos")
         .update({ status: "em_andamento" })
@@ -105,6 +125,9 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
       casoId,
       clienteNome: ctx.clienteNome,
       formularioNome: ctx.formularioNome,
+      cadastroPendente,
+      resumoCadastro: ctx.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
+      iniciado,
       totalVisiveis: pend.totalVisiveis,
       respondidas: pend.respondidas,
       totalObrigatorias: pend.totalObrigatorias,
@@ -359,4 +382,52 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
       erros,
       resumo: partesResumo.join(" · "),
     };
+  });
+
+const ConfirmarCadastroInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  correcoes: z
+    .array(z.object({ perguntaId: z.string().uuid(), valor: z.string() }))
+    .default([]),
+});
+
+/** Confirma os dados vindos do cadastro/agendamento e inicia o mapeamento. */
+export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => ConfirmarCadastroInput.parse(input))
+  .handler(async ({ data }) => {
+    const { loadAgentContext, validarTokenAcesso, confirmarCadastro } = await import(
+      "@/lib/vistoria-agent.server"
+    );
+    let casoId: string;
+    if (data.token) casoId = await validarTokenAcesso(data.token);
+    else if (data.casoId) casoId = data.casoId;
+    else throw new Error("Informe token ou casoId.");
+
+    const ctx = await loadAgentContext(casoId);
+    await confirmarCadastro(ctx, data.correcoes);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { registrarEvento } = await import("@/lib/eventos.server");
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("status, agente_id, agendamento_id")
+      .eq("id", casoId)
+      .maybeSingle();
+    if (caso && (caso.status === "agendado" || caso.status === "rascunho")) {
+      const { error } = await supabaseAdmin
+        .from("casos")
+        .update({ status: "em_andamento" })
+        .eq("id", casoId)
+        .in("status", ["agendado", "rascunho"]);
+      if (!error) {
+        await registrarEvento({
+          casoId,
+          agendamentoId: caso.agendamento_id ?? null,
+          tipo: "vistoria_iniciada",
+          atorId: caso.agente_id ?? null,
+        });
+      }
+    }
+    return { ok: true };
   });

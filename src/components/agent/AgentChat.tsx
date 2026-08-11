@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { BlocoResposta } from "@/components/agent/BlocoResposta";
+import { ConfirmacaoCadastro } from "@/components/agent/ConfirmacaoCadastro";
 import {
   getEstadoVistoria,
   finalizarVistoriaChat,
@@ -123,6 +124,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const initialMessages = useMemo<UIMessage[]>(() => {
     if (!estado || historico === null) return [];
     if (historico.length > 0) return historico;
+    const precisaConfirmar = estado.cadastroPendente.length > 0;
     return [
       {
         id: "greeting",
@@ -130,7 +132,9 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
         parts: [
           {
             type: "text",
-            text: `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nVamos iniciar o mapeamento técnico de ${estado.clienteNome}.\n\nEnvie qualquer mensagem para começar.`,
+            text: precisaConfirmar
+              ? `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nMapeamento de ${estado.clienteNome}. Confira abaixo os dados que já temos do agendamento antes de começar.`
+              : `Olá! Sou o assistente técnico da ${nomeEmpresa}.\n\nVamos iniciar o mapeamento técnico de ${estado.clienteNome}.\n\nEnvie qualquer mensagem para começar.`,
           },
         ],
       },
@@ -365,11 +369,13 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const textoIndicaFinalizacao = /tudo registrado|pode finalizar|finalizar o mapeamento/i.test(
     lastAssistantText,
   );
+  const precisaConfirmarCadastro = estado.cadastroPendente.length > 0;
   const deveMostrarRetomada =
+    !precisaConfirmarCadastro &&
     !!estado.proximaPerguntaTexto &&
     estado.obrigatoriasFaltando > 0 &&
     (!enviouNestaAberturaRef.current || textoIndicaFinalizacao);
-  const textoRetomada = formatarPerguntaRetomada(estado);
+  const textoRetomada = formatarPerguntaRetomada(estado, estado.iniciado);
   const textoAtual = deveMostrarRetomada ? textoRetomada : lastAssistantText;
 
   return (
@@ -460,7 +466,31 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             </div>
           ) : null}
 
-          {!busy && estado.proximoBloco && (
+          {!busy && precisaConfirmarCadastro && (
+            <div className="mt-8">
+              <ConfirmacaoCadastro
+                estado={estado}
+                token={token}
+                casoId={casoId}
+                onConfirmado={async (resumo) => {
+                  await refreshEstado();
+                  const texto = `[CADASTRO_CONFIRMADO] ${resumo}`;
+                  await salvarMensagem({
+                    data: {
+                      token,
+                      casoId,
+                      role: "user",
+                      parts: [{ type: "text", text: texto }],
+                      clientMessageId: crypto.randomUUID(),
+                    },
+                  });
+                  await sendMessage({ text: texto });
+                }}
+              />
+            </div>
+          )}
+
+          {!busy && !precisaConfirmarCadastro && estado.proximoBloco && (
             <div className="mt-8">
               <BlocoResposta
                 key={estado.proximoBloco.id}
@@ -696,7 +726,7 @@ function friendlyChatError(message?: string) {
   return message;
 }
 
-function formatarPerguntaRetomada(estado: EstadoVistoria) {
+function formatarPerguntaRetomada(estado: EstadoVistoria, iniciado = true) {
   if (!estado.proximaPerguntaTexto) return "";
   const opcoes = estado.proximaPerguntaOpcoes.length
     ? `\n\n${estado.proximaPerguntaOpcoes.map((opcao, index) => `${index + 1}. ${opcao.texto}`).join("\n")}`
@@ -704,7 +734,10 @@ function formatarPerguntaRetomada(estado: EstadoVistoria) {
   const orientacao = estado.proximaPerguntaInstrucao?.trim()
     ? `\n\n${estado.proximaPerguntaInstrucao.trim()}`
     : "";
-  return `Vamos continuar de onde você parou.\n\n${estado.proximaPerguntaTexto}${orientacao}${opcoes}`;
+  const abertura = iniciado
+    ? "Vamos continuar de onde você parou."
+    : "Dados confirmados. Vamos começar o mapeamento.";
+  return `${abertura}\n\n${estado.proximaPerguntaTexto}${orientacao}${opcoes}`;
 }
 
 function VoiceButton({
