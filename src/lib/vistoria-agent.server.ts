@@ -279,7 +279,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
 
   const { data: respostas } = await supabaseAdmin
     .from("respostas_agente")
-    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
+    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_motivo")
     .eq("caso_id", casoId);
   const state: Record<string, AgentResposta> = {};
   for (const r of respostas ?? []) {
@@ -288,6 +288,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
       arquivo_path: r.arquivo_path ?? null,
       arquivos_paths: (r as any).arquivos_paths ?? [],
       transcricao: r.transcricao ?? null,
+      origem_cadastro: (r as any).ia_motivo === MOTIVO_CADASTRO_PENDENTE,
     };
   }
 
