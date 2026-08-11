@@ -195,6 +195,9 @@ export type Database = {
           endereco_vistoria: string | null
           formulario_id: string | null
           id: string
+          laudo_alertas: Json
+          laudo_conteudo: Json | null
+          laudo_variaveis: Json
           modalidade: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa: string | null
           nivel: Database["public"]["Enums"]["nivel_mapeamento"]
@@ -219,6 +222,9 @@ export type Database = {
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          laudo_alertas?: Json
+          laudo_conteudo?: Json | null
+          laudo_variaveis?: Json
           modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
           nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
@@ -243,6 +249,9 @@ export type Database = {
           endereco_vistoria?: string | null
           formulario_id?: string | null
           id?: string
+          laudo_alertas?: Json
+          laudo_conteudo?: Json | null
+          laudo_variaveis?: Json
           modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
           motivo_recusa?: string | null
           nivel?: Database["public"]["Enums"]["nivel_mapeamento"]
@@ -288,6 +297,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      catalogo_materiais: {
+        Row: {
+          aplicacao: string | null
+          ativo: boolean
+          atualizado_em: string
+          codigo: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string
+          id: string
+          ordem: number
+          quantidade_padrao: number
+          regra: Json
+          unidade: string
+        }
+        Insert: {
+          aplicacao?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          codigo: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao: string
+          id?: string
+          ordem?: number
+          quantidade_padrao?: number
+          regra?: Json
+          unidade?: string
+        }
+        Update: {
+          aplicacao?: string | null
+          ativo?: boolean
+          atualizado_em?: string
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string
+          id?: string
+          ordem?: number
+          quantidade_padrao?: number
+          regra?: Json
+          unidade?: string
+        }
+        Relationships: []
       }
       chat_mensagens: {
         Row: {
@@ -830,6 +884,7 @@ export type Database = {
       }
       perguntas: {
         Row: {
+          chave_laudo: string | null
           condicional_operador: string | null
           condicional_pergunta_id: string | null
           condicional_valor: string | null
@@ -844,6 +899,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Insert: {
+          chave_laudo?: string | null
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
@@ -858,6 +914,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["pergunta_tipo"]
         }
         Update: {
+          chave_laudo?: string | null
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
