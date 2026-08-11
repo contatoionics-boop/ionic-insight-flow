@@ -356,9 +356,7 @@ export function calcularPendencias(ctx: AgentContext): Pendencias {
   }
   let blocosConcluidos = 0;
   for (const arr of blocosVisiveis.values()) {
-    if (arr.every((p) => resp(p) || !p.obrigatoria ? resp(p) : false) || arr.every(resp)) {
-      blocosConcluidos++;
-    }
+    if (arr.every(resp)) blocosConcluidos++;
   }
 
   const secoesOrdenadas = [...ctx.secoes].sort((a, b) => a.ordem - b.ordem);
