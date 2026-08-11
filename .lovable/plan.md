@@ -11,11 +11,14 @@ Hoje o PDF é um espelho do formulário: imprime pergunta/resposta na ordem das 
 
 ## Extração de variáveis (híbrida)
 
-- Cada pergunta ganha um campo opcional **"chave do laudo"** no editor de formulários (ex. `nome_cliente`, `bitola_bico`, `terminal_atual`, `comunicacao_tipos`, `nivel_servico`, `marca_veiculo`, `vazao`, `rfid`, `cliente_ja_tem_saaf`, `qtd_bicos`, `tipo_objeto`, `ids_objetos`).
-- Onde houver chave, o valor vai direto (determinístico).
-- Onde faltar, uma passada de IA (OpenAI, já configurado) lê todas as respostas do caso e tenta preencher o restante, devolvendo também um nível de confiança.
+- Cada pergunta ganha um campo opcional **"chave do laudo"** no editor de formulários (ex. `nome_cliente`, `bitola_bico`, `terminal_atual`, `comunicacao_tipos`, `nivel_servico`, `marca_veiculo`, `vazao`, `rfid`, `cliente_ja_tem_saaf`, `qtd_bicos`, `tipo_objeto`, `ids_objetos`, `compartimento_dimensao`).
+- Onde houver chave, o valor vai direto (determinístico) e é considerado confiável.
+- Onde faltar, uma passada de IA (OpenAI, já configurado) lê todas as respostas do caso e propõe o valor com um nível de confiança.
+- **Confiança baixa nunca vira valor no laudo.** Abaixo do limiar (0,8), o campo entra como `[CONFIRMAR: <campo>]` mesmo que a IA tenha proposto algo; a sugestão fica visível só na tela de revisão, como sugestão a aceitar, nunca impressa direto no PDF. A IA não "chuta" bitola, nível, dimensão ou código de produto.
+- Toda variável de origem IA fica marcada com origem e confiança no JSON salvo, para a revisão distinguir o que veio do formulário do que foi inferido.
 - O que sobrar sem valor vira `[CONFIRMAR: <campo>]` no documento — nunca é omitido em silêncio.
 - O JSON de variáveis fica salvo no caso, para o laudo ser reprodutível e editável.
+
 
 ## Estrutura do documento gerada
 
