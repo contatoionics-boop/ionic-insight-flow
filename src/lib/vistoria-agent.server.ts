@@ -421,6 +421,15 @@ export function buildSystemPrompt(ctx: AgentContext): string {
       instrucao: p.instrucao_agente,
       contexto_ia: p.contexto_ia,
       opcoes: p.opcoes.length ? p.opcoes : undefined,
+      bloco: p.bloco_id
+        ? {
+            id: p.bloco_id,
+            titulo: ctx.blocos.find((b) => b.id === p.bloco_id)?.titulo ?? "",
+            layout: ctx.blocos.find((b) => b.id === p.bloco_id)?.layout ?? "cartao",
+            linha: p.bloco_linha,
+            coluna: p.bloco_coluna,
+          }
+        : undefined,
       condicional: p.condicional_pergunta_id
         ? {
             depende_de: p.condicional_pergunta_id,
@@ -482,6 +491,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Idioma: português do Brasil. Tom: formal técnico ("Por favor, informe…", "Poderia confirmar…").`,
     `- **Inicie a conversa direto pela primeira pergunta pendente** — não faça apresentação longa nem pergunte dados de cliente/endereço que já constam acima. Um cumprimento curto ("Olá! Vamos continuar o mapeamento.") seguido imediatamente da próxima pergunta basta.`,
     `- Faça **uma pergunta por vez**, reformulando o texto cru de forma natural e clara. Não leia o texto da pergunta literalmente — explique o que precisa.`,
+    `- **Blocos agrupados:** quando a próxima pendência pertence a um bloco (campo \`bloco\` no JSON abaixo), a interface exibe um cartão com TODOS os campos do bloco de uma vez e o agente técnico preenche tudo junto. Nesse caso, anuncie o bloco em uma frase curta (ex.: \"Vamos registrar os dados da Bomba.\") e NÃO repita as perguntas campo a campo nem chame \`salvar_resposta\` — o cartão salva sozinho. Quando receber a mensagem \"[BLOCO_SALVO ...]\", apenas confirme brevemente e siga para a próxima pendência.`,
     `- Para perguntas tipo "foto", peça que o agente técnico anexe a imagem pelo botão de câmera.`,
     `- Para perguntas tipo "audio", aceite a transcrição enviada como texto.`,
     `- Para perguntas com \`opcoes\`, apresente as opções numeradas.`,
