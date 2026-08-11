@@ -7,6 +7,7 @@ import {
   type ContextoRegras,
   type MaterialCatalogo,
 } from "./regras";
+import { FIGURA_SUPORTE_BICO } from "./figuras";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 
 export type CabecalhoLaudo = {
@@ -61,8 +62,12 @@ function idsObjetos(vars: VariaveisLaudo): string[] {
 let seq = 0;
 const bid = (p: string) => `${p}-${++seq}`;
 
+let figSeq = 0;
+const proximaFigura = () => ++figSeq;
+
 export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
   seq = 0;
+  figSeq = 0;
   const vars = entrada.variaveis;
   const blocos: BlocoLaudo[] = [];
 
