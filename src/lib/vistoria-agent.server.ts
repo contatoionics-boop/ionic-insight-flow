@@ -109,7 +109,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")
     .select(
-      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
+      "id, formulario_id, agendamento_id, endereco_vistoria, observacoes_agendamento, agendado_em, tipo_solicitacao, modalidade, nivel, agente_nome_manual, agente:profiles!casos_agente_id_fkey(nome), unidade:unidades(nome, logradouro, numero, bairro, cidade, estado, cep, telefone, email, matriz:matrizes(nome, razao_social, cnpj, telefone, email, logradouro, numero, bairro, cidade, estado, cep, empresa:empresas(nome)))",
     )
     .eq("id", casoId)
     .maybeSingle();
