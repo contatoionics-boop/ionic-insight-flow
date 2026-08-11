@@ -459,6 +459,9 @@ export async function buildLaudoPdf(input: {
       case "alert":
         alerta(ctx, b.severidade, b.texto);
         break;
+      case "image":
+        await figura(ctx, b, input.baseUrl);
+        break;
     }
   }
 

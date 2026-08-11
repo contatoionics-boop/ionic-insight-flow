@@ -326,6 +326,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         agente: meta.agente,
       },
       blocos: conteudo.blocos as BlocoLaudo[],
+      baseUrl: origemRequisicao(),
     });
 
     return {
