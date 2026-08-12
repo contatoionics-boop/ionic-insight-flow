@@ -141,10 +141,13 @@ export function isComplete(
       if (mode === "preview") return !!r.filePreview;
       if (!r.filePath) return false;
       if (!validarIa) return true;
-      if (!r.ia) return false;
+      // Se a análise por IA não retornou (falha/indisponível), a confirmação
+      // manual do usuário libera o avanço — a foto já está no storage.
+      if (!r.ia) return !!r.iaConfirmada;
       if (r.ia.status === "incorreta") return false;
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
+
     case "video":
       return mode === "preview" ? !!r.filePreview : !!r.filePath;
     case "audio":
