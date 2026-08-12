@@ -433,10 +433,12 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
                 <Input
                   value={valor}
                   placeholder={c.exemplos?.join(" | ") ?? c.descricao}
-                  onChange={(e) =>
-                    setEdits((prev) => ({ ...prev, [c.chave]: e.currentTarget.value }))
-                  }
+                  onChange={(e) => {
+                    const novo = e.target.value;
+                    setEdits((prev) => ({ ...prev, [c.chave]: novo }));
+                  }}
                 />
+
                 {v?.sugestao && !v.valor ? (
                   <button
                     type="button"
