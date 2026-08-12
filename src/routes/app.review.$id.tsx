@@ -352,13 +352,20 @@ function ReviewCasePage() {
     }
   };
 
-  const baixarPdf = async () => {
+  const baixarArquivo = async (
+    fn: (args: { data: { casoId: string } }) => Promise<{
+      contentBase64: string;
+      mimeType: string;
+      filename: string;
+    }>,
+    setBusy: (v: boolean) => void,
+  ) => {
     if (!caseData) return;
-    setDownloading(true);
+    setBusy(true);
     setPdfError(null);
     try {
       if (Object.values(dirty).some(Boolean)) await salvarTudo();
-      const out = await gerarPdf({ data: { casoId: caseData.id } });
+      const out = await fn({ data: { casoId: caseData.id } });
       const binary = atob(out.contentBase64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -374,9 +381,12 @@ function ReviewCasePage() {
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : "Falha ao gerar PDF.");
     } finally {
-      setDownloading(false);
+      setBusy(false);
     }
   };
+
+  const baixarPdf = () => baixarArquivo(gerarLaudoPdf as any, setDownloading);
+  const baixarPdfBruto = () => baixarArquivo(gerarPdf as any, setDownloadingBruto);
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!caseData) {
