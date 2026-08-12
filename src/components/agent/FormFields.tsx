@@ -739,9 +739,17 @@ function CampoFoto({
       setAnalisando(true);
       try {
         const base64 = await fileToBase64(file);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(casoId);
         const ia = (await validarFn({
-          data: { token, casoId, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
+          data: {
+            token,
+            ...(ehUuid ? { casoId } : {}),
+            perguntaId: pergunta.id,
+            imagemBase64: base64,
+            mime: file.type || "image/jpeg",
+          },
         })) as IaResultado;
+
 
         update({ ia, iaConfirmada: ia.status === "aprovada" });
       } catch (iaErr) {
