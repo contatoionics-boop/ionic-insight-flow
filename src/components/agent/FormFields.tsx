@@ -740,8 +740,9 @@ function CampoFoto({
       try {
         const base64 = await fileToBase64(file);
         const ia = (await validarFn({
-          data: { token, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
+          data: { token, casoId, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
         })) as IaResultado;
+
         update({ ia, iaConfirmada: ia.status === "aprovada" });
       } catch (iaErr) {
         // Falha da IA não bloqueia o envio: marca como confirmada pelo usuário e exibe aviso.
