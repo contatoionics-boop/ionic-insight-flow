@@ -724,7 +724,7 @@ function CampoFoto({
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false });
       if (error) throw error;
       const preview = URL.createObjectURL(file);
@@ -858,7 +858,7 @@ function CampoVideo({
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
-      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("agente-uploads")
         .upload(path, file, { upsert: false, contentType: file.type });
@@ -940,7 +940,7 @@ function CampoAudio({
     setUploading(true);
     setErr(null);
     try {
-      const path = `${casoId}/${crypto.randomUUID()}.${ext}`;
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("agente-uploads").upload(path, blob, { upsert: false });
       if (error) throw error;
       update({ audioPath: path, transcription: "", transcriptionConfirmed: false });
