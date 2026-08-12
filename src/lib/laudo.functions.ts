@@ -245,9 +245,15 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!caso) throw new Error("Mapeamento não encontrado.");
 
-    const conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
+    let conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
     if (!conteudo?.blocos?.length) {
-      throw new Error("Gere o laudo antes de exportar o PDF.");
+      // Monta o laudo na hora (casos antigos ou ainda não montados)
+      const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+      const res = await montarESalvarLaudo(supabase, data.casoId);
+      conteudo = res.conteudo;
+    }
+    if (!conteudo?.blocos?.length) {
+      throw new Error("Não foi possível montar o laudo deste mapeamento.");
     }
 
     const confirmacoes = (caso.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[];

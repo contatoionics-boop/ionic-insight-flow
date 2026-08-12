@@ -25,6 +25,7 @@ import {
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
+import { gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel } from "@/components/laudo/LaudoPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
@@ -91,8 +92,10 @@ function ReviewCasePage() {
   const [reopenReason, setReopenReason] = useState("");
   const [working, setWorking] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingBruto, setDownloadingBruto] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const gerarPdf = useServerFn(gerarPdfMapeamento);
+  const gerarLaudoPdf = useServerFn(gerarPdfLaudo);
   const aprovarFn = useServerFn(aprovarMapeamento);
   const recusarFn = useServerFn(solicitarCorrecao);
 
@@ -349,13 +352,20 @@ function ReviewCasePage() {
     }
   };
 
-  const baixarPdf = async () => {
+  const baixarArquivo = async (
+    fn: (args: { data: { casoId: string } }) => Promise<{
+      contentBase64: string;
+      mimeType: string;
+      filename: string;
+    }>,
+    setBusy: (v: boolean) => void,
+  ) => {
     if (!caseData) return;
-    setDownloading(true);
+    setBusy(true);
     setPdfError(null);
     try {
       if (Object.values(dirty).some(Boolean)) await salvarTudo();
-      const out = await gerarPdf({ data: { casoId: caseData.id } });
+      const out = await fn({ data: { casoId: caseData.id } });
       const binary = atob(out.contentBase64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -371,9 +381,12 @@ function ReviewCasePage() {
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : "Falha ao gerar PDF.");
     } finally {
-      setDownloading(false);
+      setBusy(false);
     }
   };
+
+  const baixarPdf = () => baixarArquivo(gerarLaudoPdf as any, setDownloading);
+  const baixarPdfBruto = () => baixarArquivo(gerarPdf as any, setDownloadingBruto);
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!caseData) {
@@ -409,8 +422,19 @@ function ReviewCasePage() {
             </Button>
             <Button variant="outline" onClick={baixarPdf} disabled={downloading}>
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Baixar PDF
+              Baixar laudo (PDF)
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={baixarPdfBruto}
+              disabled={downloadingBruto}
+              title="Exportação interna com pergunta/resposta"
+            >
+              {downloadingBruto ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              PDF de respostas (bruto)
+            </Button>
+
             <Button variant="outline" onClick={() => setReopenOpen(true)}>
               <AlertCircle className="h-4 w-4" /> Solicitar reenvio
             </Button>
