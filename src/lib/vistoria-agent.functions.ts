@@ -227,7 +227,7 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin
       .from("casos")
-      .update({ status: "aguardando_revisao" })
+      .update({ status: "aguardando_revisao", data_entrega_agente: new Date().toISOString() })
       .eq("id", casoId);
     if (error) throw new Error(error.message);
 
@@ -238,8 +238,20 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
       tipo: "vistoria_finalizada",
       atorId: (caso as any)?.agente_id ?? null,
     });
-    return { ok: true };
+
+    // Gera o laudo estruturado já na entrega — falha aqui não bloqueia a finalização.
+    let laudoGerado = false;
+    try {
+      const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+      await montarESalvarLaudo(supabaseAdmin, casoId);
+      laudoGerado = true;
+    } catch (e) {
+      console.error("[finalizarVistoriaChat] falha ao gerar laudo:", e);
+    }
+
+    return { ok: true, laudoGerado };
   });
+
 
 
 // ============= Histórico de chat =============

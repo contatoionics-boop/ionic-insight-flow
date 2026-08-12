@@ -46,6 +46,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
     { to: "/app/cases", label: "Mapeamentos", icon: FolderKanban },
     { to: "/app/forms", label: "Formulários", icon: FileText },
+    { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/agente-ia", label: "Agente de IA", icon: Bot },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
@@ -54,6 +55,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/cases", label: "Mapeamentos", icon: FolderKanban },
+    { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
   especialista: [

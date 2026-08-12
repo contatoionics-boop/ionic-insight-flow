@@ -178,6 +178,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [confirmacoes, setConfirmacoes] = useState<ConfirmacaoAlerta[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [alertaAberto, setAlertaAberto] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [decisao, setDecisao] = useState<"corrigido" | "ciente_do_risco">("corrigido");
   const [justificativa, setJustificativa] = useState("");
 
@@ -260,11 +261,22 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
     }
   }
 
-  async function handlePdf() {
+  async function handlePdf(preview = false) {
     setBaixando(true);
     try {
       const r = await fnPdf({ data: { casoId } });
-      baixarBase64(r.contentBase64, r.filename, r.mimeType);
+      if (preview) {
+        const bin = atob(r.contentBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const url = URL.createObjectURL(new Blob([bytes], { type: r.mimeType }));
+        setPdfUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      } else {
+        baixarBase64(r.contentBase64, r.filename, r.mimeType);
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao gerar o PDF.");
     } finally {
@@ -304,7 +316,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
           </Button>
           <Button
             variant="secondary"
-            onClick={handlePdf}
+            onClick={() => handlePdf(true)}
             disabled={!conteudo || baixando || pendentes.length > 0}
             title={
               pendentes.length ? "Confirme os alertas bloqueantes antes de emitir o PDF." : undefined
@@ -315,10 +327,35 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
             ) : (
               <FileDown className="mr-2 h-4 w-4" />
             )}
-            PDF do laudo
+            Pré-visualizar PDF
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => handlePdf(false)}
+            disabled={!conteudo || baixando || pendentes.length > 0}
+            title={
+              pendentes.length ? "Confirme os alertas bloqueantes antes de emitir o PDF." : undefined
+            }
+          >
+            {baixando ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Baixar PDF
           </Button>
         </div>
       </Card>
+
+      {pdfUrl && (
+        <Card className="p-2">
+          <iframe
+            src={pdfUrl}
+            title="Pré-visualização do laudo"
+            className="h-[70vh] w-full rounded-lg border border-border"
+          />
+        </Card>
+      )}
 
       {bloqueantes.length > 0 && (
         <Card className="p-4">

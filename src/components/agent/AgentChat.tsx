@@ -466,6 +466,33 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             </div>
           ) : null}
 
+          {!busy && !precisaConfirmarCadastro && estado.obrigatoriasFaltando === 0 && (
+            <div className="mx-auto mt-8 max-w-lg rounded-2xl border border-success/40 bg-success/10 p-6 text-center">
+              <Check className="mx-auto h-8 w-8 text-success" strokeWidth={3} />
+              <p className="mt-3 text-base font-semibold text-foreground">
+                Tudo respondido neste mapeamento.
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ao finalizar, o mapeamento vai para a fila de revisão e o documento é gerado
+                automaticamente.
+              </p>
+              <Button
+                variant="primary"
+                onClick={handleFinalizar}
+                disabled={finalizando}
+                className="mt-4 w-full justify-center rounded-full"
+              >
+                {finalizando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Finalizar e enviar para revisão"
+                )}
+              </Button>
+            </div>
+          )}
+
+
+
           {!busy && precisaConfirmarCadastro && (
             <div className="mt-8">
               <ConfirmacaoCadastro

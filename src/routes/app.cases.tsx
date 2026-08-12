@@ -289,6 +289,17 @@ function CasesPage() {
                   </Td>
                   <Td>{c.agendado_em ? new Date(c.agendado_em).toLocaleDateString("pt-BR") : new Date(c.criado_em).toLocaleDateString("pt-BR")}</Td>
                   <Td>
+                    {c.status === "aguardando_revisao" && (
+                      <div onClick={(e) => e.stopPropagation()} className="mb-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate({ to: "/app/review/$id", params: { id: c.id } })}
+                        >
+                          Revisar
+                        </Button>
+                      </div>
+                    )}
                     {recusado && (
                       <div onClick={(e) => e.stopPropagation()}>
                         <Button
