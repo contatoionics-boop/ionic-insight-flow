@@ -141,10 +141,13 @@ export function isComplete(
       if (mode === "preview") return !!r.filePreview;
       if (!r.filePath) return false;
       if (!validarIa) return true;
-      if (!r.ia) return false;
+      // Se a análise por IA não retornou (falha/indisponível), a confirmação
+      // manual do usuário libera o avanço — a foto já está no storage.
+      if (!r.ia) return !!r.iaConfirmada;
       if (r.ia.status === "incorreta") return false;
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
+
     case "video":
       return mode === "preview" ? !!r.filePreview : !!r.filePath;
     case "audio":
@@ -736,9 +739,18 @@ function CampoFoto({
       setAnalisando(true);
       try {
         const base64 = await fileToBase64(file);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(casoId);
         const ia = (await validarFn({
-          data: { token, perguntaId: pergunta.id, imagemBase64: base64, mime: file.type || "image/jpeg" },
+          data: {
+            token,
+            ...(ehUuid ? { casoId } : {}),
+            perguntaId: pergunta.id,
+            imagemBase64: base64,
+            mime: file.type || "image/jpeg",
+          },
         })) as IaResultado;
+
+
         update({ ia, iaConfirmada: ia.status === "aprovada" });
       } catch (iaErr) {
         // Falha da IA não bloqueia o envio: marca como confirmada pelo usuário e exibe aviso.
