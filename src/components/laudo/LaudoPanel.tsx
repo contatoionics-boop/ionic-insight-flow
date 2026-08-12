@@ -302,6 +302,10 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
               ? `Gerado em ${new Date(conteudo.gerado_em).toLocaleString("pt-BR")}`
               : "Ainda não gerado para este mapeamento."}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Editou respostas na aba anterior? Clique em <strong>Regerar</strong> para atualizar o
+            documento e o PDF.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={handleGerar} disabled={gerando}>
