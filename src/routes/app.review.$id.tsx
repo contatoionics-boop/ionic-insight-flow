@@ -422,8 +422,19 @@ function ReviewCasePage() {
             </Button>
             <Button variant="outline" onClick={baixarPdf} disabled={downloading}>
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Baixar PDF
+              Baixar laudo (PDF)
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={baixarPdfBruto}
+              disabled={downloadingBruto}
+              title="Exportação interna com pergunta/resposta"
+            >
+              {downloadingBruto ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              PDF de respostas (bruto)
+            </Button>
+
             <Button variant="outline" onClick={() => setReopenOpen(true)}>
               <AlertCircle className="h-4 w-4" /> Solicitar reenvio
             </Button>
