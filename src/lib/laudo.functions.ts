@@ -90,36 +90,9 @@ export const gerarLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => CasoInput.parse(i))
   .handler(async ({ data, context }) => {
-    const { extrairVariaveis } = await import("@/lib/laudo/extrair.server");
+    const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
     const supabase = context.supabase;
-    const { caso, respostas, materiais } = await carregarContexto(supabase, data.casoId);
-
-    const anteriores = (caso.laudo_variaveis ?? {}) as VariaveisLaudo;
-    const manuais: VariaveisLaudo = Object.fromEntries(
-      Object.entries(anteriores).filter(([, v]) => v?.origem === "manual" && v?.valor),
-    );
-
-    const variaveis = await extrairVariaveis(respostas, manuais);
-    const meta = metaDoCaso(caso);
-    const blocos = montarBlocos({
-      variaveis,
-      materiais,
-      cabecalho: {
-        cliente: meta.cliente,
-        unidade: meta.unidade,
-        data: meta.data,
-        agente: meta.agente,
-        especialista: "",
-        modalidade: caso.modalidade ?? null,
-      },
-    });
-
-    const conteudo: LaudoConteudo = { gerado_em: new Date().toISOString(), blocos };
-    const { error } = await supabase
-      .from("casos")
-      .update({ laudo_variaveis: variaveis as any, laudo_conteudo: conteudo as any })
-      .eq("id", data.casoId);
-    if (error) throw new Error(error.message);
+    const { caso, variaveis, conteudo, blocos } = await montarESalvarLaudo(supabase, data.casoId);
 
     return {
       variaveis,
@@ -129,6 +102,7 @@ export const gerarLaudo = createServerFn({ method: "POST" })
       confirmacoes: (caso.laudo_alertas ?? []) as ConfirmacaoAlerta[],
     };
   });
+
 
 /** Carrega o laudo já salvo, sem chamar a IA. */
 export const carregarLaudo = createServerFn({ method: "POST" })
