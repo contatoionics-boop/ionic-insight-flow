@@ -27,6 +27,7 @@ function getProvider() {
 
 const ValidarFotoInput = z.object({
   token: z.string().min(1),
+  casoId: z.string().uuid().optional(),
   perguntaId: z.string().uuid(),
   imagemBase64: z.string().min(1),
   mime: z.string().min(1),
@@ -42,9 +43,13 @@ const FotoSchema = z.object({
 export const validarFoto = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ValidarFotoInput.parse(input))
   .handler(async ({ data }) => {
-    if (data.token !== "preview") {
+    // "preview" (editor) e "app" (sessão autenticada, identificada por casoId)
+    // não usam link público; nesses casos não há token a validar.
+    const semLink = data.token === "preview" || data.token === "app" || !!data.casoId;
+    if (!semLink) {
       await validarToken(data.token);
     }
+
 
     const { data: pergunta, error } = await supabaseAdmin
       .from("perguntas")
