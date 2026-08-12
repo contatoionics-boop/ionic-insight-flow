@@ -11,6 +11,7 @@ type Caso = {
   id: string;
   codigo: string;
   criado_em: string;
+  data_entrega_agente: string | null;
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
 };
@@ -23,7 +24,7 @@ function ReviewQueuePage() {
     (async () => {
       const { data } = await supabase
         .from("casos")
-        .select("id, codigo, criado_em, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
+        .select("id, codigo, criado_em, data_entrega_agente, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)")
         .eq("status", "aguardando_revisao")
         .order("criado_em", { ascending: false });
       setQueue((data ?? []) as unknown as Caso[]);
@@ -48,7 +49,7 @@ function ReviewQueuePage() {
               <div>
                 <p className="text-sm font-semibold text-foreground">{c.codigo} · {c.unidade?.matriz?.empresa?.nome ?? "—"}{c.unidade?.nome ? ` · ${c.unidade.nome}` : ""}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Enviado em {new Date(c.criado_em).toLocaleDateString("pt-BR")} · Agente {c.agente?.nome ?? "—"}
+                  Entregue em {c.data_entrega_agente ? new Date(c.data_entrega_agente).toLocaleString("pt-BR") : new Date(c.criado_em).toLocaleDateString("pt-BR")} · Agente {c.agente?.nome ?? "—"}
                 </p>
               </div>
               <Link to="/app/review/$id" params={{ id: c.id }}>
