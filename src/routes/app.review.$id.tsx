@@ -92,8 +92,10 @@ function ReviewCasePage() {
   const [reopenReason, setReopenReason] = useState("");
   const [working, setWorking] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingBruto, setDownloadingBruto] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const gerarPdf = useServerFn(gerarPdfMapeamento);
+  const gerarLaudoPdf = useServerFn(gerarPdfLaudo);
   const aprovarFn = useServerFn(aprovarMapeamento);
   const recusarFn = useServerFn(solicitarCorrecao);
 
