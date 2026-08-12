@@ -25,6 +25,7 @@ import {
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
+import { gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel } from "@/components/laudo/LaudoPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
