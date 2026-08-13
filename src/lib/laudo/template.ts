@@ -9,6 +9,7 @@ import {
 } from "./regras";
 import { FIGURA_SUPORTE_BICO } from "./figuras";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
+import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
 export type CabecalhoLaudo = {
   cliente: string;
