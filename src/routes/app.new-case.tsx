@@ -434,6 +434,27 @@ function NewCasePage() {
                 placeholder="Instruções, ponto de referência, contato no local..."
               />
             </div>
+            <div className="md:col-span-2">
+              <Label>Proposta comercial (PDF)</Label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  if (f && f.size > 25 * 1024 * 1024) {
+                    setError("A proposta deve ter no máximo 25 MB.");
+                    e.target.value = "";
+                    return;
+                  }
+                  setProposta(f);
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Opcional. O escopo vendido é lido automaticamente e comparado com as respostas do
+                mapeamento na tela de revisão.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3">
