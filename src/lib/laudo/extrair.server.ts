@@ -33,15 +33,26 @@ function limpar(v: string | null | undefined): string | null {
 export async function extrairVariaveis(
   respostas: RespostaBruta[],
   manuais: VariaveisLaudo = {},
+  /** camadas complementares em ordem de prioridade (proposta, cadastro, ...) */
+  camadas: VariaveisLaudo[] = [],
 ): Promise<VariaveisLaudo> {
   const vars: VariaveisLaudo = {};
 
-  // 1) determinístico
+  // 1) determinístico (respostas do formulário)
   for (const r of respostas) {
     const chave = limpar(r.chave_laudo);
     const valor = limpar(r.valor);
     if (!chave || !valor) continue;
     vars[chave] = { chave, valor, origem: "formulario", confianca: 1 };
+  }
+
+  // 1b) camadas complementares: proposta comercial, cadastro do agendamento
+  for (const camada of camadas) {
+    for (const [chave, item] of Object.entries(camada ?? {})) {
+      if (!item?.valor) continue;
+      if (vars[chave]?.valor) continue;
+      vars[chave] = { ...item, chave };
+    }
   }
 
   // 2) IA para as chaves faltantes
