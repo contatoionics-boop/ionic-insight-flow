@@ -264,7 +264,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   async function handlePdf(preview = false) {
     setBaixando(true);
     try {
-      const r = await fnPdf({ data: { casoId } });
+      const r = await fnPdf({ data: { casoId, remontar: true } });
       if (preview) {
         const bin = atob(r.contentBase64);
         const bytes = new Uint8Array(bin.length);
