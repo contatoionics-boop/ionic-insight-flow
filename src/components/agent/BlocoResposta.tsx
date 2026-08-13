@@ -43,10 +43,34 @@ export function BlocoResposta({
   casoIdAuth,
   onSaved,
 }: Props) {
-  const [state, setState] = useState<Record<string, Resposta>>({});
+  const draftKey = `bloco-draft:${casoId}:${bloco.id}`;
+  const [state, setState] = useState<Record<string, Resposta>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      return raw ? (JSON.parse(raw) as Record<string, Resposta>) : {};
+    } catch {
+      return {};
+    }
+  });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const salvarBloco = useServerFn(salvarRespostasBloco);
+
+  // Mantém o rascunho local para que trocar de aba / recarregar não perca dados.
+  useEffect(() => {
+    try {
+      const limpo = Object.fromEntries(
+        Object.entries(state).map(([k, r]) => {
+          const { filePreview: _ignored, ...rest } = r as Resposta & { filePreview?: string };
+          return [k, rest];
+        }),
+      );
+      window.localStorage.setItem(draftKey, JSON.stringify(limpo));
+    } catch {
+      // storage cheio ou indisponível: segue sem rascunho
+    }
+  }, [state, draftKey]);
 
   const perguntas = useMemo(
     () => bloco.perguntas.map((p, i) => toPergunta(p, `bloco-${bloco.id}`, i)),
