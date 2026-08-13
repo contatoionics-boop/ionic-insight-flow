@@ -44,6 +44,8 @@ function NewCasePage() {
   const navigate = useNavigate();
   const loadAgents = useServerFn(listTechnicalAgents);
   const agendar = useServerFn(agendarMapeamento);
+  const registrar = useServerFn(registrarProposta);
+  const [proposta, setProposta] = useState<File | null>(null);
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
