@@ -3,6 +3,7 @@
 
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 import type { EscopoProposta } from "@/lib/proposta/tipos";
+import { limparTexto, objetosValidos, pareceLixo, rotuloTipoAcao } from "@/lib/texto";
 
 function add(
   vars: VariaveisLaudo,
@@ -10,7 +11,7 @@ function add(
   valor: string | null | undefined,
   confianca: number,
 ) {
-  const v = (valor ?? "").toString().trim();
+  const v = limparTexto(valor);
   if (!v) return;
   vars[chave] = { chave, valor: v, origem: "proposta", confianca: confianca || 0.8 };
 }
@@ -37,12 +38,17 @@ export function variaveisDaProposta(escopo: Partial<EscopoProposta>): VariaveisL
 
   add(vars, "nome_cliente", val<string>("nome_cliente"), c("nome_cliente"));
   add(vars, "nome_solucao", val<string>("nome_solucao"), c("nome_solucao"));
-  add(vars, "tipo_acao", val<string>("tipo_acao"), c("tipo_acao"));
-  add(vars, "objeto_escopo", val<string>("objeto_escopo"), c("objeto_escopo"));
+  add(vars, "tipo_acao", rotuloTipoAcao(val<string>("tipo_acao")), c("tipo_acao"));
+
+  const objeto = limparTexto(val<string>("objeto_escopo"));
+  if (objeto && !pareceLixo(objeto)) add(vars, "objeto_escopo", objeto, c("objeto_escopo"));
+
   add(vars, "tipo_objeto", val<string>("tipo_objeto"), c("tipo_objeto"));
 
-  const ids = val<string[]>("ids_objetos");
-  if (ids?.length) add(vars, "ids_objetos", ids.join(", "), c("ids_objetos"));
+  // só entram identificações reais de objeto (placa, prefixo, pista, tanque…);
+  // listas com descrições do catálogo de produtos são descartadas.
+  const ids = objetosValidos(val<string[]>("ids_objetos") ?? []);
+  if (ids.length) add(vars, "ids_objetos", ids.join(", "), c("ids_objetos"));
 
   add(vars, "terminal_atual", val<string>("terminal"), c("terminal"));
 

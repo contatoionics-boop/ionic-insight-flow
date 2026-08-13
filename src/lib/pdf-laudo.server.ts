@@ -4,6 +4,7 @@
  */
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
+import { limparTexto } from "@/lib/texto";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -46,14 +47,11 @@ type Ctx = {
 };
 
 function sanitize(s: string): string {
-  return (s ?? "")
-    .normalize("NFC")
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
+  return limparTexto(s ?? "")
     .replace(/[\u2013\u2014]/g, "-")
-    .replace(/\u00a0/g, " ")
     .replace(/[^\x20-\x7E\u00C0-\u00FF]/g, "");
 }
+
 
 function wrap(text: string, font: PDFFont, size: number, maxW: number): string[] {
   const out: string[] = [];
@@ -191,7 +189,8 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivel: 1 | 2 | 3) {
   const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
-  need(ctx, size + 22);
+  // reserva espaço para o título + início do conteúdo (evita título órfão)
+  need(ctx, size + 60);
   ctx.y -= nivel === 1 ? 8 : 4;
   const label = sanitize(`${numero ? `${numero}. ` : ""}${texto}`);
   if (nivel === 1) {
@@ -241,30 +240,25 @@ function table(
   colunas: string[],
   linhas: { celulas: string[]; nota?: string | null }[],
 ) {
-  if (titulo) {
-    need(ctx, 20);
-    ctx.page.drawText(sanitize(titulo), {
-      x: MARGIN_X,
-      y: ctx.y,
-      size: 9.5,
-      font: ctx.bold,
-      color: NAVY,
-    });
-    ctx.y -= 14;
-  }
+  if (!linhas.length) return;
 
   const n = colunas.length;
   // primeira coluna estreita (código), segunda larga (descrição)
   const pesos = colunas.map((_, i) => (i === 0 ? 1.1 : i === 1 ? 2.6 : 1));
   const soma = pesos.reduce((a, b) => a + b, 0);
   const larguras = pesos.map((p) => (p / soma) * CONTENT_W);
+  const size = 8.5;
+
+  const alturaLinha = (cells: string[], bolded: boolean) => {
+    const wrapped = cells.map((c, i) =>
+      wrap(c, bolded ? ctx.bold : ctx.font, size, larguras[i]! - 8),
+    );
+    const rows = Math.max(...wrapped.map((w) => w.length));
+    return { wrapped, h: rows * (size + 3) + 8 };
+  };
 
   const drawRow = (cells: string[], bolded: boolean, bg?: boolean) => {
-    const size = 8.5;
-    const wrapped = cells.map((c, i) => wrap(c, bolded ? ctx.bold : ctx.font, size, larguras[i]! - 8));
-    const rows = Math.max(...wrapped.map((w) => w.length));
-    const h = rows * (size + 3) + 8;
-    need(ctx, h + 4);
+    const { wrapped, h } = alturaLinha(cells, bolded);
     if (bg) {
       ctx.page.drawRectangle({
         x: MARGIN_X,
@@ -296,10 +290,39 @@ function table(
     });
   };
 
+  const drawTitulo = (cont: boolean) => {
+    if (!titulo) return;
+    ctx.page.drawText(sanitize(cont ? `${titulo} (cont.)` : titulo), {
+      x: MARGIN_X,
+      y: ctx.y,
+      size: 9.5,
+      font: ctx.bold,
+      color: NAVY,
+    });
+    ctx.y -= 14;
+  };
+
+  const alturaCabecalho = (titulo ? 14 : 0) + alturaLinha(colunas.slice(0, n), true).h;
+  const primeira = alturaLinha(linhas[0]!.celulas.slice(0, n), false).h;
+
+  // título + cabeçalho + primeira linha nunca se separam
+  need(ctx, alturaCabecalho + primeira + 8);
+  drawTitulo(false);
   drawRow(colunas.slice(0, n), true, true);
-  linhas.forEach((l, i) => drawRow(l.celulas.slice(0, n), false, i % 2 === 1));
+
+  linhas.forEach((l, i) => {
+    const cells = l.celulas.slice(0, n);
+    const { h } = alturaLinha(cells, false);
+    if (ctx.y - (h + 4) < BOTTOM) {
+      newPage(ctx);
+      drawTitulo(true);
+      drawRow(colunas.slice(0, n), true, true);
+    }
+    drawRow(cells, false, i % 2 === 1);
+  });
   ctx.y -= 8;
 }
+
 
 function notes(ctx: Ctx, itens: string[]) {
   for (const it of itens) {

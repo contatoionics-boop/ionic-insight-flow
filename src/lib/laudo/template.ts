@@ -9,6 +9,7 @@ import {
 } from "./regras";
 import { FIGURA_SUPORTE_BICO } from "./figuras";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
+import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
 export type CabecalhoLaudo = {
   cliente: string;
@@ -25,15 +26,27 @@ export type EntradaTemplate = {
   cabecalho: CabecalhoLaudo;
 };
 
+/** chaves de texto livre onde valores sem sentido não podem ir para o documento */
+const CHAVES_TEXTO_LIVRE = new Set([
+  "marca_veiculo",
+  "objeto_escopo",
+  "nome_solucao",
+  "nome_cliente",
+  "compartimento_dimensao",
+]);
+
 function v(vars: VariaveisLaudo, chave: string, rotulo?: string): string {
   const item = vars[chave];
-  if (!item || !item.valor) return pendencia(chave, rotulo);
-  return item.valor;
+  const valor = limparTexto(item?.valor);
+  if (!valor) return pendencia(chave, rotulo);
+  if (CHAVES_TEXTO_LIVRE.has(chave) && pareceLixo(valor)) return pendencia(chave, rotulo);
+  return valor;
 }
 
 function raw(vars: VariaveisLaudo, chave: string): string | null {
-  return vars[chave]?.valor ?? null;
+  return limparTexto(vars[chave]?.valor) || null;
 }
+
 
 function bool(vars: VariaveisLaudo, chave: string): boolean | null {
   const val = (raw(vars, chave) ?? "").toLowerCase().trim();
@@ -53,11 +66,9 @@ function num(vars: VariaveisLaudo, chave: string): number | null {
 function idsObjetos(vars: VariaveisLaudo): string[] {
   const val = raw(vars, "ids_objetos");
   if (!val) return [];
-  return val
-    .split(/[,;\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return objetosValidos(val.split(/[,;\n]/));
 }
+
 
 let seq = 0;
 const bid = (p: string) => `${p}-${++seq}`;
@@ -84,9 +95,6 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     rfid: bool(vars, "rfid"),
   };
 
-  // ---------- Alertas no topo ----------
-  for (const a of alertasDoContexto(ctxRegras)) blocos.push(a);
-
   // ---------- 1. Introdução ----------
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
   blocos.push({
@@ -104,6 +112,20 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
       "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
       "Itens sinalizados como [CONFIRMAR: ...] dependem de validação antes da emissão definitiva do documento.",
   });
+
+  // ---------- Observações técnicas relevantes (após a introdução) ----------
+  const alertas = alertasDoContexto(ctxRegras);
+  if (alertas.length) {
+    blocos.push({
+      id: bid("h"),
+      tipo: "heading",
+      numero: null,
+      texto: "Observações técnicas relevantes",
+      nivel: 2,
+    });
+    for (const a of alertas) blocos.push(a);
+  }
+
 
   // ---------- 2. Requisitos de infraestrutura ----------
   blocos.push({
@@ -172,7 +194,7 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     }
   }
 
-  // 2.2 Transferência de dados
+  // 2.2 Transferência de dados — numeração sequencial conforme o que é incluído
   blocos.push({
     id: bid("h"),
     tipo: "heading",
@@ -180,7 +202,9 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     texto: "Transferência de dados",
     nivel: 2,
   });
-  blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.1", texto: "WiFi", nivel: 3 });
+  let sub22 = 0;
+  const num22 = () => `2.2.${++sub22}`;
+  blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 });
   blocos.push({
     id: bid("p"),
     tipo: "paragraph",
@@ -189,7 +213,7 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
   });
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
   if (comunicacao.includes("4g") || comunicacao.includes("gsm")) {
-    blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.2", texto: "GSM / 4G", nivel: 3 });
+    blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
     blocos.push({
       id: bid("p"),
       tipo: "paragraph",
@@ -197,7 +221,7 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
         "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
     });
   }
-  blocos.push({ id: bid("h"), tipo: "heading", numero: "2.2.3", texto: "Rádio 2.4GHz", nivel: 3 });
+  blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 });
   blocos.push({
     id: bid("p"),
     tipo: "paragraph",
@@ -215,7 +239,9 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
   });
 
   const ids = idsObjetos(vars);
-  const grupos = ids.length ? ids : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
+  const grupos = ids.length
+    ? ids
+    : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
   const ctxProduto: ContextoProduto = {
     nivel,
     bitola,
@@ -226,9 +252,11 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     comunicacao,
   };
   const materiais = materiaisAplicaveis(entrada.materiais, ctxRegras);
+  const produtos = montarProdutos(ctxProduto);
 
+  const varios = grupos.length > 1;
   grupos.forEach((grupo, i) => {
-    const numero = `2.3.${i + 1}`;
+    const numero = varios ? `2.3.${i + 1}` : null;
     blocos.push({ id: bid("h"), tipo: "heading", numero, texto: grupo, nivel: 3 });
     blocos.push({
       id: bid("p"),
@@ -239,50 +267,61 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
         `vazão de ${v(vars, "vazao", "vazão")} e tensão disponível de ${v(vars, "tensao_veiculo", "tensão do objeto")}. ` +
         `O terminal T1000 será instalado em compartimento de ${v(vars, "compartimento_dimensao", "dimensão do compartimento")}.`,
     });
-
-    const produtos = montarProdutos(ctxProduto);
-    blocos.push({
-      id: bid("t"),
-      tipo: "table",
-      titulo: "Produtos IONICS",
-      colunas: ["Código", "Descrição", "Qtd."],
-      linhas: produtos.map((p) => ({
-        celulas: [p.codigo, p.descricao, String(p.quantidade)],
-        nota: p.nota ?? null,
-      })),
-    });
-
-    blocos.push({
-      id: bid("t"),
-      tipo: "table",
-      titulo: "Materiais de infraestrutura",
-      colunas: ["Código", "Descrição", "Aplicação", "Un.", "Qtd."],
-      linhas: materiais.length
-        ? materiais.map((m) => ({
-            celulas: [
-              m.codigo,
-              m.descricao,
-              m.aplicacao ?? "—",
-              m.unidade,
-              String(m.quantidade_padrao),
-            ],
-          }))
-        : [
-            {
-              celulas: [
-                "—",
-                `Nenhum material aplicável às regras atuais ${pendencia("materiais", "materiais de infraestrutura")}`,
-                "—",
-                "—",
-                "—",
-              ],
-            },
-          ],
-    });
-
-    const notas = produtos.map((p) => p.nota).filter((n): n is string => !!n);
-    if (notas.length) blocos.push({ id: bid("n"), tipo: "notes", itens: notas });
   });
+
+  // Produtos e materiais são idênticos para todos os objetos: uma tabela só.
+  if (varios) {
+    blocos.push({
+      id: bid("h"),
+      tipo: "heading",
+      numero: `2.3.${grupos.length + 1}`,
+      texto: "Produtos e materiais aplicáveis",
+      nivel: 3,
+    });
+  }
+  blocos.push({
+    id: bid("t"),
+    tipo: "table",
+    titulo: "Produtos IONICS",
+    colunas: ["Código", "Descrição", "Qtd."],
+    linhas: produtos.map((p) => ({
+      celulas: [p.codigo, p.descricao, String(p.quantidade)],
+      nota: p.nota ?? null,
+    })),
+  });
+  blocos.push({
+    id: bid("t"),
+    tipo: "table",
+    titulo: "Materiais de infraestrutura",
+    colunas: ["Código", "Descrição", "Aplicação", "Un.", "Qtd."],
+    linhas: materiais.length
+      ? materiais.map((m) => ({
+          celulas: [
+            m.codigo,
+            m.descricao,
+            m.aplicacao ?? "—",
+            m.unidade,
+            String(m.quantidade_padrao),
+          ],
+        }))
+      : [
+          {
+            celulas: [
+              "—",
+              `Nenhum material aplicável às regras atuais ${pendencia("materiais", "materiais de infraestrutura")}`,
+              "—",
+              "—",
+              "—",
+            ],
+          },
+        ],
+  });
+
+  const notas = Array.from(
+    new Set(produtos.map((p) => p.nota).filter((n): n is string => !!n)),
+  );
+  if (notas.length) blocos.push({ id: bid("n"), tipo: "notes", itens: notas });
+
 
   // 2.4 Bicos de abastecimento
   blocos.push({
