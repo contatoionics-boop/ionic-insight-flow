@@ -46,14 +46,11 @@ type Ctx = {
 };
 
 function sanitize(s: string): string {
-  return (s ?? "")
-    .normalize("NFC")
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
+  return limparTexto(s ?? "")
     .replace(/[\u2013\u2014]/g, "-")
-    .replace(/\u00a0/g, " ")
     .replace(/[^\x20-\x7E\u00C0-\u00FF]/g, "");
 }
+
 
 function wrap(text: string, font: PDFFont, size: number, maxW: number): string[] {
   const out: string[] = [];
