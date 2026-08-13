@@ -66,11 +66,9 @@ function num(vars: VariaveisLaudo, chave: string): number | null {
 function idsObjetos(vars: VariaveisLaudo): string[] {
   const val = raw(vars, "ids_objetos");
   if (!val) return [];
-  return val
-    .split(/[,;\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return objetosValidos(val.split(/[,;\n]/));
 }
+
 
 let seq = 0;
 const bid = (p: string) => `${p}-${++seq}`;
