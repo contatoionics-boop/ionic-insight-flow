@@ -40,6 +40,38 @@ export function compararPropostaCampo(
   const divergencias: Divergencia[] = [];
   const pendencias: string[] = [];
 
+  // ---------- Identidade do cliente (proposta x cadastro do agendamento) ----------
+  const clienteProposta = (escopo.nome_cliente?.valor ?? "").toString().trim();
+  const clienteCadastro = (vars["nome_cliente"]?.origem === "cadastro"
+    ? vars["nome_cliente"]?.valor
+    : ""
+  )
+    ?.toString()
+    .trim();
+  const chave = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\b(ltda|s\.?a\.?|me|eireli|comercio|com|industria|ind|transportes?)\b/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  if (clienteProposta && clienteCadastro) {
+    const a = chave(clienteProposta);
+    const b = chave(clienteCadastro);
+    if (a && b && !a.includes(b) && !b.includes(a)) {
+      divergencias.push({
+        codigo: "cliente_divergente",
+        titulo: "Cliente da proposta diferente do cliente do agendamento",
+        proposta: clienteProposta,
+        campo: clienteCadastro,
+        severidade: "alta",
+        recomendacao:
+          "Verificar se a proposta anexada pertence a este mapeamento. O documento usa sempre o cliente do agendamento.",
+      });
+    }
+  }
+
+
   // ---------- Nível contratado x viabilidade em campo ----------
   const nivelProposta = escopo.nivel_automacao?.valor ?? null;
   const nivelCampo = nivelDoCampo(vars);
