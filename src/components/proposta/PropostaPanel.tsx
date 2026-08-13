@@ -267,7 +267,15 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-sm font-semibold">Proposta × Campo</h3>
           {comparacao && (
-            <Badge variant={altas > 0 ? "destructive" : comparacao.divergencias.length ? "warning" : "success"}>
+            <Badge
+              className={
+                altas > 0
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : comparacao.divergencias.length
+                    ? "border-amber-300 bg-amber-50 text-amber-900"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-900"
+              }
+            >
               {comparacao.divergencias.length === 0
                 ? "sem divergências"
                 : `${comparacao.divergencias.length} divergência(s)`}
