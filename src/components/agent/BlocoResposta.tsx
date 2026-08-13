@@ -142,6 +142,11 @@ export function BlocoResposta({
         setErro(res.erros.map((e) => e.motivo).join(" · "));
         return;
       }
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // ignora
+      }
       await onSaved(res.resumo || bloco.titulo);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao salvar o bloco.");
