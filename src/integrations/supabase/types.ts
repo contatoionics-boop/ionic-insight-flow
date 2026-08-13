@@ -191,6 +191,7 @@ export type Database = {
           data_aprovacao_pablo: string | null
           data_entrega_agente: string | null
           data_execucao: string | null
+          divergencias_proposta: Json
           duracao_min: number
           endereco_vistoria: string | null
           formulario_id: string | null
@@ -218,6 +219,7 @@ export type Database = {
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
+          divergencias_proposta?: Json
           duracao_min?: number
           endereco_vistoria?: string | null
           formulario_id?: string | null
@@ -245,6 +247,7 @@ export type Database = {
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
+          divergencias_proposta?: Json
           duracao_min?: number
           endereco_vistoria?: string | null
           formulario_id?: string | null
@@ -1059,6 +1062,59 @@ export type Database = {
         }
         Relationships: []
       }
+      propostas_comerciais: {
+        Row: {
+          arquivo_nome: string
+          arquivo_path: string
+          atualizado_em: string
+          caso_id: string
+          criado_em: string
+          criado_por: string | null
+          erro_mensagem: string | null
+          escopo: Json
+          id: string
+          status: string
+          tamanho_bytes: number | null
+          texto_extraido: string | null
+        }
+        Insert: {
+          arquivo_nome: string
+          arquivo_path: string
+          atualizado_em?: string
+          caso_id: string
+          criado_em?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          escopo?: Json
+          id?: string
+          status?: string
+          tamanho_bytes?: number | null
+          texto_extraido?: string | null
+        }
+        Update: {
+          arquivo_nome?: string
+          arquivo_path?: string
+          atualizado_em?: string
+          caso_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          erro_mensagem?: string | null
+          escopo?: Json
+          id?: string
+          status?: string
+          tamanho_bytes?: number | null
+          texto_extraido?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_comerciais_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       respostas_agente: {
         Row: {
           arquivo_path: string | null
@@ -1355,6 +1411,9 @@ export type Database = {
         | "revisao_reprovada"
         | "mapeamento_concluido"
         | "observacao_adicionada"
+        | "proposta_anexada"
+        | "proposta_extraida"
+        | "divergencias_calculadas"
       modalidade_atendimento: "presencial" | "remoto"
       nivel_mapeamento: "nivel_1" | "nivel_2" | "nivel_3"
       pergunta_tipo:
@@ -1541,6 +1600,9 @@ export const Constants = {
         "revisao_reprovada",
         "mapeamento_concluido",
         "observacao_adicionada",
+        "proposta_anexada",
+        "proposta_extraida",
+        "divergencias_calculadas",
       ],
       modalidade_atendimento: ["presencial", "remoto"],
       nivel_mapeamento: ["nivel_1", "nivel_2", "nivel_3"],
