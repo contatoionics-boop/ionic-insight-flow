@@ -4,10 +4,11 @@ Análise feita sobre o `laudo-cs-0044.pdf` gerado pela aplicação. São 14 pág
 
 ## Problemas encontrados
 
-### 1. Cliente errado no texto (crítico)
-O cabeçalho diz "AUTO POSTO SANTA PAULINA (ION-00001-01) — Sede", mas a introdução diz "realizado para SETEL CONSTRUTORA LTDA". Causa: hoje a camada `proposta` tem prioridade sobre a camada `cadastro`, então o nome do cliente lido do PDF da proposta sobrescreve o cliente do agendamento.
+### 1. Nome do cliente no texto vem da proposta
+No teste foi usada uma proposta de outro cliente, então a introdução saiu com "SETEL CONSTRUTORA LTDA" enquanto o cabeçalho traz o cliente do agendamento. Não é erro de cabeçalho, mas mostra que hoje a camada `proposta` tem prioridade sobre a camada `cadastro` para o nome do cliente.
 
-Correção: para os campos de identidade (nome do cliente, unidade, modalidade, tipo de ação, nível), o cadastro do agendamento passa a vencer a proposta. A proposta continua vencendo nos campos técnicos/comerciais (bicos, comboio, comunicação, terminal, bitola, tensão, solução, escopo).
+Ajuste: para os campos de identidade (nome do cliente, unidade, modalidade, tipo de ação, nível), o cadastro do agendamento passa a vencer a proposta — o documento nunca cita um cliente diferente do agendado. A proposta continua vencendo nos campos técnicos/comerciais (bicos, comboio, comunicação, terminal, bitola, tensão, solução, escopo). Quando o nome do cliente da proposta divergir do cadastro, isso vira uma divergência no painel "Proposta × Campo" (útil para detectar proposta anexada no mapeamento errado).
+
 
 ### 2. Seção 2.3 repetida 14 vezes com conteúdo idêntico
 "Objeto do mapeamento" gerou 2.3.1 a 2.3.14 com nomes de produtos do catálogo ("APE SAAF V2", "MICRO TERMINAL 5 MIFARE", "BASE MODEM AMPLIFICADA...") em vez de identificação de objetos (placas/prefixos/pistas). Todos com o mesmo parágrafo, a mesma tabela de produtos e a mesma tabela de materiais.
