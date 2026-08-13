@@ -55,6 +55,14 @@ export async function processarProposta(supabase: any, propostaId: string, userI
       metadata: { nivel: escopo.nivel_automacao?.valor, qtd_bicos: escopo.qtd_bicos?.valor },
     });
 
+    // remonta o laudo para incorporar os dados vindos da proposta
+    try {
+      const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+      await montarESalvarLaudo(supabase, row.caso_id);
+    } catch {
+      // remontagem best-effort (ex.: formulário ainda não respondido)
+    }
+
     // já tenta comparar com o que existe do formulário
     try {
       await compararCasoProposta(supabase, row.caso_id, userId ?? null);

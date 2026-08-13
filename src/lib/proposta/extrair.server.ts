@@ -21,7 +21,25 @@ const RespostaSchema = z.object({
   fase_automacao: Campo.optional(),
   itens_inclusos: Campo.optional(),
   itens_nao_inclusos: Campo.optional(),
+  nome_cliente: Campo.optional(),
+  nome_solucao: Campo.optional(),
+  tipo_acao: Campo.optional(),
+  objeto_escopo: Campo.optional(),
+  tipo_objeto: Campo.optional(),
+  ids_objetos: Campo.optional(),
+  terminal: Campo.optional(),
+  rfid: Campo.optional(),
+  bitola_bico: Campo.optional(),
+  tensao: Campo.optional(),
+  qtd_pistas: Campo.optional(),
 });
+
+function textoOuNull(x: unknown): string | null {
+  if (typeof x === "number") return String(x);
+  if (typeof x !== "string") return null;
+  const s = x.trim();
+  return s.length ? s : null;
+}
 
 export async function extrairTextoPdf(bytes: Uint8Array): Promise<string> {
   const { extractText, getDocumentProxy } = await import("unpdf");
@@ -70,7 +88,11 @@ export async function extrairEscopoProposta(texto: string): Promise<EscopoPropos
       '{"chave":{"valor":..., "confianca":0.0, "trecho":"..."}}. ' +
       "Chaves possíveis: nivel_automacao (1,2 ou 3), qtd_bicos (número), comboio (boolean), " +
       "qtd_comboios (número), comunicacao ('wifi'|'4g'|'ambos'), fase_automacao (1 a 4), " +
-      "itens_inclusos (lista), itens_nao_inclusos (lista). " +
+      "itens_inclusos (lista), itens_nao_inclusos (lista), nome_cliente (texto), " +
+      "nome_solucao (texto, ex.: SAAF), tipo_acao ('instalacao'|'upgrade'), objeto_escopo (texto curto), " +
+      "tipo_objeto ('posto'|'pista'|'comboio'|'veiculo'|'frota'), ids_objetos (lista de placas/prefixos), " +
+      "terminal (ex.: T850, T1000), rfid (boolean), bitola_bico (ex.: 3/4\", 1\"), tensao (ex.: 12V, 24V), " +
+      "qtd_pistas (número). " +
       "Nunca invente: se a informação não estiver explícita, omita a chave. " +
       "confianca 1 = literal no texto, 0.5 = inferido, 0.2 = palpite. trecho = citação curta do PDF.",
     prompt: `Proposta comercial:\n${corpus}`,
@@ -114,6 +136,26 @@ export async function extrairEscopoProposta(texto: string): Promise<EscopoPropos
   if (fase && fase >= 1 && fase <= 4) set("fase_automacao", fase, parsed.fase_automacao);
   set("itens_inclusos", listaOuNull(parsed.itens_inclusos?.valor), parsed.itens_inclusos);
   set("itens_nao_inclusos", listaOuNull(parsed.itens_nao_inclusos?.valor), parsed.itens_nao_inclusos);
+
+  set("nome_cliente", textoOuNull(parsed.nome_cliente?.valor), parsed.nome_cliente);
+  set("nome_solucao", textoOuNull(parsed.nome_solucao?.valor), parsed.nome_solucao);
+
+  const acao = String(parsed.tipo_acao?.valor ?? "").toLowerCase();
+  const acaoNorm = /upgrade|atualiza/.test(acao)
+    ? "upgrade"
+    : /instala/.test(acao)
+      ? "instalacao"
+      : null;
+  set("tipo_acao", acaoNorm, parsed.tipo_acao);
+
+  set("objeto_escopo", textoOuNull(parsed.objeto_escopo?.valor), parsed.objeto_escopo);
+  set("tipo_objeto", textoOuNull(parsed.tipo_objeto?.valor)?.toLowerCase() ?? null, parsed.tipo_objeto);
+  set("ids_objetos", listaOuNull(parsed.ids_objetos?.valor), parsed.ids_objetos);
+  set("terminal", textoOuNull(parsed.terminal?.valor), parsed.terminal);
+  set("rfid", boolOuNull(parsed.rfid?.valor), parsed.rfid);
+  set("bitola_bico", textoOuNull(parsed.bitola_bico?.valor), parsed.bitola_bico);
+  set("tensao", textoOuNull(parsed.tensao?.valor), parsed.tensao);
+  set("qtd_pistas", numeroOuNull(parsed.qtd_pistas?.valor), parsed.qtd_pistas);
 
   return escopo;
 }

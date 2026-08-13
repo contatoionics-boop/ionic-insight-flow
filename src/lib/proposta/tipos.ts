@@ -17,17 +17,42 @@ export type EscopoProposta = {
   fase_automacao: CampoProposta<1 | 2 | 3 | 4>;
   itens_inclusos: CampoProposta<string[]>;
   itens_nao_inclusos: CampoProposta<string[]>;
+  // campos comerciais que alimentam o laudo estruturado
+  nome_cliente: CampoProposta<string>;
+  nome_solucao: CampoProposta<string>;
+  tipo_acao: CampoProposta<"instalacao" | "upgrade">;
+  objeto_escopo: CampoProposta<string>;
+  tipo_objeto: CampoProposta<string>;
+  ids_objetos: CampoProposta<string[]>;
+  terminal: CampoProposta<string>;
+  rfid: CampoProposta<boolean>;
+  bitola_bico: CampoProposta<string>;
+  tensao: CampoProposta<string>;
+  qtd_pistas: CampoProposta<number>;
 };
 
+const vazio = { valor: null, confianca: 0 };
+
 export const ESCOPO_VAZIO: EscopoProposta = {
-  nivel_automacao: { valor: null, confianca: 0 },
-  qtd_bicos: { valor: null, confianca: 0 },
-  comboio: { valor: null, confianca: 0 },
-  qtd_comboios: { valor: null, confianca: 0 },
-  comunicacao: { valor: null, confianca: 0 },
-  fase_automacao: { valor: null, confianca: 0 },
-  itens_inclusos: { valor: null, confianca: 0 },
-  itens_nao_inclusos: { valor: null, confianca: 0 },
+  nivel_automacao: { ...vazio },
+  qtd_bicos: { ...vazio },
+  comboio: { ...vazio },
+  qtd_comboios: { ...vazio },
+  comunicacao: { ...vazio },
+  fase_automacao: { ...vazio },
+  itens_inclusos: { ...vazio },
+  itens_nao_inclusos: { ...vazio },
+  nome_cliente: { ...vazio },
+  nome_solucao: { ...vazio },
+  tipo_acao: { ...vazio },
+  objeto_escopo: { ...vazio },
+  tipo_objeto: { ...vazio },
+  ids_objetos: { ...vazio },
+  terminal: { ...vazio },
+  rfid: { ...vazio },
+  bitola_bico: { ...vazio },
+  tensao: { ...vazio },
+  qtd_pistas: { ...vazio },
 };
 
 export const ROTULOS_ESCOPO: Record<keyof EscopoProposta, string> = {
@@ -39,6 +64,17 @@ export const ROTULOS_ESCOPO: Record<keyof EscopoProposta, string> = {
   fase_automacao: "Fase de automação",
   itens_inclusos: "Itens inclusos",
   itens_nao_inclusos: "Itens não inclusos",
+  nome_cliente: "Nome do cliente",
+  nome_solucao: "Solução contratada",
+  tipo_acao: "Tipo de ação",
+  objeto_escopo: "Objeto do escopo",
+  tipo_objeto: "Tipo do objeto",
+  ids_objetos: "Identificação dos objetos",
+  terminal: "Terminal previsto",
+  rfid: "Usa RFID",
+  bitola_bico: "Bitola do bico",
+  tensao: "Tensão",
+  qtd_pistas: "Quantidade de pistas",
 };
 
 export type SeveridadeDivergencia = "atencao" | "alta";

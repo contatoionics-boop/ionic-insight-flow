@@ -1,6 +1,12 @@
 // Tipos compartilhados do laudo estruturado (client-safe).
 
-export type OrigemVariavel = "formulario" | "ia" | "manual" | "ausente";
+export type OrigemVariavel =
+  | "formulario"
+  | "proposta"
+  | "cadastro"
+  | "ia"
+  | "manual"
+  | "ausente";
 
 export type VariavelLaudo = {
   chave: string;

@@ -4,7 +4,13 @@ import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 import type { Divergencia, EscopoProposta, ResultadoComparacao } from "@/lib/proposta/tipos";
 
 function v(vars: VariaveisLaudo, chave: string): string | null {
-  const s = vars[chave]?.valor;
+  const item = vars[chave];
+  // só vale como "campo" o que veio do mapeamento ou foi confirmado manualmente:
+  // valores herdados da própria proposta não podem gerar divergência consigo mesmos.
+  if (!item || (item.origem !== "formulario" && item.origem !== "manual" && item.origem !== "ia")) {
+    return null;
+  }
+  const s = item.valor;
   return s && String(s).trim() ? String(s).trim() : null;
 }
 
