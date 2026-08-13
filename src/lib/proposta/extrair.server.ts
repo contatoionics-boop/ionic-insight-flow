@@ -137,5 +137,25 @@ export async function extrairEscopoProposta(texto: string): Promise<EscopoPropos
   set("itens_inclusos", listaOuNull(parsed.itens_inclusos?.valor), parsed.itens_inclusos);
   set("itens_nao_inclusos", listaOuNull(parsed.itens_nao_inclusos?.valor), parsed.itens_nao_inclusos);
 
+  set("nome_cliente", textoOuNull(parsed.nome_cliente?.valor), parsed.nome_cliente);
+  set("nome_solucao", textoOuNull(parsed.nome_solucao?.valor), parsed.nome_solucao);
+
+  const acao = String(parsed.tipo_acao?.valor ?? "").toLowerCase();
+  const acaoNorm = /upgrade|atualiza/.test(acao)
+    ? "upgrade"
+    : /instala/.test(acao)
+      ? "instalacao"
+      : null;
+  set("tipo_acao", acaoNorm, parsed.tipo_acao);
+
+  set("objeto_escopo", textoOuNull(parsed.objeto_escopo?.valor), parsed.objeto_escopo);
+  set("tipo_objeto", textoOuNull(parsed.tipo_objeto?.valor)?.toLowerCase() ?? null, parsed.tipo_objeto);
+  set("ids_objetos", listaOuNull(parsed.ids_objetos?.valor), parsed.ids_objetos);
+  set("terminal", textoOuNull(parsed.terminal?.valor), parsed.terminal);
+  set("rfid", boolOuNull(parsed.rfid?.valor), parsed.rfid);
+  set("bitola_bico", textoOuNull(parsed.bitola_bico?.valor), parsed.bitola_bico);
+  set("tensao", textoOuNull(parsed.tensao?.valor), parsed.tensao);
+  set("qtd_pistas", numeroOuNull(parsed.qtd_pistas?.valor), parsed.qtd_pistas);
+
   return escopo;
 }
