@@ -246,7 +246,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     if (!caso) throw new Error("Mapeamento não encontrado.");
 
     let conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
-    if (!conteudo?.blocos?.length) {
+    if (data.remontar || !conteudo?.blocos?.length) {
       // Monta o laudo na hora (casos antigos ou ainda não montados)
       const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
       const res = await montarESalvarLaudo(supabase, data.casoId);
