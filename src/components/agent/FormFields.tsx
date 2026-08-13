@@ -135,7 +135,7 @@ export function isComplete(
   opts: { validarImagensIa?: boolean } = {},
 ): boolean {
   if (!p.obrigatoria) return true;
-  const validarIa = opts.validarImagensIa ?? true;
+  const validarIa = opts.validarImagensIa ?? false;
   switch (p.tipo) {
     case "foto":
       if (mode === "preview") return !!r.filePreview;
@@ -172,7 +172,7 @@ export function PerguntaBloco({
   update,
   mode,
   siblings,
-  validarImagensIa = true,
+  validarImagensIa = false,
 }: {
   pergunta: Pergunta;
   casoId: string;
@@ -700,7 +700,7 @@ function CampoFoto({
   resposta,
   update,
   mode,
-  validarImagensIa = true,
+  validarImagensIa = false,
 }: {
   pergunta: Pergunta;
   casoId: string;

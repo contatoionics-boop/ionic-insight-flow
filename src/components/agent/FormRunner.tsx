@@ -70,7 +70,7 @@ export function FormRunner({
     [setState],
   );
 
-  const validarImagensIa = ctx.validarImagensIa ?? true;
+  const validarImagensIa = false;
   const pendentes = useMemo(
     () => perguntasAtuais.filter((p) => !isComplete(p, state[p.id] ?? {}, mode, { validarImagensIa })),
     [perguntasAtuais, state, mode, validarImagensIa],
