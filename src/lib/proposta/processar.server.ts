@@ -96,7 +96,7 @@ export async function compararCasoProposta(
     .maybeSingle();
 
   const escopo = { ...ESCOPO_VAZIO, ...((proposta.escopo ?? {}) as EscopoProposta) };
-  const variaveis = ((caso?.laudo_variaveis ?? {}) as VariaveisLaudo) ?? {};
+  const variaveis = (caso?.laudo_variaveis ?? {}) as VariaveisLaudo;
   const comparacao = compararPropostaCampo(escopo, variaveis);
 
   await supabase
