@@ -186,7 +186,7 @@ function NewCasePage() {
     setError(null);
     try {
       const agendadoEm = new Date(`${data}T${hora}:00`).toISOString();
-      await agendar({
+      const res = await agendar({
         data: {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
@@ -202,6 +202,34 @@ function NewCasePage() {
           observacoes: observacoes || null,
         },
       });
+
+      if (proposta && res?.casos?.length) {
+        try {
+          for (const c of res.casos as { id: string }[]) {
+            const path = `casos/${c.id}/${Date.now()}-${proposta.name.replace(/[^\w.-]+/g, "_")}`;
+            const up = await supabase.storage.from("propostas").upload(path, proposta, {
+              contentType: "application/pdf",
+              upsert: false,
+            });
+            if (up.error) throw new Error(up.error.message);
+            await registrar({
+              data: {
+                casoId: c.id,
+                arquivoNome: proposta.name,
+                arquivoPath: path,
+                tamanhoBytes: proposta.size,
+              },
+            });
+          }
+        } catch (errProposta: any) {
+          setError(
+            `Mapeamento agendado, mas a proposta não pôde ser processada: ${errProposta?.message ?? "erro desconhecido"}. Anexe-a novamente na tela de revisão.`,
+          );
+          setWorking(false);
+          return;
+        }
+      }
+
       navigate({ to: "/app/agenda" });
     } catch (err: any) {
       setError(err?.message ?? "Erro ao agendar mapeamento.");
