@@ -25,15 +25,27 @@ export type EntradaTemplate = {
   cabecalho: CabecalhoLaudo;
 };
 
+/** chaves de texto livre onde valores sem sentido não podem ir para o documento */
+const CHAVES_TEXTO_LIVRE = new Set([
+  "marca_veiculo",
+  "objeto_escopo",
+  "nome_solucao",
+  "nome_cliente",
+  "compartimento_dimensao",
+]);
+
 function v(vars: VariaveisLaudo, chave: string, rotulo?: string): string {
   const item = vars[chave];
-  if (!item || !item.valor) return pendencia(chave, rotulo);
-  return item.valor;
+  const valor = limparTexto(item?.valor);
+  if (!valor) return pendencia(chave, rotulo);
+  if (CHAVES_TEXTO_LIVRE.has(chave) && pareceLixo(valor)) return pendencia(chave, rotulo);
+  return valor;
 }
 
 function raw(vars: VariaveisLaudo, chave: string): string | null {
-  return vars[chave]?.valor ?? null;
+  return limparTexto(vars[chave]?.valor) || null;
 }
+
 
 function bool(vars: VariaveisLaudo, chave: string): boolean | null {
   const val = (raw(vars, chave) ?? "").toLowerCase().trim();
