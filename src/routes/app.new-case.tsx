@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
+import { registrarProposta } from "@/lib/proposta.functions";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
