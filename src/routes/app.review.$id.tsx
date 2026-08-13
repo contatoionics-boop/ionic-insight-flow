@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 import { gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel } from "@/components/laudo/LaudoPanel";
+import { PropostaPanel } from "@/components/proposta/PropostaPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
 export const Route = createFileRoute("/app/review/$id")({
