@@ -21,7 +21,25 @@ const RespostaSchema = z.object({
   fase_automacao: Campo.optional(),
   itens_inclusos: Campo.optional(),
   itens_nao_inclusos: Campo.optional(),
+  nome_cliente: Campo.optional(),
+  nome_solucao: Campo.optional(),
+  tipo_acao: Campo.optional(),
+  objeto_escopo: Campo.optional(),
+  tipo_objeto: Campo.optional(),
+  ids_objetos: Campo.optional(),
+  terminal: Campo.optional(),
+  rfid: Campo.optional(),
+  bitola_bico: Campo.optional(),
+  tensao: Campo.optional(),
+  qtd_pistas: Campo.optional(),
 });
+
+function textoOuNull(x: unknown): string | null {
+  if (typeof x === "number") return String(x);
+  if (typeof x !== "string") return null;
+  const s = x.trim();
+  return s.length ? s : null;
+}
 
 export async function extrairTextoPdf(bytes: Uint8Array): Promise<string> {
   const { extractText, getDocumentProxy } = await import("unpdf");
