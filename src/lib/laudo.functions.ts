@@ -229,7 +229,7 @@ export const confirmarAlertaLaudo = createServerFn({ method: "POST" })
 /** Gera o PDF do laudo estruturado — bloqueado enquanto houver alerta não confirmado. */
 export const gerarPdfLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => CasoInput.parse(i))
+  .inputValidator((i) => CasoInput.extend({ remontar: z.boolean().optional() }).parse(i))
   .handler(async ({ data, context }) => {
     const { buildLaudoPdf } = await import("@/lib/pdf-laudo.server");
     const supabase = context.supabase;
@@ -246,7 +246,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     if (!caso) throw new Error("Mapeamento não encontrado.");
 
     let conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
-    if (!conteudo?.blocos?.length) {
+    if (data.remontar || !conteudo?.blocos?.length) {
       // Monta o laudo na hora (casos antigos ou ainda não montados)
       const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
       const res = await montarESalvarLaudo(supabase, data.casoId);

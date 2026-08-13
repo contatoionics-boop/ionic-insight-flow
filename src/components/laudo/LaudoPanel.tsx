@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  X,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Textarea } from "@/components/ui-bits";
 import {
@@ -264,7 +265,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   async function handlePdf(preview = false) {
     setBaixando(true);
     try {
-      const r = await fnPdf({ data: { casoId } });
+      const r = await fnPdf({ data: { casoId, remontar: true } });
       if (preview) {
         const bin = atob(r.contentBase64);
         const bytes = new Uint8Array(bin.length);
@@ -352,7 +353,29 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       </Card>
 
       {pdfUrl && (
-        <Card className="p-2">
+        <Card className="space-y-2 p-2">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="text-xs text-muted-foreground">Pré-visualização do laudo</p>
+            <div className="flex gap-2">
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+              >
+                Abrir em nova aba
+              </a>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  URL.revokeObjectURL(pdfUrl);
+                  setPdfUrl(null);
+                }}
+              >
+                <X className="mr-2 h-4 w-4" /> Fechar pré-visualização
+              </Button>
+            </div>
+          </div>
           <iframe
             src={pdfUrl}
             title="Pré-visualização do laudo"

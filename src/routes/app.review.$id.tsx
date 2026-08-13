@@ -386,7 +386,12 @@ function ReviewCasePage() {
     }
   };
 
-  const baixarPdf = () => baixarArquivo(gerarLaudoPdf as any, setDownloading);
+  const baixarPdf = () =>
+    baixarArquivo(
+      ((args: any) =>
+        (gerarLaudoPdf as any)({ data: { ...args.data, remontar: true } })) as any,
+      setDownloading,
+    );
   const baixarPdfBruto = () => baixarArquivo(gerarPdf as any, setDownloadingBruto);
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
