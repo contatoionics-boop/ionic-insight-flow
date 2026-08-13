@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfMapeamento } from "@/lib/casos-pdf.functions";
 import { gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel } from "@/components/laudo/LaudoPanel";
+import { PropostaPanel } from "@/components/proposta/PropostaPanel";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -74,7 +75,7 @@ function arquivosDe(r: Resposta | undefined): string[] {
 
 function ReviewCasePage() {
   const { id } = Route.useParams();
-  const [tab, setTab] = useState<"respostas" | "laudo">("respostas");
+  const [tab, setTab] = useState<"respostas" | "laudo" | "proposta">("respostas");
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
@@ -469,6 +470,7 @@ function ReviewCasePage() {
           [
             ["respostas", "Respostas"],
             ["laudo", "Laudo estruturado"],
+            ["proposta", "Proposta × Campo"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -487,6 +489,7 @@ function ReviewCasePage() {
       </div>
 
       {tab === "laudo" && <LaudoPanel casoId={id} />}
+      {tab === "proposta" && <PropostaPanel casoId={id} />}
 
       <div className="space-y-4" hidden={tab !== "respostas"}>
         {secoes.length === 0 && (

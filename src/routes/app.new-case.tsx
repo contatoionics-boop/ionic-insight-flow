@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
+import { registrarProposta } from "@/lib/proposta.functions";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -44,6 +45,8 @@ function NewCasePage() {
   const navigate = useNavigate();
   const loadAgents = useServerFn(listTechnicalAgents);
   const agendar = useServerFn(agendarMapeamento);
+  const registrar = useServerFn(registrarProposta);
+  const [proposta, setProposta] = useState<File | null>(null);
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
@@ -186,7 +189,7 @@ function NewCasePage() {
     setError(null);
     try {
       const agendadoEm = new Date(`${data}T${hora}:00`).toISOString();
-      await agendar({
+      const res = await agendar({
         data: {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
@@ -202,6 +205,34 @@ function NewCasePage() {
           observacoes: observacoes || null,
         },
       });
+
+      if (proposta && res?.casos?.length) {
+        try {
+          for (const c of res.casos as { id: string }[]) {
+            const path = `casos/${c.id}/${Date.now()}-${proposta.name.replace(/[^\w.-]+/g, "_")}`;
+            const up = await supabase.storage.from("propostas").upload(path, proposta, {
+              contentType: "application/pdf",
+              upsert: false,
+            });
+            if (up.error) throw new Error(up.error.message);
+            await registrar({
+              data: {
+                casoId: c.id,
+                arquivoNome: proposta.name,
+                arquivoPath: path,
+                tamanhoBytes: proposta.size,
+              },
+            });
+          }
+        } catch (errProposta: any) {
+          setError(
+            `Mapeamento agendado, mas a proposta não pôde ser processada: ${errProposta?.message ?? "erro desconhecido"}. Anexe-a novamente na tela de revisão.`,
+          );
+          setWorking(false);
+          return;
+        }
+      }
+
       navigate({ to: "/app/agenda" });
     } catch (err: any) {
       setError(err?.message ?? "Erro ao agendar mapeamento.");
@@ -402,6 +433,27 @@ function NewCasePage() {
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 placeholder="Instruções, ponto de referência, contato no local..."
               />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Proposta comercial (PDF)</Label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  if (f && f.size > 25 * 1024 * 1024) {
+                    setError("A proposta deve ter no máximo 25 MB.");
+                    e.target.value = "";
+                    return;
+                  }
+                  setProposta(f);
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Opcional. O escopo vendido é lido automaticamente e comparado com as respostas do
+                mapeamento na tela de revisão.
+              </p>
             </div>
           </div>
 

@@ -31,6 +31,9 @@ export const CHAVES_LAUDO: ChaveLaudo[] = [
   { chave: "compartimento_dimensao", rotulo: "Dimensão do compartimento", descricao: "Medida do compartimento do T1000 (medida em campo).", exemplos: ["550x550x250 mm", "550x550x300 mm"] },
   { chave: "infra_ti_variante", rotulo: "Variante de infraestrutura de TI", descricao: "Qual variante do item 2.1 aplicar.", exemplos: ["A", "B_reduzida", "B_completa", "D"] },
   { chave: "responsavel_cliente", rotulo: "Responsável do cliente", descricao: "Contato do cliente que acompanhou o mapeamento." },
+  { chave: "tipo_bomba", rotulo: "Tipo da bomba", descricao: "Tipo da bomba de abastecimento (elétrica não aceita adaptação de pulso).", exemplos: ["mecanica", "eletronica", "eletrica"] },
+  { chave: "qualidade_sinal", rotulo: "Qualidade do sinal", descricao: "Qualidade do sinal de rede no local (usado na comparação com a proposta).", exemplos: ["bom", "medio", "fraco", "sem sinal"] },
+  { chave: "comboio", rotulo: "Possui caminhão comboio", descricao: "Se a operação mapeada inclui caminhão comboio.", exemplos: ["sim", "nao"] },
 ];
 
 export const CHAVES_POR_NOME = new Map(CHAVES_LAUDO.map((c) => [c.chave, c]));
