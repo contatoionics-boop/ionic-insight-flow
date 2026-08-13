@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  X,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Modal, Textarea } from "@/components/ui-bits";
 import {
