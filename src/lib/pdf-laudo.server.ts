@@ -189,7 +189,8 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivel: 1 | 2 | 3) {
   const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
-  need(ctx, size + 22);
+  // reserva espaço para o título + início do conteúdo (evita título órfão)
+  need(ctx, size + 60);
   ctx.y -= nivel === 1 ? 8 : 4;
   const label = sanitize(`${numero ? `${numero}. ` : ""}${texto}`);
   if (nivel === 1) {
