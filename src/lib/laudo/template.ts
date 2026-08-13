@@ -84,9 +84,6 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     rfid: bool(vars, "rfid"),
   };
 
-  // ---------- Alertas no topo ----------
-  for (const a of alertasDoContexto(ctxRegras)) blocos.push(a);
-
   // ---------- 1. Introdução ----------
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
   blocos.push({
@@ -104,6 +101,20 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
       "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
       "Itens sinalizados como [CONFIRMAR: ...] dependem de validação antes da emissão definitiva do documento.",
   });
+
+  // ---------- Observações técnicas relevantes (após a introdução) ----------
+  const alertas = alertasDoContexto(ctxRegras);
+  if (alertas.length) {
+    blocos.push({
+      id: bid("h"),
+      tipo: "heading",
+      numero: null,
+      texto: "Observações técnicas relevantes",
+      nivel: 2,
+    });
+    for (const a of alertas) blocos.push(a);
+  }
+
 
   // ---------- 2. Requisitos de infraestrutura ----------
   blocos.push({
