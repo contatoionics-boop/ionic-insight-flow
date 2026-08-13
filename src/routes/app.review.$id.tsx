@@ -469,6 +469,7 @@ function ReviewCasePage() {
           [
             ["respostas", "Respostas"],
             ["laudo", "Laudo estruturado"],
+            ["proposta", "Proposta × Campo"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -487,6 +488,7 @@ function ReviewCasePage() {
       </div>
 
       {tab === "laudo" && <LaudoPanel casoId={id} />}
+      {tab === "proposta" && <PropostaPanel casoId={id} />}
 
       <div className="space-y-4" hidden={tab !== "respostas"}>
         {secoes.length === 0 && (
