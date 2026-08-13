@@ -83,5 +83,13 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     .eq("id", casoId);
   if (error) throw new Error(error.message);
 
+  // Comparação proposta comercial x mapeamento (best-effort).
+  try {
+    const { compararCasoProposta } = await import("@/lib/proposta/processar.server");
+    await compararCasoProposta(supabase, casoId, null);
+  } catch {
+    // sem proposta anexada ou falha na comparação: laudo segue normalmente
+  }
+
   return { caso, variaveis, conteudo, blocos };
 }
