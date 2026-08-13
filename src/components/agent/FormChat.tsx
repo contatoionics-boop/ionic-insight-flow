@@ -57,7 +57,7 @@ export function FormChat({
     const startIdx = items.findIndex((it) => it.secaoIdx >= initialStep);
     const base = startIdx === -1 ? items.length : startIdx;
     const i = items.findIndex(
-      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live", { validarImagensIa: ctx.validarImagensIa ?? true }),
+      (it, k) => k >= base && !isComplete(it.pergunta, state[it.pergunta.id] ?? {}, "live", { validarImagensIa: false }),
     );
     return i === -1 ? items.length : i;
   });
@@ -83,7 +83,7 @@ export function FormChat({
     const it = items[idx];
     if (!it) return;
     const r = state[it.pergunta.id] ?? {};
-    if (!isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true })) return;
+    if (!isComplete(it.pergunta, r, "live", { validarImagensIa: false })) return;
     setSavingIdx(idx);
     try {
       await onAdvanceSection?.([it.pergunta]);
@@ -234,7 +234,7 @@ export function FormChat({
           if (idx === cursor || editing === idx) {
             const showSecaoMarker = idx === 0 || items[idx - 1].secaoIdx !== it.secaoIdx;
             const r = state[it.pergunta.id] ?? {};
-            const podeConfirmar = isComplete(it.pergunta, r, "live", { validarImagensIa: ctx.validarImagensIa ?? true });
+            const podeConfirmar = isComplete(it.pergunta, r, "live", { validarImagensIa: false });
             if (typing && idx === cursor && editing !== idx) {
               return <TypingDots key={it.pergunta.id} />;
             }
@@ -259,7 +259,7 @@ export function FormChat({
                     resposta={r}
                     update={(patch) => update(it.pergunta.id, patch)}
                     mode="live"
-                    validarImagensIa={ctx.validarImagensIa ?? true}
+                    validarImagensIa={false}
                     siblings={{
                       perguntas: ctx.perguntasPorSecao[ctx.secoes[it.secaoIdx].id] ?? [],
                       state,
