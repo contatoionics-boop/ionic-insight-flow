@@ -61,8 +61,12 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     Object.entries(anteriores).filter(([, v]) => v?.origem === "manual" && v?.valor),
   );
 
-  // camadas complementares: proposta comercial > cadastro do agendamento
-  const camadas: VariaveisLaudo[] = [];
+  // camadas complementares, em ordem de prioridade:
+  // identidade do cadastro > proposta comercial > demais dados do cadastro
+  const { variaveisIdentidadeCadastro, variaveisComplementaresCadastro } = await import(
+    "@/lib/laudo/cadastro"
+  );
+  const camadas: VariaveisLaudo[] = [variaveisIdentidadeCadastro(caso)];
   try {
     const { data: props } = await supabase
       .from("propostas_comerciais")
@@ -79,10 +83,10 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   } catch {
     // sem proposta: segue sem essa camada
   }
-  const { variaveisDoCadastro } = await import("@/lib/laudo/cadastro");
-  camadas.push(variaveisDoCadastro(caso));
+  camadas.push(variaveisComplementaresCadastro(caso));
 
   const variaveis = await extrairVariaveis(respostas, manuais, camadas);
+
   const meta = metaDoCasoLaudo(caso);
   const blocos = montarBlocos({
     variaveis,
