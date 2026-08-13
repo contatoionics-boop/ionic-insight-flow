@@ -88,7 +88,11 @@ export async function extrairEscopoProposta(texto: string): Promise<EscopoPropos
       '{"chave":{"valor":..., "confianca":0.0, "trecho":"..."}}. ' +
       "Chaves possíveis: nivel_automacao (1,2 ou 3), qtd_bicos (número), comboio (boolean), " +
       "qtd_comboios (número), comunicacao ('wifi'|'4g'|'ambos'), fase_automacao (1 a 4), " +
-      "itens_inclusos (lista), itens_nao_inclusos (lista). " +
+      "itens_inclusos (lista), itens_nao_inclusos (lista), nome_cliente (texto), " +
+      "nome_solucao (texto, ex.: SAAF), tipo_acao ('instalacao'|'upgrade'), objeto_escopo (texto curto), " +
+      "tipo_objeto ('posto'|'pista'|'comboio'|'veiculo'|'frota'), ids_objetos (lista de placas/prefixos), " +
+      "terminal (ex.: T850, T1000), rfid (boolean), bitola_bico (ex.: 3/4\", 1\"), tensao (ex.: 12V, 24V), " +
+      "qtd_pistas (número). " +
       "Nunca invente: se a informação não estiver explícita, omita a chave. " +
       "confianca 1 = literal no texto, 0.5 = inferido, 0.2 = palpite. trecho = citação curta do PDF.",
     prompt: `Proposta comercial:\n${corpus}`,
