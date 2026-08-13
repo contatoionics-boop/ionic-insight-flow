@@ -423,8 +423,18 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
                       IA {Math.round((v.confianca ?? 0) * 100)}%
                     </Badge>
                   )}
+                  {v?.origem === "proposta" && (
+                    <Badge className="bg-violet-500/15 text-violet-600 dark:text-violet-300">
+                      proposta {Math.round((v.confianca ?? 0) * 100)}%
+                    </Badge>
+                  )}
+                  {v?.origem === "cadastro" && (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                      cadastro
+                    </Badge>
+                  )}
                   {v?.origem === "manual" && <Badge>manual</Badge>}
-                  {(!v?.valor || v?.origem === "ausente") && (
+                  {!v?.valor && (
                     <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
                       pendente
                     </Badge>
