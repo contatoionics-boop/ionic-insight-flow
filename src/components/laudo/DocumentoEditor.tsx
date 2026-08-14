@@ -32,12 +32,12 @@ import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [
   { tipo: "paragraph", rotulo: "Texto" },
-  { tipo: "heading", rotulo: "Tópico", nivel: 1 },
-  { tipo: "heading", rotulo: "Subtópico", nivel: 2 },
-  { tipo: "heading", rotulo: "Subnível", nivel: 3 },
-  { tipo: "table", rotulo: "Tabela" },
-  { tipo: "image", rotulo: "Imagem" },
-  { tipo: "observacao", rotulo: "Observação técnica" },
+  { tipo: "heading", rotulo: "Título (nível 1)", nivel: 1 },
+  { tipo: "heading", rotulo: "Subtítulo (nível 2)", nivel: 2 },
+  { tipo: "heading", rotulo: "Subnível (nível 3)", nivel: 3 },
+  { tipo: "observacao", rotulo: "Caixa / Observação técnica" },
+  { tipo: "alert", rotulo: "Caixa de destaque (atenção)" },
+  { tipo: "image", rotulo: "Imagem / Desenho técnico" },
   { tipo: "bullets", rotulo: "Lista" },
   { tipo: "pagebreak", rotulo: "Quebra de página" },
 ];
@@ -46,7 +46,11 @@ function novoId() {
   return `m-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function criarBloco(tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4): BlocoLaudo {
+function criarBloco(
+  tipo: TipoBloco,
+  nivel?: 1 | 2 | 3 | 4,
+  opcoes?: { colunas?: number; linhas?: number },
+): BlocoLaudo {
   const base = {
     id: novoId(),
     chave: `manual:${novoId()}`,
@@ -59,24 +63,30 @@ function criarBloco(tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4): BlocoLaudo {
       return { ...base, tipo: "heading", numero: "", texto: "Novo tópico", nivel: nivel ?? 1 };
     case "bullets":
       return { ...base, tipo: "bullets", itens: ["Novo item"] };
-    case "table":
+    case "table": {
+      const nc = Math.max(1, Math.min(8, opcoes?.colunas ?? 2));
+      const nl = Math.max(1, Math.min(30, opcoes?.linhas ?? 2));
       return {
         ...base,
         tipo: "table",
         titulo: "Nova tabela",
-        colunas: ["Coluna 1", "Coluna 2"],
-        linhas: [{ celulas: ["", ""] }],
+        colunas: Array.from({ length: nc }, (_, i) => `Coluna ${i + 1}`),
+        linhas: Array.from({ length: nl }, () => ({ celulas: Array.from({ length: nc }, () => "") })),
       };
+    }
     case "image":
       return { ...base, tipo: "image", url: "", alt: "Imagem do documento", legenda: null };
     case "observacao":
       return { ...base, tipo: "observacao", titulo: "OBSERVAÇÃO TÉCNICA", texto: "" };
+    case "alert":
+      return { ...base, tipo: "alert", severidade: "info", codigo: "manual", texto: "" };
     case "pagebreak":
       return { ...base, tipo: "pagebreak" };
     default:
       return { ...base, tipo: "paragraph", texto: "" };
   }
 }
+
 
 function Pendencia({ texto }: { texto: string }) {
   const partes = texto.split(/(\[CONFIRMAR:[^\]]*\])/g);
