@@ -146,12 +146,13 @@ export function resolverMetaLaudo(entrada: EntradaMetaLaudo): MetaLaudo {
     qualquer(vars, "analista_projetos") ||
     "—";
 
+  // regra de negócio: o especialista em automação é sempre PABLO;
+  // só um override manual explícito do especialista muda esse campo.
   const especialista =
     (vars?.["especialista_automacao"]?.origem === "manual"
       ? (vars["especialista_automacao"]?.valor ?? "").trim()
-      : "") ||
-    (entrada.especialistaPerfil ?? "").trim() ||
-    ESPECIALISTA_AUTOMACAO_PADRAO;
+      : "") || ESPECIALISTA_AUTOMACAO_PADRAO;
+
 
   const codigoFormulario = codigoDoFormulario(entrada.formulario);
 
