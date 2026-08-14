@@ -42,6 +42,7 @@ type TipoPergunta =
   | "video"
   | "audio"
   | "checkbox"
+  | "multipla_escolha"
   | "data"
   | "selecao_unica"
   | "toggle";
@@ -51,6 +52,7 @@ const TIPOS: { value: TipoPergunta; label: string }[] = [
   { value: "numero", label: "Número" },
   { value: "data", label: "Data" },
   { value: "selecao_unica", label: "Seleção única" },
+  { value: "multipla_escolha", label: "Múltipla escolha" },
   { value: "toggle", label: "Sim / Não" },
   { value: "checkbox", label: "Confirmação" },
   { value: "foto", label: "Foto (com IA)" },
