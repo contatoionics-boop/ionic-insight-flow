@@ -313,7 +313,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     const { data: caso, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, agendado_em, laudo_conteudo, laudo_alertas, agente_nome_manual, formulario_id, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
+        "id, codigo, agendado_em, laudo_conteudo, laudo_variaveis, laudo_alertas, agente_nome_manual, formulario_id, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
       )
       .eq("id", data.casoId)
       .maybeSingle();
