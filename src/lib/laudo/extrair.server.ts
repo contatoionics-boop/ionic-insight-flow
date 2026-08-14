@@ -55,7 +55,12 @@ export async function extrairVariaveis(
     for (const chave of chavesDaPergunta(r.pergunta)) {
       if (!CHAVES_LAUDO.some((c) => c.chave === chave)) continue;
       if (vars[chave]?.valor) continue;
-      vars[chave] = { chave, valor, origem: "formulario", confianca: 0.9 };
+      let v = valor;
+      if (chave === "comunicacao_tipos" && /^(sim|nao|não)$/i.test(v)) {
+        if (/^n/i.test(v)) continue; // "não tem WiFi" não define o meio de comunicação
+        v = "WiFi";
+      }
+      vars[chave] = { chave, valor: v, origem: "formulario", confianca: 0.9 };
     }
   }
 
