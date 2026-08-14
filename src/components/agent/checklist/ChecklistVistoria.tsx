@@ -73,6 +73,17 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         } catch {
           // sem rascunho local
         }
+        // Respostas que só existem no rascunho local precisam ser enviadas ao
+        // servidor — senão a finalização é recusada por "pendência" fantasma.
+        for (const [id, r] of Object.entries(inicial)) {
+          const b = base[id];
+          const mudou =
+            (r.text ?? "") !== (b?.text ?? "") ||
+            (r.transcription ?? "") !== (b?.transcription ?? "") ||
+            (r.filePath ?? "") !== (b?.filePath ?? "") ||
+            (r.audioPath ?? "") !== (b?.audioPath ?? "");
+          if (mudou) sujosRef.current.add(id);
+        }
         setDados(d);
         setState(inicial);
       } catch (e) {
@@ -81,6 +92,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casoId]);
+
 
   // Rascunho local: trocar de aba ou recarregar não perde nada.
   useEffect(() => {
