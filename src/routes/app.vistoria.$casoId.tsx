@@ -4,9 +4,10 @@ import { AgentChat } from "@/components/agent/AgentChat";
 import { ChecklistVistoria } from "@/components/agent/checklist/ChecklistVistoria";
 
 export const Route = createFileRoute("/app/vistoria/$casoId")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    modo: search.modo === "chat" ? ("chat" as const) : ("checklist" as const),
-  }),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { modo?: "chat" | "checklist" } =>
+    search.modo === "chat" ? { modo: "chat" } : {},
   component: VistoriaPage,
 });
 
