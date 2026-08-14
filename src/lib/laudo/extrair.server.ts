@@ -7,6 +7,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { createOpenAIProvider } from "@/lib/openai.server";
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
+import { chavesDaPergunta } from "@/lib/laudo/aliases";
 import { LIMIAR_CONFIANCA, type VariaveisLaudo } from "@/lib/laudo/tipos";
 
 export type RespostaBruta = {
@@ -44,6 +45,18 @@ export async function extrairVariaveis(
     const valor = limpar(r.valor);
     if (!chave || !valor) continue;
     vars[chave] = { chave, valor, origem: "formulario", confianca: 1 };
+  }
+
+  // 1a) perguntas sem `chave_laudo`: casamento por texto da pergunta
+  for (const r of respostas) {
+    if (limpar(r.chave_laudo)) continue;
+    const valor = limpar(r.valor);
+    if (!valor) continue;
+    for (const chave of chavesDaPergunta(r.pergunta)) {
+      if (!CHAVES_LAUDO.some((c) => c.chave === chave)) continue;
+      if (vars[chave]?.valor) continue;
+      vars[chave] = { chave, valor, origem: "formulario", confianca: 0.9 };
+    }
   }
 
   // 1b) camadas complementares: proposta comercial, cadastro do agendamento
