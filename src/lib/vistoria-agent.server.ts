@@ -294,6 +294,48 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     };
   }
 
+  // Escopo extraído da proposta comercial (quando houver) → variáveis do laudo.
+  const proposta: Record<string, string> = {};
+  const { data: propostaRow } = await supabaseAdmin
+    .from("propostas_comerciais")
+    .select("escopo, status")
+    .eq("caso_id", casoId)
+    .eq("status", "pronto")
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (propostaRow?.escopo) {
+    try {
+      const { variaveisDaProposta } = await import("@/lib/proposta/para-laudo");
+      const vars = variaveisDaProposta((propostaRow as any).escopo ?? {});
+      for (const [k, v] of Object.entries(vars)) {
+        if (v?.valor) proposta[k] = String(v.valor);
+      }
+    } catch {
+      /* proposta opcional */
+    }
+  }
+  // Fatos da proposta viram cadastro quando o cadastro não os tem.
+  const jaTem = new Set(cadastro.map((f) => f.label.toLowerCase()));
+  const rotulosProposta: Record<string, string> = {
+    nome_cliente: "Empresa (cliente)",
+    nivel_servico: "Nível do serviço",
+    tipo_acao: "Tipo de solicitação",
+    qtd_bicos: "Quantidade de bicos",
+    comunicacao_tipos: "Tipo de comunicação",
+    terminal_atual: "Terminal",
+    objeto_escopo: "Objeto do escopo",
+    nome_solucao: "Solução",
+    ids_objetos: "Identificação dos objetos",
+    bitola_bico: "Bitola do bico",
+    tensao_veiculo: "Tensão",
+  };
+  for (const [chave, rotulo] of Object.entries(rotulosProposta)) {
+    const valor = proposta[chave];
+    if (!valor || jaTem.has(rotulo.toLowerCase())) continue;
+    cadastro.push({ label: rotulo, valor: rotulosEnum[valor] ?? valor });
+  }
+
   return {
     casoId,
     clienteNome,
@@ -307,7 +349,9 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     })),
     state,
     cadastro,
+    proposta,
   };
+
 }
 
 /** Filter perguntas by current state's conditional rules. */
