@@ -1019,12 +1019,21 @@ export function DocumentoEditor({
     setModo("editar");
   }
 
-  function inserir(indice: number, tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) {
+  function inserir(
+    indice: number,
+    tipo: TipoBloco,
+    nivel?: 1 | 2 | 3 | 4,
+    opcoes?: { colunas?: number; linhas?: number },
+  ) {
+    const bloco = criarBloco(tipo, nivel, opcoes);
     const next = [...blocos];
-    next.splice(indice, 0, criarBloco(tipo, nivel));
+    next.splice(indice, 0, bloco);
     atualizar(next);
     setModo("editar");
+    // imagem exige o painel (upload); os demais editam direto na folha
+    if (tipo === "image") setEditando(bloco.id);
   }
+
 
   function mover(indice: number, direcao: -1 | 1) {
     const fim = fimDaSecao(blocos, indice);
