@@ -489,16 +489,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         </div>
       </Card>
 
-      <Card className="p-5">
-        <p className="mb-2 text-sm font-medium">Prévia do documento</p>
-        {conteudo?.blocos?.length ? (
-          conteudo.blocos.map((b) => <Bloco key={b.id} bloco={b} />)
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Clique em “Gerar laudo” para montar o documento a partir das respostas.
-          </p>
-        )}
-      </Card>
+      <DocumentoEditor casoId={casoId} conteudo={conteudo} onConteudo={setConteudo} />
+
 
       <Modal
         open={!!alertaAberto}
