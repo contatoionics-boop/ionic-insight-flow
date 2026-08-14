@@ -828,6 +828,7 @@ export function DocumentoEditor({
   onArvoreChange,
   registrarSalvar,
   semChrome = false,
+  meta,
 }: {
   casoId: string;
   conteudo: LaudoConteudo | null;
@@ -843,6 +844,8 @@ export function DocumentoEditor({
   registrarSalvar?: (fn: (() => Promise<void>) | null) => void;
   /** esconde sumário e barra internos (usados pelo layout da revisão) */
   semChrome?: boolean;
+  /** metadados do cabeçalho impresso (mesma fonte usada pelo PDF) */
+  meta?: MetaLaudo | null;
 }) {
   const fnSalvar = useServerFn(salvarDocumentoLaudo);
   const fnConflito = useServerFn(resolverConflitoLaudo);
@@ -1130,7 +1133,12 @@ export function DocumentoEditor({
           </Card>
         )}
 
-        <Card className="p-5">
+        <div className="flex justify-center rounded-xl bg-muted/40 p-4 sm:p-8">
+          <div
+            className="w-full max-w-[820px] bg-white px-[56px] py-[48px] shadow-[0_2px_18px_rgba(15,23,42,0.18)] sm:px-[72px]"
+            style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
+          >
+          {meta ? <CabecalhoFolha meta={meta} /> : null}
           {modo === "editar" && (
             <MenuAdicionar
               onAdd={(t, n) => inserir(0, t, n)}
@@ -1160,6 +1168,7 @@ export function DocumentoEditor({
               );
             }
             if (modo === "visualizar") return <Visual key={b.id} bloco={b} />;
+            const inline = b.tipo !== "image" && b.tipo !== "alert" && b.tipo !== "pagebreak";
             return (
               <div key={b.id}>
                 <div
@@ -1242,7 +1251,10 @@ export function DocumentoEditor({
                       />
                     </div>
                   ) : (
-                    <Visual bloco={b} />
+                    <Visual
+                      bloco={b}
+                      {...(inline ? { onChange: (novo: BlocoLaudo) => editarBloco(i, novo) } : {})}
+                    />
                   )}
                 </div>
                 <MenuAdicionar
@@ -1259,7 +1271,8 @@ export function DocumentoEditor({
               </div>
             );
           })}
-        </Card>
+          </div>
+        </div>
       </div>
 
       <BibliotecaModal
