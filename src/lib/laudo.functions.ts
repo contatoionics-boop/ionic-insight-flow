@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { renumerar } from "@/lib/laudo/numeracao";
 import { comChaves } from "@/lib/laudo/mesclar";
+import type { Achado } from "@/lib/laudo/analise/achados";
 import {
   alertasBloqueantes,
   blocosComPendencia,
@@ -91,15 +92,15 @@ export const gerarLaudo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
     const supabase = context.supabase;
-    const { caso, variaveis, conteudo, blocos, conflitos } = await montarESalvarLaudo(
-      supabase,
-      data.casoId,
-    );
+    const { caso, variaveis, conteudo, blocos, conflitos, achados, descartados } =
+      await montarESalvarLaudo(supabase, data.casoId);
 
     return {
       variaveis,
       conteudo,
       conflitos,
+      achados,
+      descartados,
       pendencias: blocosComPendencia(blocos),
       bloqueios: alertasBloqueantes(blocos).map((a) => a.codigo),
       confirmacoes: (caso.laudo_alertas ?? []) as ConfirmacaoAlerta[],
@@ -113,7 +114,7 @@ export const carregarLaudo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: caso, error } = await context.supabase
       .from("casos")
-      .select("laudo_variaveis, laudo_conteudo, laudo_alertas")
+      .select("laudo_variaveis, laudo_conteudo, laudo_alertas, laudo_analise")
       .eq("id", data.casoId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -124,6 +125,50 @@ export const carregarLaudo = createServerFn({ method: "POST" })
       pendencias: conteudo ? blocosComPendencia(conteudo.blocos) : 0,
       bloqueios: conteudo ? alertasBloqueantes(conteudo.blocos).map((a) => a.codigo) : [],
       confirmacoes: (caso?.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[],
+      achados: ((caso?.laudo_analise as any)?.achados ?? []) as Achado[],
+      descartados: (((caso?.laudo_analise as any)?.descartados ?? []) as string[]),
+    };
+  });
+
+/** Aceita ou descarta um achado da análise técnica e remonta o documento. */
+export const decidirAchadoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        chave: z.string().min(1),
+        decisao: z.enum(["aceitar", "descartar"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const { data: caso, error } = await supabase
+      .from("casos")
+      .select("laudo_analise")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+
+    const analise = (caso?.laudo_analise ?? {}) as { descartados?: string[] };
+    const atuais = new Set(analise.descartados ?? []);
+    if (data.decisao === "descartar") atuais.add(data.chave);
+    else atuais.delete(data.chave);
+
+    const { error: uErr } = await supabase
+      .from("casos")
+      .update({ laudo_analise: { ...analise, descartados: Array.from(atuais) } as any })
+      .eq("id", data.casoId);
+    if (uErr) throw new Error(uErr.message);
+
+    const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+    const res = await montarESalvarLaudo(supabase, data.casoId);
+    return {
+      conteudo: res.conteudo,
+      achados: res.achados,
+      descartados: res.descartados,
+      pendencias: blocosComPendencia(res.blocos),
     };
   });
 
