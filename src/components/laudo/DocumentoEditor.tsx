@@ -776,6 +776,9 @@ export function DocumentoEditor({
       setSalvando(false);
     }
   }
+  salvarRef.current = salvar;
+
+
 
   async function resolver(chave: string, decisao: "manter_edicao" | "atualizar_formulario") {
     try {
