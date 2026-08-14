@@ -16,7 +16,7 @@ for (let i = 0; i < MACROMAN.length; i++) {
   if (/[À-ÖØ-öø-ÿ]/.test(latin1)) REVERSO.set(MACROMAN[i]!, latin1);
 }
 
-const LETRA = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+
 
 /** Corrige acentuação corrompida e normaliza espaços/aspas. */
 export function limparTexto(input: string | null | undefined): string {
