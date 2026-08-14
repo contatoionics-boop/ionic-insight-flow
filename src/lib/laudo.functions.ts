@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { renumerar } from "@/lib/laudo/numeracao";
-import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
+import { comChaves } from "@/lib/laudo/mesclar";
 import {
   alertasBloqueantes,
   blocosComPendencia,
@@ -397,6 +397,3 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
       mimeType: "application/pdf",
     };
   });
-
-// reexport usado pelo editor no cliente (mesma regra de marcação de edição)
-export { conteudoDoBloco, marcarEdicao };
