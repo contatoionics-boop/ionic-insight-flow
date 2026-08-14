@@ -28,8 +28,11 @@ export function limparTexto(input: string | null | undefined): string {
     const fix = REVERSO.get(ch);
     const anterior = s[i - 1] ?? "";
     const proximo = s[i + 1] ?? "";
-    // só troca quando o caractere está no meio de uma palavra
-    if (fix && (LETRA.test(anterior) || LETRA.test(proximo))) out += fix;
+    // só troca quando o caractere está no meio de uma palavra minúscula;
+    // em palavras em CAIXA ALTA (ex.: "INTRODUÇÃO") o acento já está correto
+    const vizinhoMinusculo = /[a-zà-öø-ÿ]/.test(anterior) || /[a-zà-öø-ÿ]/.test(proximo);
+    const entreMaiusculas = /[A-ZÀ-ÖØ-Þ]/.test(anterior) && /[A-ZÀ-ÖØ-Þ]/.test(proximo);
+    if (fix && vizinhoMinusculo && !entreMaiusculas) out += fix;
     else out += ch;
   }
   return out
