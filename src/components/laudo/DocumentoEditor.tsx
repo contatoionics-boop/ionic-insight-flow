@@ -879,6 +879,32 @@ function MenuAdicionar({
               Tabela…
             </button>
           )}
+          {onNivel2 && (
+            <>
+              <p className="mt-1 border-t border-border px-2 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Blocos Nível 2
+              </p>
+              {(
+                [
+                  ["secao", "Seção VII — Instruções Nível 2 (completa)"],
+                  ["2.4", "2.4 — Bicos de Abastecimento (Nível 2)"],
+                  ["2.4.1", "2.4.1 — Suporte/Descanso do Bico — Comboio"],
+                ] as const
+              ).map(([k, rotulo]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    onNivel2(k);
+                    fechar();
+                  }}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </>
+          )}
           {onBlocoPadrao && (
             <button
               type="button"
@@ -891,6 +917,7 @@ function MenuAdicionar({
               Inserir bloco padrão…
             </button>
           )}
+
           {onFoto && (
             <button
               type="button"
