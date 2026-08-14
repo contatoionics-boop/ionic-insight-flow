@@ -459,3 +459,37 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
       mimeType: "application/pdf",
     };
   });
+
+/** Fotos do FR-29-10 do caso, com URL assinada, para inserir no documento. */
+export const listarFotosLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => CasoInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: respostas, error } = await context.supabase
+      .from("respostas_agente")
+      .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto)")
+      .eq("caso_id", data.casoId)
+      .in("tipo", ["foto", "video"]);
+    if (error) throw new Error(error.message);
+
+    const itens: { path: string; legenda: string }[] = [];
+    for (const r of respostas ?? []) {
+      const legenda = (r as any).pergunta?.texto ?? "Registro fotográfico";
+      const paths = [
+        ...(((r as any).arquivos_paths ?? []) as string[]),
+        ...((r as any).arquivo_path ? [(r as any).arquivo_path as string] : []),
+      ];
+      for (const p of paths) if (p && !itens.some((i) => i.path === p)) itens.push({ path: p, legenda });
+    }
+    const fotos = itens.filter((i) => !/\.(mp4|mov|webm|avi)$/i.test(i.path));
+    if (!fotos.length) return [] as { path: string; url: string; legenda: string }[];
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed } = await supabaseAdmin.storage
+      .from("agente-uploads")
+      .createSignedUrls(fotos.map((f) => f.path), 60 * 60);
+    const mapa = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+    return fotos
+      .map((f) => ({ ...f, url: (mapa.get(f.path) as string) ?? "" }))
+      .filter((f) => f.url);
+  });
