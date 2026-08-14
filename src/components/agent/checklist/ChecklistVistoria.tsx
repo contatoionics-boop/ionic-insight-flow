@@ -244,8 +244,16 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   };
 
   const handleFinalizar = async () => {
+    // Reenvia tudo que está preenchido localmente: garante que o servidor
+    // enxergue exatamente o mesmo estado do checklist antes de validar.
+    for (const [id, r] of Object.entries(stateRef.current)) {
+      if (r.text?.trim() || r.transcription?.trim() || r.filePath || r.audioPath) {
+        sujosRef.current.add(id);
+      }
+    }
     const ok = await persistir();
     if (!ok) return;
+
     setFinalizando(true);
     try {
       await finalizar({ data: { ...(token ? { token } : {}), ...(casoId ? { casoId } : {}) } });
