@@ -876,9 +876,14 @@ function CampoFoto({
         </Button>
       ) : (
         <>
-          {resposta.filePreview && (
-            <img src={resposta.filePreview} alt="Foto enviada" className="w-full rounded-md border border-border object-cover" />
+          {urlFoto ? (
+            <img src={urlFoto} alt="Foto enviada" className="w-full rounded-md border border-border object-cover" />
+          ) : (
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Foto enviada e salva.
+            </div>
           )}
+
           {analisando && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Analisando imagem com IA…
