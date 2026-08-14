@@ -337,7 +337,13 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             <section className="space-y-4">
               <h2 className="text-base font-semibold text-foreground">Revisão final</h2>
               <PainelRevisao resumo={resumo} onIrPara={(i, p) => void irPara(i, p)} />
+              {erro && (
+                <p className="whitespace-pre-line rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {erro}
+                </p>
+              )}
               <div className="flex justify-end">
+
                 <Button
                   variant="primary"
                   onClick={handleFinalizar}
