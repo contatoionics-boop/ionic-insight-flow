@@ -669,6 +669,18 @@ export function DocumentoEditor({
   );
   const conflitos = useMemo(() => blocos.filter((b) => b.conflito), [blocos]);
 
+  useEffect(() => {
+    onArvoreChange?.(arvore);
+  }, [arvore, onArvoreChange]);
+
+  const salvarRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    registrarSalvar?.(() => salvarRef.current());
+    return () => registrarSalvar?.(null);
+  }, [registrarSalvar]);
+
+
+
   function atualizar(next: BlocoLaudo[]) {
     setBlocos(renumerar(next));
     setSujo(true);
