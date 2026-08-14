@@ -30,6 +30,8 @@ export type EntradaTemplate = {
   cabecalho: CabecalhoLaudo;
   /** achados de análise técnica descartados pelo especialista */
   achadosDescartados?: string[];
+  /** produtos contratados, extraídos da proposta comercial do caso */
+  produtosProposta?: ProdutoProposta[];
 };
 
 /** chaves de texto livre onde valores sem sentido não podem ir para o documento */
@@ -354,9 +356,12 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     tipo: "table",
     titulo: "Produtos IONICS",
     colunas: ["Código", "Descrição", "Qtd."],
+    origem: "dynamic",
+    editavel: true,
+    // Sem proposta com itens identificados a tabela nasce vazia, para o
+    // especialista incluir manualmente os produtos contratados.
     linhas: produtos.map((p) => ({
-      celulas: [p.codigo, p.descricao, String(p.quantidade)],
-      nota: p.nota ?? null,
+      celulas: [p.codigo ?? "—", p.descricao, p.quantidade ?? "—"],
     })),
   });
   blocos.push({
@@ -387,10 +392,17 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
         ],
   });
 
-  const notas = Array.from(
-    new Set(produtos.map((p) => p.nota).filter((n): n is string => !!n)),
-  );
-  if (notas.length) blocos.push({ id: bid("n"), tipo: "notes", itens: notas });
+  if (!produtos.length) {
+    blocos.push({
+      id: bid("n"),
+      tipo: "notes",
+      origem: "dynamic",
+      editavel: true,
+      itens: [
+        "Nenhum produto identificado na proposta comercial anexada. O especialista deve incluir os produtos contratados nesta tabela.",
+      ],
+    });
+  }
 
 
   // 2.4 Bicos de abastecimento
