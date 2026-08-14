@@ -187,7 +187,8 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
   ctx.y -= 4;
 }
 
-function heading(ctx: Ctx, numero: string | null, texto: string, nivel: 1 | 2 | 3) {
+function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
+  const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
   const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
