@@ -8,10 +8,10 @@ import { limparTexto } from "@/lib/texto";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const MARGIN_X = 40;
-const HEADER_H = 74;
+const MARGIN_X = 45;
+const HEADER_H = 82;
 const FOOTER_H = 36;
-const TOP = PAGE_H - HEADER_H - 18;
+const TOP = PAGE_H - HEADER_H - 22;
 const BOTTOM = FOOTER_H + 14;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
 
@@ -19,8 +19,10 @@ const NAVY = rgb(0.102, 0.141, 0.212);
 const BLUE = rgb(0.231, 0.51, 0.965);
 const GREY = rgb(0.42, 0.45, 0.5);
 const LINE = rgb(0.85, 0.87, 0.9);
+const BORDA = rgb(0.35, 0.38, 0.43);
 const AMBER = rgb(0.72, 0.45, 0.05);
 const RED = rgb(0.75, 0.15, 0.15);
+const TINTA = rgb(0.12, 0.13, 0.16);
 
 export type LaudoPdfMeta = {
   titulo: string;
@@ -33,6 +35,14 @@ export type LaudoPdfMeta = {
   unidade: string;
   data: string;
   agente: string;
+  /** cabeçalho padrão do formulário FR-31-10 */
+  codigoDocumento?: string | null;
+  elaboradoPor?: string | null;
+  aprovadoPor?: string | null;
+  revisaoDocumento?: string | null;
+  dataRevisao?: string | null;
+  analista?: string | null;
+  especialista?: string | null;
 };
 
 type Ctx = {
@@ -45,6 +55,7 @@ type Ctx = {
   meta: LaudoPdfMeta;
   logo: { img: any; w: number; h: number } | null;
 };
+
 
 function sanitize(s: string): string {
   return limparTexto(s ?? "")
@@ -77,67 +88,85 @@ async function loadLogo(pdf: PDFDocument, meta: LaudoPdfMeta) {
       meta.logoMime?.includes("png") || !meta.logoMime
         ? await pdf.embedPng(meta.logoBytes)
         : await pdf.embedJpg(meta.logoBytes);
-    const h = 26;
+    const h = 24;
     return { img, w: (img.width / img.height) * h, h };
   } catch {
     return null;
   }
 }
 
+/** Cabeçalho padrão do formulário: quadro com título, código e linha de controle. */
 function drawHeader(ctx: Ctx) {
   const { page, meta } = ctx;
-  page.drawRectangle({
-    x: 0,
-    y: PAGE_H - HEADER_H,
-    width: PAGE_W,
-    height: HEADER_H,
-    color: NAVY,
-  });
-  let x = MARGIN_X;
+  const topo = PAGE_H - 24;
+  const linhaControleH = 16;
+  const tituloH = 40;
+  const alturaQuadro = tituloH + linhaControleH;
+  const base = topo - alturaQuadro;
+  const larguraCodigo = 108;
+  const xCodigo = MARGIN_X + CONTENT_W - larguraCodigo;
+
+  const box = (x: number, y: number, w: number, h: number) =>
+    page.drawRectangle({ x, y, width: w, height: h, borderColor: BORDA, borderWidth: 0.8 });
+
+  box(MARGIN_X, base, CONTENT_W, alturaQuadro);
+  box(MARGIN_X, base + linhaControleH, CONTENT_W - larguraCodigo, tituloH);
+  box(xCodigo, base + linhaControleH, larguraCodigo, tituloH);
+
+  // logo à esquerda dentro da célula do título
+  let xTitulo = MARGIN_X + 8;
   if (ctx.logo) {
     page.drawImage(ctx.logo.img, {
-      x,
-      y: PAGE_H - HEADER_H + (HEADER_H - ctx.logo.h) / 2,
+      x: xTitulo,
+      y: base + linhaControleH + (tituloH - ctx.logo.h) / 2,
       width: ctx.logo.w,
       height: ctx.logo.h,
     });
-    x += ctx.logo.w + 12;
+    xTitulo += ctx.logo.w + 10;
   }
-  page.drawText(sanitize(meta.titulo).slice(0, 58), {
-    x,
-    y: PAGE_H - 34,
+  const titulo = sanitize("RESULTADO DE MAPEAMENTO TÉCNICO");
+  const disponivel = CONTENT_W - larguraCodigo - (xTitulo - MARGIN_X) - 8;
+  const tw = ctx.bold.widthOfTextAtSize(titulo, 12);
+  page.drawText(titulo, {
+    x: xTitulo + Math.max(0, (disponivel - tw) / 2),
+    y: base + linhaControleH + tituloH / 2 - 4,
     size: 12,
     font: ctx.bold,
-    color: rgb(1, 1, 1),
+    color: NAVY,
   });
-  page.drawText(sanitize(`${meta.cliente} — ${meta.unidade}`).slice(0, 78), {
-    x,
-    y: PAGE_H - 50,
-    size: 8.5,
+
+  const rotulo = "Código";
+  const rw = ctx.font.widthOfTextAtSize(rotulo, 8);
+  page.drawText(rotulo, {
+    x: xCodigo + (larguraCodigo - rw) / 2,
+    y: base + linhaControleH + tituloH - 15,
+    size: 8,
     font: ctx.font,
-    color: rgb(0.78, 0.82, 0.88),
+    color: GREY,
   });
-  const cod = sanitize(meta.codigo ?? "");
-  if (cod) {
-    const w = ctx.bold.widthOfTextAtSize(cod, 11);
-    page.drawText(cod, {
-      x: PAGE_W - MARGIN_X - w,
-      y: PAGE_H - 34,
-      size: 11,
-      font: ctx.bold,
-      color: BLUE,
-    });
-  }
-  const sub = sanitize(`${meta.data}${meta.revisao ? ` · Rev. ${meta.revisao}` : ""}`);
-  const sw = ctx.font.widthOfTextAtSize(sub, 8.5);
-  page.drawText(sub, {
-    x: PAGE_W - MARGIN_X - sw,
-    y: PAGE_H - 50,
-    size: 8.5,
+  const cod = sanitize(meta.codigoDocumento || "FR-31-10");
+  const cw = ctx.bold.widthOfTextAtSize(cod, 11);
+  page.drawText(cod, {
+    x: xCodigo + (larguraCodigo - cw) / 2,
+    y: base + linhaControleH + 10,
+    size: 11,
+    font: ctx.bold,
+    color: NAVY,
+  });
+
+  const controle = sanitize(
+    `Elaborado por: ${meta.elaboradoPor || "—"}      Aprovado por: ${meta.aprovadoPor || "—"}      ` +
+      `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}      Data da revisão: ${meta.dataRevisao || "—"}`,
+  );
+  page.drawText(controle, {
+    x: MARGIN_X + 6,
+    y: base + 5,
+    size: 7,
     font: ctx.font,
-    color: rgb(0.78, 0.82, 0.88),
+    color: rgb(0.25, 0.27, 0.31),
   });
 }
+
 
 function drawFooter(page: PDFPage, font: PDFFont, meta: LaudoPdfMeta, i: number, total: number) {
   page.drawLine({
@@ -169,12 +198,12 @@ function need(ctx: Ctx, h: number) {
   if (ctx.y - h < BOTTOM) newPage(ctx);
 }
 
-function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
+function paragraph(ctx: Ctx, text: string, size = 10, indent = 14) {
   const lines = wrap(text, ctx.font, size, CONTENT_W - indent);
   for (const line of lines) {
-    need(ctx, size + 4);
+    need(ctx, size + 5);
     // destaca pendências em âmbar
-    const cor = line.includes("[CONFIRMAR:") ? AMBER : rgb(0.15, 0.17, 0.2);
+    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
     ctx.page.drawText(line, {
       x: MARGIN_X + indent,
       y: ctx.y,
@@ -182,29 +211,23 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
       font: ctx.font,
       color: cor,
     });
-    ctx.y -= size + 4;
+    ctx.y -= size + 5;
   }
-  ctx.y -= 4;
+  ctx.y -= 6;
 }
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
   const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
-  const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
+  const size = nivel === 1 ? 11.5 : nivel === 2 ? 10.5 : 10;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
-  ctx.y -= nivel === 1 ? 8 : 4;
-  const label = sanitize(`${numero ? `${numero}. ` : ""}${texto}`);
-  if (nivel === 1) {
-    ctx.page.drawRectangle({
-      x: MARGIN_X,
-      y: ctx.y - 4,
-      width: 3,
-      height: size + 4,
-      color: BLUE,
-    });
-  }
+  ctx.y -= nivel === 1 ? 10 : 6;
+  // padrão FR-31-10: numeração com ponto final e título em caixa alta
+  const label = sanitize(
+    `${numero ? `${numero}. ` : ""}${texto}`.toLocaleUpperCase("pt-BR"),
+  );
   ctx.page.drawText(label, {
-    x: MARGIN_X + (nivel === 1 ? 10 : nivel === 2 ? 0 : 12),
+    x: MARGIN_X + (nivel === 1 ? 0 : nivel === 2 ? 8 : 20),
     y: ctx.y,
     size,
     font: ctx.bold,
@@ -212,6 +235,7 @@ function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 |
   });
   ctx.y -= size + 8;
 }
+
 
 function bullets(ctx: Ctx, itens: string[]) {
   for (const it of itens) {
@@ -432,6 +456,95 @@ async function figura(
   ctx.y -= 6;
 }
 
+/** Quadro de identificação da primeira página (Empresa/Unidade, analista, especialista, agente, data). */
+function identificacao(ctx: Ctx) {
+  const m = ctx.meta;
+  const linhas: [string, string][] = [
+    ["Empresa / Unidade:", `${m.cliente} - ${m.unidade}`],
+    ["Analista de Projetos:", m.analista || "—"],
+    ["Especialista em Automação:", m.especialista || "—"],
+    ["Agente Técnico Credenciado IONICS:", m.agente || "—"],
+    ["Data:", m.data || "—"],
+  ];
+  const size = 9.5;
+  const rotuloW = 168;
+  const valorW = CONTENT_W - rotuloW - 16;
+
+  const alturas = linhas.map(
+    ([, valor]) => wrap(valor, ctx.bold, size, valorW).length * (size + 3) + 8,
+  );
+  const total = alturas.reduce((a, b) => a + b, 0);
+  need(ctx, total + 14);
+
+  const topo = ctx.y + size;
+  linhas.forEach(([rotulo, valor], i) => {
+    const h = alturas[i]!;
+    const yTopo = ctx.y;
+    ctx.page.drawText(sanitize(rotulo), {
+      x: MARGIN_X + 6,
+      y: yTopo,
+      size,
+      font: ctx.font,
+      color: rgb(0.25, 0.27, 0.31),
+    });
+    wrap(valor, ctx.bold, size, valorW).forEach((line, li) => {
+      ctx.page.drawText(line, {
+        x: MARGIN_X + rotuloW,
+        y: yTopo - li * (size + 3),
+        size,
+        font: ctx.bold,
+        color: NAVY,
+      });
+    });
+    ctx.y -= h;
+    ctx.page.drawLine({
+      start: { x: MARGIN_X, y: ctx.y + size },
+      end: { x: PAGE_W - MARGIN_X, y: ctx.y + size },
+      thickness: 0.5,
+      color: LINE,
+    });
+  });
+  ctx.page.drawRectangle({
+    x: MARGIN_X,
+    y: ctx.y + size,
+    width: CONTENT_W,
+    height: topo - (ctx.y + size),
+    borderColor: BORDA,
+    borderWidth: 0.8,
+  });
+  ctx.y -= 16;
+}
+
+/** Bloco de encerramento padrão do documento. */
+function encerramento(ctx: Ctx) {
+  need(ctx, 52);
+  ctx.y -= 10;
+  ctx.page.drawLine({
+    start: { x: MARGIN_X, y: ctx.y + 8 },
+    end: { x: PAGE_W - MARGIN_X, y: ctx.y + 8 },
+    thickness: 0.6,
+    color: LINE,
+  });
+  ctx.y -= 6;
+  const linhas = [
+    "IAM - Implantação, Auditoria e Manutenção.",
+    "iam@ionics.com.br",
+    "48 3333 8666",
+  ];
+  linhas.forEach((l, i) => {
+    ctx.page.drawText(sanitize(l), {
+      x: MARGIN_X,
+      y: ctx.y,
+      size: i === 0 ? 9.5 : 9,
+      font: i === 0 ? ctx.bold : ctx.font,
+      color: i === 0 ? NAVY : GREY,
+    });
+    ctx.y -= 12;
+  });
+}
+
+
+
 export async function buildLaudoPdf(input: {
   meta: LaudoPdfMeta;
   blocos: BlocoLaudo[];
@@ -455,13 +568,9 @@ export async function buildLaudoPdf(input: {
   };
   newPage(ctx);
 
-  // Identificação
-  table(ctx, "Identificação", ["Campo", "Valor"], [
-    { celulas: ["Cliente", input.meta.cliente] },
-    { celulas: ["Unidade", input.meta.unidade] },
-    { celulas: ["Data", input.meta.data] },
-    { celulas: ["Agente técnico", input.meta.agente] },
-  ]);
+  // Identificação — quadro do padrão FR-31-10
+  identificacao(ctx);
+
 
   for (const b of input.blocos) {
     if (b.oculto) continue;
@@ -496,7 +605,9 @@ export async function buildLaudoPdf(input: {
     }
   }
 
+  encerramento(ctx);
 
   ctx.pages.forEach((p, i) => drawFooter(p, font, input.meta, i + 1, ctx.pages.length));
+
   return pdf.save();
 }
