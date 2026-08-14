@@ -27,6 +27,7 @@ import {
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
+import type { MetaLaudo } from "@/lib/laudo/meta";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [

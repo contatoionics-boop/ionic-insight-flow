@@ -43,6 +43,9 @@ export type MetaLaudo = {
   analista: string;
   especialista: string;
   codigoDocumento: string;
+  elaboradoPor: string;
+  aprovadoPor: string;
+  dataRevisao: string;
   codigoFormulario: string | null;
   revisao: string | null;
   filename: string;
@@ -154,6 +157,9 @@ export function resolverMetaLaudo(entrada: EntradaMetaLaudo): MetaLaudo {
     analista,
     especialista,
     codigoDocumento: CODIGO_DOCUMENTO,
+    elaboradoPor: qualquer(vars, "elaborado_por") ?? "Sheron Williams",
+    aprovadoPor: qualquer(vars, "aprovado_por") ?? "Guilherme Sombrio",
+    dataRevisao: qualquer(vars, "data_revisao") ?? "02/04/2024",
     codigoFormulario,
     revisao: entrada.formulario?.revisao ?? null,
     nomeDocumento: `${codigoFormulario ? `${codigoFormulario} - ` : ""}${TITULO_DOCUMENTO} - ${empresa}`,
