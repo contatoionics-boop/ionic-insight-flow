@@ -355,7 +355,7 @@ function table(
         y: ctx.y - h + (size + 3),
         width: CONTENT_W,
         height: h,
-        color: bolded ? rgb(0.93, 0.95, 0.98) : rgb(0.98, 0.98, 0.99),
+        color: bolded ? NAVY : rgb(0.97, 0.97, 0.98),
       });
     }
     let x = MARGIN_X;
