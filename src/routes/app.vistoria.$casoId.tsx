@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
+import { ListChecks } from "lucide-react";
+
+import { Button } from "@/components/ui-bits";
 import { AgentChat } from "@/components/agent/AgentChat";
 import { ChecklistVistoria } from "@/components/agent/checklist/ChecklistVistoria";
 
@@ -22,10 +25,17 @@ function VistoriaPage() {
 
   if (modo === "chat") {
     return (
-      <AgentChat
-        casoId={casoId}
-        onFinalized={concluir}
-      />
+      <div>
+        <div className="px-3 pt-3 sm:px-5">
+          <Button
+            variant="secondary"
+            onClick={() => navigate({ to: "/app/vistoria/$casoId", params: { casoId }, search: {} })}
+          >
+            <ListChecks className="h-4 w-4" /> Voltar ao checklist
+          </Button>
+        </div>
+        <AgentChat casoId={casoId} onFinalized={concluir} />
+      </div>
     );
   }
 
