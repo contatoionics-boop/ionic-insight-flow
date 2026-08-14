@@ -24,6 +24,7 @@ import {
   restaurarBlocoLaudo,
   salvarDocumentoLaudo,
 } from "@/lib/laudo.functions";
+import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
@@ -1004,7 +1005,7 @@ export function DocumentoEditor({
         casoId={casoId}
         tipo={biblioteca}
         onClose={() => setBiblioteca(null)}
-        onInserir={(novos) => {
+        onInserir={(novos: BlocoLaudo[]) => {
           inserirBlocos(alvoInsercao, novos);
           setBiblioteca(null);
         }}
