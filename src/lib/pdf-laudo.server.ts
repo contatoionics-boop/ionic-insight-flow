@@ -456,6 +456,95 @@ async function figura(
   ctx.y -= 6;
 }
 
+/** Quadro de identificação da primeira página (Empresa/Unidade, analista, especialista, agente, data). */
+function identificacao(ctx: Ctx) {
+  const m = ctx.meta;
+  const linhas: [string, string][] = [
+    ["Empresa / Unidade:", `${m.cliente} - ${m.unidade}`],
+    ["Analista de Projetos:", m.analista || "—"],
+    ["Especialista em Automação:", m.especialista || "—"],
+    ["Agente Técnico Credenciado IONICS:", m.agente || "—"],
+    ["Data:", m.data || "—"],
+  ];
+  const size = 9.5;
+  const rotuloW = 168;
+  const valorW = CONTENT_W - rotuloW - 16;
+
+  const alturas = linhas.map(
+    ([, valor]) => wrap(valor, ctx.bold, size, valorW).length * (size + 3) + 8,
+  );
+  const total = alturas.reduce((a, b) => a + b, 0);
+  need(ctx, total + 14);
+
+  const topo = ctx.y + size;
+  linhas.forEach(([rotulo, valor], i) => {
+    const h = alturas[i]!;
+    const yTopo = ctx.y;
+    ctx.page.drawText(sanitize(rotulo), {
+      x: MARGIN_X + 6,
+      y: yTopo,
+      size,
+      font: ctx.font,
+      color: rgb(0.25, 0.27, 0.31),
+    });
+    wrap(valor, ctx.bold, size, valorW).forEach((line, li) => {
+      ctx.page.drawText(line, {
+        x: MARGIN_X + rotuloW,
+        y: yTopo - li * (size + 3),
+        size,
+        font: ctx.bold,
+        color: NAVY,
+      });
+    });
+    ctx.y -= h;
+    ctx.page.drawLine({
+      start: { x: MARGIN_X, y: ctx.y + size },
+      end: { x: PAGE_W - MARGIN_X, y: ctx.y + size },
+      thickness: 0.5,
+      color: LINE,
+    });
+  });
+  ctx.page.drawRectangle({
+    x: MARGIN_X,
+    y: ctx.y + size,
+    width: CONTENT_W,
+    height: topo - (ctx.y + size),
+    borderColor: BORDA,
+    borderWidth: 0.8,
+  });
+  ctx.y -= 16;
+}
+
+/** Bloco de encerramento padrão do documento. */
+function encerramento(ctx: Ctx) {
+  need(ctx, 52);
+  ctx.y -= 10;
+  ctx.page.drawLine({
+    start: { x: MARGIN_X, y: ctx.y + 8 },
+    end: { x: PAGE_W - MARGIN_X, y: ctx.y + 8 },
+    thickness: 0.6,
+    color: LINE,
+  });
+  ctx.y -= 6;
+  const linhas = [
+    "IAM - Implantação, Auditoria e Manutenção.",
+    "iam@ionics.com.br",
+    "48 3333 8666",
+  ];
+  linhas.forEach((l, i) => {
+    ctx.page.drawText(sanitize(l), {
+      x: MARGIN_X,
+      y: ctx.y,
+      size: i === 0 ? 9.5 : 9,
+      font: i === 0 ? ctx.bold : ctx.font,
+      color: i === 0 ? NAVY : GREY,
+    });
+    ctx.y -= 12;
+  });
+}
+
+
+
 export async function buildLaudoPdf(input: {
   meta: LaudoPdfMeta;
   blocos: BlocoLaudo[];
