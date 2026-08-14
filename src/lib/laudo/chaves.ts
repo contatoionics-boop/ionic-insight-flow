@@ -34,6 +34,11 @@ export const CHAVES_LAUDO: ChaveLaudo[] = [
   { chave: "tipo_bomba", rotulo: "Tipo da bomba", descricao: "Tipo da bomba de abastecimento (elétrica não aceita adaptação de pulso).", exemplos: ["mecanica", "eletronica", "eletrica"] },
   { chave: "qualidade_sinal", rotulo: "Qualidade do sinal", descricao: "Qualidade do sinal de rede no local (usado na comparação com a proposta).", exemplos: ["bom", "medio", "fraco", "sem sinal"] },
   { chave: "comboio", rotulo: "Possui caminhão comboio", descricao: "Se a operação mapeada inclui caminhão comboio.", exemplos: ["sim", "nao"] },
+  { chave: "unidade", rotulo: "Unidade", descricao: "Unidade/filial onde o mapeamento foi realizado." },
+  { chave: "analista_projetos", rotulo: "Analista de projetos", descricao: "Analista de projetos responsável pelo atendimento." },
+  { chave: "especialista_automacao", rotulo: "Especialista em automação", descricao: "Especialista em automação responsável pelo laudo." },
+  { chave: "agente_tecnico", rotulo: "Agente técnico credenciado", descricao: "Agente técnico credenciado IONICS que executou o mapeamento." },
+  { chave: "data_mapeamento", rotulo: "Data do mapeamento", descricao: "Data em que o mapeamento foi realizado (dd/mm/aaaa)." },
 ];
 
 export const CHAVES_POR_NOME = new Map(CHAVES_LAUDO.map((c) => [c.chave, c]));
