@@ -814,66 +814,71 @@ export function DocumentoEditor({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-      <Card className="h-fit p-3 lg:sticky lg:top-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Documento
-        </p>
-        <nav className="space-y-0.5 text-xs">
-          {arvore.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className="block w-full truncate rounded px-1 py-1 text-left hover:bg-muted"
-              style={{ paddingLeft: 4 + (n.nivel - 1) * 10 }}
-              onClick={() =>
-                document
-                  .getElementById(`bloco-${n.id}`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "center" })
-              }
-            >
-              {n.numero ? `${n.numero}. ` : ""}
-              {n.texto}
-            </button>
-          ))}
-        </nav>
-      </Card>
+    <div className={semChrome ? "" : "grid gap-4 lg:grid-cols-[220px_1fr]"}>
+      {!semChrome && (
+        <Card className="h-fit p-3 lg:sticky lg:top-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Documento
+          </p>
+          <nav className="space-y-0.5 text-xs">
+            {arvore.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                className="block w-full truncate rounded px-1 py-1 text-left hover:bg-muted"
+                style={{ paddingLeft: 4 + (n.nivel - 1) * 10 }}
+                onClick={() =>
+                  document
+                    .getElementById(`bloco-${n.id}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                }
+              >
+                {n.numero ? `${n.numero}. ` : ""}
+                {n.texto}
+              </button>
+            ))}
+          </nav>
+        </Card>
+      )}
 
       <div className="space-y-3">
-        <Card className="flex flex-wrap items-center justify-between gap-2 p-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={modo === "editar" ? "primary" : "secondary"}
-              onClick={() => setModo("editar")}
-            >
-              <Pencil className="mr-2 h-4 w-4" /> Editar documento
-            </Button>
-            <Button
-              variant={modo === "visualizar" ? "primary" : "secondary"}
-              onClick={() => {
-                setModo("visualizar");
-                setEditando(null);
-              }}
-            >
-              <Eye className="mr-2 h-4 w-4" /> Visualizar
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendencias > 0 && (
-              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                {pendencias} pendência(s) de confirmação
-              </Badge>
-            )}
-            <Button onClick={salvar} disabled={!sujo || salvando}>
-              {salvando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
+        {!semChrome && (
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={modo === "editar" ? "primary" : "secondary"}
+                onClick={() => setModo("editar")}
+              >
+                <Pencil className="mr-2 h-4 w-4" /> Editar documento
+              </Button>
+              <Button
+                variant={modo === "visualizar" ? "primary" : "secondary"}
+                onClick={() => {
+                  setModo("visualizar");
+                  setEditando(null);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" /> Visualizar
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              {pendencias > 0 && (
+                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                  {pendencias} pendência(s) de confirmação
+                </Badge>
               )}
-              Salvar documento
-            </Button>
-          </div>
-        </Card>
+              <Button onClick={salvar} disabled={!sujo || salvando}>
+                {salvando ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Salvar documento
+              </Button>
+            </div>
+          </Card>
+        )}
+
 
         {conflitos.length > 0 && (
           <Card className="space-y-3 p-4">
