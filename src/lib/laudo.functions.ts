@@ -39,6 +39,12 @@ function slugify(s: string): string {
   );
 }
 
+/** true quando o valor do cadastro não serve para o cabeçalho do documento. */
+function vazio(v: string | null | undefined): boolean {
+  const s = (v ?? "").trim();
+  return !s || s === "—" || s === "-";
+}
+
 function metaDoCaso(caso: any) {
   const u = caso.unidade;
   const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
