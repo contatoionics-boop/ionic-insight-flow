@@ -1331,16 +1331,15 @@ export function DocumentoEditor({
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
-                    {true && (
-                      <button
-                        type="button"
-                        className="rounded border border-border bg-background p-1 text-destructive"
-                        title="Excluir"
-                        onClick={() => remover(i)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="rounded border border-border bg-background p-1 text-destructive"
+                      title="Excluir bloco"
+                      onClick={() => remover(i)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+
                   </div>
                   {editando === b.id ? (
                     <div className="space-y-2 py-2">
