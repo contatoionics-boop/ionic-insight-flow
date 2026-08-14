@@ -307,17 +307,11 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const grupos = ids.length
     ? ids
     : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
-  const ctxProduto: ContextoProduto = {
-    nivel,
-    bitola,
-    tipoObjeto,
-    rfid: ctxRegras.rfid,
-    qtdBicos: num(vars, "qtd_bicos"),
-    terminalAtual: ctxRegras.terminalAtual,
-    comunicacao,
-  };
   const materiais = materiaisAplicaveis(entrada.materiais, ctxRegras);
-  const produtos = montarProdutos(ctxProduto);
+  // Produtos IONICS vêm EXCLUSIVAMENTE da proposta comercial do caso.
+  // Regras técnicas não geram produtos contratados.
+  const produtos = entrada.produtosProposta ?? [];
+
 
   const varios = grupos.length > 1;
   // Quando a análise técnica já descreve o objeto (bomba e/ou pista), o
