@@ -75,6 +75,7 @@ export type TipoPergunta =
   | "video"
   | "audio"
   | "checkbox"
+  | "multipla_escolha"
   | "data"
   | "selecao_unica"
   | "toggle"
