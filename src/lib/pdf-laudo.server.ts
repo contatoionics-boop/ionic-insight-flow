@@ -62,6 +62,8 @@ type Ctx = {
 function sanitize(s: string): string {
   return limparTexto(s ?? "")
     .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
     .replace(/[^\x20-\x7E\u00C0-\u00FF]/g, "");
 }
 
