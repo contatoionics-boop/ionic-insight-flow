@@ -536,6 +536,19 @@ function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   return canon;
 }
 
+/** Rótulos legíveis para valores enumerados vindos da proposta. */
+const ROTULOS_ENUM_LAUDO: Record<string, string> = {
+  nivel_1: "Nível 1",
+  nivel_2: "Nível 2",
+  nivel_3: "Nível 3",
+  instalacao: "Instalação",
+  upgrade: "Upgrade",
+  presencial: "Presencial",
+  remoto: "Remoto",
+  sim: "Sim",
+  nao: "Não",
+};
+
 /** Mapeia chave_laudo → chave canônica de cadastro. */
 const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
   nome_cliente: "nome_cliente",
