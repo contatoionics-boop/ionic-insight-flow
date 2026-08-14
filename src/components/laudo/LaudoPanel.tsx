@@ -435,16 +435,33 @@ export function LaudoPanel({
         )}
       </div>
 
+      {etapa === "analise" && (
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Use esta etapa como apoio à interpretação das respostas. O conteúdo final será definido
+          pelo especialista no documento.
+        </p>
+      )}
+
       {/* 3 — layout principal */}
-      <div className="grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)_340px]">
-        <aside className="hidden h-fit rounded-lg border border-border bg-card p-3 xl:sticky xl:top-24 xl:block">
+      <div
+        className={
+          etapa === "documento"
+            ? "grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)_340px]"
+            : "grid gap-4"
+        }
+      >
+        <aside
+          className={`h-fit rounded-lg border border-border bg-card p-3 xl:sticky xl:top-24 ${
+            etapa === "documento" ? "hidden xl:block" : "hidden"
+          }`}
+        >
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Sumário
           </p>
           {sumario}
         </aside>
 
-        <section className="min-w-0 space-y-3">
+        <section className={`min-w-0 space-y-3 ${etapa === "documento" ? "" : "hidden"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex rounded-md border border-border bg-card p-0.5">
               <button
