@@ -320,6 +320,7 @@ function Visual({
     case "alert":
       return (
         <div
+          id={`bloco-${bloco.id}`}
           className={`mt-3 flex gap-2 border-l-4 px-3 py-2 text-[12px] ${
             bloco.severidade === "bloqueante"
               ? "border-red-600 bg-red-50 text-red-800"
@@ -327,9 +328,18 @@ function Visual({
           }`}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{bloco.texto}</span>
+          {editavel ? (
+            <CampoInline
+              valor={bloco.texto}
+              onChange={(v) => onChange!({ ...bloco, texto: v })}
+              placeholder="Escreva o texto do destaque…"
+            />
+          ) : (
+            <span>{bloco.texto}</span>
+          )}
         </div>
       );
+
     case "observacao":
       return (
         <div
