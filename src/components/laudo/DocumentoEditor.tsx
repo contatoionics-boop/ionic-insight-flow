@@ -380,7 +380,6 @@ function EditorBloco({
                   <th className="p-1">
                     <Button
                       variant="secondary"
-                      title="Remover última coluna"
                       onClick={() =>
                         onChange({
                           ...bloco,
