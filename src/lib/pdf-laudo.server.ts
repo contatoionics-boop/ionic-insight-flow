@@ -187,7 +187,8 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
   ctx.y -= 4;
 }
 
-function heading(ctx: Ctx, numero: string | null, texto: string, nivel: 1 | 2 | 3) {
+function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
+  const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
   const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
@@ -463,6 +464,7 @@ export async function buildLaudoPdf(input: {
   ]);
 
   for (const b of input.blocos) {
+    if (b.oculto) continue;
     switch (b.tipo) {
       case "heading":
         heading(ctx, b.numero, b.texto, b.nivel);
@@ -482,11 +484,18 @@ export async function buildLaudoPdf(input: {
       case "alert":
         alerta(ctx, b.severidade, b.texto);
         break;
+      case "observacao":
+        alerta(ctx, "info", `${b.titulo || "OBSERVAÇÃO TÉCNICA"}: ${b.texto}`);
+        break;
+      case "pagebreak":
+        newPage(ctx);
+        break;
       case "image":
         await figura(ctx, b, input.baseUrl);
         break;
     }
   }
+
 
   ctx.pages.forEach((p, i) => drawFooter(p, font, input.meta, i + 1, ctx.pages.length));
   return pdf.save();

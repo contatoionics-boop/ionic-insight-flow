@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { montarBlocos } from "@/lib/laudo/template";
-import type { MaterialCatalogo } from "@/lib/laudo/regras";
+import { renumerar } from "@/lib/laudo/numeracao";
+import { comChaves } from "@/lib/laudo/mesclar";
 import {
   alertasBloqueantes,
   blocosComPendencia,
@@ -39,39 +39,6 @@ function slugify(s: string): string {
   );
 }
 
-async function carregarContexto(supabase: any, casoId: string) {
-  const { data: caso, error } = await supabase
-    .from("casos")
-    .select(
-      "id, codigo, agendado_em, formulario_id, laudo_variaveis, laudo_conteudo, laudo_alertas, modalidade, nivel, tipo_solicitacao, agente_nome_manual, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
-    )
-    .eq("id", casoId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!caso) throw new Error("Mapeamento não encontrado.");
-
-  const { data: respostas } = await supabase
-    .from("respostas_agente")
-    .select("valor_texto, transcricao, pergunta:perguntas(texto, chave_laudo)")
-    .eq("caso_id", casoId);
-
-  const { data: materiais } = await supabase
-    .from("catalogo_materiais")
-    .select("id, codigo, descricao, aplicacao, unidade, quantidade_padrao, regra, ativo, ordem")
-    .eq("ativo", true)
-    .order("ordem", { ascending: true });
-
-  return {
-    caso,
-    respostas: (respostas ?? []).map((r: any) => ({
-      chave_laudo: r.pergunta?.chave_laudo ?? null,
-      pergunta: r.pergunta?.texto ?? "",
-      valor: r.valor_texto ?? r.transcricao ?? null,
-    })),
-    materiais: (materiais ?? []) as unknown as MaterialCatalogo[],
-  };
-}
-
 function metaDoCaso(caso: any) {
   const u = caso.unidade;
   const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
@@ -85,24 +52,53 @@ function metaDoCaso(caso: any) {
   };
 }
 
-/** Extrai variáveis (formulário + IA) e monta os blocos do laudo. */
+async function lerDocumento(supabase: any, casoId: string) {
+  const { data, error } = await supabase
+    .from("casos")
+    .select("laudo_conteudo")
+    .eq("id", casoId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const conteudo = (data?.laudo_conteudo ?? null) as LaudoConteudo | null;
+  if (!conteudo?.blocos?.length) throw new Error("Documento ainda não gerado para este mapeamento.");
+  return conteudo;
+}
+
+async function gravarDocumento(supabase: any, casoId: string, conteudo: LaudoConteudo) {
+  const final: LaudoConteudo = {
+    ...conteudo,
+    editado_em: new Date().toISOString(),
+    blocos: renumerar(comChaves(conteudo.blocos)),
+  };
+  const { error } = await supabase
+    .from("casos")
+    .update({ laudo_conteudo: final as any })
+    .eq("id", casoId);
+  if (error) throw new Error(error.message);
+  return final;
+}
+
+/** Extrai variáveis (formulário + IA) e monta os blocos do laudo, preservando edições manuais. */
 export const gerarLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => CasoInput.parse(i))
   .handler(async ({ data, context }) => {
     const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
     const supabase = context.supabase;
-    const { caso, variaveis, conteudo, blocos } = await montarESalvarLaudo(supabase, data.casoId);
+    const { caso, variaveis, conteudo, blocos, conflitos } = await montarESalvarLaudo(
+      supabase,
+      data.casoId,
+    );
 
     return {
       variaveis,
       conteudo,
+      conflitos,
       pendencias: blocosComPendencia(blocos),
       bloqueios: alertasBloqueantes(blocos).map((a) => a.codigo),
       confirmacoes: (caso.laudo_alertas ?? []) as ConfirmacaoAlerta[],
     };
   });
-
 
 /** Carrega o laudo já salvo, sem chamar a IA. */
 export const carregarLaudo = createServerFn({ method: "POST" })
@@ -125,7 +121,7 @@ export const carregarLaudo = createServerFn({ method: "POST" })
     };
   });
 
-/** Salva valores confirmados manualmente e remonta os blocos. */
+/** Salva valores confirmados manualmente e remonta os blocos (com mesclagem). */
 export const salvarVariaveisLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) =>
@@ -138,43 +134,122 @@ export const salvarVariaveisLaudo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase;
-    const { caso, materiais } = await carregarContexto(supabase, data.casoId);
-    const variaveis = { ...((caso.laudo_variaveis ?? {}) as VariaveisLaudo) };
+    const { data: atual, error: cErr } = await supabase
+      .from("casos")
+      .select("laudo_variaveis")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (cErr) throw new Error(cErr.message);
 
+    const variaveis = { ...((atual?.laudo_variaveis ?? {}) as unknown as VariaveisLaudo) };
     for (const [chave, valor] of Object.entries(data.valores)) {
       const v = valor.trim();
       variaveis[chave] = v
         ? { chave, valor: v, origem: "manual", confianca: 1 }
         : { chave, valor: null, origem: "ausente", confianca: 0 };
     }
-
-    const meta = metaDoCaso(caso);
-    const blocos = montarBlocos({
-      variaveis,
-      materiais,
-      cabecalho: {
-        cliente: meta.cliente,
-        unidade: meta.unidade,
-        data: meta.data,
-        agente: meta.agente,
-        especialista: "",
-        modalidade: caso.modalidade ?? null,
-      },
-    });
-    const conteudo: LaudoConteudo = { gerado_em: new Date().toISOString(), blocos };
-
-    const { error } = await supabase
+    const { error: uErr } = await supabase
       .from("casos")
-      .update({ laudo_variaveis: variaveis as any, laudo_conteudo: conteudo as any })
+      .update({ laudo_variaveis: variaveis as any })
       .eq("id", data.casoId);
-    if (error) throw new Error(error.message);
+    if (uErr) throw new Error(uErr.message);
+
+    const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+    const res = await montarESalvarLaudo(supabase, data.casoId);
 
     return {
-      variaveis,
-      conteudo,
-      pendencias: blocosComPendencia(blocos),
-      bloqueios: alertasBloqueantes(blocos).map((a) => a.codigo),
+      variaveis: res.variaveis,
+      conteudo: res.conteudo,
+      conflitos: res.conflitos,
+      pendencias: blocosComPendencia(res.blocos),
+      bloqueios: alertasBloqueantes(res.blocos).map((a) => a.codigo),
     };
+  });
+
+/** Salva o documento editado pelo especialista (blocos completos). */
+export const salvarDocumentoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        blocos: z.array(z.any()).min(1),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const atual = await lerDocumento(supabase, data.casoId).catch(() => null);
+    const conteudo = await gravarDocumento(supabase, data.casoId, {
+      gerado_em: atual?.gerado_em ?? new Date().toISOString(),
+      blocos: data.blocos as unknown as BlocoLaudo[],
+    });
+    return {
+      conteudo,
+      pendencias: blocosComPendencia(conteudo.blocos),
+    };
+  });
+
+/** Resolve um conflito entre a edição manual e o valor gerado pelas regras. */
+export const resolverConflitoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        chave: z.string().min(1),
+        decisao: z.enum(["manter_edicao", "atualizar_formulario"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const atual = await lerDocumento(supabase, data.casoId);
+    const blocos = atual.blocos.map((b) => {
+      if (b.chave !== data.chave) return b;
+      if (data.decisao === "manter_edicao") {
+        return {
+          ...(b as any),
+          conteudo_original: b.conflito ?? b.conteudo_original ?? null,
+          conflito: null,
+        } as BlocoLaudo;
+      }
+      return {
+        ...(b as any),
+        ...((b.conflito ?? {}) as any),
+        editado_manualmente: false,
+        conteudo_original: null,
+        conflito: null,
+      } as BlocoLaudo;
+    });
+    const conteudo = await gravarDocumento(supabase, data.casoId, { ...atual, blocos });
+    return { conteudo, pendencias: blocosComPendencia(conteudo.blocos) };
+  });
+
+/** Restaura o conteúdo original (gerado) de um bloco editado manualmente. */
+export const restaurarBlocoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z.object({ casoId: z.string().uuid(), chave: z.string().min(1) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const atual = await lerDocumento(supabase, data.casoId);
+    const blocos = atual.blocos.map((b) => {
+      if (b.chave !== data.chave) return b;
+      const original = (b.conflito ?? b.conteudo_original ?? null) as Record<string, any> | null;
+      if (!original) return { ...(b as any), oculto: false } as BlocoLaudo;
+      return {
+        ...(b as any),
+        ...original,
+        oculto: false,
+        editado_manualmente: false,
+        conteudo_original: null,
+        conflito: null,
+      } as BlocoLaudo;
+    });
+    const conteudo = await gravarDocumento(supabase, data.casoId, { ...atual, blocos });
+    return { conteudo, pendencias: blocosComPendencia(conteudo.blocos) };
   });
 
 /** Registra a decisão sobre um alerta bloqueante (corrigido / ciente do risco). */
@@ -247,7 +322,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
 
     let conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
     if (data.remontar || !conteudo?.blocos?.length) {
-      // Monta o laudo na hora (casos antigos ou ainda não montados)
+      // Monta o laudo na hora (casos antigos ou ainda não montados), preservando edições
       const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
       const res = await montarESalvarLaudo(supabase, data.casoId);
       conteudo = res.conteudo;
@@ -306,7 +381,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         data: meta.data,
         agente: meta.agente,
       },
-      blocos: conteudo.blocos as BlocoLaudo[],
+      blocos: renumerar(conteudo.blocos as BlocoLaudo[]).filter((b) => !b.oculto),
       baseUrl: (() => {
         try {
           return new URL(getRequest().url).origin;
