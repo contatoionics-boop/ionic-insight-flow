@@ -648,7 +648,13 @@ export function LaudoPanel({
                 <p className="text-[11px] text-muted-foreground">
                   “Salvar variáveis e atualizar rascunho” remonta o documento com os novos valores.
                 </p>
-                <div className="space-y-3">
+                <div
+                  className={
+                    etapa === "analise"
+                      ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+                      : "space-y-3"
+                  }
+                >
                   {CHAVES_LAUDO.map((c) => {
                     const v = variaveis[c.chave];
                     const valor = edits[c.chave] ?? v?.valor ?? "";
