@@ -1493,3 +1493,20 @@ export function figuraEstatica(url: string): { bytes: Uint8Array; mime: string }
   }
   return { bytes, mime: "image/png" };
 }
+
+/**
+ * Fallback dos desenhos publicados na CDN (assets reais recortados do
+ * documento oficial): se o download falhar no runtime, o PDF ainda desenha
+ * a versão vetorial equivalente do projeto — nunca fica sem figura.
+ */
+const FALLBACK: { padrao: RegExp; nome: string }[] = [
+  { padrao: /bico-automatizado-nldiv\.png$/i, nome: "nivel2-bico-wireless" },
+  { padrao: /ponteira-nldiv\.png$/i, nome: "nivel2-nldiv-ponteira" },
+];
+
+export function figuraEstaticaFallback(url: string) {
+  const alvo = FALLBACK.find((f) => f.padrao.test(url ?? ""));
+  if (!alvo) return null;
+  return figuraEstatica(`/laudo/${alvo.nome}.png`);
+}
+
