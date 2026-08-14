@@ -537,7 +537,15 @@ function EditorBloco({
   }
 }
 
-function MenuAdicionar({ onAdd }: { onAdd: (tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) => void }) {
+function MenuAdicionar({
+  onAdd,
+  onBlocoPadrao,
+  onFoto,
+}: {
+  onAdd: (tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) => void;
+  onBlocoPadrao?: () => void;
+  onFoto?: () => void;
+}) {
   const [aberto, setAberto] = useState(false);
   return (
     <div className="relative flex justify-center py-1">
@@ -564,6 +572,30 @@ function MenuAdicionar({ onAdd }: { onAdd: (tipo: TipoBloco, nivel?: 1 | 2 | 3 |
               {n.rotulo}
             </button>
           ))}
+          {onBlocoPadrao && (
+            <button
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
+              onClick={() => {
+                onBlocoPadrao();
+                setAberto(false);
+              }}
+            >
+              Inserir bloco padrão…
+            </button>
+          )}
+          {onFoto && (
+            <button
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
+              onClick={() => {
+                onFoto();
+                setAberto(false);
+              }}
+            >
+              Inserir foto do mapeamento…
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -591,6 +623,8 @@ export function DocumentoEditor({
   const [sujo, setSujo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const arrastando = useRef<number | null>(null);
+  const [biblioteca, setBiblioteca] = useState<"padrao" | "foto" | null>(null);
+  const [alvoInsercao, setAlvoInsercao] = useState(0);
   const idAtual = useRef(conteudo?.gerado_em ?? "");
 
   // recarrega quando o documento é regerado no servidor
@@ -618,6 +652,22 @@ export function DocumentoEditor({
     const next = [...blocos];
     next[indice] = marcarEdicao(anterior, novo);
     atualizar(next);
+  }
+
+  function inserirBlocos(indice: number, novos: BlocoLaudo[]) {
+    if (!novos.length) return;
+    const marcados = novos.map((b) => ({
+      ...(b as any),
+      id: novoId(),
+      chave: `manual:${novoId()}`,
+      origem: "manual",
+      editavel: true,
+      removivel: true,
+    })) as BlocoLaudo[];
+    const next = [...blocos];
+    next.splice(indice, 0, ...marcados);
+    atualizar(next);
+    setModo("editar");
   }
 
   function inserir(indice: number, tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) {
@@ -819,7 +869,19 @@ export function DocumentoEditor({
         )}
 
         <Card className="p-5">
-          {modo === "editar" && <MenuAdicionar onAdd={(t, n) => inserir(0, t, n)} />}
+          {modo === "editar" && (
+            <MenuAdicionar
+              onAdd={(t, n) => inserir(0, t, n)}
+              onBlocoPadrao={() => {
+                setAlvoInsercao(0);
+                setBiblioteca("padrao");
+              }}
+              onFoto={() => {
+                setAlvoInsercao(0);
+                setBiblioteca("foto");
+              }}
+            />
+          )}
           {blocos.map((b, i) => {
             if (b.oculto) {
               if (modo !== "editar") return null;
@@ -921,12 +983,32 @@ export function DocumentoEditor({
                     <Visual bloco={b} />
                   )}
                 </div>
-                <MenuAdicionar onAdd={(t, n) => inserir(i + 1, t, n)} />
+                <MenuAdicionar
+                  onAdd={(t, n) => inserir(i + 1, t, n)}
+                  onBlocoPadrao={() => {
+                    setAlvoInsercao(i + 1);
+                    setBiblioteca("padrao");
+                  }}
+                  onFoto={() => {
+                    setAlvoInsercao(i + 1);
+                    setBiblioteca("foto");
+                  }}
+                />
               </div>
             );
           })}
         </Card>
       </div>
+
+      <BibliotecaModal
+        casoId={casoId}
+        tipo={biblioteca}
+        onClose={() => setBiblioteca(null)}
+        onInserir={(novos) => {
+          inserirBlocos(alvoInsercao, novos);
+          setBiblioteca(null);
+        }}
+      />
     </div>
   );
 }
