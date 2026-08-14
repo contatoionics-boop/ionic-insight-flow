@@ -281,6 +281,37 @@ export function PerguntaBloco({
         </div>
       )}
 
+      {pergunta.tipo === "multipla_escolha" && (
+        <div className="space-y-2">
+          {(pergunta.opcoes ?? []).map((o) => {
+            const sel = (resposta.text ?? "")
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean);
+            const marcado = sel.includes(o.texto);
+            return (
+              <label
+                key={o.id}
+                className={`flex w-full cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-sm transition ${
+                  marcado ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-muted"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={marcado}
+                  onChange={() => {
+                    const novo = marcado ? sel.filter((v) => v !== o.texto) : [...sel, o.texto];
+                    update({ text: novo.join(", ") });
+                  }}
+                />
+                <span>{o.texto}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+
       {pergunta.tipo === "checkbox" && (
         <label className="flex items-start gap-2 text-sm">
           <input
@@ -292,6 +323,8 @@ export function PerguntaBloco({
           <span>Confirmo</span>
         </label>
       )}
+
+
 
       {pergunta.tipo === "foto" && (
         <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} validarImagensIa={validarImagensIa} />
