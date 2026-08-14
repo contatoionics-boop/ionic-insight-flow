@@ -15,7 +15,7 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
 
   const { data: respostas } = await supabase
     .from("respostas_agente")
-    .select("valor_texto, transcricao, pergunta:perguntas(texto, chave_laudo)")
+    .select("valor_texto, transcricao, tipo, pergunta:perguntas(texto, chave_laudo, tipo)")
     .eq("caso_id", casoId);
 
   const { data: materiais } = await supabase
@@ -24,12 +24,18 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
     .eq("ativo", true)
     .order("ordem", { ascending: true });
 
+  const { valorDaResposta } = await import("@/lib/laudo/respostas");
+
   return {
     caso,
     respostas: (respostas ?? []).map((r: any) => ({
       chave_laudo: r.pergunta?.chave_laudo ?? null,
       pergunta: r.pergunta?.texto ?? "",
-      valor: r.valor_texto ?? r.transcricao ?? null,
+      valor: valorDaResposta({
+        tipo: r.pergunta?.tipo ?? r.tipo ?? null,
+        valor_texto: r.valor_texto,
+        transcricao: r.transcricao,
+      }),
     })),
     materiais: (materiais ?? []) as unknown as MaterialCatalogo[],
   };
@@ -67,6 +73,7 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     "@/lib/laudo/cadastro"
   );
   const camadas: VariaveisLaudo[] = [variaveisIdentidadeCadastro(caso)];
+  let escopoProposta: any = null;
   try {
     const { data: props } = await supabase
       .from("propostas_comerciais")
@@ -76,6 +83,7 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
       .order("criado_em", { ascending: false })
       .limit(1);
     const escopo = props?.[0]?.escopo;
+    escopoProposta = escopo ?? null;
     if (escopo) {
       const { variaveisDaProposta } = await import("@/lib/proposta/para-laudo");
       camadas.push(variaveisDaProposta(escopo));
@@ -90,8 +98,12 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const meta = metaDoCasoLaudo(caso);
   const analiseSalva = (caso.laudo_analise ?? {}) as { descartados?: string[] };
   const descartados = analiseSalva.descartados ?? [];
+  const { produtosDaProposta } = await import("@/lib/laudo/produtos-proposta");
+  const produtosProposta = produtosDaProposta(escopoProposta);
+
   const { blocos, achados } = montarBlocosEAnalise({
     achadosDescartados: descartados,
+    produtosProposta,
     variaveis,
     materiais,
     cabecalho: {
