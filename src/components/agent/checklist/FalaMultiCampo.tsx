@@ -83,7 +83,7 @@ export function FalaMultiCampo({ token, tokenLink, casoIdAuth, perguntas, onApli
           </p>
         </div>
         {voz.recording ? (
-          <Button variant="danger" onClick={voz.stop}>
+          <Button variant="destructive" onClick={voz.stop}>
             <Square className="h-4 w-4" /> Parar {voz.mmss}
           </Button>
         ) : (
