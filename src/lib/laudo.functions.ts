@@ -29,55 +29,6 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function slugify(s: string): string {
-  return (
-    (s || "laudo")
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "")
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase()
-      .slice(0, 60) || "laudo"
-  );
-}
-
-/** true quando o valor do cadastro não serve para o cabeçalho do documento. */
-function vazio(v: string | null | undefined): boolean {
-  const s = (v ?? "").trim();
-  return !s || s === "—" || s === "-";
-}
-
-/**
- * Valor de cabeçalho respeitando a precedência: resposta explícita do
- * formulário (ou confirmação manual do especialista) vence o cadastro;
- * na falta das duas, usa o que houver em `laudo_variaveis` (proposta/IA).
- */
-function valorCabecalho(
-  vars: VariaveisLaudo,
-  chave: string,
-  doCadastro: string | null | undefined,
-): string {
-  const item = vars[chave];
-  const doLaudo = (item?.valor ?? "").trim();
-  const explicito = doLaudo && (item?.origem === "formulario" || item?.origem === "manual");
-  if (explicito) return doLaudo;
-  if (!vazio(doCadastro)) return (doCadastro as string).trim();
-  return doLaudo || "—";
-}
-
-function metaDoCaso(caso: any) {
-  const u = caso.unidade;
-  const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
-  const codigo = u?.codigo_ionics ?? u?.matriz?.empresa?.codigo_ionics ?? null;
-  return {
-    cliente: codigo ? `${empresa} (${codigo})` : empresa,
-    unidade: u?.nome ?? "—",
-    empresaNome: empresa,
-    data: caso.agendado_em ? new Date(caso.agendado_em).toLocaleDateString("pt-BR") : "—",
-    agente: caso.agente?.nome || caso.agente?.email || caso.agente_nome_manual || "—",
-  };
-}
-
 async function lerDocumento(supabase: any, casoId: string) {
   const { data, error } = await supabase
     .from("casos")
@@ -462,10 +413,10 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         data: meta.data,
         agente: meta.agente,
         codigoDocumento: meta.codigoDocumento,
-        elaboradoPor: vars["elaborado_por"]?.valor || "Sheron Williams",
-        aprovadoPor: vars["aprovado_por"]?.valor || "Guilherme Sombrio",
+        elaboradoPor: meta.elaboradoPor,
+        aprovadoPor: meta.aprovadoPor,
         revisaoDocumento: meta.revisao ?? "01",
-        dataRevisao: vars["data_revisao"]?.valor || "02/04/2024",
+        dataRevisao: meta.dataRevisao,
         analista: meta.analista,
         especialista: meta.especialista,
       },
