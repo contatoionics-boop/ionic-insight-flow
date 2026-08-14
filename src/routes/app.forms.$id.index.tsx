@@ -684,7 +684,7 @@ function PropertiesPanel({
       ]);
       return;
     }
-    if (ref.tipo === "selecao_unica") {
+    if (ref.tipo === "selecao_unica" || ref.tipo === "multipla_escolha") {
       supabase
         .from("opcoes_pergunta")
         .select("id, texto")
