@@ -137,6 +137,19 @@ export function blocosComPendencia(blocos: BlocoLaudo[]): number {
   return n;
 }
 
+/** rótulos das pendências [CONFIRMAR: ...] dos blocos visíveis */
+export function rotulosPendencias(blocos: BlocoLaudo[]): string[] {
+  const out: string[] = [];
+  for (const b of blocosVisiveis(blocos)) {
+    const { conteudo_original: _o, conflito: _c, ...visivel } = b as Record<string, unknown>;
+    for (const m of JSON.stringify(visivel).matchAll(/\[CONFIRMAR:\s*([^\]]*)\]/g)) {
+      const r = m[1].trim();
+      if (r && !out.includes(r)) out.push(r);
+    }
+  }
+  return out;
+}
+
 export function alertasBloqueantes(blocos: BlocoLaudo[]) {
   return blocosVisiveis(blocos).filter(
     (b): b is Extract<BlocoLaudo, { tipo: "alert" }> =>
