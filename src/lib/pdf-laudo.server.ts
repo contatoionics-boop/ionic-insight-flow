@@ -165,7 +165,7 @@ function drawHeader(ctx: Ctx) {
     y: base + linhaControleH + 14,
     size: 11,
     font: ctx.bold,
-    color: TINTA,
+    color: NAVY,
   });
 
   // linha de controle: 4 células com bordas, como no formulário original
