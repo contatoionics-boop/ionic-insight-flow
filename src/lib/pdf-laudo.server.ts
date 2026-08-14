@@ -464,6 +464,7 @@ export async function buildLaudoPdf(input: {
   ]);
 
   for (const b of input.blocos) {
+    if (b.oculto) continue;
     switch (b.tipo) {
       case "heading":
         heading(ctx, b.numero, b.texto, b.nivel);
@@ -483,11 +484,18 @@ export async function buildLaudoPdf(input: {
       case "alert":
         alerta(ctx, b.severidade, b.texto);
         break;
+      case "observacao":
+        alerta(ctx, "info", `${b.titulo || "OBSERVAÇÃO TÉCNICA"}: ${b.texto}`);
+        break;
+      case "pagebreak":
+        newPage(ctx);
+        break;
       case "image":
         await figura(ctx, b, input.baseUrl);
         break;
     }
   }
+
 
   ctx.pages.forEach((p, i) => drawFooter(p, font, input.meta, i + 1, ctx.pages.length));
   return pdf.save();
