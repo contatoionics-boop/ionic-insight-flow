@@ -8,7 +8,8 @@ import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@
 import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/lib/mapeamento.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
-import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, X } from "lucide-react";
+import { excluirMapeamento } from "@/lib/casos.functions";
+import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, Trash2, X } from "lucide-react";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 
 export const Route = createFileRoute("/app/cases")({
@@ -36,6 +37,22 @@ function CasesPage() {
   const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
   const [expandido, setExpandido] = useState<Set<string>>(new Set());
   const reagendar = useServerFn(reagendarAposRecusa);
+  const excluir = useServerFn(excluirMapeamento);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
+
+  const excluirCaso = async (caso: MapeamentoComProgresso) => {
+    if (!window.confirm(`Excluir definitivamente o mapeamento ${caso.codigo}? Respostas, arquivos e histórico serão apagados.`)) return;
+    setExcluindo(caso.id);
+    try {
+      await excluir({ data: { casoId: caso.id } });
+      toast.success(`Mapeamento ${caso.codigo} excluído.`);
+      setRows((prev) => prev.filter((r) => r.id !== caso.id));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao excluir o mapeamento.");
+    } finally {
+      setExcluindo(null);
+    }
+  };
 
   const toggleExpandir = (id: string) => {
     setExpandido((prev) => {
@@ -312,6 +329,18 @@ function CasesPage() {
                         </Button>
                       </div>
                     )}
+                    <div onClick={(e) => e.stopPropagation()} className="mt-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => excluirCaso(c)}
+                        disabled={excluindo === c.id}
+                        className="text-destructive hover:bg-destructive/10"
+                        title="Excluir mapeamento"
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Excluir
+                      </Button>
+                    </div>
                   </Td>
 
                 </tr>
