@@ -161,7 +161,7 @@ function drawHeader(ctx: Ctx) {
   const cw = ctx.bold.widthOfTextAtSize(cod, 11);
   page.drawText(cod, {
     x: xCodigo + (larguraCodigo - cw) / 2,
-    y: base + 12,
+    y: base + linhaControleH + 14,
     size: 11,
     font: ctx.bold,
     color: TINTA,
