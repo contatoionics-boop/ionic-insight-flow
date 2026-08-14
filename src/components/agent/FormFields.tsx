@@ -375,7 +375,7 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "video" && (
-        <CampoVideo casoId={casoId} resposta={resposta} update={update} mode={mode} />
+        <CampoVideo casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} />
       )}
 
       {pergunta.tipo === "audio" && (
@@ -927,16 +927,19 @@ function CampoFoto({
 
 function CampoVideo({
   casoId,
+  token,
   resposta,
   update,
   mode,
 }: {
   casoId: string;
+  token: string;
   resposta: Resposta;
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const urlVideo = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
   const [uploading, setUploading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -982,8 +985,8 @@ function CampoVideo({
           if (file) void enviar(file);
         }}
       />
-      {resposta.filePreview && (
-        <video controls preload="metadata" src={resposta.filePreview} className="w-full rounded-md border border-border" />
+      {urlVideo && (
+        <video controls preload="metadata" src={urlVideo} className="w-full rounded-md border border-border" />
       )}
       <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="h-12 w-full">
         {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
