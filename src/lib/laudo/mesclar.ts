@@ -68,22 +68,29 @@ function mesmoConteudo(a: BlocoLaudo, b: BlocoLaudo): boolean {
 /** Aplica chaves estáveis (derivadas do conteúdo) e defaults de metadados. */
 export function comChaves(blocos: BlocoLaudo[], origemPadrao: "automatic" | "manual" = "automatic") {
   const usados = new Map<string, number>();
-  return blocos.map((b) => {
-    if (b.chave) return b;
-    const base = assinatura(b);
+  const reservar = (base: string) => {
     const n = (usados.get(base) ?? 0) + 1;
     usados.set(base, n);
+    return n > 1 ? `${base}#${n}` : base;
+  };
+  return blocos.map((b) => {
+    if (b.chave) {
+      // reserva a chave existente para que um bloco novo com a mesma
+      // assinatura não colida (e acabe duplicando na mescla)
+      usados.set(b.chave, (usados.get(b.chave) ?? 0) + 1);
+      return b;
+    }
     return {
       ...b,
-      chave: n > 1 ? `${base}#${n}` : base,
+      chave: reservar(assinatura(b)),
       origem: b.origem ?? origemPadrao,
       editavel: b.editavel ?? true,
       // nesta fase final o especialista pode remover qualquer bloco (inclusive alertas)
       removivel: true,
-
     } as BlocoLaudo;
   });
 }
+
 
 export type ResultadoMescla = {
   blocos: BlocoLaudo[];
