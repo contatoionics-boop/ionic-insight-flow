@@ -274,7 +274,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   async function handlePdf(preview = false) {
     setBaixando(true);
     try {
-      const r = await fnPdf({ data: { casoId, remontar: true } });
+      const r = await fnPdf({ data: { casoId } });
       if (preview) {
         const bin = atob(r.contentBase64);
         const bytes = new Uint8Array(bin.length);
@@ -509,7 +509,12 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         </div>
       </Card>
 
-      <DocumentoEditor casoId={casoId} conteudo={conteudo} onConteudo={setConteudo} />
+      <DocumentoEditor
+        casoId={casoId}
+        conteudo={conteudo}
+        onConteudo={setConteudo}
+        onDirtyChange={setDocSujo}
+      />
 
 
       <Modal
