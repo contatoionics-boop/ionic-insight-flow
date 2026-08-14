@@ -42,7 +42,9 @@ Nenhum campo fotográfico adicional é criado além dos que existem como registr
 Combustível fornecido (Gasolina/Etanol/Diesel S10/Diesel S500), Tipos de veículos que abastece (múltipla: Motos/Leves/Pesados/Máquinas/Comboios), Potência do sinal GPRS/2G, Estabilidade do sinal GPRS/2G, Operadora local (Vivo/Claro/TIM/Oi/Outras + campo livre), Dispõe de Wi-Fi (sim/não), Frequência do Wi-Fi (2.4/5 GHz/Outra), Potência do Wi-Fi, Estabilidade do Wi-Fi, Velocidade da conexão.
 
 ### Seção 3.1 — Registro fotográfico de sinal (bloco de fotos)
-Print do Aquário Analyzer (sinal da operadora em 2G); print do WiFi Network Analyzer com SSID/Intensidade/Detalhes da rede; print do gráfico "Redes" com legenda. Texto de instrução sobre instalar os apps entra como orientação da seção.
+**3 prints**, na ordem do documento: Aquário Analyzer (intensidade do sinal da operadora, celular em 2G/GSM no local da transferência); WiFi Network Analyzer com "SSID", "Intensidade do Sinal" e "Detalhes da Rede"; WiFi Network Analyzer com o gráfico "Redes" (com legenda). A instrução sobre instalar os aplicativos entra como orientação da seção.
+
+Total de registros fotográficos do formulário: **19** (11 + 5 + 3).
 
 ### Seção 4 — Observações finais
 Anomalias observadas; recomendações/sugestões (campos livres, mantidos do formulário atual).
