@@ -95,77 +95,102 @@ async function loadLogo(pdf: PDFDocument, meta: LaudoPdfMeta) {
   }
 }
 
-/** Cabeçalho padrão do formulário: quadro com título, código e linha de controle. */
+/** Cabeçalho padrão FR-31-10: logo | título | código, e linha de controle em 4 células. */
 function drawHeader(ctx: Ctx) {
   const { page, meta } = ctx;
-  const topo = PAGE_H - 24;
-  const linhaControleH = 16;
-  const tituloH = 40;
+  const topo = PAGE_H - 30;
+  const linhaControleH = 14;
+  const tituloH = 48;
   const alturaQuadro = tituloH + linhaControleH;
   const base = topo - alturaQuadro;
-  const larguraCodigo = 108;
+  const larguraLogo = 74;
+  const larguraCodigo = 96;
+  const xTituloCel = MARGIN_X + larguraLogo;
+  const larguraTitulo = CONTENT_W - larguraLogo - larguraCodigo;
   const xCodigo = MARGIN_X + CONTENT_W - larguraCodigo;
 
   const box = (x: number, y: number, w: number, h: number) =>
     page.drawRectangle({ x, y, width: w, height: h, borderColor: BORDA, borderWidth: 0.8 });
 
-  box(MARGIN_X, base, CONTENT_W, alturaQuadro);
-  box(MARGIN_X, base + linhaControleH, CONTENT_W - larguraCodigo, tituloH);
+  box(MARGIN_X, base + linhaControleH, larguraLogo, tituloH);
+  box(xTituloCel, base + linhaControleH, larguraTitulo, tituloH);
   box(xCodigo, base + linhaControleH, larguraCodigo, tituloH);
 
-  // logo à esquerda dentro da célula do título
-  let xTitulo = MARGIN_X + 8;
   if (ctx.logo) {
+    const escala = Math.min((larguraLogo - 14) / ctx.logo.w, 1);
+    const lw = ctx.logo.w * escala;
+    const lh = ctx.logo.h * escala;
     page.drawImage(ctx.logo.img, {
-      x: xTitulo,
-      y: base + linhaControleH + (tituloH - ctx.logo.h) / 2,
-      width: ctx.logo.w,
-      height: ctx.logo.h,
+      x: MARGIN_X + (larguraLogo - lw) / 2,
+      y: base + linhaControleH + (tituloH - lh) / 2,
+      width: lw,
+      height: lh,
     });
-    xTitulo += ctx.logo.w + 10;
+  } else {
+    const marca = "IONICS";
+    const mw = ctx.bold.widthOfTextAtSize(marca, 11);
+    page.drawText(marca, {
+      x: MARGIN_X + (larguraLogo - mw) / 2,
+      y: base + linhaControleH + tituloH / 2 - 4,
+      size: 11,
+      font: ctx.bold,
+      color: NAVY,
+    });
   }
+
   const titulo = sanitize("RESULTADO DE MAPEAMENTO TÉCNICO");
-  const disponivel = CONTENT_W - larguraCodigo - (xTitulo - MARGIN_X) - 8;
-  const tw = ctx.bold.widthOfTextAtSize(titulo, 12);
+  const tw = ctx.bold.widthOfTextAtSize(titulo, 13);
   page.drawText(titulo, {
-    x: xTitulo + Math.max(0, (disponivel - tw) / 2),
-    y: base + linhaControleH + tituloH / 2 - 4,
-    size: 12,
+    x: xTituloCel + (larguraTitulo - tw) / 2,
+    y: base + linhaControleH + tituloH / 2 - 5,
+    size: 13,
     font: ctx.bold,
-    color: NAVY,
+    color: TINTA,
   });
 
   const rotulo = "Código";
-  const rw = ctx.font.widthOfTextAtSize(rotulo, 8);
+  const rw = ctx.font.widthOfTextAtSize(rotulo, 8.5);
   page.drawText(rotulo, {
     x: xCodigo + (larguraCodigo - rw) / 2,
-    y: base + linhaControleH + tituloH - 15,
-    size: 8,
+    y: base + linhaControleH + tituloH - 16,
+    size: 8.5,
     font: ctx.font,
-    color: GREY,
+    color: TINTA,
   });
   const cod = sanitize(meta.codigoDocumento || "FR-31-10");
   const cw = ctx.bold.widthOfTextAtSize(cod, 11);
   page.drawText(cod, {
     x: xCodigo + (larguraCodigo - cw) / 2,
-    y: base + linhaControleH + 10,
+    y: base + linhaControleH + 14,
     size: 11,
     font: ctx.bold,
-    color: NAVY,
+    color: TINTA,
   });
 
-  const controle = sanitize(
-    `Elaborado por: ${meta.elaboradoPor || "—"}      Aprovado por: ${meta.aprovadoPor || "—"}      ` +
-      `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}      Data da revisão: ${meta.dataRevisao || "—"}`,
-  );
-  page.drawText(controle, {
-    x: MARGIN_X + 6,
-    y: base + 5,
-    size: 7,
-    font: ctx.font,
-    color: rgb(0.25, 0.27, 0.31),
+  // linha de controle: 4 células com bordas, como no formulário original
+  const celulas = [
+    `Elaborado por: ${meta.elaboradoPor || "-"}`,
+    `Aprovado por: ${meta.aprovadoPor || "-"}`,
+    `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}`,
+    `Data da revisão: ${meta.dataRevisao || "-"}`,
+  ];
+  const pesos = [1.15, 1.15, 0.7, 1];
+  const somaPesos = pesos.reduce((a, b) => a + b, 0);
+  let xc = MARGIN_X;
+  celulas.forEach((texto, i) => {
+    const w = (pesos[i]! / somaPesos) * CONTENT_W;
+    box(xc, base, w, linhaControleH);
+    page.drawText(sanitize(texto), {
+      x: xc + 4,
+      y: base + 4.5,
+      size: 6.5,
+      font: ctx.font,
+      color: TINTA,
+    });
+    xc += w;
   });
 }
+
 
 
 function drawFooter(page: PDFPage, font: PDFFont, meta: LaudoPdfMeta, i: number, total: number) {
@@ -198,66 +223,106 @@ function need(ctx: Ctx, h: number) {
   if (ctx.y - h < BOTTOM) newPage(ctx);
 }
 
-function paragraph(ctx: Ctx, text: string, size = 10, indent = 14) {
-  const lines = wrap(text, ctx.font, size, CONTENT_W - indent);
-  for (const line of lines) {
-    need(ctx, size + 5);
-    // destaca pendências em âmbar
-    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
-    ctx.page.drawText(line, {
-      x: MARGIN_X + indent,
-      y: ctx.y,
-      size,
-      font: ctx.font,
-      color: cor,
-    });
-    ctx.y -= size + 5;
+/** Desenha uma linha justificada (exceto a última do parágrafo). */
+function drawJustified(
+  ctx: Ctx,
+  line: string,
+  x: number,
+  maxW: number,
+  size: number,
+  cor: ReturnType<typeof rgb>,
+  justificar: boolean,
+) {
+  const palavras = line.split(" ").filter(Boolean);
+  const larguraTexto = ctx.font.widthOfTextAtSize(line, size);
+  if (!justificar || palavras.length < 2 || larguraTexto >= maxW) {
+    ctx.page.drawText(line, { x, y: ctx.y, size, font: ctx.font, color: cor });
+    return;
   }
-  ctx.y -= 6;
+  const espaco =
+    (maxW - palavras.reduce((a, p) => a + ctx.font.widthOfTextAtSize(p, size), 0)) /
+    (palavras.length - 1);
+  let cx = x;
+  for (const p of palavras) {
+    ctx.page.drawText(p, { x: cx, y: ctx.y, size, font: ctx.font, color: cor });
+    cx += ctx.font.widthOfTextAtSize(p, size) + espaco;
+  }
+}
+
+function paragraph(ctx: Ctx, text: string, size = 10, indent = 28) {
+  const maxW = CONTENT_W - indent;
+  // recuo de primeira linha, como no formulário original
+  const primeiraIndent = 28;
+  const lines = wrap(text, ctx.font, size, maxW);
+  const leading = size + 4.5;
+  lines.forEach((line, i) => {
+    need(ctx, leading);
+    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
+    const x = MARGIN_X + indent + (i === 0 ? primeiraIndent : 0);
+    const w = maxW - (i === 0 ? primeiraIndent : 0);
+    drawJustified(ctx, line, x, w, size, cor, i < lines.length - 1);
+    ctx.y -= leading;
+  });
+  ctx.y -= 8;
 }
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
   const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
-  const size = nivel === 1 ? 11.5 : nivel === 2 ? 10.5 : 10;
+  const size = nivel === 1 ? 11.5 : nivel === 2 ? 9.5 : 9;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
-  ctx.y -= nivel === 1 ? 10 : 6;
-  // padrão FR-31-10: numeração com ponto final e título em caixa alta
-  const label = sanitize(
-    `${numero ? `${numero}. ` : ""}${texto}`.toLocaleUpperCase("pt-BR"),
-  );
+  ctx.y -= nivel === 1 ? 16 : 12;
+  // padrão FR-31-10: numeração com ponto final, tabulação e título em caixa alta
+  const num = numero ? `${numero}.` : "";
+  const label = sanitize(texto.toLocaleUpperCase("pt-BR"));
+  const x = MARGIN_X + (nivel === 1 ? 28 : nivel === 2 ? 34 : 50);
+  const larguraNum = nivel === 1 ? 20 : 30;
+  if (num) {
+    ctx.page.drawText(sanitize(num), {
+      x,
+      y: ctx.y,
+      size,
+      font: ctx.bold,
+      color: NAVY,
+    });
+  }
   ctx.page.drawText(label, {
-    x: MARGIN_X + (nivel === 1 ? 0 : nivel === 2 ? 8 : 20),
+    x: num ? x + larguraNum : x,
     y: ctx.y,
     size,
     font: ctx.bold,
     color: NAVY,
   });
-  ctx.y -= size + 8;
+  ctx.y -= size + (nivel === 1 ? 12 : 10);
 }
 
 
 function bullets(ctx: Ctx, itens: string[]) {
+  const indent = 56;
+  const maxW = CONTENT_W - indent - 6;
   for (const it of itens) {
-    const lines = wrap(it, ctx.font, 9.5, CONTENT_W - 14);
+    const lines = wrap(it, ctx.font, 10, maxW);
     lines.forEach((line, i) => {
-      need(ctx, 14);
+      need(ctx, 15);
       if (i === 0) {
-        ctx.page.drawText("•", { x: MARGIN_X + 2, y: ctx.y, size: 9.5, font: ctx.bold, color: BLUE });
+        ctx.page.drawText("•", {
+          x: MARGIN_X + indent - 14,
+          y: ctx.y,
+          size: 10,
+          font: ctx.bold,
+          color: TINTA,
+        });
       }
-      ctx.page.drawText(line, {
-        x: MARGIN_X + 14,
-        y: ctx.y,
-        size: 9.5,
-        font: ctx.font,
-        color: line.includes("[CONFIRMAR:") ? AMBER : rgb(0.15, 0.17, 0.2),
-      });
-      ctx.y -= 13;
+      const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
+      drawJustified(ctx, line, MARGIN_X + indent, maxW, 10, cor, i < lines.length - 1);
+      ctx.y -= 14.5;
     });
-    ctx.y -= 2;
+    ctx.y -= 4;
   }
-  ctx.y -= 4;
+  ctx.y -= 6;
 }
+
+
 
 function table(
   ctx: Ctx,
@@ -290,7 +355,7 @@ function table(
         y: ctx.y - h + (size + 3),
         width: CONTENT_W,
         height: h,
-        color: bolded ? rgb(0.93, 0.95, 0.98) : rgb(0.98, 0.98, 0.99),
+        color: bolded ? NAVY : rgb(0.97, 0.97, 0.98),
       });
     }
     let x = MARGIN_X;
@@ -301,7 +366,11 @@ function table(
           y: ctx.y - li * (size + 3),
           size,
           font: bolded ? ctx.bold : ctx.font,
-          color: line.includes("[CONFIRMAR:") ? AMBER : bolded ? NAVY : rgb(0.18, 0.2, 0.24),
+          color: bolded
+            ? rgb(1, 1, 1)
+            : line.includes("[CONFIRMAR:")
+              ? AMBER
+              : rgb(0.18, 0.2, 0.24),
         });
       });
       x += larguras[i]!;
@@ -461,59 +530,67 @@ function identificacao(ctx: Ctx) {
   const m = ctx.meta;
   const linhas: [string, string][] = [
     ["Empresa / Unidade:", `${m.cliente} - ${m.unidade}`],
-    ["Analista de Projetos:", m.analista || "—"],
-    ["Especialista em Automação:", m.especialista || "—"],
-    ["Agente Técnico Credenciado IONICS:", m.agente || "—"],
-    ["Data:", m.data || "—"],
+    ["Analista de Projetos:", m.analista || "-"],
+    ["Especialista em Automação:", m.especialista || "-"],
+    ["Agente Técnico Credenciado IONICS:", m.agente || "-"],
+    ["Data:", m.data || "-"],
   ];
-  const size = 9.5;
-  const rotuloW = 168;
-  const valorW = CONTENT_W - rotuloW - 16;
+  const size = 10;
+  const larguraQuadro = CONTENT_W - 74;
+  const x0 = MARGIN_X + 37;
+  const rotuloW = 176;
+  const valorW = larguraQuadro - rotuloW;
 
-  const alturas = linhas.map(
-    ([, valor]) => wrap(valor, ctx.bold, size, valorW).length * (size + 3) + 8,
-  );
+  const alturaDe = (rotulo: string, valor: string) => {
+    const l1 = wrap(rotulo, ctx.bold, size, rotuloW - 16).length;
+    const l2 = wrap(valor, ctx.font, size, valorW - 16).length;
+    return Math.max(l1, l2) * (size + 3) + 14;
+  };
+
+  const alturas = linhas.map(([r, v]) => alturaDe(r, v));
   const total = alturas.reduce((a, b) => a + b, 0);
-  need(ctx, total + 14);
+  need(ctx, total + 24);
+  ctx.y -= 8;
 
-  const topo = ctx.y + size;
   linhas.forEach(([rotulo, valor], i) => {
     const h = alturas[i]!;
-    const yTopo = ctx.y;
-    ctx.page.drawText(sanitize(rotulo), {
-      x: MARGIN_X + 6,
-      y: yTopo,
-      size,
-      font: ctx.font,
-      color: rgb(0.25, 0.27, 0.31),
+    const yBase = ctx.y - h + size + 3;
+
+    // célula do rótulo: fundo navy, texto branco em negrito
+    ctx.page.drawRectangle({ x: x0, y: yBase, width: rotuloW, height: h, color: NAVY });
+    ctx.page.drawRectangle({
+      x: x0 + rotuloW,
+      y: yBase,
+      width: valorW,
+      height: h,
+      borderColor: NAVY,
+      borderWidth: 0.8,
     });
-    wrap(valor, ctx.bold, size, valorW).forEach((line, li) => {
+
+    wrap(rotulo, ctx.bold, size, rotuloW - 16).forEach((line, li) => {
       ctx.page.drawText(line, {
-        x: MARGIN_X + rotuloW,
-        y: yTopo - li * (size + 3),
+        x: x0 + 8,
+        y: ctx.y - li * (size + 3),
         size,
         font: ctx.bold,
-        color: NAVY,
+        color: rgb(1, 1, 1),
       });
     });
-    ctx.y -= h;
-    ctx.page.drawLine({
-      start: { x: MARGIN_X, y: ctx.y + size },
-      end: { x: PAGE_W - MARGIN_X, y: ctx.y + size },
-      thickness: 0.5,
-      color: LINE,
+    wrap(valor, ctx.font, size, valorW - 16).forEach((line, li) => {
+      ctx.page.drawText(line, {
+        x: x0 + rotuloW + 8,
+        y: ctx.y - li * (size + 3),
+        size,
+        font: ctx.font,
+        color: TINTA,
+      });
     });
+
+    ctx.y -= h;
   });
-  ctx.page.drawRectangle({
-    x: MARGIN_X,
-    y: ctx.y + size,
-    width: CONTENT_W,
-    height: topo - (ctx.y + size),
-    borderColor: BORDA,
-    borderWidth: 0.8,
-  });
-  ctx.y -= 16;
+  ctx.y -= 22;
 }
+
 
 /** Bloco de encerramento padrão do documento. */
 function encerramento(ctx: Ctx) {
@@ -594,7 +671,7 @@ export async function buildLaudoPdf(input: {
         alerta(ctx, b.severidade, b.texto);
         break;
       case "observacao":
-        alerta(ctx, "info", `${b.titulo || "OBSERVAÇÃO TÉCNICA"}: ${b.texto}`);
+        alerta(ctx, "info", b.titulo ? `${b.titulo}: ${b.texto}` : b.texto);
         break;
       case "pagebreak":
         newPage(ctx);
