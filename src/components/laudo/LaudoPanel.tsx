@@ -96,7 +96,9 @@ export function LaudoPanel({
   const [docSujo, setDocSujo] = useState(false);
   const [modoDoc, setModoDoc] = useState<"visualizar" | "editar">("visualizar");
   const [arvore, setArvore] = useState<NoArvore[]>([]);
-  const [aba, setAba] = useState<"pendencias" | "variaveis" | "achados">("pendencias");
+  const [aba, setAba] = useState<"pendencias" | "variaveis" | "achados">(
+    etapa === "analise" ? "achados" : "pendencias",
+  );
   const [sumarioAberto, setSumarioAberto] = useState(false);
   const [salvarDoc, setSalvarDoc] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null });
 
