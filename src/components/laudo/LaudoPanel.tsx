@@ -84,6 +84,7 @@ export function LaudoPanel({
   const [salvandoDoc, setSalvandoDoc] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [conteudo, setConteudo] = useState<LaudoConteudo | null>(null);
+  const [metaDoc, setMetaDoc] = useState<import("@/lib/laudo/meta").MetaLaudo | null>(null);
   const [variaveis, setVariaveis] = useState<VariaveisLaudo>({});
   const [confirmacoes, setConfirmacoes] = useState<ConfirmacaoAlerta[]>([]);
   const [achados, setAchados] = useState<Achado[]>([]);
@@ -107,6 +108,7 @@ export function LaudoPanel({
     try {
       const r = await fnCarregar({ data: { casoId } });
       setConteudo(r.conteudo);
+      setMetaDoc((r as any).meta ?? null);
       setVariaveis(r.variaveis ?? {});
       setConfirmacoes(r.confirmacoes ?? []);
       setAchados((r.achados ?? []) as Achado[]);
@@ -505,6 +507,7 @@ export function LaudoPanel({
             onModoChange={setModoDoc}
             onArvoreChange={onArvoreChange}
             registrarSalvar={registrarSalvar}
+            meta={metaDoc}
             semChrome
           />
         </section>

@@ -138,9 +138,12 @@ export const carregarLaudo = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     const conteudo = (caso?.laudo_conteudo ?? null) as LaudoConteudo | null;
+    const { carregarMetaLaudoDoCaso } = await import("@/lib/laudo/meta.server");
+    const { meta } = await carregarMetaLaudoDoCaso(context.supabase, data.casoId);
     return {
       variaveis: (caso?.laudo_variaveis ?? {}) as VariaveisLaudo,
       conteudo,
+      meta,
       pendencias: conteudo ? blocosComPendencia(conteudo.blocos) : 0,
       bloqueios: conteudo ? alertasBloqueantes(conteudo.blocos).map((a) => a.codigo) : [],
       confirmacoes: (caso?.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[],
@@ -422,11 +425,8 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     }
 
 
-    const { data: formulario } = await supabase
-      .from("formularios")
-      .select("nome, revisao")
-      .eq("id", caso.formulario_id ?? "")
-      .maybeSingle();
+    const { carregarMetaLaudoDoCaso } = await import("@/lib/laudo/meta.server");
+    const { meta } = await carregarMetaLaudoDoCaso(supabase, data.casoId);
 
     const { data: config } = await supabaseAdmin
       .from("configuracoes_empresa")
@@ -448,29 +448,26 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
       }
     }
 
-    const meta = metaDoCaso(caso);
     const vars = (caso.laudo_variaveis ?? {}) as unknown as VariaveisLaudo;
     const bytes = await buildLaudoPdf({
       meta: {
-        titulo: formulario?.nome ?? "Resultado de Mapeamento Técnico",
+        titulo: meta.nomeDocumento,
         codigo: caso.codigo ?? null,
-        revisao: formulario?.revisao ?? null,
+        revisao: meta.revisao,
         empresaNome: config?.nome_empresa || "Ionics",
         logoBytes,
         logoMime,
-        // resposta explícita do formulário (ou confirmação manual) vence o
-        // cadastro; depois cadastro; por último proposta/IA (laudo_variaveis)
-        cliente: valorCabecalho(vars, "nome_cliente", meta.cliente),
-        unidade: valorCabecalho(vars, "unidade", meta.unidade),
-        data: valorCabecalho(vars, "data_mapeamento", meta.data),
-        agente: valorCabecalho(vars, "agente_tecnico", meta.agente),
-        codigoDocumento: "FR-31-10",
+        cliente: meta.cliente,
+        unidade: meta.unidade,
+        data: meta.data,
+        agente: meta.agente,
+        codigoDocumento: meta.codigoDocumento,
         elaboradoPor: vars["elaborado_por"]?.valor || "Sheron Williams",
         aprovadoPor: vars["aprovado_por"]?.valor || "Guilherme Sombrio",
-        revisaoDocumento: formulario?.revisao ?? "01",
+        revisaoDocumento: meta.revisao ?? "01",
         dataRevisao: vars["data_revisao"]?.valor || "02/04/2024",
-        analista: (vars["analista_projetos"]?.valor ?? "").trim() || null,
-        especialista: (vars["especialista_automacao"]?.valor ?? "").trim() || null,
+        analista: meta.analista,
+        especialista: meta.especialista,
       },
 
       blocos: renumerar(conteudo.blocos as BlocoLaudo[]).filter((b) => !b.oculto),
@@ -484,7 +481,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     });
 
     return {
-      filename: `laudo-${slugify(caso.codigo || "mapeamento")}.pdf`,
+      filename: meta.filename,
       contentBase64: toBase64(bytes),
       mimeType: "application/pdf",
     };
