@@ -759,15 +759,28 @@ function EditorBloco({
       );
     case "alert":
       return (
-        <Textarea
-          rows={3}
-          value={bloco.texto}
-          onChange={(e) => {
-            const v = e.target.value;
-            onChange({ ...bloco, texto: v });
-          }}
-        />
+        <div className="space-y-2">
+          <select
+            className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+            value={bloco.severidade}
+            onChange={(e) =>
+              onChange({ ...bloco, severidade: e.target.value as "info" | "bloqueante" })
+            }
+          >
+            <option value="info">Informação / observação</option>
+            <option value="bloqueante">Atenção (destaque forte)</option>
+          </select>
+          <Textarea
+            rows={3}
+            value={bloco.texto}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange({ ...bloco, texto: v });
+            }}
+          />
+        </div>
       );
+
     case "pagebreak":
       return <p className="text-xs text-muted-foreground">Quebra de página (sem conteúdo).</p>;
   }
