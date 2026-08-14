@@ -8,6 +8,7 @@ import type { Achado } from "@/lib/laudo/analise/achados";
 import {
   alertasBloqueantes,
   blocosComPendencia,
+  rotulosPendencias,
   type BlocoLaudo,
   type ConfirmacaoAlerta,
   type LaudoConteudo,
