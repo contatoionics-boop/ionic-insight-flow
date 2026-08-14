@@ -54,12 +54,20 @@ const INDEX: Array<{ chave: string; termo: string }> = ALIASES.flatMap(([chave, 
   termos.map((t) => ({ chave, termo: norm(t) })),
 ).sort((a, b) => b.termo.length - a.termo.length);
 
-/** Resolve a chave do laudo a partir do texto da pergunta (ou null). */
-export function chaveDaPergunta(texto: string | null | undefined): string | null {
+/** Resolve as chaves do laudo a partir do texto da pergunta. */
+export function chavesDaPergunta(texto: string | null | undefined): string[] {
   const t = norm(texto ?? "");
-  if (!t) return null;
-  for (const { chave, termo } of INDEX) {
-    if (t === termo || t.includes(termo)) return chave;
-  }
-  return null;
+  if (!t) return [];
+  const achados = INDEX.filter(({ termo }) => t === termo || t.includes(termo));
+  if (!achados.length) return [];
+  const maior = achados[0]!.termo.length;
+  const chaves = achados
+    .filter(({ termo }) => termo.length >= maior * 0.8)
+    .map(({ chave }) => chave);
+  return Array.from(new Set(chaves));
+}
+
+/** Compatibilidade: primeira chave encontrada. */
+export function chaveDaPergunta(texto: string | null | undefined): string | null {
+  return chavesDaPergunta(texto)[0] ?? null;
 }
