@@ -101,12 +101,22 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     },
   });
 
-  const conteudo: LaudoConteudo = { gerado_em: new Date().toISOString(), blocos };
+  // preserva as edições do especialista: a automação só atualiza o que não foi tocado
+  const { mesclarDocumento } = await import("@/lib/laudo/mesclar");
+  const salvos = ((caso.laudo_conteudo as any)?.blocos ?? []) as any[];
+  const mescla = mesclarDocumento(salvos, blocos);
+
+  const conteudo: LaudoConteudo = {
+    gerado_em: new Date().toISOString(),
+    editado_em: (caso.laudo_conteudo as any)?.editado_em ?? null,
+    blocos: mescla.blocos,
+  };
   const { error } = await supabase
     .from("casos")
     .update({ laudo_variaveis: variaveis as any, laudo_conteudo: conteudo as any })
     .eq("id", casoId);
   if (error) throw new Error(error.message);
+
 
   // Comparação proposta comercial x mapeamento (best-effort).
   try {
