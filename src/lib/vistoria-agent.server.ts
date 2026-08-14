@@ -70,6 +70,8 @@ export type AgentContext = {
   secoes: AgentSecao[];
   state: Record<string, AgentResposta>;
   cadastro: CadastroFato[];
+  /** chave_laudo → valor extraído da proposta comercial. */
+  proposta?: Record<string, string>;
 };
 
 /** Validate access via token (public link). Returns casoId. */
@@ -294,6 +296,48 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     };
   }
 
+  // Escopo extraído da proposta comercial (quando houver) → variáveis do laudo.
+  const proposta: Record<string, string> = {};
+  const { data: propostaRow } = await supabaseAdmin
+    .from("propostas_comerciais")
+    .select("escopo, status")
+    .eq("caso_id", casoId)
+    .eq("status", "pronto")
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (propostaRow?.escopo) {
+    try {
+      const { variaveisDaProposta } = await import("@/lib/proposta/para-laudo");
+      const vars = variaveisDaProposta((propostaRow as any).escopo ?? {});
+      for (const [k, v] of Object.entries(vars)) {
+        if (v?.valor) proposta[k] = String(v.valor);
+      }
+    } catch {
+      /* proposta opcional */
+    }
+  }
+  // Fatos da proposta viram cadastro quando o cadastro não os tem.
+  const jaTem = new Set(cadastro.map((f) => f.label.toLowerCase()));
+  const rotulosProposta: Record<string, string> = {
+    nome_cliente: "Empresa (cliente)",
+    nivel_servico: "Nível do serviço",
+    tipo_acao: "Tipo de solicitação",
+    qtd_bicos: "Quantidade de bicos",
+    comunicacao_tipos: "Tipo de comunicação",
+    terminal_atual: "Terminal",
+    objeto_escopo: "Objeto do escopo",
+    nome_solucao: "Solução",
+    ids_objetos: "Identificação dos objetos",
+    bitola_bico: "Bitola do bico",
+    tensao_veiculo: "Tensão",
+  };
+  for (const [chave, rotulo] of Object.entries(rotulosProposta)) {
+    const valor = proposta[chave];
+    if (!valor || jaTem.has(rotulo.toLowerCase())) continue;
+    cadastro.push({ label: rotulo, valor: rotulosEnum[valor] ?? valor });
+  }
+
   return {
     casoId,
     clienteNome,
@@ -307,7 +351,9 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     })),
     state,
     cadastro,
+    proposta,
   };
+
 }
 
 /** Filter perguntas by current state's conditional rules. */
@@ -490,6 +536,19 @@ function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   return canon;
 }
 
+/** Rótulos legíveis para valores enumerados vindos da proposta. */
+const ROTULOS_ENUM_LAUDO: Record<string, string> = {
+  nivel_1: "Nível 1",
+  nivel_2: "Nível 2",
+  nivel_3: "Nível 3",
+  instalacao: "Instalação",
+  upgrade: "Upgrade",
+  presencial: "Presencial",
+  remoto: "Remoto",
+  sim: "Sim",
+  nao: "Não",
+};
+
 /** Mapeia chave_laudo → chave canônica de cadastro. */
 const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
   nome_cliente: "nome_cliente",
@@ -564,9 +623,13 @@ export async function sincronizarCadastro(
     const chave =
       (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
       chavePorTexto(pergunta);
-    if (!chave) continue;
-    const valor = canon.get(chave);
-    if (!valor) continue;
+    // Precedência: cadastro > proposta comercial (por chave_laudo).
+    const bruto =
+      (chave ? canon.get(chave) : undefined) ??
+      (pergunta.chave_laudo ? ctx.proposta?.[pergunta.chave_laudo] : undefined);
+    if (!bruto) continue;
+    const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
+
 
     // Seleção única só é preenchida quando o valor bate com uma opção.
     if (pergunta.tipo === "selecao_unica") {
