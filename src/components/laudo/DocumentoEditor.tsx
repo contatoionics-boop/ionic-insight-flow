@@ -27,6 +27,7 @@ import {
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
+import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
 import type { MetaLaudo } from "@/lib/laudo/meta";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
@@ -790,6 +791,7 @@ function MenuAdicionar({
   onAdd,
   onBlocoPadrao,
   onFoto,
+  onNivel2,
 }: {
   onAdd: (
     tipo: TipoBloco,
@@ -798,7 +800,9 @@ function MenuAdicionar({
   ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
+  onNivel2?: (tipo: "secao" | "2.4" | "2.4.1") => void;
 }) {
+
   const [aberto, setAberto] = useState(false);
   const [tabela, setTabela] = useState(false);
   const [colunas, setColunas] = useState(3);
@@ -879,6 +883,32 @@ function MenuAdicionar({
               Tabela…
             </button>
           )}
+          {onNivel2 && (
+            <>
+              <p className="mt-1 border-t border-border px-2 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Blocos Nível 2
+              </p>
+              {(
+                [
+                  ["secao", "Seção VII — Instruções Nível 2 (completa)"],
+                  ["2.4", "2.4 — Bicos de Abastecimento (Nível 2)"],
+                  ["2.4.1", "2.4.1 — Suporte/Descanso do Bico — Comboio"],
+                ] as const
+              ).map(([k, rotulo]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={() => {
+                    onNivel2(k);
+                    fechar();
+                  }}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </>
+          )}
           {onBlocoPadrao && (
             <button
               type="button"
@@ -891,6 +921,7 @@ function MenuAdicionar({
               Inserir bloco padrão…
             </button>
           )}
+
           {onFoto && (
             <button
               type="button"
@@ -1005,19 +1036,36 @@ export function DocumentoEditor({
 
   function inserirBlocos(indice: number, novos: BlocoLaudo[]) {
     if (!novos.length) return;
-    const marcados = novos.map((b) => ({
-      ...(b as any),
-      id: novoId(),
-      chave: `manual:${novoId()}`,
-      origem: "manual",
-      editavel: true,
-      removivel: true,
-    })) as BlocoLaudo[];
+    const existentes = new Set(blocos.map((b) => b.chave));
+    const marcados = novos
+      // blocos estruturais já presentes não são inseridos de novo
+      .filter((b) => !(b.chave && existentes.has(b.chave)))
+      .map((b) => ({
+        ...(b as any),
+        id: novoId(),
+        // preserva a chave estrutural (`nivel2:...`) para o merge da regeração
+        chave: (b as any).chave ?? `manual:${novoId()}`,
+        origem: "manual",
+        editavel: true,
+        removivel: true,
+      })) as BlocoLaudo[];
+    if (!marcados.length) return;
     const next = [...blocos];
     next.splice(indice, 0, ...marcados);
     atualizar(next);
     setModo("editar");
   }
+
+  function inserirNivel2(indice: number, tipo: "secao" | "2.4" | "2.4.1") {
+    const novos =
+      tipo === "secao"
+        ? [blocoSecaoVII(), ...blocos24(), ...blocos241()]
+        : tipo === "2.4"
+          ? blocos24()
+          : blocos241();
+    inserirBlocos(indice, novos);
+  }
+
 
   function inserir(
     indice: number,
@@ -1255,6 +1303,7 @@ export function DocumentoEditor({
           {modo === "editar" && (
             <MenuAdicionar
               onAdd={(t, n, o) => inserir(0, t, n, o)}
+              onNivel2={(k) => inserirNivel2(0, k)}
               onBlocoPadrao={() => {
                 setAlvoInsercao(0);
                 setBiblioteca("padrao");
@@ -1371,6 +1420,7 @@ export function DocumentoEditor({
                 </div>
                 <MenuAdicionar
                   onAdd={(t, n, o) => inserir(i + 1, t, n, o)}
+                  onNivel2={(k) => inserirNivel2(i + 1, k)}
                   onBlocoPadrao={() => {
                     setAlvoInsercao(i + 1);
                     setBiblioteca("padrao");

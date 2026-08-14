@@ -9,12 +9,17 @@ const MACROMAN =
   "‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ\uf8ffÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ";
 
 const REVERSO = new Map<string, string>();
+// aspas e travessões tipográficos nunca são mojibake: são pontuação legítima
+// (ex.: 2” viraria "2Ó" se passassem pela reversão MacRoman)
+const PONTUACAO = new Set(["\u2018", "\u2019", "\u201C", "\u201D", "\u2013", "\u2014", "\u2026"]);
 for (let i = 0; i < MACROMAN.length; i++) {
   const byte = 0x80 + i;
   const latin1 = String.fromCharCode(byte);
+  if (PONTUACAO.has(MACROMAN[i]!)) continue;
   // só interessa quando o byte, lido como latin-1, vira letra acentuada
   if (/[À-ÖØ-öø-ÿ]/.test(latin1)) REVERSO.set(MACROMAN[i]!, latin1);
 }
+
 
 
 

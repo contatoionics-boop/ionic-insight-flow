@@ -5,6 +5,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { limparTexto } from "@/lib/texto";
+import { figuraEstatica } from "@/lib/laudo/figuras-estaticas.server";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -61,6 +62,8 @@ type Ctx = {
 function sanitize(s: string): string {
   return limparTexto(s ?? "")
     .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
     .replace(/[^\x20-\x7E\u00C0-\u00FF]/g, "");
 }
 
@@ -468,8 +471,12 @@ function alerta(ctx: Ctx, severidade: "info" | "bloqueante", texto: string) {
 const cacheFiguras = new Map<string, { bytes: Uint8Array; mime: string } | null>();
 
 async function carregarFigura(url: string, baseUrl?: string | null) {
+  // desenhos estruturais do projeto: bytes embutidos, sem depender de rede
+  const estatica = figuraEstatica(url);
+  if (estatica) return estatica;
   if (cacheFiguras.has(url)) return cacheFiguras.get(url) ?? null;
   let out: { bytes: Uint8Array; mime: string } | null = null;
+
   try {
     const absoluta = url.startsWith("http") ? url : `${(baseUrl ?? "").replace(/\/$/, "")}${url}`;
     if (absoluta.startsWith("http")) {

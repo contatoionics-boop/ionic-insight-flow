@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300">
+  <rect width="640" height="300" fill="#ffffff"/>
+  <g fill="none" stroke="#1F3864" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- corpo do bico -->
+    <path d="M120 120 h150 v70 h-150 a28 28 0 0 1 -28 -28 v-14 a28 28 0 0 1 28 -28 z"/>
+    <!-- gatilho / alavanca -->
+    <path d="M150 190 v26 h86 v-26"/>
+    <path d="M158 200 h70"/>
+    <!-- guarda do gatilho -->
+    <path d="M150 216 q45 34 86 0"/>
+    <!-- entrada / rosca NPT + mangueira -->
+    <path d="M92 132 h-30 v46 h30"/>
+    <path d="M62 140 h-34 v30 h34"/>
+    <!-- conexao (niple) -->
+    <rect x="270" y="132" width="46" height="46"/>
+    <path d="M280 132 v46 M292 132 v46 M304 132 v46"/>
+    <!-- ponteira -->
+    <path d="M316 140 h190 v30 h-190 z"/>
+    <path d="M506 142 h18 v26 h-18 z"/>
+  </g>
+  <!-- modulo bico wireless -->
+  <g fill="#EAF0FA" stroke="#1F3864" stroke-width="3">
+    <rect x="196" y="56" width="118" height="56" rx="8"/>
+  </g>
+  <g fill="none" stroke="#1F3864" stroke-width="3" stroke-linecap="round">
+    <path d="M255 112 v20"/>
+    <path d="M226 74 h58 M226 88 h40"/>
+  </g>
+  <g fill="none" stroke="#1F3864" stroke-width="2.5" stroke-linecap="round">
+    <path d="M330 96 q16 -16 32 0" opacity="0.8"/>
+    <path d="M338 108 q10 -10 20 0" opacity="0.8"/>
+  </g>
+  <!-- NLDIV na ponteira -->
+  <rect x="404" y="128" width="70" height="54" rx="6" fill="#EAF0FA" stroke="#1F3864" stroke-width="3"/>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1F3864">
+    <text x="196" y="46">Módulo Bico Wireless</text>
+    <text x="392" y="206">NLDIV Wireless</text>
+    <text x="272" y="212">niple ~120 mm</text>
+    <text x="16" y="286">entrada / rosca NPT</text>
+  </g>
+</svg>

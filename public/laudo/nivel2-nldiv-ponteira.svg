@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300">
+  <rect width="640" height="300" fill="#ffffff"/>
+  <g fill="none" stroke="#1F3864" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- ponteira cilindrica -->
+    <path d="M70 128 h420 v44 h-420 z"/>
+    <ellipse cx="490" cy="150" rx="12" ry="22"/>
+    <ellipse cx="70" cy="150" rx="12" ry="22"/>
+  </g>
+  <!-- modulo NLDIV acoplado (aumento de diametro externo) -->
+  <rect x="300" y="98" width="132" height="104" rx="10" fill="#EAF0FA" stroke="#1F3864" stroke-width="3"/>
+  <g fill="none" stroke="#1F3864" stroke-width="2.5">
+    <path d="M320 118 h92 M320 134 h92"/>
+  </g>
+  <!-- cotas de diametro -->
+  <g stroke="#1F3864" stroke-width="1.6" fill="none">
+    <path d="M180 128 v-46 M180 172 v46"/>
+    <path d="M170 96 h20 M170 204 h20"/>
+    <path d="M180 96 v108" stroke-dasharray="6 5"/>
+    <path d="M540 98 v104"/>
+    <path d="M530 98 h20 M530 202 h20"/>
+  </g>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1F3864">
+    <text x="60" y="250">diâmetro da ponteira</text>
+    <text x="300" y="90">NLDIV Wireless (antena / leitor)</text>
+    <text x="628" y="238" text-anchor="end">diâmetro externo com NLDIV</text>
+    <text x="70" y="290">Ponteira 1" + NLDIV = 47 mm · 3/4" + NLDIV = 34 mm · 1/2" + NLDIV = 30 mm</text>
+  </g>
+</svg>

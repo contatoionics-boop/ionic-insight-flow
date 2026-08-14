@@ -9,8 +9,7 @@ import {
   type ContextoRegras,
   type MaterialCatalogo,
 } from "./regras";
-import { FIGURA_SUPORTE_BICO } from "./figuras";
-import { blocosNivel2 } from "./blocos-nivel2";
+import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -407,62 +406,51 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
 
 
   // 2.4 Bicos de abastecimento
-  blocos.push({
-    id: bid("h"),
-    tipo: "heading",
-    numero: "2.4",
-    texto: "Bicos de abastecimento",
-    nivel: 2,
-  });
-  if (nivel === "nivel_2") {
+  // No Nível 2 o conteúdo dos bicos é o bloco estrutural da seção VII
+  // (2.4 / 2.4.1). Aqui só entra o texto genérico dos demais níveis, para
+  // não duplicar título nem desenho.
+  const nivel2 = ehNivel2(nivel);
+  if (!nivel2) {
     blocos.push({
-      id: bid("p"),
-      tipo: "paragraph",
-      texto:
-        "No nível 2 o controle de vazão é feito pelo NLDIV Wireless instalado na linha de abastecimento. A instalação exige a interrupção da linha para inserção do medidor, com adequação de bitola quando necessário. " +
-        (bitola === '1"'
-          ? 'Para bico de 1", recomenda-se a redução para 3/4" com niple e luva de redução, garantindo a faixa de vazão homologada.'
-          : ""),
+      id: bid("h"),
+      tipo: "heading",
+      numero: "2.4",
+      texto: "Bicos de abastecimento",
+      nivel: 2,
     });
-  } else {
     blocos.push({
       id: bid("p"),
       tipo: "paragraph",
       texto:
         "No nível de serviço contratado não há instalação de medidor de vazão na linha; o controle é feito pelo terminal e pelos sensores de acionamento.",
     });
-  }
-  blocos.push(...secao("2.4"));
-  blocos.push({
-    id: bid("t"),
-    tipo: "table",
-    titulo: "Dimensões de referência",
-    colunas: ["Bitola", "Faixa de vazão", "Conexão"],
-    linhas: [
-      { celulas: ['1/2"', "5 a 40 L/min", "Rosca BSP"] },
-      { celulas: ['3/4"', "10 a 90 L/min", "Rosca BSP"] },
-      { celulas: ['1"', "20 a 150 L/min", "Rosca BSP"] },
-    ],
-  });
-  blocos.push({
-    id: bid("p"),
-    tipo: "paragraph",
-    texto:
-      "Somente componentes homologados pela IONICS devem ser utilizados na linha de abastecimento. O uso de itens não homologados invalida a garantia do equipamento.",
-  });
-  if (nivel === "nivel_2") {
+    blocos.push(...secao("2.4"));
     blocos.push({
-      id: bid("img"),
-      tipo: "image",
-      url: FIGURA_SUPORTE_BICO.url,
-      alt: FIGURA_SUPORTE_BICO.alt,
-      legenda: `Figura ${proximaFigura()} — ${FIGURA_SUPORTE_BICO.legendaBase}`,
-      larguraMax: FIGURA_SUPORTE_BICO.larguraMax,
+      id: bid("t"),
+      tipo: "table",
+      titulo: "Dimensões de referência",
+      colunas: ["Bitola", "Faixa de vazão", "Conexão"],
+      linhas: [
+        { celulas: ['1/2"', "5 a 40 L/min", "Rosca BSP"] },
+        { celulas: ['3/4"', "10 a 90 L/min", "Rosca BSP"] },
+        { celulas: ['1"', "20 a 150 L/min", "Rosca BSP"] },
+      ],
+    });
+    blocos.push({
+      id: bid("p"),
+      tipo: "paragraph",
+      texto:
+        "Somente componentes homologados pela IONICS devem ser utilizados na linha de abastecimento. O uso de itens não homologados invalida a garantia do equipamento.",
     });
   }
 
   // ---------- VII. Blocos padrão condicionais (Nível 2 / Comboio) ----------
   blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura }));
+  if (nivel2) {
+    // conclusões da análise técnica sobre bicos seguem após a seção estrutural
+    blocos.push(...secao("2.4"));
+  }
+
 
   // ---------- 3. Instruções gerais ----------
 
