@@ -1,21 +1,40 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AgentChat } from "@/components/agent/AgentChat";
+import { ChecklistVistoria } from "@/components/agent/checklist/ChecklistVistoria";
 
 export const Route = createFileRoute("/app/vistoria/$casoId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    modo: search.modo === "chat" ? ("chat" as const) : ("checklist" as const),
+  }),
   component: VistoriaPage,
 });
 
 function VistoriaPage() {
   const { casoId } = Route.useParams();
+  const { modo } = Route.useSearch();
   const navigate = useNavigate();
+
+  const concluir = () => {
+    setTimeout(() => navigate({ to: "/app/minhas-vistorias" }), 1500);
+  };
+
+  if (modo === "chat") {
+    return (
+      <AgentChat
+        casoId={casoId}
+        onFinalized={concluir}
+      />
+    );
+  }
+
   return (
-    <AgentChat
+    <ChecklistVistoria
       casoId={casoId}
-      onFinalized={() => {
-        setTimeout(() => navigate({ to: "/app/minhas-vistorias" }), 1500);
-      }}
+      onFinalized={concluir}
+      onTrocarModo={() =>
+        navigate({ to: "/app/vistoria/$casoId", params: { casoId }, search: { modo: "chat" } })
+      }
     />
   );
 }
