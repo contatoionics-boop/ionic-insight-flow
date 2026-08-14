@@ -1,6 +1,8 @@
 // Monta a árvore de blocos do laudo no padrão FR-31-10.
 
-import { montarProdutos, normalizarBitola, type ContextoProduto } from "./catalogo-produtos";
+import { normalizarBitola } from "./catalogo-produtos";
+import type { ProdutoProposta } from "./produtos-proposta";
+
 import {
   alertasDoContexto,
   materiaisAplicaveis,
