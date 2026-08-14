@@ -608,18 +608,37 @@ export function DocumentoEditor({
   conteudo,
   onConteudo,
   onDirtyChange,
+  modo: modoProp,
+  onModoChange,
+  onArvoreChange,
+  registrarSalvar,
+  semChrome = false,
 }: {
   casoId: string;
   conteudo: LaudoConteudo | null;
   onConteudo: (c: LaudoConteudo) => void;
   /** avisa o pai quando há edição do DOCUMENTO ainda não salva */
   onDirtyChange?: (sujo: boolean) => void;
+  /** modo controlado pelo pai (segmented control da tela de revisão) */
+  modo?: "editar" | "visualizar";
+  onModoChange?: (m: "editar" | "visualizar") => void;
+  /** publica o sumário do documento para a navegação lateral do pai */
+  onArvoreChange?: (arvore: ReturnType<typeof arvoreDocumento>) => void;
+  /** expõe o salvar do documento para o botão principal do cabeçalho */
+  registrarSalvar?: (fn: (() => Promise<void>) | null) => void;
+  /** esconde sumário e barra internos (usados pelo layout da revisão) */
+  semChrome?: boolean;
 }) {
   const fnSalvar = useServerFn(salvarDocumentoLaudo);
   const fnConflito = useServerFn(resolverConflitoLaudo);
   const fnRestaurar = useServerFn(restaurarBlocoLaudo);
 
-  const [modo, setModo] = useState<"editar" | "visualizar">("visualizar");
+  const [modoInterno, setModoInterno] = useState<"editar" | "visualizar">("visualizar");
+  const modo = modoProp ?? modoInterno;
+  const setModo = (m: "editar" | "visualizar") => {
+    setModoInterno(m);
+    onModoChange?.(m);
+  };
   const [blocos, setBlocos] = useState<BlocoLaudo[]>(() =>
     renumerar(comChaves(conteudo?.blocos ?? [])),
   );
@@ -640,6 +659,7 @@ export function DocumentoEditor({
     const novos = renumerar(comChaves(conteudo.blocos ?? []));
     if (JSON.stringify(novos) !== JSON.stringify(blocos)) setBlocos(novos);
   }
+
 
   const visiveis = useMemo(() => blocos.filter((b) => !b.oculto), [blocos]);
   const arvore = useMemo(() => arvoreDocumento(blocos), [blocos]);
