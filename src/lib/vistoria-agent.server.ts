@@ -70,6 +70,8 @@ export type AgentContext = {
   secoes: AgentSecao[];
   state: Record<string, AgentResposta>;
   cadastro: CadastroFato[];
+  /** chave_laudo → valor extraído da proposta comercial. */
+  proposta?: Record<string, string>;
 };
 
 /** Validate access via token (public link). Returns casoId. */
