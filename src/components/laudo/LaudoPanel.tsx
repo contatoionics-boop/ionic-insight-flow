@@ -65,7 +65,13 @@ function pendenciasDoBloco(b: BlocoLaudo): string[] {
   return Array.from(texto.matchAll(/\[CONFIRMAR:\s*([^\]]*)\]/g)).map((m) => m[1].trim());
 }
 
-export function LaudoPanel({ casoId }: { casoId: string }) {
+export function LaudoPanel({
+  casoId,
+  etapa = "documento",
+}: {
+  casoId: string;
+  etapa?: "analise" | "documento";
+}) {
   const fnCarregar = useServerFn(carregarLaudo);
   const fnGerar = useServerFn(gerarLaudo);
   const fnSalvar = useServerFn(salvarVariaveisLaudo);
@@ -90,7 +96,9 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [docSujo, setDocSujo] = useState(false);
   const [modoDoc, setModoDoc] = useState<"visualizar" | "editar">("visualizar");
   const [arvore, setArvore] = useState<NoArvore[]>([]);
-  const [aba, setAba] = useState<"pendencias" | "variaveis" | "achados">("pendencias");
+  const [aba, setAba] = useState<"pendencias" | "variaveis" | "achados">(
+    etapa === "analise" ? "achados" : "pendencias",
+  );
   const [sumarioAberto, setSumarioAberto] = useState(false);
   const [salvarDoc, setSalvarDoc] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null });
 
@@ -274,7 +282,9 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       <div className="sticky top-0 z-30 -mx-1 rounded-lg border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:flex-wrap lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">Revisão do Laudo</h3>
+            <h3 className="truncate text-base font-semibold text-foreground">
+              {etapa === "analise" ? "Análise técnica (apoio)" : "Documento estruturado FR-31-10"}
+            </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge
                 className={
@@ -317,29 +327,33 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="ghost" onClick={handleGerar} disabled={gerando} size="sm">
-              {gerando ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : conteudo ? (
-                <RefreshCw className="h-4 w-4" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {conteudo ? "Regerar rascunho" : "Gerar rascunho"}
-            </Button>
-            <Button
-              onClick={handleSalvarRevisao}
-              disabled={!docSujo || salvandoDoc || !salvarDoc.fn}
-              size="sm"
-              title={docSujo ? undefined : "Nenhuma alteração do documento pendente"}
-            >
-              {salvandoDoc ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Salvar revisão
-            </Button>
+            {etapa === "documento" && (
+              <Button variant="ghost" onClick={handleGerar} disabled={gerando} size="sm">
+                {gerando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : conteudo ? (
+                  <RefreshCw className="h-4 w-4" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {conteudo ? "Regerar rascunho" : "Gerar rascunho"}
+              </Button>
+            )}
+            {etapa === "documento" && (
+              <Button
+                onClick={handleSalvarRevisao}
+                disabled={!docSujo || salvandoDoc || !salvarDoc.fn}
+                size="sm"
+                title={docSujo ? undefined : "Nenhuma alteração do documento pendente"}
+              >
+                {salvandoDoc ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Salvar revisão
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -405,7 +419,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       )}
 
       {/* sumário compacto em telas menores */}
-      <div className="xl:hidden">
+      <div className={etapa === "documento" ? "xl:hidden" : "hidden"}>
         <button
           type="button"
           onClick={() => setSumarioAberto((v) => !v)}
@@ -423,16 +437,33 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         )}
       </div>
 
+      {etapa === "analise" && (
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Use esta etapa como apoio à interpretação das respostas. O conteúdo final será definido
+          pelo especialista no documento.
+        </p>
+      )}
+
       {/* 3 — layout principal */}
-      <div className="grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)_340px]">
-        <aside className="hidden h-fit rounded-lg border border-border bg-card p-3 xl:sticky xl:top-24 xl:block">
+      <div
+        className={
+          etapa === "documento"
+            ? "grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)_340px]"
+            : "grid gap-4"
+        }
+      >
+        <aside
+          className={`h-fit rounded-lg border border-border bg-card p-3 xl:sticky xl:top-24 ${
+            etapa === "documento" ? "hidden xl:block" : "hidden"
+          }`}
+        >
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Sumário
           </p>
           {sumario}
         </aside>
 
-        <section className="min-w-0 space-y-3">
+        <section className={`min-w-0 space-y-3 ${etapa === "documento" ? "" : "hidden"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex rounded-md border border-border bg-card p-0.5">
               <button
@@ -479,14 +510,27 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         </section>
 
         {/* 4 — painel contextual único com abas */}
-        <aside className="h-fit min-w-0 rounded-lg border border-border bg-card xl:sticky xl:top-24">
+        <aside
+          className={`h-fit min-w-0 rounded-lg border border-border bg-card ${
+            etapa === "documento" ? "xl:sticky xl:top-24" : ""
+          }`}
+        >
           <div className="flex border-b border-border text-xs">
             {(
-              [
-                ["pendencias", `Pendências${totalPendencias ? ` (${totalPendencias})` : ""}`],
-                ["variaveis", "Variáveis"],
-                ["achados", `Achados${achados.length ? ` (${achados.length})` : ""}`],
-              ] as const
+              etapa === "analise"
+                ? ([
+                    ["achados", `Achados técnicos${achados.length ? ` (${achados.length})` : ""}`],
+                    ["variaveis", "Variáveis estruturadas"],
+                    [
+                      "pendencias",
+                      `Pendências/alertas${totalPendencias ? ` (${totalPendencias})` : ""}`,
+                    ],
+                  ] as const)
+                : ([
+                    ["pendencias", `Pendências${totalPendencias ? ` (${totalPendencias})` : ""}`],
+                    ["variaveis", "Variáveis"],
+                    ["achados", `Achados${achados.length ? ` (${achados.length})` : ""}`],
+                  ] as const)
             ).map(([k, r]) => (
               <button
                 key={k}
@@ -503,7 +547,11 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
             ))}
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto p-3">
+          <div
+            className={
+              etapa === "documento" ? "max-h-[70vh] overflow-y-auto p-3" : "p-4 md:p-5"
+            }
+          >
             {aba === "pendencias" && (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -600,7 +648,13 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
                 <p className="text-[11px] text-muted-foreground">
                   “Salvar variáveis e atualizar rascunho” remonta o documento com os novos valores.
                 </p>
-                <div className="space-y-3">
+                <div
+                  className={
+                    etapa === "analise"
+                      ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+                      : "space-y-3"
+                  }
+                >
                   {CHAVES_LAUDO.map((c) => {
                     const v = variaveis[c.chave];
                     const valor = edits[c.chave] ?? v?.valor ?? "";
