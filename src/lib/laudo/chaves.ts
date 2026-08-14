@@ -39,6 +39,23 @@ export const CHAVES_LAUDO: ChaveLaudo[] = [
   { chave: "especialista_automacao", rotulo: "Especialista em automação", descricao: "Especialista em automação responsável pelo laudo." },
   { chave: "agente_tecnico", rotulo: "Agente técnico credenciado", descricao: "Agente técnico credenciado IONICS que executou o mapeamento." },
   { chave: "data_mapeamento", rotulo: "Data do mapeamento", descricao: "Data em que o mapeamento foi realizado (dd/mm/aaaa)." },
+  { chave: "marca_bomba", rotulo: "Marca/modelo da bomba", descricao: "Marca e modelo da bomba de abastecimento." },
+  { chave: "tensao_bomba", rotulo: "Tensão de alimentação da bomba", descricao: "Tensão elétrica da bomba.", exemplos: ["220VCA", "380VCA"] },
+  { chave: "combustivel", rotulo: "Combustível", descricao: "Combustível fornecido pela bomba." },
+  { chave: "marca_registrador", rotulo: "Marca/modelo do registrador mecânico", descricao: "Registrador mecânico existente." },
+  { chave: "altura_registrador", rotulo: "Altura do registrador", descricao: "Altura em que se encontra o registrador mecânico." },
+  { chave: "marca_bloco_medidor", rotulo: "Marca/modelo do bloco medidor", descricao: "Bloco medidor existente." },
+  { chave: "diametro_saida_bloco", rotulo: "Diâmetro da saída do bloco medidor", descricao: "Medida em mm ou polegadas." },
+  { chave: "marca_bico", rotulo: "Marca/modelo do bico", descricao: "Bico de abastecimento existente." },
+  { chave: "diametro_ponteira_bico", rotulo: "Diâmetro da ponteira do bico", descricao: "Medida em mm ou polegadas." },
+  { chave: "comprimento_ponteira_bico", rotulo: "Comprimento da ponteira do bico", descricao: "Medida em mm." },
+  { chave: "diametro_entrada_bico", rotulo: "Diâmetro da entrada do corpo do bico", descricao: "Medida em mm ou polegadas." },
+  { chave: "suporte_bico", rotulo: "Possui suporte para o bico", descricao: "Se há descanso/suporte para acomodar o bico.", exemplos: ["sim", "nao"] },
+  { chave: "area_coberta", rotulo: "Área coberta", descricao: "Se a área do dispositivo de abastecimento é coberta.", exemplos: ["sim", "nao"] },
+  { chave: "distancia_pista", rotulo: "Distância até a pista", descricao: "Distância da ilha/plataforma até a pista, em metros." },
+  { chave: "operadora_gsm", rotulo: "Operadora GSM local", descricao: "Operadora de telefonia disponível no local." },
+  { chave: "frequencia_wifi", rotulo: "Frequência do Wi-Fi", descricao: "Frequência da rede sem fio no local.", exemplos: ["2.4 GHz", "5 GHz"] },
+  { chave: "qualidade_wifi", rotulo: "Qualidade do Wi-Fi", descricao: "Potência/estabilidade do sinal Wi-Fi no local." },
 ];
 
 export const CHAVES_POR_NOME = new Map(CHAVES_LAUDO.map((c) => [c.chave, c]));
