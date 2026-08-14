@@ -39,6 +39,12 @@ function slugify(s: string): string {
   );
 }
 
+/** true quando o valor do cadastro não serve para o cabeçalho do documento. */
+function vazio(v: string | null | undefined): boolean {
+  const s = (v ?? "").trim();
+  return !s || s === "—" || s === "-";
+}
+
 function metaDoCaso(caso: any) {
   const u = caso.unidade;
   const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
@@ -377,10 +383,12 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         empresaNome: config?.nome_empresa || "Ionics",
         logoBytes,
         logoMime,
-        cliente: meta.cliente,
-        unidade: meta.unidade,
-        data: meta.data,
-        agente: meta.agente,
+        // cadastro manda no cabeçalho; quando faltar, usa o que veio da
+        // proposta comercial / respostas do formulário (laudo_variaveis)
+        cliente: vazio(meta.cliente) ? vars["nome_cliente"]?.valor || "—" : meta.cliente,
+        unidade: vazio(meta.unidade) ? vars["unidade"]?.valor || "—" : meta.unidade,
+        data: vazio(meta.data) ? vars["data_mapeamento"]?.valor || "—" : meta.data,
+        agente: vazio(meta.agente) ? vars["agente_tecnico"]?.valor || "—" : meta.agente,
         codigoDocumento: "FR-31-10",
         elaboradoPor: vars["elaborado_por"]?.valor || "Sheron Williams",
         aprovadoPor: vars["aprovado_por"]?.valor || "Guilherme Sombrio",

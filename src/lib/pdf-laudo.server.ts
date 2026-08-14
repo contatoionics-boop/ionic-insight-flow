@@ -15,7 +15,8 @@ const TOP = PAGE_H - HEADER_H - 22;
 const BOTTOM = FOOTER_H + 14;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
 
-const NAVY = rgb(0.102, 0.141, 0.212);
+// azul institucional IONICS (#1F3864) — antes era quase preto e o PDF saía "preto"
+const NAVY = rgb(0.122, 0.22, 0.392);
 const BLUE = rgb(0.231, 0.51, 0.965);
 const GREY = rgb(0.42, 0.45, 0.5);
 const LINE = rgb(0.85, 0.87, 0.9);
@@ -145,7 +146,7 @@ function drawHeader(ctx: Ctx) {
     y: base + linhaControleH + tituloH / 2 - 5,
     size: 13,
     font: ctx.bold,
-    color: TINTA,
+    color: NAVY,
   });
 
   const rotulo = "Código";
@@ -164,7 +165,7 @@ function drawHeader(ctx: Ctx) {
     y: base + linhaControleH + 14,
     size: 11,
     font: ctx.bold,
-    color: TINTA,
+    color: NAVY,
   });
 
   // linha de controle: 4 células com bordas, como no formulário original
