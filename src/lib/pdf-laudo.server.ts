@@ -526,59 +526,67 @@ function identificacao(ctx: Ctx) {
   const m = ctx.meta;
   const linhas: [string, string][] = [
     ["Empresa / Unidade:", `${m.cliente} - ${m.unidade}`],
-    ["Analista de Projetos:", m.analista || "—"],
-    ["Especialista em Automação:", m.especialista || "—"],
-    ["Agente Técnico Credenciado IONICS:", m.agente || "—"],
-    ["Data:", m.data || "—"],
+    ["Analista de Projetos:", m.analista || "-"],
+    ["Especialista em Automação:", m.especialista || "-"],
+    ["Agente Técnico Credenciado IONICS:", m.agente || "-"],
+    ["Data:", m.data || "-"],
   ];
-  const size = 9.5;
-  const rotuloW = 168;
-  const valorW = CONTENT_W - rotuloW - 16;
+  const size = 10;
+  const larguraQuadro = CONTENT_W - 74;
+  const x0 = MARGIN_X + 37;
+  const rotuloW = 176;
+  const valorW = larguraQuadro - rotuloW;
 
-  const alturas = linhas.map(
-    ([, valor]) => wrap(valor, ctx.bold, size, valorW).length * (size + 3) + 8,
-  );
+  const alturaDe = (rotulo: string, valor: string) => {
+    const l1 = wrap(rotulo, ctx.bold, size, rotuloW - 16).length;
+    const l2 = wrap(valor, ctx.font, size, valorW - 16).length;
+    return Math.max(l1, l2) * (size + 3) + 14;
+  };
+
+  const alturas = linhas.map(([r, v]) => alturaDe(r, v));
   const total = alturas.reduce((a, b) => a + b, 0);
-  need(ctx, total + 14);
+  need(ctx, total + 24);
+  ctx.y -= 8;
 
-  const topo = ctx.y + size;
   linhas.forEach(([rotulo, valor], i) => {
     const h = alturas[i]!;
-    const yTopo = ctx.y;
-    ctx.page.drawText(sanitize(rotulo), {
-      x: MARGIN_X + 6,
-      y: yTopo,
-      size,
-      font: ctx.font,
-      color: rgb(0.25, 0.27, 0.31),
+    const yBase = ctx.y - h + size + 3;
+
+    // célula do rótulo: fundo navy, texto branco em negrito
+    ctx.page.drawRectangle({ x: x0, y: yBase, width: rotuloW, height: h, color: NAVY });
+    ctx.page.drawRectangle({
+      x: x0 + rotuloW,
+      y: yBase,
+      width: valorW,
+      height: h,
+      borderColor: NAVY,
+      borderWidth: 0.8,
     });
-    wrap(valor, ctx.bold, size, valorW).forEach((line, li) => {
+
+    wrap(rotulo, ctx.bold, size, rotuloW - 16).forEach((line, li) => {
       ctx.page.drawText(line, {
-        x: MARGIN_X + rotuloW,
-        y: yTopo - li * (size + 3),
+        x: x0 + 8,
+        y: ctx.y - li * (size + 3),
         size,
         font: ctx.bold,
-        color: NAVY,
+        color: rgb(1, 1, 1),
       });
     });
-    ctx.y -= h;
-    ctx.page.drawLine({
-      start: { x: MARGIN_X, y: ctx.y + size },
-      end: { x: PAGE_W - MARGIN_X, y: ctx.y + size },
-      thickness: 0.5,
-      color: LINE,
+    wrap(valor, ctx.font, size, valorW - 16).forEach((line, li) => {
+      ctx.page.drawText(line, {
+        x: x0 + rotuloW + 8,
+        y: ctx.y - li * (size + 3),
+        size,
+        font: ctx.font,
+        color: TINTA,
+      });
     });
+
+    ctx.y -= h;
   });
-  ctx.page.drawRectangle({
-    x: MARGIN_X,
-    y: ctx.y + size,
-    width: CONTENT_W,
-    height: topo - (ctx.y + size),
-    borderColor: BORDA,
-    borderWidth: 0.8,
-  });
-  ctx.y -= 16;
+  ctx.y -= 22;
 }
+
 
 /** Bloco de encerramento padrão do documento. */
 function encerramento(ctx: Ctx) {
