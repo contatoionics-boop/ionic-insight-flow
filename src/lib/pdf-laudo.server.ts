@@ -198,12 +198,12 @@ function need(ctx: Ctx, h: number) {
   if (ctx.y - h < BOTTOM) newPage(ctx);
 }
 
-function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
+function paragraph(ctx: Ctx, text: string, size = 10, indent = 14) {
   const lines = wrap(text, ctx.font, size, CONTENT_W - indent);
   for (const line of lines) {
-    need(ctx, size + 4);
+    need(ctx, size + 5);
     // destaca pendências em âmbar
-    const cor = line.includes("[CONFIRMAR:") ? AMBER : rgb(0.15, 0.17, 0.2);
+    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
     ctx.page.drawText(line, {
       x: MARGIN_X + indent,
       y: ctx.y,
@@ -211,29 +211,23 @@ function paragraph(ctx: Ctx, text: string, size = 9.5, indent = 0) {
       font: ctx.font,
       color: cor,
     });
-    ctx.y -= size + 4;
+    ctx.y -= size + 5;
   }
-  ctx.y -= 4;
+  ctx.y -= 6;
 }
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
   const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
-  const size = nivel === 1 ? 13 : nivel === 2 ? 11 : 10;
+  const size = nivel === 1 ? 11.5 : nivel === 2 ? 10.5 : 10;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
-  ctx.y -= nivel === 1 ? 8 : 4;
-  const label = sanitize(`${numero ? `${numero}. ` : ""}${texto}`);
-  if (nivel === 1) {
-    ctx.page.drawRectangle({
-      x: MARGIN_X,
-      y: ctx.y - 4,
-      width: 3,
-      height: size + 4,
-      color: BLUE,
-    });
-  }
+  ctx.y -= nivel === 1 ? 10 : 6;
+  // padrão FR-31-10: numeração com ponto final e título em caixa alta
+  const label = sanitize(
+    `${numero ? `${numero}. ` : ""}${texto}`.toLocaleUpperCase("pt-BR"),
+  );
   ctx.page.drawText(label, {
-    x: MARGIN_X + (nivel === 1 ? 10 : nivel === 2 ? 0 : 12),
+    x: MARGIN_X + (nivel === 1 ? 0 : nivel === 2 ? 8 : 20),
     y: ctx.y,
     size,
     font: ctx.bold,
@@ -241,6 +235,7 @@ function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 |
   });
   ctx.y -= size + 8;
 }
+
 
 function bullets(ctx: Ctx, itens: string[]) {
   for (const it of itens) {
