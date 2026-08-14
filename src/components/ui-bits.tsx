@@ -198,10 +198,10 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-xl border border-border bg-card shadow-xl animate-in slide-in-from-bottom-4 duration-200 sm:rounded-xl sm:slide-in-from-bottom-0 sm:zoom-in-95"
+        className="flex w-full max-w-2xl flex-col rounded-t-xl border border-border bg-card shadow-xl animate-in slide-in-from-bottom-4 duration-200 sm:rounded-xl sm:slide-in-from-bottom-0 sm:zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3.5">
           <h3 className="text-base font-semibold text-foreground">{title}</h3>
           <button
             onClick={onClose}
@@ -211,7 +211,7 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="max-h-[80vh] overflow-y-auto p-5 sm:max-h-[85vh]">{children}</div>
       </div>
     </div>
   );
