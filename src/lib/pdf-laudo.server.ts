@@ -5,7 +5,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { limparTexto } from "@/lib/texto";
-import { figuraEstatica } from "@/lib/laudo/figuras-estaticas.server";
+import { figuraEstatica, figuraEstaticaFallback } from "@/lib/laudo/figuras-estaticas.server";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -491,6 +491,8 @@ async function carregarFigura(url: string, baseUrl?: string | null) {
   } catch {
     out = null;
   }
+  // desenho estrutural nunca pode sumir do PDF por falha de download
+  if (!out) out = figuraEstaticaFallback(url);
   cacheFiguras.set(url, out);
   return out;
 }
