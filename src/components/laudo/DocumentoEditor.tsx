@@ -32,12 +32,12 @@ import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [
   { tipo: "paragraph", rotulo: "Texto" },
-  { tipo: "heading", rotulo: "Tópico", nivel: 1 },
-  { tipo: "heading", rotulo: "Subtópico", nivel: 2 },
-  { tipo: "heading", rotulo: "Subnível", nivel: 3 },
-  { tipo: "table", rotulo: "Tabela" },
-  { tipo: "image", rotulo: "Imagem" },
-  { tipo: "observacao", rotulo: "Observação técnica" },
+  { tipo: "heading", rotulo: "Título (nível 1)", nivel: 1 },
+  { tipo: "heading", rotulo: "Subtítulo (nível 2)", nivel: 2 },
+  { tipo: "heading", rotulo: "Subnível (nível 3)", nivel: 3 },
+  { tipo: "observacao", rotulo: "Caixa / Observação técnica" },
+  { tipo: "alert", rotulo: "Caixa de destaque (atenção)" },
+  { tipo: "image", rotulo: "Imagem / Desenho técnico" },
   { tipo: "bullets", rotulo: "Lista" },
   { tipo: "pagebreak", rotulo: "Quebra de página" },
 ];
@@ -46,7 +46,11 @@ function novoId() {
   return `m-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function criarBloco(tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4): BlocoLaudo {
+function criarBloco(
+  tipo: TipoBloco,
+  nivel?: 1 | 2 | 3 | 4,
+  opcoes?: { colunas?: number; linhas?: number },
+): BlocoLaudo {
   const base = {
     id: novoId(),
     chave: `manual:${novoId()}`,
@@ -59,24 +63,30 @@ function criarBloco(tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4): BlocoLaudo {
       return { ...base, tipo: "heading", numero: "", texto: "Novo tópico", nivel: nivel ?? 1 };
     case "bullets":
       return { ...base, tipo: "bullets", itens: ["Novo item"] };
-    case "table":
+    case "table": {
+      const nc = Math.max(1, Math.min(8, opcoes?.colunas ?? 2));
+      const nl = Math.max(1, Math.min(30, opcoes?.linhas ?? 2));
       return {
         ...base,
         tipo: "table",
         titulo: "Nova tabela",
-        colunas: ["Coluna 1", "Coluna 2"],
-        linhas: [{ celulas: ["", ""] }],
+        colunas: Array.from({ length: nc }, (_, i) => `Coluna ${i + 1}`),
+        linhas: Array.from({ length: nl }, () => ({ celulas: Array.from({ length: nc }, () => "") })),
       };
+    }
     case "image":
       return { ...base, tipo: "image", url: "", alt: "Imagem do documento", legenda: null };
     case "observacao":
       return { ...base, tipo: "observacao", titulo: "OBSERVAÇÃO TÉCNICA", texto: "" };
+    case "alert":
+      return { ...base, tipo: "alert", severidade: "info", codigo: "manual", texto: "" };
     case "pagebreak":
       return { ...base, tipo: "pagebreak" };
     default:
       return { ...base, tipo: "paragraph", texto: "" };
   }
 }
+
 
 function Pendencia({ texto }: { texto: string }) {
   const partes = texto.split(/(\[CONFIRMAR:[^\]]*\])/g);
@@ -310,6 +320,7 @@ function Visual({
     case "alert":
       return (
         <div
+          id={`bloco-${bloco.id}`}
           className={`mt-3 flex gap-2 border-l-4 px-3 py-2 text-[12px] ${
             bloco.severidade === "bloqueante"
               ? "border-red-600 bg-red-50 text-red-800"
@@ -317,9 +328,18 @@ function Visual({
           }`}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{bloco.texto}</span>
+          {editavel ? (
+            <CampoInline
+              valor={bloco.texto}
+              onChange={(v) => onChange!({ ...bloco, texto: v })}
+              placeholder="Escreva o texto do destaque…"
+            />
+          ) : (
+            <span>{bloco.texto}</span>
+          )}
         </div>
       );
+
     case "observacao":
       return (
         <div
@@ -739,15 +759,28 @@ function EditorBloco({
       );
     case "alert":
       return (
-        <Textarea
-          rows={3}
-          value={bloco.texto}
-          onChange={(e) => {
-            const v = e.target.value;
-            onChange({ ...bloco, texto: v });
-          }}
-        />
+        <div className="space-y-2">
+          <select
+            className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+            value={bloco.severidade}
+            onChange={(e) =>
+              onChange({ ...bloco, severidade: e.target.value as "info" | "bloqueante" })
+            }
+          >
+            <option value="info">Informação / observação</option>
+            <option value="bloqueante">Atenção (destaque forte)</option>
+          </select>
+          <Textarea
+            rows={3}
+            value={bloco.texto}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange({ ...bloco, texto: v });
+            }}
+          />
+        </div>
       );
+
     case "pagebreak":
       return <p className="text-xs text-muted-foreground">Quebra de página (sem conteúdo).</p>;
   }
@@ -758,23 +791,37 @@ function MenuAdicionar({
   onBlocoPadrao,
   onFoto,
 }: {
-  onAdd: (tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) => void;
+  onAdd: (
+    tipo: TipoBloco,
+    nivel?: 1 | 2 | 3 | 4,
+    opcoes?: { colunas?: number; linhas?: number },
+  ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [tabela, setTabela] = useState(false);
+  const [colunas, setColunas] = useState(3);
+  const [linhas, setLinhas] = useState(3);
+  function fechar() {
+    setAberto(false);
+    setTabela(false);
+  }
   return (
     <div className="relative flex justify-center py-1">
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={() => (aberto ? fechar() : setAberto(true))}
         className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground opacity-40 transition hover:opacity-100"
-        title="Adicionar conteúdo"
+        title="Adicionar bloco"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
       {aberto && (
-        <div className="absolute top-8 z-20 w-56 rounded-lg border border-border bg-background p-1 shadow-lg">
+        <div className="absolute top-8 z-20 w-64 rounded-lg border border-border bg-background p-1 shadow-lg">
+          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Adicionar bloco
+          </p>
           {NOVOS.map((n) => (
             <button
               key={n.rotulo}
@@ -782,19 +829,63 @@ function MenuAdicionar({
               className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
               onClick={() => {
                 onAdd(n.tipo, n.nivel);
-                setAberto(false);
+                fechar();
               }}
             >
               {n.rotulo}
             </button>
           ))}
+          {tabela ? (
+            <div className="space-y-2 rounded bg-muted/40 p-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <label className="flex items-center gap-1">
+                  Colunas
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={colunas}
+                    onChange={(e) => setColunas(Number(e.target.value))}
+                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                  />
+                </label>
+                <label className="flex items-center gap-1">
+                  Linhas
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={linhas}
+                    onChange={(e) => setLinhas(Number(e.target.value))}
+                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                  />
+                </label>
+              </div>
+              <Button
+                onClick={() => {
+                  onAdd("table", undefined, { colunas, linhas });
+                  fechar();
+                }}
+              >
+                <TableIcon className="mr-2 h-3.5 w-3.5" /> Inserir tabela
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+              onClick={() => setTabela(true)}
+            >
+              Tabela…
+            </button>
+          )}
           {onBlocoPadrao && (
             <button
               type="button"
               className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
               onClick={() => {
                 onBlocoPadrao();
-                setAberto(false);
+                fechar();
               }}
             >
               Inserir bloco padrão…
@@ -806,7 +897,7 @@ function MenuAdicionar({
               className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
               onClick={() => {
                 onFoto();
-                setAberto(false);
+                fechar();
               }}
             >
               Inserir foto do mapeamento…
@@ -817,6 +908,7 @@ function MenuAdicionar({
     </div>
   );
 }
+
 
 export function DocumentoEditor({
   casoId,
@@ -927,12 +1019,21 @@ export function DocumentoEditor({
     setModo("editar");
   }
 
-  function inserir(indice: number, tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) {
+  function inserir(
+    indice: number,
+    tipo: TipoBloco,
+    nivel?: 1 | 2 | 3 | 4,
+    opcoes?: { colunas?: number; linhas?: number },
+  ) {
+    const bloco = criarBloco(tipo, nivel, opcoes);
     const next = [...blocos];
-    next.splice(indice, 0, criarBloco(tipo, nivel));
+    next.splice(indice, 0, bloco);
     atualizar(next);
     setModo("editar");
+    // imagem exige o painel (upload); os demais editam direto na folha
+    if (tipo === "image") setEditando(bloco.id);
   }
+
 
   function mover(indice: number, direcao: -1 | 1) {
     const fim = fimDaSecao(blocos, indice);
@@ -957,11 +1058,23 @@ export function DocumentoEditor({
 
   function remover(indice: number) {
     const b = blocos[indice];
+    const anterior = blocos;
     const next = [...blocos];
     if (b.origem === "manual") next.splice(indice, 1);
-    else next[indice] = { ...(b as any), oculto: true } as BlocoLaudo;
+    else next[indice] = { ...(b as any), oculto: true, editado_manualmente: true } as BlocoLaudo;
     atualizar(next);
+    setEditando(null);
+    toast("Bloco removido do documento.", {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          setBlocos(renumerar(anterior));
+          setSujo(true);
+        },
+      },
+    });
   }
+
 
   function duplicar(indice: number) {
     const b = blocos[indice];
@@ -1141,7 +1254,7 @@ export function DocumentoEditor({
           {meta ? <CabecalhoFolha meta={meta} /> : null}
           {modo === "editar" && (
             <MenuAdicionar
-              onAdd={(t, n) => inserir(0, t, n)}
+              onAdd={(t, n, o) => inserir(0, t, n, o)}
               onBlocoPadrao={() => {
                 setAlvoInsercao(0);
                 setBiblioteca("padrao");
@@ -1168,7 +1281,7 @@ export function DocumentoEditor({
               );
             }
             if (modo === "visualizar") return <Visual key={b.id} bloco={b} />;
-            const inline = b.tipo !== "image" && b.tipo !== "alert" && b.tipo !== "pagebreak";
+            const inline = b.tipo !== "image" && b.tipo !== "pagebreak";
             return (
               <div key={b.id}>
                 <div
@@ -1218,16 +1331,15 @@ export function DocumentoEditor({
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
-                    {b.removivel !== false && (
-                      <button
-                        type="button"
-                        className="rounded border border-border bg-background p-1 text-destructive"
-                        title="Excluir"
-                        onClick={() => remover(i)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="rounded border border-border bg-background p-1 text-destructive"
+                      title="Excluir bloco"
+                      onClick={() => remover(i)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+
                   </div>
                   {editando === b.id ? (
                     <div className="space-y-2 py-2">
@@ -1258,7 +1370,7 @@ export function DocumentoEditor({
                   )}
                 </div>
                 <MenuAdicionar
-                  onAdd={(t, n) => inserir(i + 1, t, n)}
+                  onAdd={(t, n, o) => inserir(i + 1, t, n, o)}
                   onBlocoPadrao={() => {
                     setAlvoInsercao(i + 1);
                     setBiblioteca("padrao");
