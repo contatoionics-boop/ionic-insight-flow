@@ -443,3 +443,178 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ---------------------------------------------------------------------------
+// Modo Checklist Guiado
+// ---------------------------------------------------------------------------
+
+export type ChecklistRespostaDTO = {
+  texto: string | null;
+  arquivos: string[];
+  transcricao: string | null;
+  origemCadastro: boolean;
+};
+
+export type ChecklistPerguntaDTO = {
+  id: string;
+  texto: string;
+  tipo: string;
+  obrigatoria: boolean;
+  ordem: number;
+  instrucao_agente: string | null;
+  contexto_ia: string | null;
+  opcoes: { id: string; texto: string }[];
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
+  blocoId: string | null;
+  bloco_linha: string | null;
+  bloco_coluna: string | null;
+  resposta: ChecklistRespostaDTO | null;
+};
+
+export type ChecklistEtapaDTO = {
+  id: string;
+  titulo: string;
+  ordem: number;
+  blocos: { id: string; titulo: string; descricao: string | null; layout: BlocoDTO["layout"]; ordem: number }[];
+  perguntas: ChecklistPerguntaDTO[];
+};
+
+export type ChecklistVistoriaDTO = {
+  casoId: string;
+  clienteNome: string;
+  formularioNome: string;
+  iniciado: boolean;
+  resumoCadastro: { label: string; valor: string }[];
+  etapas: ChecklistEtapaDTO[];
+};
+
+/** Carrega o formulário inteiro (seções, blocos, perguntas e respostas) para o checklist. */
+export const getChecklistVistoria = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => EstadoInput.parse(input))
+  .handler(async ({ data }): Promise<ChecklistVistoriaDTO> => {
+    const casoId = await resolverCasoId(data);
+    const { loadAgentContext, sincronizarCadastro, estaRespondida } = await import(
+      "@/lib/vistoria-agent.server"
+    );
+    const ctx = await loadAgentContext(casoId);
+    await sincronizarCadastro(ctx);
+    const ctxAtual = await loadAgentContext(casoId);
+
+    const etapas: ChecklistEtapaDTO[] = ctxAtual.secoes.map((s) => ({
+      id: s.id,
+      titulo: s.titulo,
+      ordem: s.ordem,
+      blocos: ctxAtual.blocos
+        .filter((b) => b.secao_id === s.id)
+        .map((b) => ({
+          id: b.id,
+          titulo: b.titulo,
+          descricao: b.descricao,
+          layout: b.layout,
+          ordem: b.ordem,
+        })),
+      perguntas: ctxAtual.perguntas
+        .filter((p) => p.secao_id === s.id)
+        .map((p) => {
+          const r = ctxAtual.state[p.id];
+          return {
+            id: p.id,
+            texto: p.texto,
+            tipo: p.tipo,
+            obrigatoria: p.obrigatoria,
+            ordem: p.ordem,
+            instrucao_agente: p.instrucao_agente,
+            contexto_ia: p.contexto_ia,
+            opcoes: p.opcoes,
+            condicional_pergunta_id: p.condicional_pergunta_id,
+            condicional_operador: p.condicional_operador,
+            condicional_valor: p.condicional_valor,
+            blocoId: p.bloco_id,
+            bloco_linha: p.bloco_linha,
+            bloco_coluna: p.bloco_coluna,
+            resposta: r
+              ? {
+                  texto: r.valor_texto,
+                  arquivos: r.arquivos_paths?.length
+                    ? r.arquivos_paths
+                    : r.arquivo_path
+                      ? [r.arquivo_path]
+                      : [],
+                  transcricao: r.transcricao,
+                  origemCadastro: !!r.origem_cadastro,
+                }
+              : null,
+          };
+        }),
+    }));
+
+    const iniciado = Object.values(ctxAtual.state).some(
+      (r) => !r.origem_cadastro && estaRespondida(r),
+    );
+
+    return {
+      casoId,
+      clienteNome: ctxAtual.clienteNome,
+      formularioNome: ctxAtual.formularioNome,
+      iniciado,
+      resumoCadastro: ctxAtual.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
+      etapas,
+    };
+  });
+
+const SalvarEtapaInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  respostas: z
+    .array(
+      z.object({
+        perguntaId: z.string().uuid(),
+        valorTexto: z.string().optional(),
+        transcricao: z.string().optional(),
+        arquivosPaths: z.array(z.string()).optional(),
+      }),
+    )
+    .min(1)
+    .max(120),
+});
+
+/** Salva um conjunto arbitrário de respostas (usado pelo checklist guiado). */
+export const salvarRespostasEtapa = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => SalvarEtapaInput.parse(input))
+  .handler(async ({ data }): Promise<SalvarBlocoResult> => {
+    const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
+    const { loadAgentContext, execSalvarResposta } = await import(
+      "@/lib/vistoria-agent.server"
+    );
+    const ctx = await loadAgentContext(casoId);
+
+    const erros: { perguntaId: string; motivo: string }[] = [];
+    let salvas = 0;
+
+    for (const r of data.respostas) {
+      const pergunta = ctx.perguntas.find((p) => p.id === r.perguntaId);
+      if (!pergunta) {
+        erros.push({ perguntaId: r.perguntaId, motivo: "Pergunta não encontrada." });
+        continue;
+      }
+      const temConteudo =
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length;
+      if (!temConteudo) continue;
+
+      const res = await execSalvarResposta(casoId, ctx, {
+        pergunta_id: r.perguntaId,
+        ...(r.valorTexto?.trim() ? { valor_texto: r.valorTexto.trim() } : {}),
+        ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
+        ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
+      });
+      if (!res.ok) {
+        erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });
+        continue;
+      }
+      salvas++;
+    }
+
+    return { ok: erros.length === 0, salvas, erros, resumo: `${salvas} resposta(s) salva(s)` };
+  });
