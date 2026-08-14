@@ -417,7 +417,7 @@ export function LaudoPanel({
       )}
 
       {/* sumário compacto em telas menores */}
-      <div className="xl:hidden">
+      <div className={etapa === "documento" ? "xl:hidden" : "hidden"}>
         <button
           type="button"
           onClick={() => setSumarioAberto((v) => !v)}
