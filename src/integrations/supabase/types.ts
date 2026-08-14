@@ -178,6 +178,48 @@ export type Database = {
           },
         ]
       }
+      blocos_padrao: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          blocos: Json
+          categoria: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          escopo: Json
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          blocos?: Json
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          escopo?: Json
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          blocos?: Json
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          escopo?: Json
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
       casos: {
         Row: {
           agendado_em: string | null
@@ -197,6 +239,7 @@ export type Database = {
           formulario_id: string | null
           id: string
           laudo_alertas: Json
+          laudo_analise: Json
           laudo_conteudo: Json | null
           laudo_variaveis: Json
           modalidade: Database["public"]["Enums"]["modalidade_atendimento"]
@@ -225,6 +268,7 @@ export type Database = {
           formulario_id?: string | null
           id?: string
           laudo_alertas?: Json
+          laudo_analise?: Json
           laudo_conteudo?: Json | null
           laudo_variaveis?: Json
           modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
@@ -253,6 +297,7 @@ export type Database = {
           formulario_id?: string | null
           id?: string
           laudo_alertas?: Json
+          laudo_analise?: Json
           laudo_conteudo?: Json | null
           laudo_variaveis?: Json
           modalidade?: Database["public"]["Enums"]["modalidade_atendimento"]
