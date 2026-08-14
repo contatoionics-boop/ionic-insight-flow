@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" width="640" height="420">
+  <rect width="640" height="420" fill="#ffffff"/>
+  <!-- montantes e travessa em barra chata -->
+  <g fill="#EAF0FA" stroke="#1F3864" stroke-width="3" stroke-linejoin="round">
+    <rect x="170" y="90" width="26" height="210"/>
+    <rect x="430" y="90" width="26" height="210"/>
+    <rect x="170" y="90" width="286" height="26"/>
+  </g>
+  <!-- furos para fixacao -->
+  <g fill="#ffffff" stroke="#1F3864" stroke-width="2.5">
+    <circle cx="183" cy="290" r="7"/>
+    <circle cx="443" cy="290" r="7"/>
+    <circle cx="183" cy="103" r="7"/>
+    <circle cx="443" cy="103" r="7"/>
+  </g>
+  <!-- bico apoiado -->
+  <g fill="none" stroke="#1F3864" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M226 170 h120 v52 h-120 a22 22 0 0 1 -22 -22 v-8 a22 22 0 0 1 22 -22 z"/>
+    <path d="M346 182 h96 v28 h-96 z"/>
+    <path d="M250 222 v22 h74 v-22"/>
+  </g>
+  <rect x="376" y="176" width="52" height="40" rx="5" fill="#EAF0FA" stroke="#1F3864" stroke-width="3"/>
+  <!-- cotas -->
+  <g stroke="#1F3864" stroke-width="1.6" fill="none">
+    <path d="M170 330 h286"/>
+    <path d="M170 322 v16 M456 322 v16"/>
+    <path d="M120 90 v210"/>
+    <path d="M112 90 h16 M112 300 h16"/>
+    <path d="M498 90 v52"/>
+    <path d="M490 90 h16 M490 142 h16"/>
+    <path d="M498 240 v60"/>
+    <path d="M490 240 h16 M490 300 h16"/>
+  </g>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1F3864">
+    <text x="278" y="354">250 mm</text>
+    <text x="44" y="200">150 mm</text>
+    <text x="514" y="122">75 mm</text>
+    <text x="514" y="276">100 mm</text>
+    <text x="152" y="316" font-size="13">FUROS PARA FIXAÇÃO</text>
+    <text x="170" y="66">Barra chata de ferro galvanizado 2" x 3/16" (50,80 x 4,75 mm)</text>
+  </g>
+</svg>
