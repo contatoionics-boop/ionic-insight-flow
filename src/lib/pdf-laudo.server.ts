@@ -8,10 +8,10 @@ import { limparTexto } from "@/lib/texto";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const MARGIN_X = 40;
-const HEADER_H = 74;
+const MARGIN_X = 45;
+const HEADER_H = 82;
 const FOOTER_H = 36;
-const TOP = PAGE_H - HEADER_H - 18;
+const TOP = PAGE_H - HEADER_H - 22;
 const BOTTOM = FOOTER_H + 14;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
 
@@ -19,8 +19,10 @@ const NAVY = rgb(0.102, 0.141, 0.212);
 const BLUE = rgb(0.231, 0.51, 0.965);
 const GREY = rgb(0.42, 0.45, 0.5);
 const LINE = rgb(0.85, 0.87, 0.9);
+const BORDA = rgb(0.35, 0.38, 0.43);
 const AMBER = rgb(0.72, 0.45, 0.05);
 const RED = rgb(0.75, 0.15, 0.15);
+const TINTA = rgb(0.12, 0.13, 0.16);
 
 export type LaudoPdfMeta = {
   titulo: string;
@@ -33,6 +35,14 @@ export type LaudoPdfMeta = {
   unidade: string;
   data: string;
   agente: string;
+  /** cabeçalho padrão do formulário FR-31-10 */
+  codigoDocumento?: string | null;
+  elaboradoPor?: string | null;
+  aprovadoPor?: string | null;
+  revisaoDocumento?: string | null;
+  dataRevisao?: string | null;
+  analista?: string | null;
+  especialista?: string | null;
 };
 
 type Ctx = {
@@ -45,6 +55,7 @@ type Ctx = {
   meta: LaudoPdfMeta;
   logo: { img: any; w: number; h: number } | null;
 };
+
 
 function sanitize(s: string): string {
   return limparTexto(s ?? "")
