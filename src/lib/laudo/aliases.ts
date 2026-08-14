@@ -13,13 +13,39 @@ function norm(s: string): string {
 
 /** pares [chave do laudo, trechos que identificam a pergunta] */
 const ALIASES: Array<[string, string[]]> = [
-  ["nome_cliente", ["cliente unidade", "nome do cliente", "razao social", "cliente"]],
-  ["unidade", ["unidade filial", "cliente unidade", "nome da unidade"]],
-  ["data_mapeamento", ["data do mapeamento", "data da vistoria"]],
+  ["nome_cliente", ["cliente unidade", "nome do cliente", "razao social", "nome fantasia", "empresa cliente", "cliente"]],
+  ["unidade", ["unidade filial", "cliente unidade", "nome da unidade", "unidade atendida", "filial", "unidade"]],
+  [
+    "data_mapeamento",
+    ["data do mapeamento", "data da vistoria", "data do atendimento", "data de realizacao", "data da visita", "data"],
+  ],
   ["responsavel_cliente", ["responsavel pelo acompanhamento", "responsavel do cliente"]],
-  ["agente_tecnico", ["agente tecnico"]],
-  ["analista_projetos", ["analista de projetos"]],
-  ["especialista_automacao", ["especialista em automacao"]],
+  [
+    "agente_tecnico",
+    [
+      "agente tecnico credenciado ionics",
+      "agente tecnico credenciado",
+      "agente tecnico responsavel",
+      "nome do agente tecnico",
+      "agente tecnico",
+      "tecnico responsavel",
+    ],
+  ],
+  [
+    "analista_projetos",
+    ["analista de projetos responsavel", "nome do analista de projetos", "analista de projetos", "analista projetos"],
+  ],
+  [
+    "especialista_automacao",
+    [
+      "especialista em automacao responsavel",
+      "nome do especialista em automacao",
+      "especialista em automacao",
+      "especialista de automacao",
+      "especialista automacao",
+    ],
+  ],
+
   ["tipo_bomba", ["tipo de bomba"]],
   ["marca_bomba", ["marca modelo da bomba"]],
   ["tensao_bomba", ["tensao de alimentacao da bomba"]],
