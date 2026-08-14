@@ -323,29 +323,33 @@ export function LaudoPanel({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="ghost" onClick={handleGerar} disabled={gerando} size="sm">
-              {gerando ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : conteudo ? (
-                <RefreshCw className="h-4 w-4" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {conteudo ? "Regerar rascunho" : "Gerar rascunho"}
-            </Button>
-            <Button
-              onClick={handleSalvarRevisao}
-              disabled={!docSujo || salvandoDoc || !salvarDoc.fn}
-              size="sm"
-              title={docSujo ? undefined : "Nenhuma alteração do documento pendente"}
-            >
-              {salvandoDoc ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Salvar revisão
-            </Button>
+            {etapa === "documento" && (
+              <Button variant="ghost" onClick={handleGerar} disabled={gerando} size="sm">
+                {gerando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : conteudo ? (
+                  <RefreshCw className="h-4 w-4" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {conteudo ? "Regerar rascunho" : "Gerar rascunho"}
+              </Button>
+            )}
+            {etapa === "documento" && (
+              <Button
+                onClick={handleSalvarRevisao}
+                disabled={!docSujo || salvandoDoc || !salvarDoc.fn}
+                size="sm"
+                title={docSujo ? undefined : "Nenhuma alteração do documento pendente"}
+              >
+                {salvandoDoc ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Salvar revisão
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
