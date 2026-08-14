@@ -671,7 +671,7 @@ export async function buildLaudoPdf(input: {
         alerta(ctx, b.severidade, b.texto);
         break;
       case "observacao":
-        alerta(ctx, "info", `${b.titulo || "OBSERVAÇÃO TÉCNICA"}: ${b.texto}`);
+        alerta(ctx, "info", b.titulo ? `${b.titulo}: ${b.texto}` : b.texto);
         break;
       case "pagebreak":
         newPage(ctx);
