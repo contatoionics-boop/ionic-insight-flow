@@ -97,62 +97,185 @@ function Pendencia({ texto }: { texto: string }) {
   );
 }
 
-function Visual({ bloco }: { bloco: BlocoLaudo }) {
+/* Fidelidade de impressão: a "folha" simula o papel do FR-31-10, por isso as
+   cores institucionais são literais (mesmos valores usados no renderer do PDF). */
+const NAVY = "#1F3864";
+const TINTA = "#1F2124";
+
+/** Campo de texto que se comporta como o próprio texto do documento (WYSIWYG). */
+function CampoInline({
+  valor,
+  onChange,
+  className,
+  placeholder,
+}: {
+  valor: string;
+  onChange: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [valor]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={valor}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full resize-none overflow-hidden rounded-sm border border-transparent bg-transparent p-0 font-[inherit] text-[length:inherit] leading-[inherit] text-[inherit] outline-none hover:bg-[#1F3864]/5 focus:border-[#1F3864]/30 focus:bg-[#1F3864]/5 ${className ?? ""}`}
+    />
+  );
+}
+
+function Visual({
+  bloco,
+  onChange,
+}: {
+  bloco: BlocoLaudo;
+  /** quando presente, o bloco é editável diretamente na folha (WYSIWYG) */
+  onChange?: (b: BlocoLaudo) => void;
+}) {
+  const editavel = !!onChange;
   switch (bloco.tipo) {
     case "heading": {
       const cls =
         bloco.nivel === 1
-          ? "mt-6 text-base font-semibold"
+          ? "mt-7 text-[15px]"
           : bloco.nivel === 2
-            ? "mt-4 text-sm font-semibold"
-            : "mt-3 text-sm font-medium";
+            ? "mt-5 text-[13px]"
+            : "mt-4 text-[12.5px]";
       return (
-        <h3 id={`bloco-${bloco.id}`} className={`${cls} text-foreground`}>
-          {bloco.numero ? `${bloco.numero}. ` : ""}
-          {bloco.texto}
+        <h3
+          id={`bloco-${bloco.id}`}
+          className={`${cls} flex gap-2 font-bold uppercase tracking-wide`}
+          style={{ color: NAVY }}
+        >
+          {bloco.numero ? <span className="shrink-0">{bloco.numero}.</span> : null}
+          {editavel ? (
+            <CampoInline valor={bloco.texto} onChange={(v) => onChange!({ ...bloco, texto: v })} />
+          ) : (
+            <span>{bloco.texto}</span>
+          )}
         </h3>
       );
     }
     case "paragraph":
       return (
-        <p id={`bloco-${bloco.id}`} className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          <Pendencia texto={bloco.texto} />
+        <p
+          id={`bloco-${bloco.id}`}
+          className="mt-2 indent-8 text-justify text-[12.5px] leading-[1.7]"
+          style={{ color: TINTA }}
+        >
+          {editavel ? (
+            <CampoInline
+              valor={bloco.texto}
+              onChange={(v) => onChange!({ ...bloco, texto: v })}
+              className="indent-8 text-justify"
+              placeholder="Digite o parágrafo…"
+            />
+          ) : (
+            <Pendencia texto={bloco.texto} />
+          )}
         </p>
       );
     case "bullets":
       return (
-        <ul id={`bloco-${bloco.id}`} className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          {bloco.itens.map((i, k) => (
+        <ul
+          id={`bloco-${bloco.id}`}
+          className="mt-2 list-disc space-y-1 pl-10 text-[12.5px] leading-[1.7]"
+          style={{ color: TINTA }}
+        >
+          {bloco.itens.map((item, k) => (
             <li key={k}>
-              <Pendencia texto={i} />
+              {editavel ? (
+                <CampoInline
+                  valor={item}
+                  onChange={(v) => {
+                    const itens = [...bloco.itens];
+                    itens[k] = v;
+                    onChange!({ ...bloco, itens });
+                  }}
+                />
+              ) : (
+                <Pendencia texto={item} />
+              )}
             </li>
           ))}
         </ul>
       );
     case "table":
       return (
-        <div id={`bloco-${bloco.id}`} className="mt-3 overflow-x-auto rounded-lg border border-border">
+        <div id={`bloco-${bloco.id}`} className="mt-4 overflow-x-auto">
           {bloco.titulo ? (
-            <div className="border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold">
-              {bloco.titulo}
-            </div>
+            <p className="mb-1 text-[11.5px] font-semibold" style={{ color: NAVY }}>
+              {editavel ? (
+                <CampoInline
+                  valor={bloco.titulo}
+                  onChange={(v) => onChange!({ ...bloco, titulo: v })}
+                />
+              ) : (
+                bloco.titulo
+              )}
+            </p>
           ) : null}
-          <table className="w-full text-xs">
-            <thead className="bg-muted/20 text-muted-foreground">
+          <table
+            className="w-full border-collapse text-[11px]"
+            style={{ border: `1px solid ${NAVY}` }}
+          >
+            <thead>
               <tr>
                 {bloco.colunas.map((c, i) => (
-                  <th key={i} className="px-3 py-2 text-left font-medium">
-                    {c}
+                  <th
+                    key={i}
+                    className="px-2 py-1.5 text-left font-semibold text-white"
+                    style={{ background: NAVY, border: `1px solid ${NAVY}` }}
+                  >
+                    {editavel ? (
+                      <CampoInline
+                        valor={c}
+                        onChange={(v) => {
+                          const colunas = [...bloco.colunas];
+                          colunas[i] = v;
+                          onChange!({ ...bloco, colunas });
+                        }}
+                      />
+                    ) : (
+                      c
+                    )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {bloco.linhas.map((l, i) => (
-                <tr key={i} className="border-t border-border">
+                <tr key={i}>
                   {l.celulas.map((c, j) => (
-                    <td key={j} className="px-3 py-2 align-top">
-                      <Pendencia texto={c} />
+                    <td
+                      key={j}
+                      className="px-2 py-1.5 align-top"
+                      style={{ border: `1px solid ${NAVY}55`, color: TINTA }}
+                    >
+                      {editavel ? (
+                        <CampoInline
+                          valor={c}
+                          onChange={(v) => {
+                            const linhas = bloco.linhas.map((ln, li) =>
+                              li === i
+                                ? { ...ln, celulas: ln.celulas.map((cl, ci) => (ci === j ? v : cl)) }
+                                : ln,
+                            );
+                            onChange!({ ...bloco, linhas });
+                          }}
+                        />
+                      ) : (
+                        <Pendencia texto={c} />
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -163,19 +286,33 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "notes":
       return (
-        <ul className="mt-2 space-y-1 text-xs italic text-muted-foreground">
-          {bloco.itens.map((i, k) => (
-            <li key={k}>Obs.: {i}</li>
+        <ul className="mt-2 space-y-1 pl-8 text-[11.5px] italic" style={{ color: TINTA }}>
+          {bloco.itens.map((item, k) => (
+            <li key={k} className="flex gap-1">
+              <span className="shrink-0">Obs.:</span>
+              {editavel ? (
+                <CampoInline
+                  valor={item}
+                  onChange={(v) => {
+                    const itens = [...bloco.itens];
+                    itens[k] = v;
+                    onChange!({ ...bloco, itens });
+                  }}
+                />
+              ) : (
+                <span>{item}</span>
+              )}
+            </li>
           ))}
         </ul>
       );
     case "alert":
       return (
         <div
-          className={`mt-3 flex gap-2 rounded-lg border p-3 text-sm ${
+          className={`mt-3 flex gap-2 border-l-4 px-3 py-2 text-[12px] ${
             bloco.severidade === "bloqueante"
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              ? "border-red-600 bg-red-50 text-red-800"
+              : "border-amber-500 bg-amber-50 text-amber-800"
           }`}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -184,18 +321,26 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "observacao":
       return (
-        <div id={`bloco-${bloco.id}`} className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-          <p className="text-xs font-semibold tracking-wide text-foreground">
+        <div
+          id={`bloco-${bloco.id}`}
+          className="mt-3 px-3 py-2 text-[12px]"
+          style={{ border: `1px solid ${NAVY}55`, color: TINTA }}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: NAVY }}>
             {bloco.titulo || "OBSERVAÇÃO TÉCNICA"}
           </p>
-          <p className="mt-1 text-muted-foreground">
-            <Pendencia texto={bloco.texto} />
-          </p>
+          <div className="mt-1 text-justify leading-[1.6]">
+            {editavel ? (
+              <CampoInline valor={bloco.texto} onChange={(v) => onChange!({ ...bloco, texto: v })} />
+            ) : (
+              <Pendencia texto={bloco.texto} />
+            )}
+          </div>
         </div>
       );
     case "pagebreak":
       return (
-        <div className="my-4 border-t border-dashed border-border text-center text-[10px] uppercase tracking-widest text-muted-foreground">
+        <div className="my-8 border-t border-dashed border-[#1F3864]/40 text-center text-[10px] uppercase tracking-widest text-[#1F3864]/60">
           quebra de página
         </div>
       );
@@ -207,16 +352,16 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
               src={bloco.url}
               alt={bloco.alt}
               loading="lazy"
-              className="w-full rounded-lg border border-border bg-background object-contain p-2"
+              className="w-full object-contain"
               style={{ maxWidth: bloco.larguraMax ?? 360 }}
             />
           ) : (
-            <div className="w-full rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            <div className="w-full border border-dashed border-[#1F3864]/40 p-6 text-center text-xs text-[#1F3864]/70">
               Nenhuma imagem selecionada
             </div>
           )}
           {bloco.legenda ? (
-            <figcaption className="text-center text-xs text-muted-foreground">
+            <figcaption className="text-center text-[11px] italic" style={{ color: TINTA }}>
               {bloco.legenda}
             </figcaption>
           ) : null}
@@ -224,6 +369,75 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
   }
 }
+
+/** Cabeçalho impresso da folha (mesmas regras/valores do PDF FR-31-10). */
+function CabecalhoFolha({ meta }: { meta: MetaLaudo }) {
+  const cel = `border border-[${NAVY}] px-2 py-1`;
+  return (
+    <header className="mb-6 text-[11px]" style={{ color: TINTA }}>
+      <div className="grid grid-cols-[90px_1fr_110px]">
+        <div
+          className="flex items-center justify-center border px-2 py-3 text-[12px] font-bold"
+          style={{ borderColor: NAVY, color: NAVY }}
+        >
+          IONICS
+        </div>
+        <div
+          className="flex items-center justify-center border-y px-2 py-3 text-center text-[13px] font-bold uppercase"
+          style={{ borderColor: NAVY, color: NAVY }}
+        >
+          Resultado de Mapeamento Técnico
+        </div>
+        <div
+          className="flex flex-col items-center justify-center border px-2 py-3"
+          style={{ borderColor: NAVY }}
+        >
+          <span className="text-[9px]">Código</span>
+          <span className="text-[12px] font-bold" style={{ color: NAVY }}>
+            {meta.codigoDocumento}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-4 text-[9px]">
+        <div className={cel} style={{ borderColor: NAVY }}>
+          Elaborado por: {meta.elaboradoPor ?? "-"}
+        </div>
+        <div className={cel} style={{ borderColor: NAVY }}>
+          Aprovado por: {meta.aprovadoPor ?? "-"}
+        </div>
+        <div className={cel} style={{ borderColor: NAVY }}>
+          Revisão: {meta.revisao ?? "01"}
+        </div>
+        <div className={cel} style={{ borderColor: NAVY }}>
+          Data da revisão: {meta.dataRevisao ?? "-"}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        {[
+          ["Empresa / Unidade:", `${meta.cliente} - ${meta.unidade}`],
+          ["Analista de Projetos:", meta.analista],
+          ["Especialista em Automação:", meta.especialista],
+          ["Agente Técnico Credenciado IONICS:", meta.agente],
+          ["Data:", meta.data],
+        ].map(([rotulo, valor]) => (
+          <div key={rotulo} className="grid grid-cols-[220px_1fr] text-[11.5px]">
+            <div
+              className="px-2 py-1.5 font-semibold text-white"
+              style={{ background: NAVY, border: `1px solid ${NAVY}` }}
+            >
+              {rotulo}
+            </div>
+            <div className="px-2 py-1.5" style={{ border: `1px solid ${NAVY}` }}>
+              {valor || "—"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </header>
+  );
+}
+
 
 function EditorBloco({
   bloco,
