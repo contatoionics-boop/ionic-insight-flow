@@ -592,11 +592,15 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
 
     const erros: { perguntaId: string; motivo: string }[] = [];
     let salvas = 0;
+    let ignoradas = 0;
 
     for (const r of data.respostas) {
       const pergunta = ctx.perguntas.find((p) => p.id === r.perguntaId);
       if (!pergunta) {
-        erros.push({ perguntaId: r.perguntaId, motivo: "Pergunta não encontrada." });
+        // O formulário pode ter sido atualizado enquanto este caso ainda estava
+        // em andamento. Respostas locais de perguntas removidas não devem
+        // impedir o salvamento nem a entrega das perguntas atuais.
+        ignoradas++;
         continue;
       }
       const temConteudo =
@@ -616,7 +620,12 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
       salvas++;
     }
 
-    return { ok: erros.length === 0, salvas, erros, resumo: `${salvas} resposta(s) salva(s)` };
+    return {
+      ok: erros.length === 0,
+      salvas,
+      erros,
+      resumo: `${salvas} resposta(s) salva(s)${ignoradas ? ` · ${ignoradas} antiga(s) ignorada(s)` : ""}`,
+    };
   });
 
 const UrlsInput = z.object({

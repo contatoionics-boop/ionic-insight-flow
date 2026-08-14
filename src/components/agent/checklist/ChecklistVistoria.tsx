@@ -66,10 +66,19 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
       try {
         const d = await carregar({ data: { token, casoId } });
         const base = estadoInicial(d);
+        const perguntasAtuais = new Set(
+          d.etapas.flatMap((etapa) => etapa.perguntas.map((pergunta) => pergunta.id)),
+        );
         let inicial = base;
         try {
           const raw = window.localStorage.getItem(`checklist-draft:${d.casoId}`);
-          if (raw) inicial = { ...base, ...(JSON.parse(raw) as Record<string, Resposta>) };
+          if (raw) {
+            const rascunho = JSON.parse(raw) as Record<string, Resposta>;
+            const rascunhoAtual = Object.fromEntries(
+              Object.entries(rascunho).filter(([id]) => perguntasAtuais.has(id)),
+            );
+            inicial = { ...base, ...rascunhoAtual };
+          }
         } catch {
           // sem rascunho local
         }
@@ -117,7 +126,13 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
 
   const persistir = useCallback(async () => {
     if (!dados) return true;
-    const ids = [...sujosRef.current];
+    const perguntasAtuais = new Set(
+      dados.etapas.flatMap((etapa) => etapa.perguntas.map((pergunta) => pergunta.id)),
+    );
+    const ids = [...sujosRef.current].filter((id) => perguntasAtuais.has(id));
+    for (const id of sujosRef.current) {
+      if (!perguntasAtuais.has(id)) sujosRef.current.delete(id);
+    }
     if (ids.length === 0) return true;
     const atual = stateRef.current;
     const respostas = ids
