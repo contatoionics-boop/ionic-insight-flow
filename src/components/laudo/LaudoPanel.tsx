@@ -371,6 +371,9 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
             Baixar PDF
           </Button>
         </div>
+        {motivoPdf ? (
+          <p className="w-full text-xs text-amber-600 dark:text-amber-400">{motivoPdf}</p>
+        ) : null}
       </Card>
 
       {pdfUrl && (
