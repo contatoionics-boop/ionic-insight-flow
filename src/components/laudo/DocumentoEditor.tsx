@@ -1058,11 +1058,23 @@ export function DocumentoEditor({
 
   function remover(indice: number) {
     const b = blocos[indice];
+    const anterior = blocos;
     const next = [...blocos];
     if (b.origem === "manual") next.splice(indice, 1);
-    else next[indice] = { ...(b as any), oculto: true } as BlocoLaudo;
+    else next[indice] = { ...(b as any), oculto: true, editado_manualmente: true } as BlocoLaudo;
     atualizar(next);
+    setEditando(null);
+    toast("Bloco removido do documento.", {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          setBlocos(renumerar(anterior));
+          setSujo(true);
+        },
+      },
+    });
   }
+
 
   function duplicar(indice: number) {
     const b = blocos[indice];
