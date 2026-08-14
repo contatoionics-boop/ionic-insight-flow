@@ -36,7 +36,7 @@ Nenhum campo fotográfico adicional é criado além dos que existem como registr
 Área coberta (sim/não), possui controle/automação (sim/não), possui suporte para o bico (sim/não), distância da ilha até a pista, altura do registrador mecânico, e as 4 distâncias do bloco medidor (frente, trás, direita, esquerda) — cada uma com **dois campos**: objeto identificado + distância. Nota fixa: em bomba eletrônica, considerar a bomba no lugar do bloco medidor.
 
 ### Seção 2.1 — Registro fotográfico da pista (bloco de fotos)
-5 fotos: panorâmica frontal de toda a pista; frontal a 5 m; traseira a 5 m; diagonal direita 45° a 7 m; diagonal esquerda 45° a 7 m.
+**5 fotos**, na ordem do documento: panorâmica frontal de toda a pista; panorâmica frontal a ~5 m do dispositivo; panorâmica traseira a ~5 m; panorâmica diagonal direita (45°) a ~7 m; panorâmica diagonal esquerda (45°) a ~7 m.
 
 ### Seção 3 — Processo de abastecimento e transferência de dados
 Combustível fornecido (Gasolina/Etanol/Diesel S10/Diesel S500), Tipos de veículos que abastece (múltipla: Motos/Leves/Pesados/Máquinas/Comboios), Potência do sinal GPRS/2G, Estabilidade do sinal GPRS/2G, Operadora local (Vivo/Claro/TIM/Oi/Outras + campo livre), Dispõe de Wi-Fi (sim/não), Frequência do Wi-Fi (2.4/5 GHz/Outra), Potência do Wi-Fi, Estabilidade do Wi-Fi, Velocidade da conexão.
