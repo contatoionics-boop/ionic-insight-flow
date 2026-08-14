@@ -610,9 +610,13 @@ export async function sincronizarCadastro(
     const chave =
       (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
       chavePorTexto(pergunta);
-    if (!chave) continue;
-    const valor = canon.get(chave);
-    if (!valor) continue;
+    // Precedência: cadastro > proposta comercial (por chave_laudo).
+    const bruto =
+      (chave ? canon.get(chave) : undefined) ??
+      (pergunta.chave_laudo ? ctx.proposta?.[pergunta.chave_laudo] : undefined);
+    if (!bruto) continue;
+    const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
+
 
     // Seleção única só é preenchida quando o valor bate com uma opção.
     if (pergunta.tipo === "selecao_unica") {
