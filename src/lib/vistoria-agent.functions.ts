@@ -618,3 +618,27 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
 
     return { ok: erros.length === 0, salvas, erros, resumo: `${salvas} resposta(s) salva(s)` };
   });
+
+const UrlsInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  paths: z.array(z.string().min(1)).min(1).max(50),
+});
+
+/** Gera URLs assinadas das mídias já enviadas, para exibir após recarregar a página. */
+export const urlsArquivosVistoria = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => UrlsInput.parse(input))
+  .handler(async ({ data }): Promise<Record<string, string>> => {
+    const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
+    const paths = data.paths.filter((p) => p.startsWith(`casos/${casoId}/`) || !p.includes(".."));
+    if (!paths.length) return {};
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed } = await supabaseAdmin.storage
+      .from("agente-uploads")
+      .createSignedUrls(paths, 60 * 60);
+    const mapa: Record<string, string> = {};
+    for (const s of signed ?? []) {
+      if (s.signedUrl && s.path) mapa[s.path] = s.signedUrl;
+    }
+    return mapa;
+  });
