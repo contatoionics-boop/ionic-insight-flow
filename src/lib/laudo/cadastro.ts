@@ -32,6 +32,11 @@ export function variaveisComplementaresCadastro(caso: any): VariaveisLaudo {
   const vars: VariaveisLaudo = {};
   add(vars, "agente_tecnico", caso?.agente?.nome || caso?.agente?.email || caso?.agente_nome_manual);
   add(vars, "endereco_vistoria", caso?.endereco_vistoria);
+  add(
+    vars,
+    "data_mapeamento",
+    caso?.agendado_em ? new Date(caso.agendado_em).toLocaleDateString("pt-BR") : null,
+  );
   return vars;
 }
 
