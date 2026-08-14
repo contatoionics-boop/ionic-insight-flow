@@ -460,7 +460,11 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     });
   }
 
+  // ---------- VII. Blocos padrão condicionais (Nível 2 / Comboio) ----------
+  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura }));
+
   // ---------- 3. Instruções gerais ----------
+
   blocos.push({
     id: bid("h"),
     tipo: "heading",
