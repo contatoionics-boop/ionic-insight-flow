@@ -126,5 +126,5 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     // sem proposta anexada ou falha na comparação: laudo segue normalmente
   }
 
-  return { caso, variaveis, conteudo, blocos };
+  return { caso, variaveis, conteudo, blocos: mescla.blocos, conflitos: mescla.conflitos };
 }
