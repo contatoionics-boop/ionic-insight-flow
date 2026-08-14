@@ -20,6 +20,50 @@ import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
+import { urlsArquivosVistoria } from "@/lib/vistoria-agent.functions";
+
+/**
+ * Depois de recarregar a página o objectURL local some; buscamos uma URL
+ * assinada a partir do caminho salvo para o agente continuar vendo a mídia.
+ */
+function useUrlArquivo(
+  filePath: string | undefined,
+  filePreview: string | undefined,
+  casoId: string,
+  token: string,
+  mode: RendererMode,
+) {
+  const [url, setUrl] = useState<string | null>(null);
+  const gerarUrls = useServerFn(urlsArquivosVistoria);
+
+  useEffect(() => {
+    let ativo = true;
+    if (filePreview || !filePath || filePath === "preview" || mode === "preview") {
+      setUrl(null);
+      return;
+    }
+    const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(casoId);
+    void gerarUrls({
+      data: {
+        paths: [filePath],
+        ...(ehUuid ? { casoId } : {}),
+        ...(!ehUuid && token && token !== "app" ? { token } : {}),
+      },
+    })
+      .then((mapa: Record<string, string>) => {
+        if (ativo) setUrl(mapa?.[filePath] ?? null);
+      })
+      .catch(() => {
+        if (ativo) setUrl(null);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [filePath, filePreview, casoId, token, mode, gerarUrls]);
+
+  return filePreview ?? url;
+}
+
 
 function MicButton({
   token,
