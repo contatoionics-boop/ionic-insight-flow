@@ -280,7 +280,9 @@ export function LaudoPanel({
       <div className="sticky top-0 z-30 -mx-1 rounded-lg border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:flex-wrap lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">Revisão do Laudo</h3>
+            <h3 className="truncate text-base font-semibold text-foreground">
+              {etapa === "analise" ? "Análise técnica (apoio)" : "Documento estruturado FR-31-10"}
+            </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge
                 className={
