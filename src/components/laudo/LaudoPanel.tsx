@@ -28,6 +28,7 @@ import type {
   LaudoConteudo,
   VariaveisLaudo,
 } from "@/lib/laudo/tipos";
+import { blocosComPendencia } from "@/lib/laudo/tipos";
 
 function baixarBase64(base64: string, filename: string, mime: string) {
   const bin = atob(base64);
@@ -187,6 +188,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [decisao, setDecisao] = useState<"corrigido" | "ciente_do_risco">("corrigido");
   const [justificativa, setJustificativa] = useState("");
+  const [docSujo, setDocSujo] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -217,6 +219,20 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
     [conteudo],
   );
   const pendentes = bloqueantes.filter((b) => !confirmacoes.some((c) => c.codigo === b.codigo));
+  const pendenciasDoc = useMemo(
+    () => blocosComPendencia(conteudo?.blocos ?? []),
+    [conteudo],
+  );
+  const motivoPdf = !conteudo
+    ? "Gere o rascunho do documento antes de emitir o PDF."
+    : docSujo
+      ? "Salve a revisão do documento antes de gerar o PDF."
+      : pendenciasDoc
+        ? `O documento possui ${pendenciasDoc} pendência(s) [CONFIRMAR]. Resolva-as ou remova os blocos não aplicáveis antes de emitir o PDF final.`
+        : pendentes.length
+          ? "Confirme os alertas bloqueantes antes de emitir o PDF."
+          : null;
+  const pdfBloqueado = !!motivoPdf;
 
   async function handleGerar() {
     setGerando(true);
@@ -274,7 +290,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   async function handlePdf(preview = false) {
     setBaixando(true);
     try {
-      const r = await fnPdf({ data: { casoId, remontar: true } });
+      const r = await fnPdf({ data: { casoId } });
       if (preview) {
         const bin = atob(r.contentBase64);
         const bytes = new Uint8Array(bin.length);
@@ -331,10 +347,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
           <Button
             variant="secondary"
             onClick={() => handlePdf(true)}
-            disabled={!conteudo || baixando || pendentes.length > 0}
-            title={
-              pendentes.length ? "Confirme os alertas bloqueantes antes de emitir o PDF." : undefined
-            }
+            disabled={baixando || pdfBloqueado}
+            title={motivoPdf ?? undefined}
           >
             {baixando ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -346,10 +360,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
           <Button
             variant="secondary"
             onClick={() => handlePdf(false)}
-            disabled={!conteudo || baixando || pendentes.length > 0}
-            title={
-              pendentes.length ? "Confirme os alertas bloqueantes antes de emitir o PDF." : undefined
-            }
+            disabled={baixando || pdfBloqueado}
+            title={motivoPdf ?? undefined}
           >
             {baixando ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -359,6 +371,9 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
             Baixar PDF
           </Button>
         </div>
+        {motivoPdf ? (
+          <p className="w-full text-xs text-amber-600 dark:text-amber-400">{motivoPdf}</p>
+        ) : null}
       </Card>
 
       {pdfUrl && (
@@ -509,7 +524,12 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         </div>
       </Card>
 
-      <DocumentoEditor casoId={casoId} conteudo={conteudo} onConteudo={setConteudo} />
+      <DocumentoEditor
+        casoId={casoId}
+        conteudo={conteudo}
+        onConteudo={setConteudo}
+        onDirtyChange={setDocSujo}
+      />
 
 
       <Modal

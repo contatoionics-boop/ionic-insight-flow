@@ -76,6 +76,27 @@ function sinalBom(texto: string | null): boolean | null {
   return null;
 }
 
+// ------------------------------------------------- normalização de unidades
+// Só acrescenta unidade quando o valor veio apenas como número (a evidência
+// mantém sempre o valor original informado).
+
+function soNumero(v: string): boolean {
+  return /^\s*\d+(?:[.,]\d+)?\s*$/.test(v);
+}
+
+/** acrescenta a unidade quando o valor não traz nenhuma indicação de unidade */
+function comUnidade(v: string | null, unidade: string): string | null {
+  if (!v) return v;
+  return soNumero(v) ? `${v.trim()} ${unidade}` : v;
+}
+
+/** medidas de bitola/diâmetro: respeita polegadas (1", 3/4") e unidades já escritas */
+function comMm(v: string | null): string | null {
+  if (!v) return v;
+  if (/["\u2033]|pol|'/i.test(v)) return v;
+  return comUnidade(v, "mm");
+}
+
 // ---------------------------------------------------------------- comunicação
 
 function achadosComunicacao(vars: VariaveisLaudo): Achado[] {
@@ -157,7 +178,7 @@ function achadosBomba(vars: VariaveisLaudo): Achado[] {
   const out: Achado[] = [];
   const tipo = (val(vars, "tipo_bomba") ?? "").toLowerCase();
   const marca = val(vars, "marca_bomba");
-  const vazao = val(vars, "vazao");
+  const vazao = comUnidade(val(vars, "vazao"), "L/min");
   const tensao = val(vars, "tensao_bomba") ?? val(vars, "tensao_veiculo");
   const combustivel = val(vars, "combustivel");
 
@@ -227,7 +248,7 @@ function achadosBomba(vars: VariaveisLaudo): Achado[] {
   }
 
   const bloco = val(vars, "marca_bloco_medidor");
-  const saida = val(vars, "diametro_saida_bloco");
+  const saida = comMm(val(vars, "diametro_saida_bloco"));
   if (bloco || saida) {
     out.push(
       mk(vars, {
@@ -254,7 +275,7 @@ function achadosBomba(vars: VariaveisLaudo): Achado[] {
 function achadosPista(vars: VariaveisLaudo): Achado[] {
   const out: Achado[] = [];
   const coberta = bool(vars, "area_coberta");
-  const distancia = val(vars, "distancia_pista");
+  const distancia = comUnidade(val(vars, "distancia_pista"), "m");
   const classificada = bool(vars, "area_classificada");
 
   if (coberta !== null || distancia || classificada !== null) {
@@ -300,9 +321,9 @@ function achadosPista(vars: VariaveisLaudo): Achado[] {
 function achadosBico(vars: VariaveisLaudo, bitola: string | null, nivel: string | null): Achado[] {
   const out: Achado[] = [];
   const marca = val(vars, "marca_bico");
-  const ponteira = val(vars, "diametro_ponteira_bico");
-  const comprimento = val(vars, "comprimento_ponteira_bico");
-  const entrada = val(vars, "diametro_entrada_bico");
+  const ponteira = comMm(val(vars, "diametro_ponteira_bico"));
+  const comprimento = comMm(val(vars, "comprimento_ponteira_bico"));
+  const entrada = comMm(val(vars, "diametro_entrada_bico"));
   const suporte = bool(vars, "suporte_bico");
 
   if (marca || ponteira || entrada || bitola) {

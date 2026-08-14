@@ -386,7 +386,7 @@ function ReviewCasePage() {
   const baixarPdf = () =>
     baixarArquivo(
       ((args: any) =>
-        (gerarLaudoPdf as any)({ data: { ...args.data, remontar: true } })) as any,
+        (gerarLaudoPdf as any)({ data: args.data })) as any,
       setDownloading,
     );
 

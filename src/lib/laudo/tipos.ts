@@ -126,14 +126,13 @@ export function blocosVisiveis(blocos: BlocoLaudo[]): BlocoLaudo[] {
   return (blocos ?? []).filter((b) => !b.oculto);
 }
 
+/** conta blocos visíveis com qualquer ocorrência de [CONFIRMAR: ...] */
 export function blocosComPendencia(blocos: BlocoLaudo[]): number {
   let n = 0;
   for (const b of blocosVisiveis(blocos)) {
-    if (b.tipo === "paragraph" && temPendencia(b.texto)) n++;
-    if (b.tipo === "observacao" && temPendencia(b.texto)) n++;
-    if (b.tipo === "bullets" && b.itens.some(temPendencia)) n++;
-    if (b.tipo === "heading" && temPendencia(b.texto)) n++;
-    if (b.tipo === "table" && b.linhas.some((l) => l.celulas.some(temPendencia))) n++;
+    // varre todo o conteúdo do bloco (texto, itens, células, notas, legendas)
+    const { conteudo_original: _o, conflito: _c, ...visivel } = b as Record<string, unknown>;
+    if (temPendencia(JSON.stringify(visivel))) n++;
   }
   return n;
 }

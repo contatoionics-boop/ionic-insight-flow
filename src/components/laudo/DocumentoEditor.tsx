@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -607,10 +607,13 @@ export function DocumentoEditor({
   casoId,
   conteudo,
   onConteudo,
+  onDirtyChange,
 }: {
   casoId: string;
   conteudo: LaudoConteudo | null;
   onConteudo: (c: LaudoConteudo) => void;
+  /** avisa o pai quando há edição do DOCUMENTO ainda não salva */
+  onDirtyChange?: (sujo: boolean) => void;
 }) {
   const fnSalvar = useServerFn(salvarDocumentoLaudo);
   const fnConflito = useServerFn(resolverConflitoLaudo);
@@ -622,6 +625,9 @@ export function DocumentoEditor({
   );
   const [editando, setEditando] = useState<string | null>(null);
   const [sujo, setSujo] = useState(false);
+  useEffect(() => {
+    onDirtyChange?.(sujo);
+  }, [sujo, onDirtyChange]);
   const [salvando, setSalvando] = useState(false);
   const arrastando = useRef<number | null>(null);
   const [biblioteca, setBiblioteca] = useState<"padrao" | "foto" | null>(null);

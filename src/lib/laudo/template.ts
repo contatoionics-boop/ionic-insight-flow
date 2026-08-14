@@ -259,23 +259,30 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const achadoGsm = achadosComunicacao.filter((a) => a.chave === "comunicacao_gsm");
 
   blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 });
-  blocos.push({
-    id: bid("p"),
-    tipo: "paragraph",
-    texto:
-      "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
-  });
-  blocos.push(...blocosDosAchados(achadoWifi));
-  const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
-  if (achadoGsm.length || comunicacao.includes("4g") || comunicacao.includes("gsm")) {
-    blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
+  if (achadoWifi.length) {
+    // A conclusão técnica derivada dos dados substitui o texto genérico.
+    blocos.push(...blocosDosAchados(achadoWifi));
+  } else {
     blocos.push({
       id: bid("p"),
       tipo: "paragraph",
       texto:
-        "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
+        "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
     });
-    blocos.push(...blocosDosAchados(achadoGsm));
+  }
+  const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
+  if (achadoGsm.length || comunicacao.includes("4g") || comunicacao.includes("gsm")) {
+    blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
+    if (achadoGsm.length) {
+      blocos.push(...blocosDosAchados(achadoGsm));
+    } else {
+      blocos.push({
+        id: bid("p"),
+        tipo: "paragraph",
+        texto:
+          "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
+      });
+    }
   }
   blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 });
   blocos.push({
@@ -311,9 +318,17 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const produtos = montarProdutos(ctxProduto);
 
   const varios = grupos.length > 1;
+  // Quando a análise técnica já descreve o objeto (bomba e/ou pista), o
+  // parágrafo genérico do template antigo é suprimido para não duplicar
+  // nem contradizer as conclusões derivadas dos dados.
+  const achados23 = achadosDaSecao(achadosAtivos, "2.3");
+  const descreveObjeto = achados23.some(
+    (a) => a.chave === "bomba_identificacao" || a.chave === "pista_abastecimento",
+  );
   grupos.forEach((grupo, i) => {
     const numero = varios ? `2.3.${i + 1}` : null;
     blocos.push({ id: bid("h"), tipo: "heading", numero, texto: grupo, nivel: 3 });
+    if (descreveObjeto) return;
     blocos.push({
       id: bid("p"),
       tipo: "paragraph",
@@ -326,7 +341,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
 
   // Análise técnica do cenário físico (bomba, registrador, bloco medidor, pista).
-  blocos.push(...secao("2.3"));
+  blocos.push(...blocosDosAchados(achados23));
 
   // Produtos e materiais são idênticos para todos os objetos: uma tabela só.
   if (varios) {
