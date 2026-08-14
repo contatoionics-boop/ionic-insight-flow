@@ -468,8 +468,12 @@ function alerta(ctx: Ctx, severidade: "info" | "bloqueante", texto: string) {
 const cacheFiguras = new Map<string, { bytes: Uint8Array; mime: string } | null>();
 
 async function carregarFigura(url: string, baseUrl?: string | null) {
+  // desenhos estruturais do projeto: bytes embutidos, sem depender de rede
+  const estatica = figuraEstatica(url);
+  if (estatica) return estatica;
   if (cacheFiguras.has(url)) return cacheFiguras.get(url) ?? null;
   let out: { bytes: Uint8Array; mime: string } | null = null;
+
   try {
     const absoluta = url.startsWith("http") ? url : `${(baseUrl ?? "").replace(/\/$/, "")}${url}`;
     if (absoluta.startsWith("http")) {
