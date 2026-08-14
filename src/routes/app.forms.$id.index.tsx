@@ -716,7 +716,7 @@ function PropertiesPanel({
   }, [pergunta.id]);
 
   const mostraContexto = tipo === "foto" || tipo === "video" || tipo === "audio";
-  const mostraOpcoes = tipo === "selecao_unica";
+  const mostraOpcoes = tipo === "selecao_unica" || tipo === "multipla_escolha";
 
   const addOpcao = () =>
     setOpcoes((arr) => [...arr, { id: `new-${Date.now()}-${arr.length}`, texto: "", ordem: arr.length + 1 }]);
