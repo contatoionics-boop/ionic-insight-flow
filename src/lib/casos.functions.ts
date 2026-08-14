@@ -770,7 +770,8 @@ export const excluirMapeamento = createServerFn({ method: "POST" })
       .eq("id", data.casoId)
       .maybeSingle();
     if (cErr) throw new Error(`Falha ao localizar o mapeamento: ${cErr.message}`);
-    if (!caso) throw new Error("Mapeamento não encontrado (talvez já tenha sido excluído).");
+    // Idempotente: se já foi excluído, não é erro.
+    if (!caso) return { ok: true, codigo: null, jaExcluido: true };
 
     // Arquivos enviados pelo agente
     try {
@@ -813,5 +814,5 @@ export const excluirMapeamento = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true, codigo: caso.codigo };
+    return { ok: true, codigo: caso.codigo, jaExcluido: false };
   });
