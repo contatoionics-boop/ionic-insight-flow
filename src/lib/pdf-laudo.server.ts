@@ -95,77 +95,102 @@ async function loadLogo(pdf: PDFDocument, meta: LaudoPdfMeta) {
   }
 }
 
-/** Cabeçalho padrão do formulário: quadro com título, código e linha de controle. */
+/** Cabeçalho padrão FR-31-10: logo | título | código, e linha de controle em 4 células. */
 function drawHeader(ctx: Ctx) {
   const { page, meta } = ctx;
-  const topo = PAGE_H - 24;
-  const linhaControleH = 16;
-  const tituloH = 40;
+  const topo = PAGE_H - 30;
+  const linhaControleH = 14;
+  const tituloH = 48;
   const alturaQuadro = tituloH + linhaControleH;
   const base = topo - alturaQuadro;
-  const larguraCodigo = 108;
+  const larguraLogo = 74;
+  const larguraCodigo = 96;
+  const xTituloCel = MARGIN_X + larguraLogo;
+  const larguraTitulo = CONTENT_W - larguraLogo - larguraCodigo;
   const xCodigo = MARGIN_X + CONTENT_W - larguraCodigo;
 
   const box = (x: number, y: number, w: number, h: number) =>
     page.drawRectangle({ x, y, width: w, height: h, borderColor: BORDA, borderWidth: 0.8 });
 
-  box(MARGIN_X, base, CONTENT_W, alturaQuadro);
-  box(MARGIN_X, base + linhaControleH, CONTENT_W - larguraCodigo, tituloH);
+  box(MARGIN_X, base + linhaControleH, larguraLogo, tituloH);
+  box(xTituloCel, base + linhaControleH, larguraTitulo, tituloH);
   box(xCodigo, base + linhaControleH, larguraCodigo, tituloH);
 
-  // logo à esquerda dentro da célula do título
-  let xTitulo = MARGIN_X + 8;
   if (ctx.logo) {
+    const escala = Math.min((larguraLogo - 14) / ctx.logo.w, 1);
+    const lw = ctx.logo.w * escala;
+    const lh = ctx.logo.h * escala;
     page.drawImage(ctx.logo.img, {
-      x: xTitulo,
-      y: base + linhaControleH + (tituloH - ctx.logo.h) / 2,
-      width: ctx.logo.w,
-      height: ctx.logo.h,
+      x: MARGIN_X + (larguraLogo - lw) / 2,
+      y: base + linhaControleH + (tituloH - lh) / 2,
+      width: lw,
+      height: lh,
     });
-    xTitulo += ctx.logo.w + 10;
+  } else {
+    const marca = "IONICS";
+    const mw = ctx.bold.widthOfTextAtSize(marca, 11);
+    page.drawText(marca, {
+      x: MARGIN_X + (larguraLogo - mw) / 2,
+      y: base + linhaControleH + tituloH / 2 - 4,
+      size: 11,
+      font: ctx.bold,
+      color: NAVY,
+    });
   }
+
   const titulo = sanitize("RESULTADO DE MAPEAMENTO TÉCNICO");
-  const disponivel = CONTENT_W - larguraCodigo - (xTitulo - MARGIN_X) - 8;
-  const tw = ctx.bold.widthOfTextAtSize(titulo, 12);
+  const tw = ctx.bold.widthOfTextAtSize(titulo, 13);
   page.drawText(titulo, {
-    x: xTitulo + Math.max(0, (disponivel - tw) / 2),
-    y: base + linhaControleH + tituloH / 2 - 4,
-    size: 12,
+    x: xTituloCel + (larguraTitulo - tw) / 2,
+    y: base + linhaControleH + tituloH / 2 - 5,
+    size: 13,
     font: ctx.bold,
-    color: NAVY,
+    color: TINTA,
   });
 
   const rotulo = "Código";
-  const rw = ctx.font.widthOfTextAtSize(rotulo, 8);
+  const rw = ctx.font.widthOfTextAtSize(rotulo, 8.5);
   page.drawText(rotulo, {
     x: xCodigo + (larguraCodigo - rw) / 2,
-    y: base + linhaControleH + tituloH - 15,
-    size: 8,
+    y: base + linhaControleH + tituloH - 16,
+    size: 8.5,
     font: ctx.font,
-    color: GREY,
+    color: TINTA,
   });
   const cod = sanitize(meta.codigoDocumento || "FR-31-10");
   const cw = ctx.bold.widthOfTextAtSize(cod, 11);
   page.drawText(cod, {
     x: xCodigo + (larguraCodigo - cw) / 2,
-    y: base + linhaControleH + 10,
+    y: base + 12,
     size: 11,
     font: ctx.bold,
-    color: NAVY,
+    color: TINTA,
   });
 
-  const controle = sanitize(
-    `Elaborado por: ${meta.elaboradoPor || "—"}      Aprovado por: ${meta.aprovadoPor || "—"}      ` +
-      `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}      Data da revisão: ${meta.dataRevisao || "—"}`,
-  );
-  page.drawText(controle, {
-    x: MARGIN_X + 6,
-    y: base + 5,
-    size: 7,
-    font: ctx.font,
-    color: rgb(0.25, 0.27, 0.31),
+  // linha de controle: 4 células com bordas, como no formulário original
+  const celulas = [
+    `Elaborado por: ${meta.elaboradoPor || "-"}`,
+    `Aprovado por: ${meta.aprovadoPor || "-"}`,
+    `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}`,
+    `Data da revisão: ${meta.dataRevisao || "-"}`,
+  ];
+  const pesos = [1.15, 1.15, 0.7, 1];
+  const somaPesos = pesos.reduce((a, b) => a + b, 0);
+  let xc = MARGIN_X;
+  celulas.forEach((texto, i) => {
+    const w = (pesos[i]! / somaPesos) * CONTENT_W;
+    box(xc, base, w, linhaControleH);
+    page.drawText(sanitize(texto), {
+      x: xc + 4,
+      y: base + 4.5,
+      size: 6.5,
+      font: ctx.font,
+      color: TINTA,
+    });
+    xc += w;
   });
 }
+
 
 
 function drawFooter(page: PDFPage, font: PDFFont, meta: LaudoPdfMeta, i: number, total: number) {
