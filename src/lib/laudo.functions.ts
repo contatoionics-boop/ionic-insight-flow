@@ -138,9 +138,12 @@ export const carregarLaudo = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     const conteudo = (caso?.laudo_conteudo ?? null) as LaudoConteudo | null;
+    const { carregarMetaLaudoDoCaso } = await import("@/lib/laudo/meta.server");
+    const { meta } = await carregarMetaLaudoDoCaso(context.supabase, data.casoId);
     return {
       variaveis: (caso?.laudo_variaveis ?? {}) as VariaveisLaudo,
       conteudo,
+      meta,
       pendencias: conteudo ? blocosComPendencia(conteudo.blocos) : 0,
       bloqueios: conteudo ? alertasBloqueantes(conteudo.blocos).map((a) => a.codigo) : [],
       confirmacoes: (caso?.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[],
