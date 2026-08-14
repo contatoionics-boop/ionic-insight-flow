@@ -74,7 +74,10 @@ function arquivosDe(r: Resposta | undefined): string[] {
 
 function ReviewCasePage() {
   const { id } = Route.useParams();
-  const [tab, setTab] = useState<"respostas" | "laudo" | "proposta">("respostas");
+  const [tab, setTab] = useState<"respostas" | "analise" | "documento" | "proposta">(
+    "respostas",
+  );
+  const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
