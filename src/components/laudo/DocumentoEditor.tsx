@@ -790,6 +790,7 @@ function MenuAdicionar({
   onAdd,
   onBlocoPadrao,
   onFoto,
+  onNivel2,
 }: {
   onAdd: (
     tipo: TipoBloco,
@@ -798,7 +799,9 @@ function MenuAdicionar({
   ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
+  onNivel2?: (tipo: "secao" | "2.4" | "2.4.1") => void;
 }) {
+
   const [aberto, setAberto] = useState(false);
   const [tabela, setTabela] = useState(false);
   const [colunas, setColunas] = useState(3);
