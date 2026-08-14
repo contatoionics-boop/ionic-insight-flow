@@ -78,7 +78,9 @@ export function comChaves(blocos: BlocoLaudo[], origemPadrao: "automatic" | "man
       chave: n > 1 ? `${base}#${n}` : base,
       origem: b.origem ?? origemPadrao,
       editavel: b.editavel ?? true,
-      removivel: b.removivel ?? b.tipo !== "alert",
+      // nesta fase final o especialista pode remover qualquer bloco (inclusive alertas)
+      removivel: true,
+
     } as BlocoLaudo;
   });
 }
