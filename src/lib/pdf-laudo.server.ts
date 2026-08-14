@@ -146,7 +146,7 @@ function drawHeader(ctx: Ctx) {
     y: base + linhaControleH + tituloH / 2 - 5,
     size: 13,
     font: ctx.bold,
-    color: TINTA,
+    color: NAVY,
   });
 
   const rotulo = "Código";
