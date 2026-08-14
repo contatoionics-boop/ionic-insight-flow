@@ -173,7 +173,18 @@ export function mesclarDocumento(salvos: BlocoLaudo[], novos: BlocoLaudo[]): Res
     usados.add(n.chave as string);
   }
 
-  return { blocos: renumerar(resultado), conflitos, manuais };
+  // rede de segurança: nunca devolver duas vezes a mesma chave
+  const vistos = new Set<string>();
+  const unicos = resultado.filter((b) => {
+    const k = b.chave as string;
+    if (!k) return true;
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+
+  return { blocos: renumerar(unicos), conflitos, manuais };
+
 }
 
 /** Marca um bloco como editado manualmente, guardando o conteúdo original. */
