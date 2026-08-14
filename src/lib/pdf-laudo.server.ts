@@ -366,7 +366,11 @@ function table(
           y: ctx.y - li * (size + 3),
           size,
           font: bolded ? ctx.bold : ctx.font,
-          color: line.includes("[CONFIRMAR:") ? AMBER : bolded ? NAVY : rgb(0.18, 0.2, 0.24),
+          color: bolded
+            ? rgb(1, 1, 1)
+            : line.includes("[CONFIRMAR:")
+              ? AMBER
+              : rgb(0.18, 0.2, 0.24),
         });
       });
       x += larguras[i]!;
