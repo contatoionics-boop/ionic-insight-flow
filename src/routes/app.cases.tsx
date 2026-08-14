@@ -44,8 +44,9 @@ function CasesPage() {
     if (!window.confirm(`Excluir definitivamente o mapeamento ${caso.codigo}? Respostas, arquivos e histórico serão apagados.`)) return;
     setExcluindo(caso.id);
     try {
-      await excluir({ data: { casoId: caso.id } });
-      toast.success(`Mapeamento ${caso.codigo} excluído.`);
+      const res: any = await excluir({ data: { casoId: caso.id } });
+      if (res?.jaExcluido) toast.message(`Mapeamento ${caso.codigo} já havia sido excluído.`);
+      else toast.success(`Mapeamento ${caso.codigo} excluído.`);
       setRows((prev) => prev.filter((r) => r.id !== caso.id));
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao excluir o mapeamento.");
