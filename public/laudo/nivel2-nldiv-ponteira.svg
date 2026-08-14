@@ -20,9 +20,9 @@
     <path d="M530 98 h20 M530 202 h20"/>
   </g>
   <g font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1F3864">
-    <text x="196" y="86">diâmetro da ponteira</text>
+    <text x="60" y="250">diâmetro da ponteira</text>
     <text x="300" y="90">NLDIV Wireless (antena / leitor)</text>
-    <text x="452" y="238">diâmetro externo com NLDIV</text>
-    <text x="70" y="272">Ponteira 1" + NLDIV = 47 mm · 3/4" + NLDIV = 34 mm · 1/2" + NLDIV = 30 mm</text>
+    <text x="628" y="238" text-anchor="end">diâmetro externo com NLDIV</text>
+    <text x="70" y="290">Ponteira 1" + NLDIV = 47 mm · 3/4" + NLDIV = 34 mm · 1/2" + NLDIV = 30 mm</text>
   </g>
 </svg>
