@@ -791,23 +791,37 @@ function MenuAdicionar({
   onBlocoPadrao,
   onFoto,
 }: {
-  onAdd: (tipo: TipoBloco, nivel?: 1 | 2 | 3 | 4) => void;
+  onAdd: (
+    tipo: TipoBloco,
+    nivel?: 1 | 2 | 3 | 4,
+    opcoes?: { colunas?: number; linhas?: number },
+  ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [tabela, setTabela] = useState(false);
+  const [colunas, setColunas] = useState(3);
+  const [linhas, setLinhas] = useState(3);
+  function fechar() {
+    setAberto(false);
+    setTabela(false);
+  }
   return (
     <div className="relative flex justify-center py-1">
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={() => (aberto ? fechar() : setAberto(true))}
         className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground opacity-40 transition hover:opacity-100"
-        title="Adicionar conteúdo"
+        title="Adicionar bloco"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
       {aberto && (
-        <div className="absolute top-8 z-20 w-56 rounded-lg border border-border bg-background p-1 shadow-lg">
+        <div className="absolute top-8 z-20 w-64 rounded-lg border border-border bg-background p-1 shadow-lg">
+          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Adicionar bloco
+          </p>
           {NOVOS.map((n) => (
             <button
               key={n.rotulo}
@@ -815,19 +829,63 @@ function MenuAdicionar({
               className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
               onClick={() => {
                 onAdd(n.tipo, n.nivel);
-                setAberto(false);
+                fechar();
               }}
             >
               {n.rotulo}
             </button>
           ))}
+          {tabela ? (
+            <div className="space-y-2 rounded bg-muted/40 p-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <label className="flex items-center gap-1">
+                  Colunas
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={colunas}
+                    onChange={(e) => setColunas(Number(e.target.value))}
+                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                  />
+                </label>
+                <label className="flex items-center gap-1">
+                  Linhas
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={linhas}
+                    onChange={(e) => setLinhas(Number(e.target.value))}
+                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                  />
+                </label>
+              </div>
+              <Button
+                onClick={() => {
+                  onAdd("table", undefined, { colunas, linhas });
+                  fechar();
+                }}
+              >
+                <TableIcon className="mr-2 h-3.5 w-3.5" /> Inserir tabela
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+              onClick={() => setTabela(true)}
+            >
+              Tabela…
+            </button>
+          )}
           {onBlocoPadrao && (
             <button
               type="button"
               className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
               onClick={() => {
                 onBlocoPadrao();
-                setAberto(false);
+                fechar();
               }}
             >
               Inserir bloco padrão…
@@ -839,7 +897,7 @@ function MenuAdicionar({
               className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
               onClick={() => {
                 onFoto();
-                setAberto(false);
+                fechar();
               }}
             >
               Inserir foto do mapeamento…
@@ -850,6 +908,7 @@ function MenuAdicionar({
     </div>
   );
 }
+
 
 export function DocumentoEditor({
   casoId,
