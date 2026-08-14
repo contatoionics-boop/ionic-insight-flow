@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Check, Loader2, Microscope, Undo2 } from "lucide-react";
@@ -28,9 +28,8 @@ const SECAO_ROTULO: Record<string, string> = {
 };
 
 export function AnaliseTecnicaPanel({ casoId, achados, descartados, semCard, onAtualizar }: Props) {
-  const Wrap = semCard
-    ? ({ children }: { children: React.ReactNode }) => <div className="space-y-2">{children}</div>
-    : Card;
+  const Wrap = ({ children }: { children: ReactNode }) =>
+    semCard ? <div className="space-y-3">{children}</div> : <Card className="p-4">{children}</Card>;
   const fnDecidir = useServerFn(decidirAchadoLaudo);
   const [emAndamento, setEmAndamento] = useState<string | null>(null);
 
@@ -49,7 +48,7 @@ export function AnaliseTecnicaPanel({ casoId, achados, descartados, semCard, onA
 
   if (!achados.length) {
     return (
-      <Wrap className="p-4">
+      <Wrap>
         <p className="flex items-center gap-2 text-sm font-medium">
           <Microscope className="h-4 w-4" /> Análise técnica
         </p>
@@ -62,7 +61,7 @@ export function AnaliseTecnicaPanel({ casoId, achados, descartados, semCard, onA
   }
 
   return (
-    <Wrap className="p-4">
+    <Wrap>
       <p className="mb-1 flex items-center gap-2 text-sm font-medium">
         <Microscope className="h-4 w-4" /> Análise técnica
       </p>
