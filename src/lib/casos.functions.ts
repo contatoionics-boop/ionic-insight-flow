@@ -764,12 +764,13 @@ export const excluirMapeamento = createServerFn({ method: "POST" })
     if (rErr) throw new Error(rErr.message);
     if (!roles?.length) throw new Error("Você não tem permissão para excluir mapeamentos.");
 
-    const { data: caso } = await supabaseAdmin
+    const { data: caso, error: cErr } = await supabaseAdmin
       .from("casos")
       .select("id, codigo, agendamento_id")
       .eq("id", data.casoId)
       .maybeSingle();
-    if (!caso) throw new Error("Mapeamento não encontrado.");
+    if (cErr) throw new Error(`Falha ao localizar o mapeamento: ${cErr.message}`);
+    if (!caso) throw new Error("Mapeamento não encontrado (talvez já tenha sido excluído).");
 
     // Arquivos enviados pelo agente
     try {
