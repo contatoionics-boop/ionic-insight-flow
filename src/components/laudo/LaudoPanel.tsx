@@ -545,7 +545,11 @@ export function LaudoPanel({
             ))}
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto p-3">
+          <div
+            className={
+              etapa === "documento" ? "max-h-[70vh] overflow-y-auto p-3" : "p-4 md:p-5"
+            }
+          >
             {aba === "pendencias" && (
               <div className="space-y-4">
                 <div className="space-y-2">
