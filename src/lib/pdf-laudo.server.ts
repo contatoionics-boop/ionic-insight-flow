@@ -5,6 +5,7 @@
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { limparTexto } from "@/lib/texto";
+import { figuraEstatica } from "@/lib/laudo/figuras-estaticas.server";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
