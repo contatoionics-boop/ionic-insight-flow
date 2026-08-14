@@ -793,6 +793,8 @@ function CampoFoto({
   const [err, setErr] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const validarFn = useServerFn(validarFoto);
+  const urlFoto = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
+
 
   const enviar = async (file: File) => {
     setErr(null);
