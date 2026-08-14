@@ -352,9 +352,13 @@ export const confirmarAlertaLaudo = createServerFn({ method: "POST" })
     return { confirmacoes: [...atuais, nova] };
   });
 
-/** Gera o PDF do laudo estruturado — bloqueado enquanto houver alerta não confirmado. */
+/**
+ * Renderiza o PDF do laudo a partir do documento JÁ SALVO (`casos.laudo_conteudo`).
+ * Não remonta, não roda IA e não reexecuta regras: é renderer, não motor.
+ */
 export const gerarPdfLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  // `remontar` é aceito por compatibilidade, mas ignorado.
   .inputValidator((i) => CasoInput.extend({ remontar: z.boolean().optional() }).parse(i))
   .handler(async ({ data, context }) => {
     const { buildLaudoPdf } = await import("@/lib/pdf-laudo.server");
@@ -371,15 +375,18 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!caso) throw new Error("Mapeamento não encontrado.");
 
-    let conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
-    if (data.remontar || !conteudo?.blocos?.length) {
-      // Monta o laudo na hora (casos antigos ou ainda não montados), preservando edições
-      const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
-      const res = await montarESalvarLaudo(supabase, data.casoId);
-      conteudo = res.conteudo;
-    }
+    const conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
     if (!conteudo?.blocos?.length) {
-      throw new Error("Não foi possível montar o laudo deste mapeamento.");
+      throw new Error(
+        "O documento ainda não foi gerado. Clique em “Gerar laudo” para criar o rascunho, revise e salve antes de emitir o PDF.",
+      );
+    }
+
+    const pendencias = blocosComPendencia(conteudo.blocos as BlocoLaudo[]);
+    if (pendencias) {
+      throw new Error(
+        `O documento possui ${pendencias} pendência(s) [CONFIRMAR]. Resolva-as ou remova os blocos não aplicáveis antes de emitir o PDF final.`,
+      );
     }
 
     const confirmacoes = (caso.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[];
@@ -391,6 +398,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         `Existem alertas técnicos bloqueantes sem confirmação: ${pendentes.map((p) => p.codigo).join(", ")}. Corrija ou registre ciência do risco antes de emitir o laudo.`,
       );
     }
+
 
     const { data: formulario } = await supabase
       .from("formularios")
