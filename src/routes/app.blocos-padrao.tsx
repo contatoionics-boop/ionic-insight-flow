@@ -198,40 +198,55 @@ function BlocosPadraoPage() {
         title={form.id ? "Editar bloco padrão" : "Novo bloco padrão"}
       >
         <div className="space-y-3">
-          <Input
-            label="Nome"
-            value={form.nome}
-            onChange={(e) => setForm({ ...form, nome: e.target.value })}
-          />
-          <Input
-            label="Descrição"
-            value={form.descricao}
-            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium">Nome</label>
             <Input
-              label="Categoria"
-              value={form.categoria}
-              onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-            />
-            <Input
-              label="Ordem"
-              type="number"
-              value={String(form.ordem)}
-              onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.currentTarget.value })}
             />
           </div>
-          <Input
-            label="Título da seção (opcional)"
-            value={form.titulo_secao}
-            onChange={(e) => setForm({ ...form, titulo_secao: e.target.value })}
-          />
-          <Textarea
-            label='Conteúdo (uma linha por parágrafo; comece com "- " para itens de lista)'
-            rows={10}
-            value={form.corpo}
-            onChange={(e) => setForm({ ...form, corpo: e.target.value })}
-          />
+          <div>
+            <label className="text-xs font-medium">Descrição</label>
+            <Input
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.currentTarget.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium">Categoria</label>
+              <Input
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.currentTarget.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium">Ordem</label>
+              <Input
+                type="number"
+                value={String(form.ordem)}
+                onChange={(e) => setForm({ ...form, ordem: Number(e.currentTarget.value) })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium">Título da seção (opcional)</label>
+            <Input
+              value={form.titulo_secao}
+              onChange={(e) => setForm({ ...form, titulo_secao: e.currentTarget.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium">
+              Conteúdo (uma linha por parágrafo; comece com "- " para itens de lista)
+            </label>
+            <Textarea
+              rows={10}
+              value={form.corpo}
+              onChange={(e) => setForm({ ...form, corpo: e.currentTarget.value })}
+            />
+          </div>
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
