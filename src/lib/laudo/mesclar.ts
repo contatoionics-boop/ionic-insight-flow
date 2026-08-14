@@ -120,9 +120,13 @@ export function mesclarDocumento(salvos: BlocoLaudo[], novos: BlocoLaudo[]): Res
   for (const s of base) {
     if (s.origem === "manual") {
       resultado.push(s);
+      // o mesmo bloco estrutural inserido manualmente não pode ser
+      // reinserido pela geração automática
+      usados.add(s.chave as string);
       manuais++;
       continue;
     }
+
     const n = porChave.get(s.chave as string);
     if (!n) continue; // deixou de ser gerado pelas regras
     usados.add(s.chave as string);
