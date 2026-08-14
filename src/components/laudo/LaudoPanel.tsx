@@ -65,7 +65,13 @@ function pendenciasDoBloco(b: BlocoLaudo): string[] {
   return Array.from(texto.matchAll(/\[CONFIRMAR:\s*([^\]]*)\]/g)).map((m) => m[1].trim());
 }
 
-export function LaudoPanel({ casoId }: { casoId: string }) {
+export function LaudoPanel({
+  casoId,
+  etapa = "documento",
+}: {
+  casoId: string;
+  etapa?: "analise" | "documento";
+}) {
   const fnCarregar = useServerFn(carregarLaudo);
   const fnGerar = useServerFn(gerarLaudo);
   const fnSalvar = useServerFn(salvarVariaveisLaudo);
