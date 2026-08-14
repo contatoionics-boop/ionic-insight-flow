@@ -1428,6 +1428,7 @@ export type Database = {
         | "cep"
         | "cnpj"
         | "video"
+        | "multipla_escolha"
       tipo_solicitacao: "instalacao" | "upgrade"
     }
     CompositeTypes: {
@@ -1618,6 +1619,7 @@ export const Constants = {
         "cep",
         "cnpj",
         "video",
+        "multipla_escolha",
       ],
       tipo_solicitacao: ["instalacao", "upgrade"],
     },
