@@ -19,6 +19,7 @@ import {
   salvarVariaveisLaudo,
 } from "@/lib/laudo.functions";
 import { CHAVES_LAUDO, rotuloChave } from "@/lib/laudo/chaves";
+import { DocumentoEditor } from "@/components/laudo/DocumentoEditor";
 import type {
   BlocoLaudo,
   ConfirmacaoAlerta,
