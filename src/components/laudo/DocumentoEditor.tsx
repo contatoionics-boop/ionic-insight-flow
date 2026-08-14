@@ -1303,6 +1303,7 @@ export function DocumentoEditor({
           {modo === "editar" && (
             <MenuAdicionar
               onAdd={(t, n, o) => inserir(0, t, n, o)}
+              onNivel2={(k) => inserirNivel2(0, k)}
               onBlocoPadrao={() => {
                 setAlvoInsercao(0);
                 setBiblioteca("padrao");
@@ -1419,6 +1420,7 @@ export function DocumentoEditor({
                 </div>
                 <MenuAdicionar
                   onAdd={(t, n, o) => inserir(i + 1, t, n, o)}
+                  onNivel2={(k) => inserirNivel2(i + 1, k)}
                   onBlocoPadrao={() => {
                     setAlvoInsercao(i + 1);
                     setBiblioteca("padrao");
