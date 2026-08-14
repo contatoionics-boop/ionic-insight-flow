@@ -3,9 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  ChevronDown,
+  Eye,
   FileDown,
   Loader2,
+  Pencil,
   RefreshCw,
+  Save,
   ShieldCheck,
   Sparkles,
   X,
@@ -21,6 +25,7 @@ import {
 import { CHAVES_LAUDO, rotuloChave } from "@/lib/laudo/chaves";
 import { DocumentoEditor } from "@/components/laudo/DocumentoEditor";
 import { AnaliseTecnicaPanel } from "@/components/laudo/AnaliseTecnicaPanel";
+import type { NoArvore } from "@/lib/laudo/numeracao";
 import type { Achado } from "@/lib/laudo/analise/achados";
 import type {
   BlocoLaudo,
@@ -42,129 +47,22 @@ function baixarBase64(base64: string, filename: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-function Pendencia({ texto }: { texto: string }) {
-  const partes = texto.split(/(\[CONFIRMAR:[^\]]*\])/g);
-  return (
-    <>
-      {partes.map((p, i) =>
-        p.startsWith("[CONFIRMAR:") ? (
-          <span
-            key={i}
-            className="rounded bg-amber-100 px-1 font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
-          >
-            {p}
-          </span>
-        ) : (
-          <span key={i}>{p}</span>
-        ),
-      )}
-    </>
-  );
+function irParaBloco(id: string) {
+  const el = document.getElementById(`bloco-${id}`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-primary/50", "rounded-md");
+    setTimeout(() => el.classList.remove("ring-2", "ring-primary/50", "rounded-md"), 2000);
+    return;
+  }
+  toast.info("Trecho sem âncora: localize-o no documento ou preencha a variável correspondente.");
 }
 
-function Bloco({ bloco }: { bloco: BlocoLaudo }) {
-  switch (bloco.tipo) {
-    case "heading": {
-      const cls =
-        bloco.nivel === 1
-          ? "mt-6 text-base font-semibold"
-          : bloco.nivel === 2
-            ? "mt-4 text-sm font-semibold"
-            : "mt-3 text-sm font-medium";
-      return (
-        <h3 className={`${cls} text-foreground`}>
-          {bloco.numero ? `${bloco.numero}. ` : ""}
-          {bloco.texto}
-        </h3>
-      );
-    }
-    case "paragraph":
-      return (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          <Pendencia texto={bloco.texto} />
-        </p>
-      );
-    case "bullets":
-      return (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          {bloco.itens.map((i, k) => (
-            <li key={k}>
-              <Pendencia texto={i} />
-            </li>
-          ))}
-        </ul>
-      );
-    case "table":
-      return (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-          {bloco.titulo ? (
-            <div className="border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold">
-              {bloco.titulo}
-            </div>
-          ) : null}
-          <table className="w-full text-xs">
-            <thead className="bg-muted/20 text-muted-foreground">
-              <tr>
-                {bloco.colunas.map((c) => (
-                  <th key={c} className="px-3 py-2 text-left font-medium">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {bloco.linhas.map((l, i) => (
-                <tr key={i} className="border-t border-border">
-                  {l.celulas.map((c, j) => (
-                    <td key={j} className="px-3 py-2 align-top">
-                      <Pendencia texto={c} />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    case "notes":
-      return (
-        <ul className="mt-2 space-y-1 text-xs italic text-muted-foreground">
-          {bloco.itens.map((i, k) => (
-            <li key={k}>Obs.: {i}</li>
-          ))}
-        </ul>
-      );
-    case "alert":
-      return (
-        <div
-          className={`mt-3 flex gap-2 rounded-lg border p-3 text-sm ${
-            bloco.severidade === "bloqueante"
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-          }`}
-        >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{bloco.texto}</span>
-        </div>
-      );
-    case "image":
-      return (
-        <figure className="mt-4 flex flex-col items-center gap-2">
-          <img
-            src={bloco.url}
-            alt={bloco.alt}
-            loading="lazy"
-            className="w-full rounded-lg border border-border bg-background object-contain p-2"
-            style={{ maxWidth: bloco.larguraMax ?? 360 }}
-          />
-          {bloco.legenda ? (
-            <figcaption className="text-center text-xs text-muted-foreground">
-              {bloco.legenda}
-            </figcaption>
-          ) : null}
-        </figure>
-      );
-  }
+/** rótulos das pendências [CONFIRMAR: ...] de um bloco visível */
+function pendenciasDoBloco(b: BlocoLaudo): string[] {
+  const { conteudo_original: _o, conflito: _c, ...visivel } = b as Record<string, unknown>;
+  const texto = JSON.stringify(visivel);
+  return Array.from(texto.matchAll(/\[CONFIRMAR:\s*([^\]]*)\]/g)).map((m) => m[1].trim());
 }
 
 export function LaudoPanel({ casoId }: { casoId: string }) {
@@ -177,6 +75,7 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [loading, setLoading] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [salvandoDoc, setSalvandoDoc] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [conteudo, setConteudo] = useState<LaudoConteudo | null>(null);
   const [variaveis, setVariaveis] = useState<VariaveisLaudo>({});
@@ -189,6 +88,11 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [decisao, setDecisao] = useState<"corrigido" | "ciente_do_risco">("corrigido");
   const [justificativa, setJustificativa] = useState("");
   const [docSujo, setDocSujo] = useState(false);
+  const [modoDoc, setModoDoc] = useState<"visualizar" | "editar">("visualizar");
+  const [arvore, setArvore] = useState<NoArvore[]>([]);
+  const [aba, setAba] = useState<"pendencias" | "variaveis" | "achados">("pendencias");
+  const [sumarioAberto, setSumarioAberto] = useState(false);
+  const [salvarDoc, setSalvarDoc] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null });
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -210,29 +114,39 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
     void carregar();
   }, [carregar]);
 
+  const registrarSalvar = useCallback((fn: (() => Promise<void>) | null) => {
+    setSalvarDoc({ fn });
+  }, []);
+  const onArvoreChange = useCallback((a: NoArvore[]) => setArvore(a), []);
+
   const bloqueantes = useMemo(
     () =>
       (conteudo?.blocos ?? []).filter(
         (b): b is Extract<BlocoLaudo, { tipo: "alert" }> =>
-          b.tipo === "alert" && b.severidade === "bloqueante",
+          b.tipo === "alert" && b.severidade === "bloqueante" && !b.oculto,
       ),
     [conteudo],
   );
   const pendentes = bloqueantes.filter((b) => !confirmacoes.some((c) => c.codigo === b.codigo));
-  const pendenciasDoc = useMemo(
-    () => blocosComPendencia(conteudo?.blocos ?? []),
-    [conteudo],
-  );
+  const pendenciasDoc = useMemo(() => blocosComPendencia(conteudo?.blocos ?? []), [conteudo]);
+  const listaPendencias = useMemo(() => {
+    return (conteudo?.blocos ?? [])
+      .filter((b) => !b.oculto)
+      .map((b) => ({ bloco: b, rotulos: pendenciasDoBloco(b) }))
+      .filter((x) => x.rotulos.length > 0);
+  }, [conteudo]);
+
   const motivoPdf = !conteudo
     ? "Gere o rascunho do documento antes de emitir o PDF."
     : docSujo
       ? "Salve a revisão do documento antes de gerar o PDF."
       : pendenciasDoc
-        ? `O documento possui ${pendenciasDoc} pendência(s) [CONFIRMAR]. Resolva-as ou remova os blocos não aplicáveis antes de emitir o PDF final.`
+        ? `${pendenciasDoc} pendência(s) [CONFIRMAR] no documento.`
         : pendentes.length
           ? "Confirme os alertas bloqueantes antes de emitir o PDF."
           : null;
   const pdfBloqueado = !!motivoPdf;
+  const totalPendencias = pendenciasDoc + pendentes.length;
 
   async function handleGerar() {
     setGerando(true);
@@ -264,11 +178,21 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       setConteudo(r.conteudo);
       setVariaveis(r.variaveis);
       setEdits({});
-      toast.success("Variáveis atualizadas e laudo remontado.");
+      toast.success("Variáveis atualizadas e rascunho remontado.");
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar as variáveis.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function handleSalvarRevisao() {
+    if (!salvarDoc.fn) return;
+    setSalvandoDoc(true);
+    try {
+      await salvarDoc.fn();
+    } finally {
+      setSalvandoDoc(false);
     }
   }
 
@@ -318,63 +242,134 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
     );
   }
 
+  const sumario = (
+    <nav className="space-y-0.5 text-xs">
+      {arvore.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sem seções ainda.</p>
+      ) : (
+        arvore.map((n) => (
+          <button
+            key={n.id}
+            type="button"
+            className={`block w-full truncate rounded px-2 py-1 text-left transition-colors hover:bg-muted ${
+              n.nivel === 1 ? "font-medium text-foreground" : "text-muted-foreground"
+            }`}
+            style={{ paddingLeft: 8 + Math.min(n.nivel - 1, 2) * 10 }}
+            onClick={() => {
+              setSumarioAberto(false);
+              irParaBloco(n.id);
+            }}
+          >
+            {n.numero ? `${n.numero}. ` : ""}
+            {n.texto}
+          </button>
+        ))
+      )}
+    </nav>
+  );
+
   return (
     <div className="space-y-4">
-      <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-        <div>
-          <p className="text-sm font-medium">Laudo estruturado</p>
-          <p className="text-xs text-muted-foreground">
-            {conteudo
-              ? `Gerado em ${new Date(conteudo.gerado_em).toLocaleString("pt-BR")}`
-              : "Ainda não gerado para este mapeamento."}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Editou respostas na aba anterior? Clique em <strong>Regerar</strong> para atualizar o
-            documento e o PDF.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleGerar} disabled={gerando}>
-            {gerando ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : conteudo ? (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            {conteudo ? "Regerar" : "Gerar laudo"}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => handlePdf(true)}
-            disabled={baixando || pdfBloqueado}
-            title={motivoPdf ?? undefined}
-          >
-            {baixando ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="mr-2 h-4 w-4" />
-            )}
-            Pré-visualizar PDF
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => handlePdf(false)}
-            disabled={baixando || pdfBloqueado}
-            title={motivoPdf ?? undefined}
-          >
-            {baixando ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="mr-2 h-4 w-4" />
-            )}
-            Baixar PDF
-          </Button>
+      {/* 1 — cabeçalho único da revisão */}
+      <div className="sticky top-0 z-30 -mx-1 rounded-lg border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:flex-wrap lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-foreground">Revisão do Laudo</h3>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge
+                className={
+                  pdfBloqueado
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                    : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                }
+              >
+                {pdfBloqueado ? "Em revisão" : "Pronto para PDF"}
+              </Badge>
+              <Badge
+                className={
+                  totalPendencias
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {pendenciasDoc} pendência(s)
+              </Badge>
+              <Badge
+                className={
+                  pendentes.length
+                    ? "bg-destructive/15 text-destructive"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {bloqueantes.length} alerta(s)
+              </Badge>
+              {docSujo && (
+                <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-300">
+                  Alterações não salvas
+                </Badge>
+              )}
+              {conteudo && (
+                <span className="hidden sm:inline">
+                  Última edição: {new Date(conteudo.gerado_em).toLocaleString("pt-BR")}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="ghost" onClick={handleGerar} disabled={gerando} size="sm">
+              {gerando ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : conteudo ? (
+                <RefreshCw className="h-4 w-4" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {conteudo ? "Regerar rascunho" : "Gerar rascunho"}
+            </Button>
+            <Button
+              onClick={handleSalvarRevisao}
+              disabled={!docSujo || salvandoDoc || !salvarDoc.fn}
+              size="sm"
+              title={docSujo ? undefined : "Nenhuma alteração do documento pendente"}
+            >
+              {salvandoDoc ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar revisão
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePdf(true)}
+              disabled={baixando || pdfBloqueado}
+              title={motivoPdf ?? undefined}
+            >
+              {baixando ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              Pré-visualizar PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePdf(false)}
+              disabled={baixando || pdfBloqueado}
+              title={motivoPdf ?? undefined}
+            >
+              <FileDown className="h-4 w-4" />
+              Baixar PDF
+            </Button>
+          </div>
         </div>
         {motivoPdf ? (
-          <p className="w-full text-xs text-amber-600 dark:text-amber-400">{motivoPdf}</p>
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">PDF bloqueado: {motivoPdf}</p>
         ) : null}
-      </Card>
+      </div>
 
       {pdfUrl && (
         <Card className="space-y-2 p-2">
@@ -391,12 +386,13 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
               </a>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => {
                   URL.revokeObjectURL(pdfUrl);
                   setPdfUrl(null);
                 }}
               >
-                <X className="mr-2 h-4 w-4" /> Fechar pré-visualização
+                <X className="h-4 w-4" /> Fechar
               </Button>
             </div>
           </div>
@@ -408,129 +404,274 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
         </Card>
       )}
 
-      {bloqueantes.length > 0 && (
-        <Card className="p-4">
-          <p className="mb-3 flex items-center gap-2 text-sm font-medium text-destructive">
-            <AlertTriangle className="h-4 w-4" /> Alertas bloqueantes
+      {/* sumário compacto em telas menores */}
+      <div className="xl:hidden">
+        <button
+          type="button"
+          onClick={() => setSumarioAberto((v) => !v)}
+          className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium"
+        >
+          Seções do documento
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${sumarioAberto ? "rotate-180" : ""}`}
+          />
+        </button>
+        {sumarioAberto && (
+          <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-card p-2">
+            {sumario}
+          </div>
+        )}
+      </div>
+
+      {/* 3 — layout principal */}
+      <div className="grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)_340px]">
+        <aside className="hidden h-fit rounded-lg border border-border bg-card p-3 xl:sticky xl:top-24 xl:block">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Sumário
           </p>
-          <div className="space-y-2">
-            {bloqueantes.map((b) => {
-              const conf = confirmacoes.find((c) => c.codigo === b.codigo);
-              return (
-                <div
-                  key={b.codigo}
-                  className="rounded-lg border border-border p-3 text-sm"
-                >
-                  <p className="text-muted-foreground">{b.texto}</p>
-                  {conf ? (
-                    <p className="mt-2 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      {conf.decisao === "corrigido" ? "Corrigido" : "Ciente do risco"} por{" "}
-                      {conf.confirmado_por_nome ?? "usuário"} em{" "}
-                      {new Date(conf.confirmado_em).toLocaleString("pt-BR")} — {conf.justificativa}
+          {sumario}
+        </aside>
+
+        <section className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex rounded-md border border-border bg-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setModoDoc("visualizar")}
+                className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modoDoc === "visualizar"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Eye className="h-3.5 w-3.5" /> Visualizar
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoDoc("editar")}
+                className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modoDoc === "editar"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </button>
+            </div>
+            {docSujo && (
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Alterações não salvas
+              </span>
+            )}
+          </div>
+
+          <DocumentoEditor
+            casoId={casoId}
+            conteudo={conteudo}
+            onConteudo={setConteudo}
+            onDirtyChange={setDocSujo}
+            modo={modoDoc}
+            onModoChange={setModoDoc}
+            onArvoreChange={onArvoreChange}
+            registrarSalvar={registrarSalvar}
+            semChrome
+          />
+        </section>
+
+        {/* 4 — painel contextual único com abas */}
+        <aside className="h-fit min-w-0 rounded-lg border border-border bg-card xl:sticky xl:top-24">
+          <div className="flex border-b border-border text-xs">
+            {(
+              [
+                ["pendencias", `Pendências${totalPendencias ? ` (${totalPendencias})` : ""}`],
+                ["variaveis", "Variáveis"],
+                ["achados", `Achados${achados.length ? ` (${achados.length})` : ""}`],
+              ] as const
+            ).map(([k, r]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setAba(k)}
+                className={`flex-1 px-2 py-2.5 font-medium transition-colors ${
+                  aba === k
+                    ? "border-b-2 border-primary text-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          <div className="max-h-[70vh] overflow-y-auto p-3">
+            {aba === "pendencias" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Pendências do documento
+                  </p>
+                  {listaPendencias.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma pendência [CONFIRMAR] no documento.
                     </p>
                   ) : (
-                    <Button
-                      className="mt-2"
-                      variant="secondary"
-                      onClick={() => {
-                        setAlertaAberto(b.codigo);
-                        setDecisao("corrigido");
-                        setJustificativa("");
-                      }}
-                    >
-                      Confirmar tratativa
-                    </Button>
+                    listaPendencias.map(({ bloco, rotulos }) => (
+                      <div key={bloco.id} className="rounded-lg border border-border p-2 text-xs">
+                        <p className="font-medium text-amber-700 dark:text-amber-300">
+                          {rotulos.join(" · ")}
+                        </p>
+                        <button
+                          type="button"
+                          className="mt-1 text-[11px] text-primary underline"
+                          onClick={() => irParaBloco(bloco.id)}
+                        >
+                          Ir para trecho
+                        </button>
+                      </div>
+                    ))
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
 
-      <AnaliseTecnicaPanel
-        casoId={casoId}
-        achados={achados}
-        descartados={descartados}
-        onAtualizar={(r) => {
-          setConteudo(r.conteudo);
-          setAchados(r.achados ?? []);
-          setDescartados(r.descartados ?? []);
-        }}
-      />
-
-      <Card className="p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium">Variáveis do laudo</p>
-          <Button onClick={handleSalvar} disabled={salvando || !Object.keys(edits).length}>
-            {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Salvar e remontar
-          </Button>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {CHAVES_LAUDO.map((c) => {
-            const v = variaveis[c.chave];
-            const valor = edits[c.chave] ?? v?.valor ?? "";
-            return (
-              <div key={c.chave} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium">{c.rotulo}</label>
-                  {v?.origem === "ia" && (
-                    <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-300">
-                      IA {Math.round((v.confianca ?? 0) * 100)}%
-                    </Badge>
-                  )}
-                  {v?.origem === "proposta" && (
-                    <Badge className="bg-violet-500/15 text-violet-600 dark:text-violet-300">
-                      proposta {Math.round((v.confianca ?? 0) * 100)}%
-                    </Badge>
-                  )}
-                  {v?.origem === "cadastro" && (
-                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                      cadastro
-                    </Badge>
-                  )}
-                  {v?.origem === "manual" && <Badge>manual</Badge>}
-                  {!v?.valor && (
-                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                      pendente
-                    </Badge>
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Alertas técnicos
+                  </p>
+                  {bloqueantes.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum alerta bloqueante.</p>
+                  ) : (
+                    bloqueantes.map((b) => {
+                      const conf = confirmacoes.find((c) => c.codigo === b.codigo);
+                      return (
+                        <div
+                          key={b.codigo}
+                          className="rounded-lg border border-border p-2 text-xs"
+                        >
+                          <p className="flex gap-1.5 text-muted-foreground">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+                            <span>{b.texto}</span>
+                          </p>
+                          {conf ? (
+                            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+                              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                {conf.decisao === "corrigido" ? "Corrigido" : "Ciente do risco"} por{" "}
+                                {conf.confirmado_por_nome ?? "usuário"} em{" "}
+                                {new Date(conf.confirmado_em).toLocaleString("pt-BR")} —{" "}
+                                {conf.justificativa}
+                              </span>
+                            </p>
+                          ) : (
+                            <Button
+                              className="mt-2"
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setAlertaAberto(b.codigo);
+                                setDecisao("corrigido");
+                                setJustificativa("");
+                              }}
+                            >
+                              Confirmar tratativa
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
-                <Input
-                  value={valor}
-                  placeholder={c.exemplos?.join(" | ") ?? c.descricao}
-                  onChange={(e) => {
-                    const novo = e.target.value;
-                    setEdits((prev) => ({ ...prev, [c.chave]: novo }));
-                  }}
-                />
-
-                {v?.sugestao && !v.valor ? (
-                  <button
-                    type="button"
-                    className="text-[11px] text-blue-600 underline dark:text-blue-400"
-                    onClick={() =>
-                      setEdits((prev) => ({ ...prev, [c.chave]: v.sugestao as string }))
-                    }
-                  >
-                    Sugestão da IA (baixa confiança): {v.sugestao}
-                  </button>
-                ) : null}
               </div>
-            );
-          })}
-        </div>
-      </Card>
+            )}
 
-      <DocumentoEditor
-        casoId={casoId}
-        conteudo={conteudo}
-        onConteudo={setConteudo}
-        onDirtyChange={setDocSujo}
-      />
+            {aba === "variaveis" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Origem: cadastro, proposta, IA ou manual.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleSalvar}
+                    disabled={salvando || !Object.keys(edits).length}
+                  >
+                    {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Salvar variáveis
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  “Salvar variáveis e atualizar rascunho” remonta o documento com os novos valores.
+                </p>
+                <div className="space-y-3">
+                  {CHAVES_LAUDO.map((c) => {
+                    const v = variaveis[c.chave];
+                    const valor = edits[c.chave] ?? v?.valor ?? "";
+                    return (
+                      <div key={c.chave} className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <label className="text-xs font-medium">{c.rotulo}</label>
+                          {v?.origem === "ia" && (
+                            <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-300">
+                              IA {Math.round((v.confianca ?? 0) * 100)}%
+                            </Badge>
+                          )}
+                          {v?.origem === "proposta" && (
+                            <Badge className="bg-violet-500/15 text-violet-600 dark:text-violet-300">
+                              proposta {Math.round((v.confianca ?? 0) * 100)}%
+                            </Badge>
+                          )}
+                          {v?.origem === "cadastro" && (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                              cadastro
+                            </Badge>
+                          )}
+                          {v?.origem === "manual" && <Badge>manual</Badge>}
+                          {!v?.valor && (
+                            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                              pendente
+                            </Badge>
+                          )}
+                        </div>
+                        <Input
+                          value={valor}
+                          placeholder={c.exemplos?.join(" | ") ?? c.descricao}
+                          onChange={(e) => {
+                            const novo = e.target.value;
+                            setEdits((prev) => ({ ...prev, [c.chave]: novo }));
+                          }}
+                        />
+                        {v?.sugestao && !v.valor ? (
+                          <button
+                            type="button"
+                            className="text-[11px] text-blue-600 underline dark:text-blue-400"
+                            onClick={() =>
+                              setEdits((prev) => ({ ...prev, [c.chave]: v.sugestao as string }))
+                            }
+                          >
+                            Sugestão da IA (baixa confiança): {v.sugestao}
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
+            {aba === "achados" && (
+              <AnaliseTecnicaPanel
+                casoId={casoId}
+                achados={achados}
+                descartados={descartados}
+                semCard
+                onAtualizar={(r) => {
+                  setConteudo(r.conteudo);
+                  setAchados(r.achados ?? []);
+                  setDescartados(r.descartados ?? []);
+                }}
+              />
+            )}
+          </div>
+        </aside>
+      </div>
 
       <Modal
         open={!!alertaAberto}

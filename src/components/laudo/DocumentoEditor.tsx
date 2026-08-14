@@ -115,13 +115,13 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
     }
     case "paragraph":
       return (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p id={`bloco-${bloco.id}`} className="mt-2 text-sm leading-relaxed text-muted-foreground">
           <Pendencia texto={bloco.texto} />
         </p>
       );
     case "bullets":
       return (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+        <ul id={`bloco-${bloco.id}`} className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {bloco.itens.map((i, k) => (
             <li key={k}>
               <Pendencia texto={i} />
@@ -131,7 +131,7 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "table":
       return (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+        <div id={`bloco-${bloco.id}`} className="mt-3 overflow-x-auto rounded-lg border border-border">
           {bloco.titulo ? (
             <div className="border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold">
               {bloco.titulo}
@@ -184,7 +184,7 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "observacao":
       return (
-        <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+        <div id={`bloco-${bloco.id}`} className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
           <p className="text-xs font-semibold tracking-wide text-foreground">
             {bloco.titulo || "OBSERVAÇÃO TÉCNICA"}
           </p>
@@ -608,18 +608,37 @@ export function DocumentoEditor({
   conteudo,
   onConteudo,
   onDirtyChange,
+  modo: modoProp,
+  onModoChange,
+  onArvoreChange,
+  registrarSalvar,
+  semChrome = false,
 }: {
   casoId: string;
   conteudo: LaudoConteudo | null;
   onConteudo: (c: LaudoConteudo) => void;
   /** avisa o pai quando há edição do DOCUMENTO ainda não salva */
   onDirtyChange?: (sujo: boolean) => void;
+  /** modo controlado pelo pai (segmented control da tela de revisão) */
+  modo?: "editar" | "visualizar";
+  onModoChange?: (m: "editar" | "visualizar") => void;
+  /** publica o sumário do documento para a navegação lateral do pai */
+  onArvoreChange?: (arvore: ReturnType<typeof arvoreDocumento>) => void;
+  /** expõe o salvar do documento para o botão principal do cabeçalho */
+  registrarSalvar?: (fn: (() => Promise<void>) | null) => void;
+  /** esconde sumário e barra internos (usados pelo layout da revisão) */
+  semChrome?: boolean;
 }) {
   const fnSalvar = useServerFn(salvarDocumentoLaudo);
   const fnConflito = useServerFn(resolverConflitoLaudo);
   const fnRestaurar = useServerFn(restaurarBlocoLaudo);
 
-  const [modo, setModo] = useState<"editar" | "visualizar">("visualizar");
+  const [modoInterno, setModoInterno] = useState<"editar" | "visualizar">("visualizar");
+  const modo = modoProp ?? modoInterno;
+  const setModo = (m: "editar" | "visualizar") => {
+    setModoInterno(m);
+    onModoChange?.(m);
+  };
   const [blocos, setBlocos] = useState<BlocoLaudo[]>(() =>
     renumerar(comChaves(conteudo?.blocos ?? [])),
   );
@@ -641,6 +660,7 @@ export function DocumentoEditor({
     if (JSON.stringify(novos) !== JSON.stringify(blocos)) setBlocos(novos);
   }
 
+
   const visiveis = useMemo(() => blocos.filter((b) => !b.oculto), [blocos]);
   const arvore = useMemo(() => arvoreDocumento(blocos), [blocos]);
   const pendencias = useMemo(
@@ -648,6 +668,18 @@ export function DocumentoEditor({
     [visiveis],
   );
   const conflitos = useMemo(() => blocos.filter((b) => b.conflito), [blocos]);
+
+  useEffect(() => {
+    onArvoreChange?.(arvore);
+  }, [arvore, onArvoreChange]);
+
+  const salvarRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    registrarSalvar?.(() => salvarRef.current());
+    return () => registrarSalvar?.(null);
+  }, [registrarSalvar]);
+
+
 
   function atualizar(next: BlocoLaudo[]) {
     setBlocos(renumerar(next));
@@ -744,6 +776,9 @@ export function DocumentoEditor({
       setSalvando(false);
     }
   }
+  salvarRef.current = salvar;
+
+
 
   async function resolver(chave: string, decisao: "manter_edicao" | "atualizar_formulario") {
     try {
@@ -782,66 +817,71 @@ export function DocumentoEditor({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-      <Card className="h-fit p-3 lg:sticky lg:top-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Documento
-        </p>
-        <nav className="space-y-0.5 text-xs">
-          {arvore.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className="block w-full truncate rounded px-1 py-1 text-left hover:bg-muted"
-              style={{ paddingLeft: 4 + (n.nivel - 1) * 10 }}
-              onClick={() =>
-                document
-                  .getElementById(`bloco-${n.id}`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "center" })
-              }
-            >
-              {n.numero ? `${n.numero}. ` : ""}
-              {n.texto}
-            </button>
-          ))}
-        </nav>
-      </Card>
+    <div className={semChrome ? "" : "grid gap-4 lg:grid-cols-[220px_1fr]"}>
+      {!semChrome && (
+        <Card className="h-fit p-3 lg:sticky lg:top-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Documento
+          </p>
+          <nav className="space-y-0.5 text-xs">
+            {arvore.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                className="block w-full truncate rounded px-1 py-1 text-left hover:bg-muted"
+                style={{ paddingLeft: 4 + (n.nivel - 1) * 10 }}
+                onClick={() =>
+                  document
+                    .getElementById(`bloco-${n.id}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                }
+              >
+                {n.numero ? `${n.numero}. ` : ""}
+                {n.texto}
+              </button>
+            ))}
+          </nav>
+        </Card>
+      )}
 
       <div className="space-y-3">
-        <Card className="flex flex-wrap items-center justify-between gap-2 p-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={modo === "editar" ? "primary" : "secondary"}
-              onClick={() => setModo("editar")}
-            >
-              <Pencil className="mr-2 h-4 w-4" /> Editar documento
-            </Button>
-            <Button
-              variant={modo === "visualizar" ? "primary" : "secondary"}
-              onClick={() => {
-                setModo("visualizar");
-                setEditando(null);
-              }}
-            >
-              <Eye className="mr-2 h-4 w-4" /> Visualizar
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendencias > 0 && (
-              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                {pendencias} pendência(s) de confirmação
-              </Badge>
-            )}
-            <Button onClick={salvar} disabled={!sujo || salvando}>
-              {salvando ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
+        {!semChrome && (
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={modo === "editar" ? "primary" : "secondary"}
+                onClick={() => setModo("editar")}
+              >
+                <Pencil className="mr-2 h-4 w-4" /> Editar documento
+              </Button>
+              <Button
+                variant={modo === "visualizar" ? "primary" : "secondary"}
+                onClick={() => {
+                  setModo("visualizar");
+                  setEditando(null);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" /> Visualizar
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              {pendencias > 0 && (
+                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                  {pendencias} pendência(s) de confirmação
+                </Badge>
               )}
-              Salvar documento
-            </Button>
-          </div>
-        </Card>
+              <Button onClick={salvar} disabled={!sujo || salvando}>
+                {salvando ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Salvar documento
+              </Button>
+            </div>
+          </Card>
+        )}
+
 
         {conflitos.length > 0 && (
           <Card className="space-y-3 p-4">

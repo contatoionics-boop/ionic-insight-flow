@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Check, Loader2, Microscope, Undo2 } from "lucide-react";
@@ -11,6 +11,8 @@ type Props = {
   casoId: string;
   achados: Achado[];
   descartados: string[];
+  /** renderiza sem o Card externo (usado dentro do painel de revisão) */
+  semCard?: boolean;
   onAtualizar: (r: {
     conteudo: LaudoConteudo;
     achados: Achado[];
@@ -25,7 +27,9 @@ const SECAO_ROTULO: Record<string, string> = {
   "2.4": "2.4 Bicos de abastecimento",
 };
 
-export function AnaliseTecnicaPanel({ casoId, achados, descartados, onAtualizar }: Props) {
+export function AnaliseTecnicaPanel({ casoId, achados, descartados, semCard, onAtualizar }: Props) {
+  const Wrap = ({ children }: { children: ReactNode }) =>
+    semCard ? <div className="space-y-3">{children}</div> : <Card className="p-4">{children}</Card>;
   const fnDecidir = useServerFn(decidirAchadoLaudo);
   const [emAndamento, setEmAndamento] = useState<string | null>(null);
 
@@ -44,7 +48,7 @@ export function AnaliseTecnicaPanel({ casoId, achados, descartados, onAtualizar 
 
   if (!achados.length) {
     return (
-      <Card className="p-4">
+      <Wrap>
         <p className="flex items-center gap-2 text-sm font-medium">
           <Microscope className="h-4 w-4" /> Análise técnica
         </p>
@@ -52,12 +56,12 @@ export function AnaliseTecnicaPanel({ casoId, achados, descartados, onAtualizar 
           Nenhuma conclusão técnica foi derivada ainda. Gere/regere o laudo depois que o formulário
           FR-29-10 estiver preenchido.
         </p>
-      </Card>
+      </Wrap>
     );
   }
 
   return (
-    <Card className="p-4">
+    <Wrap>
       <p className="mb-1 flex items-center gap-2 text-sm font-medium">
         <Microscope className="h-4 w-4" /> Análise técnica
       </p>
@@ -124,6 +128,6 @@ export function AnaliseTecnicaPanel({ casoId, achados, descartados, onAtualizar 
           );
         })}
       </div>
-    </Card>
+    </Wrap>
   );
 }
