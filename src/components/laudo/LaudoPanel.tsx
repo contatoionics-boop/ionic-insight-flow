@@ -508,14 +508,27 @@ export function LaudoPanel({
         </section>
 
         {/* 4 — painel contextual único com abas */}
-        <aside className="h-fit min-w-0 rounded-lg border border-border bg-card xl:sticky xl:top-24">
+        <aside
+          className={`h-fit min-w-0 rounded-lg border border-border bg-card ${
+            etapa === "documento" ? "xl:sticky xl:top-24" : ""
+          }`}
+        >
           <div className="flex border-b border-border text-xs">
             {(
-              [
-                ["pendencias", `Pendências${totalPendencias ? ` (${totalPendencias})` : ""}`],
-                ["variaveis", "Variáveis"],
-                ["achados", `Achados${achados.length ? ` (${achados.length})` : ""}`],
-              ] as const
+              etapa === "analise"
+                ? ([
+                    ["achados", `Achados técnicos${achados.length ? ` (${achados.length})` : ""}`],
+                    ["variaveis", "Variáveis estruturadas"],
+                    [
+                      "pendencias",
+                      `Pendências/alertas${totalPendencias ? ` (${totalPendencias})` : ""}`,
+                    ],
+                  ] as const)
+                : ([
+                    ["pendencias", `Pendências${totalPendencias ? ` (${totalPendencias})` : ""}`],
+                    ["variaveis", "Variáveis"],
+                    ["achados", `Achados${achados.length ? ` (${achados.length})` : ""}`],
+                  ] as const)
             ).map(([k, r]) => (
               <button
                 key={k}
