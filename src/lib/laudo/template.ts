@@ -8,6 +8,8 @@ import {
   type MaterialCatalogo,
 } from "./regras";
 import { FIGURA_SUPORTE_BICO } from "./figuras";
+import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
+import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
@@ -24,6 +26,8 @@ export type EntradaTemplate = {
   variaveis: VariaveisLaudo;
   materiais: MaterialCatalogo[];
   cabecalho: CabecalhoLaudo;
+  /** achados de análise técnica descartados pelo especialista */
+  achadosDescartados?: string[];
 };
 
 /** chaves de texto livre onde valores sem sentido não podem ir para o documento */
@@ -77,8 +81,16 @@ let figSeq = 0;
 const proximaFigura = () => ++figSeq;
 
 export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
+  return montarBlocosEAnalise(entrada).blocos;
+}
+
+export function montarBlocosEAnalise(entrada: EntradaTemplate): {
+  blocos: BlocoLaudo[];
+  achados: Achado[];
+} {
   seq = 0;
   figSeq = 0;
+  resetSequenciaRedacao();
   const vars = entrada.variaveis;
   const blocos: BlocoLaudo[] = [];
 
@@ -94,6 +106,14 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     terminalAtual: raw(vars, "terminal_atual"),
     rfid: bool(vars, "rfid"),
   };
+
+  // Camada de análise técnica: os dados do FR-29-10 viram conclusões e
+  // recomendações. O especialista pode descartar achados na revisão.
+  const descartados = new Set(entrada.achadosDescartados ?? []);
+  const achados = analisarMapeamento({ variaveis: vars, bitola, nivel });
+  const achadosAtivos = achados.filter((a) => !descartados.has(a.chave));
+  const secao = (s: "2.1" | "2.2" | "2.3" | "2.4") =>
+    blocosDosAchados(achadosDaSecao(achadosAtivos, s));
 
   // ---------- 1. Introdução ----------
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
@@ -234,6 +254,10 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
   });
   let sub22 = 0;
   const num22 = () => `2.2.${++sub22}`;
+  const achadosComunicacao = achadosDaSecao(achadosAtivos, "2.2");
+  const achadoWifi = achadosComunicacao.filter((a) => a.chave === "comunicacao_wifi");
+  const achadoGsm = achadosComunicacao.filter((a) => a.chave === "comunicacao_gsm");
+
   blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 });
   blocos.push({
     id: bid("p"),
@@ -241,8 +265,9 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     texto:
       "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
   });
+  blocos.push(...blocosDosAchados(achadoWifi));
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
-  if (comunicacao.includes("4g") || comunicacao.includes("gsm")) {
+  if (achadoGsm.length || comunicacao.includes("4g") || comunicacao.includes("gsm")) {
     blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
     blocos.push({
       id: bid("p"),
@@ -250,6 +275,7 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
       texto:
         "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
     });
+    blocos.push(...blocosDosAchados(achadoGsm));
   }
   blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 });
   blocos.push({
@@ -298,6 +324,9 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
         `O terminal T1000 será instalado em compartimento de ${v(vars, "compartimento_dimensao", "dimensão do compartimento")}.`,
     });
   });
+
+  // Análise técnica do cenário físico (bomba, registrador, bloco medidor, pista).
+  blocos.push(...secao("2.3"));
 
   // Produtos e materiais são idênticos para todos os objetos: uma tabela só.
   if (varios) {
@@ -379,6 +408,7 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
         "No nível de serviço contratado não há instalação de medidor de vazão na linha; o controle é feito pelo terminal e pelos sensores de acionamento.",
     });
   }
+  blocos.push(...secao("2.4"));
   blocos.push({
     id: bid("t"),
     tipo: "table",
@@ -426,5 +456,5 @@ export function montarBlocos(entrada: EntradaTemplate): BlocoLaudo[] {
     ],
   });
 
-  return blocos;
+  return { blocos, achados };
 }
