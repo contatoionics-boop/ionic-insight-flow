@@ -605,7 +605,9 @@ export async function buildLaudoPdf(input: {
     }
   }
 
+  encerramento(ctx);
 
   ctx.pages.forEach((p, i) => drawFooter(p, font, input.meta, i + 1, ctx.pages.length));
+
   return pdf.save();
 }
