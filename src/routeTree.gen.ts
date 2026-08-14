@@ -27,6 +27,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppCatalogoMateriaisRouteImport } from './routes/app.catalogo-materiais'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AppBlocosPadraoRouteImport } from './routes/app.blocos-padrao'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
 import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
 import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
@@ -135,6 +136,11 @@ const AppCatalogoMateriaisRoute = AppCatalogoMateriaisRouteImport.update({
 const AppCasesRoute = AppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBlocosPadraoRoute = AppBlocosPadraoRouteImport.update({
+  id: '/blocos-padrao',
+  path: '/blocos-padrao',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
+  '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
+  '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   '/app/agente-ia': typeof AppAgenteIaRoute
   '/app/agente-perfil': typeof AppAgentePerfilRoute
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
+  '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/app/agente-ia'
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
+    | '/app/blocos-padrao'
     | '/app/cases'
     | '/app/catalogo-materiais'
     | '/app/clients'
@@ -403,6 +413,7 @@ export interface FileRouteTypes {
     | '/app/agente-ia'
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
+    | '/app/blocos-padrao'
     | '/app/cases'
     | '/app/catalogo-materiais'
     | '/app/configuracoes'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/app/agente-ia'
     | '/app/agente-perfil'
     | '/app/base-conhecimento'
+    | '/app/blocos-padrao'
     | '/app/cases'
     | '/app/catalogo-materiais'
     | '/app/clients'
@@ -606,6 +618,13 @@ declare module '@tanstack/react-router' {
       path: '/cases'
       fullPath: '/app/cases'
       preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/blocos-padrao': {
+      id: '/app/blocos-padrao'
+      path: '/blocos-padrao'
+      fullPath: '/app/blocos-padrao'
+      preLoaderRoute: typeof AppBlocosPadraoRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/base-conhecimento': {
@@ -779,6 +798,7 @@ interface AppRouteChildren {
   AppAgenteIaRoute: typeof AppAgenteIaRoute
   AppAgentePerfilRoute: typeof AppAgentePerfilRoute
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
+  AppBlocosPadraoRoute: typeof AppBlocosPadraoRoute
   AppCasesRoute: typeof AppCasesRoute
   AppCatalogoMateriaisRoute: typeof AppCatalogoMateriaisRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
@@ -805,6 +825,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgenteIaRoute: AppAgenteIaRoute,
   AppAgentePerfilRoute: AppAgentePerfilRoute,
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
+  AppBlocosPadraoRoute: AppBlocosPadraoRoute,
   AppCasesRoute: AppCasesRoute,
   AppCatalogoMateriaisRoute: AppCatalogoMateriaisRoute,
   AppClientsRoute: AppClientsRouteWithChildren,

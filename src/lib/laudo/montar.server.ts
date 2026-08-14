@@ -1,4 +1,4 @@
-import { montarBlocos } from "@/lib/laudo/template";
+import { montarBlocosEAnalise } from "@/lib/laudo/template";
 import type { MaterialCatalogo } from "@/lib/laudo/regras";
 import type { LaudoConteudo, VariaveisLaudo } from "@/lib/laudo/tipos";
 
@@ -6,7 +6,7 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
   const { data: caso, error } = await supabase
     .from("casos")
     .select(
-      "id, codigo, agendado_em, formulario_id, laudo_variaveis, laudo_conteudo, laudo_alertas, modalidade, nivel, tipo_solicitacao, agente_nome_manual, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
+      "id, codigo, agendado_em, formulario_id, laudo_variaveis, laudo_conteudo, laudo_alertas, laudo_analise, modalidade, nivel, tipo_solicitacao, agente_nome_manual, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
     )
     .eq("id", casoId)
     .maybeSingle();
@@ -88,7 +88,10 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const variaveis = await extrairVariaveis(respostas, manuais, camadas);
 
   const meta = metaDoCasoLaudo(caso);
-  const blocos = montarBlocos({
+  const analiseSalva = (caso.laudo_analise ?? {}) as { descartados?: string[] };
+  const descartados = analiseSalva.descartados ?? [];
+  const { blocos, achados } = montarBlocosEAnalise({
+    achadosDescartados: descartados,
     variaveis,
     materiais,
     cabecalho: {
@@ -113,7 +116,11 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   };
   const { error } = await supabase
     .from("casos")
-    .update({ laudo_variaveis: variaveis as any, laudo_conteudo: conteudo as any })
+    .update({
+      laudo_variaveis: variaveis as any,
+      laudo_conteudo: conteudo as any,
+      laudo_analise: { achados, descartados, analisado_em: new Date().toISOString() } as any,
+    })
     .eq("id", casoId);
   if (error) throw new Error(error.message);
 
@@ -126,5 +133,13 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     // sem proposta anexada ou falha na comparação: laudo segue normalmente
   }
 
-  return { caso, variaveis, conteudo, blocos: mescla.blocos, conflitos: mescla.conflitos };
+  return {
+    caso,
+    variaveis,
+    conteudo,
+    blocos: mescla.blocos,
+    conflitos: mescla.conflitos,
+    achados,
+    descartados,
+  };
 }

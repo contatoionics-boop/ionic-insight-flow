@@ -20,6 +20,8 @@ import {
 } from "@/lib/laudo.functions";
 import { CHAVES_LAUDO, rotuloChave } from "@/lib/laudo/chaves";
 import { DocumentoEditor } from "@/components/laudo/DocumentoEditor";
+import { AnaliseTecnicaPanel } from "@/components/laudo/AnaliseTecnicaPanel";
+import type { Achado } from "@/lib/laudo/analise/achados";
 import type {
   BlocoLaudo,
   ConfirmacaoAlerta,
@@ -178,6 +180,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
   const [conteudo, setConteudo] = useState<LaudoConteudo | null>(null);
   const [variaveis, setVariaveis] = useState<VariaveisLaudo>({});
   const [confirmacoes, setConfirmacoes] = useState<ConfirmacaoAlerta[]>([]);
+  const [achados, setAchados] = useState<Achado[]>([]);
+  const [descartados, setDescartados] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [alertaAberto, setAlertaAberto] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -191,6 +195,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       setConteudo(r.conteudo);
       setVariaveis(r.variaveis ?? {});
       setConfirmacoes(r.confirmacoes ?? []);
+      setAchados((r.achados ?? []) as Achado[]);
+      setDescartados(r.descartados ?? []);
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao carregar o laudo.");
     } finally {
@@ -219,6 +225,8 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
       setConteudo(r.conteudo);
       setVariaveis(r.variaveis);
       setConfirmacoes(r.confirmacoes ?? []);
+      setAchados((r.achados ?? []) as Achado[]);
+      setDescartados(r.descartados ?? []);
       setEdits({});
       toast.success(
         r.pendencias > 0
@@ -425,6 +433,17 @@ export function LaudoPanel({ casoId }: { casoId: string }) {
           </div>
         </Card>
       )}
+
+      <AnaliseTecnicaPanel
+        casoId={casoId}
+        achados={achados}
+        descartados={descartados}
+        onAtualizar={(r) => {
+          setConteudo(r.conteudo);
+          setAchados(r.achados ?? []);
+          setDescartados(r.descartados ?? []);
+        }}
+      />
 
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
