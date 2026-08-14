@@ -10,7 +10,7 @@ import {
   type MaterialCatalogo,
 } from "./regras";
 import { FIGURA_SUPORTE_BICO } from "./figuras";
-import { blocosNivel2 } from "./blocos-nivel2";
+import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
