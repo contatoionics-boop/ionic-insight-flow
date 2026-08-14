@@ -31,7 +31,14 @@ export type EntradaMetaLaudo = {
   criadorAgendamento?: string | null;
   /** nome do perfil correspondente ao especialista em automação, quando existir */
   especialistaPerfil?: string | null;
-  formulario?: { nome?: string | null; codigo?: string | null; revisao?: string | null } | null;
+  formulario?: {
+    nome?: string | null;
+    codigo?: string | null;
+    revisao?: string | null;
+    elaborado_por?: string | null;
+    aprovado_por?: string | null;
+    data_revisao?: string | null;
+  } | null;
 };
 
 export type MetaLaudo = {
@@ -157,9 +164,13 @@ export function resolverMetaLaudo(entrada: EntradaMetaLaudo): MetaLaudo {
     analista,
     especialista,
     codigoDocumento: CODIGO_DOCUMENTO,
-    elaboradoPor: qualquer(vars, "elaborado_por") ?? "Sheron Williams",
-    aprovadoPor: qualquer(vars, "aprovado_por") ?? "Guilherme Sombrio",
-    dataRevisao: qualquer(vars, "data_revisao") ?? "02/04/2024",
+    // cabeçalho de controle: variável confirmada > cadastro do formulário > padrão
+    elaboradoPor:
+      qualquer(vars, "elaborado_por") ?? entrada.formulario?.elaborado_por ?? "Sheron Williams",
+    aprovadoPor:
+      qualquer(vars, "aprovado_por") ?? entrada.formulario?.aprovado_por ?? "Guilherme Sombrio",
+    dataRevisao:
+      qualquer(vars, "data_revisao") ?? dataBR(entrada.formulario?.data_revisao) ?? "02/04/2024",
     codigoFormulario,
     revisao: entrada.formulario?.revisao ?? null,
     nomeDocumento: `${codigoFormulario ? `${codigoFormulario} - ` : ""}${TITULO_DOCUMENTO} - ${empresa}`,

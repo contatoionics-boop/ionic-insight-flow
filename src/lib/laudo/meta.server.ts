@@ -41,21 +41,35 @@ export async function carregarMetaLaudoDoCaso(
     criadorAgendamento = perfil?.nome || perfil?.email || null;
   }
 
-  // especialista em automação: perfil cadastrado do Pablo, quando existir
+  // especialista em automação: perfil com papel de especialista cujo nome é Pablo
   let especialistaPerfil: string | null = null;
-  const { data: pablo } = await supabase
-    .from("profiles")
-    .select("nome")
-    .ilike("nome", "%pablo%")
-    .limit(1);
-  if (pablo?.[0]?.nome) especialistaPerfil = pablo[0].nome as string;
+  const { data: papeis } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "especialista");
+  const ids = (papeis ?? []).map((r: any) => r.user_id);
+  if (ids.length) {
+    const { data: perfis } = await supabase
+      .from("profiles")
+      .select("nome")
+      .in("id", ids)
+      .ilike("nome", "%pablo%")
+      .limit(1);
+    if (perfis?.[0]?.nome) especialistaPerfil = perfis[0].nome as string;
+  }
 
-  let formulario: { nome: string | null; codigo: string | null; revisao: string | null } | null =
-    null;
+  let formulario: {
+    nome: string | null;
+    codigo: string | null;
+    revisao: string | null;
+    elaborado_por: string | null;
+    aprovado_por: string | null;
+    data_revisao: string | null;
+  } | null = null;
   if (caso.formulario_id) {
     const { data: f } = await supabase
       .from("formularios")
-      .select("nome, codigo, revisao")
+      .select("nome, codigo, revisao, elaborado_por, aprovado_por, data_revisao")
       .eq("id", caso.formulario_id)
       .maybeSingle();
     formulario = (f as any) ?? null;
