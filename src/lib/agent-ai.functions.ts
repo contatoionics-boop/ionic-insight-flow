@@ -114,7 +114,7 @@ const TranscreverInput = z.object({
 export const transcreverAudio = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => TranscreverInput.parse(input))
   .handler(async ({ data }) => {
-    if (data.token !== "preview") {
+    if (data.token !== "preview" && data.token !== "app") {
       await validarToken(data.token);
     }
 
