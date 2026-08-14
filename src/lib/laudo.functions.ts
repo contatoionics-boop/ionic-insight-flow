@@ -46,6 +46,24 @@ function vazio(v: string | null | undefined): boolean {
   return !s || s === "—" || s === "-";
 }
 
+/**
+ * Valor de cabeçalho respeitando a precedência: resposta explícita do
+ * formulário (ou confirmação manual do especialista) vence o cadastro;
+ * na falta das duas, usa o que houver em `laudo_variaveis` (proposta/IA).
+ */
+function valorCabecalho(
+  vars: VariaveisLaudo,
+  chave: string,
+  doCadastro: string | null | undefined,
+): string {
+  const item = vars[chave];
+  const doLaudo = (item?.valor ?? "").trim();
+  const explicito = doLaudo && (item?.origem === "formulario" || item?.origem === "manual");
+  if (explicito) return doLaudo;
+  if (!vazio(doCadastro)) return (doCadastro as string).trim();
+  return doLaudo || "—";
+}
+
 function metaDoCaso(caso: any) {
   const u = caso.unidade;
   const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
@@ -436,19 +454,19 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         empresaNome: config?.nome_empresa || "Ionics",
         logoBytes,
         logoMime,
-        // cadastro manda no cabeçalho; quando faltar, usa o que veio da
-        // proposta comercial / respostas do formulário (laudo_variaveis)
-        cliente: vazio(meta.cliente) ? vars["nome_cliente"]?.valor || "—" : meta.cliente,
-        unidade: vazio(meta.unidade) ? vars["unidade"]?.valor || "—" : meta.unidade,
-        data: vazio(meta.data) ? vars["data_mapeamento"]?.valor || "—" : meta.data,
-        agente: vazio(meta.agente) ? vars["agente_tecnico"]?.valor || "—" : meta.agente,
+        // resposta explícita do formulário (ou confirmação manual) vence o
+        // cadastro; depois cadastro; por último proposta/IA (laudo_variaveis)
+        cliente: valorCabecalho(vars, "nome_cliente", meta.cliente),
+        unidade: valorCabecalho(vars, "unidade", meta.unidade),
+        data: valorCabecalho(vars, "data_mapeamento", meta.data),
+        agente: valorCabecalho(vars, "agente_tecnico", meta.agente),
         codigoDocumento: "FR-31-10",
         elaboradoPor: vars["elaborado_por"]?.valor || "Sheron Williams",
         aprovadoPor: vars["aprovado_por"]?.valor || "Guilherme Sombrio",
         revisaoDocumento: formulario?.revisao ?? "01",
         dataRevisao: vars["data_revisao"]?.valor || "02/04/2024",
-        analista: vars["analista_projetos"]?.valor || null,
-        especialista: vars["especialista_automacao"]?.valor || null,
+        analista: (vars["analista_projetos"]?.valor ?? "").trim() || null,
+        especialista: (vars["especialista_automacao"]?.valor ?? "").trim() || null,
       },
 
       blocos: renumerar(conteudo.blocos as BlocoLaudo[]).filter((b) => !b.oculto),
