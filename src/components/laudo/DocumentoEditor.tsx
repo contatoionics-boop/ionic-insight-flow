@@ -1035,19 +1035,36 @@ export function DocumentoEditor({
 
   function inserirBlocos(indice: number, novos: BlocoLaudo[]) {
     if (!novos.length) return;
-    const marcados = novos.map((b) => ({
-      ...(b as any),
-      id: novoId(),
-      chave: `manual:${novoId()}`,
-      origem: "manual",
-      editavel: true,
-      removivel: true,
-    })) as BlocoLaudo[];
+    const existentes = new Set(blocos.map((b) => b.chave));
+    const marcados = novos
+      // blocos estruturais já presentes não são inseridos de novo
+      .filter((b) => !(b.chave && existentes.has(b.chave)))
+      .map((b) => ({
+        ...(b as any),
+        id: novoId(),
+        // preserva a chave estrutural (`nivel2:...`) para o merge da regeração
+        chave: (b as any).chave ?? `manual:${novoId()}`,
+        origem: "manual",
+        editavel: true,
+        removivel: true,
+      })) as BlocoLaudo[];
+    if (!marcados.length) return;
     const next = [...blocos];
     next.splice(indice, 0, ...marcados);
     atualizar(next);
     setModo("editar");
   }
+
+  function inserirNivel2(indice: number, tipo: "secao" | "2.4" | "2.4.1") {
+    const novos =
+      tipo === "secao"
+        ? [blocoSecaoVII(), ...blocos24(), ...blocos241()]
+        : tipo === "2.4"
+          ? blocos24()
+          : blocos241();
+    inserirBlocos(indice, novos);
+  }
+
 
   function inserir(
     indice: number,
