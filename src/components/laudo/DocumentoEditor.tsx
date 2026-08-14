@@ -1254,7 +1254,7 @@ export function DocumentoEditor({
           {meta ? <CabecalhoFolha meta={meta} /> : null}
           {modo === "editar" && (
             <MenuAdicionar
-              onAdd={(t, n) => inserir(0, t, n)}
+              onAdd={(t, n, o) => inserir(0, t, n, o)}
               onBlocoPadrao={() => {
                 setAlvoInsercao(0);
                 setBiblioteca("padrao");
@@ -1281,7 +1281,7 @@ export function DocumentoEditor({
               );
             }
             if (modo === "visualizar") return <Visual key={b.id} bloco={b} />;
-            const inline = b.tipo !== "image" && b.tipo !== "alert" && b.tipo !== "pagebreak";
+            const inline = b.tipo !== "image" && b.tipo !== "pagebreak";
             return (
               <div key={b.id}>
                 <div
@@ -1331,7 +1331,7 @@ export function DocumentoEditor({
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
-                    {b.removivel !== false && (
+                    {true && (
                       <button
                         type="button"
                         className="rounded border border-border bg-background p-1 text-destructive"
@@ -1371,7 +1371,7 @@ export function DocumentoEditor({
                   )}
                 </div>
                 <MenuAdicionar
-                  onAdd={(t, n) => inserir(i + 1, t, n)}
+                  onAdd={(t, n, o) => inserir(i + 1, t, n, o)}
                   onBlocoPadrao={() => {
                     setAlvoInsercao(i + 1);
                     setBiblioteca("padrao");
