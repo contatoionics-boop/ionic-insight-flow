@@ -459,11 +459,12 @@ function ReviewCasePage() {
         </Card>
       )}
 
-      <div className="mb-4 flex gap-1 border-b border-border">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
         {(
           [
-            ["respostas", "Respostas"],
-            ["laudo", "Laudo estruturado"],
+            ["respostas", "1. Respostas do formulário"],
+            ["analise", "2. Análise técnica"],
+            ["documento", "3. Documento"],
             ["proposta", "Proposta × Campo"],
           ] as const
         ).map(([key, label]) => (
@@ -471,7 +472,7 @@ function ReviewCasePage() {
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === key
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -482,10 +483,49 @@ function ReviewCasePage() {
         ))}
       </div>
 
-      {tab === "laudo" && <LaudoPanel casoId={id} />}
+      {(tab === "analise" || tab === "documento") && (
+        <LaudoPanel casoId={id} etapa={tab === "analise" ? "analise" : "documento"} />
+      )}
       {tab === "proposta" && <PropostaPanel casoId={id} />}
 
-      <div className="space-y-4" hidden={tab !== "respostas"}>
+      {tab === "respostas" && (
+        <div className="mb-3 inline-flex rounded-md border border-border bg-card p-0.5">
+          {(
+            [
+              ["leitura", "Leitura"],
+              ["editar", "Editar respostas"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setModoRespostas(k)}
+              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                modoRespostas === k
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "respostas" && modoRespostas === "leitura" && (
+        <RespostasLeitura
+          secoes={secoes}
+          perguntasPorSecao={perguntasPorSecao}
+          respostas={respostas}
+          urls={fotoUrls}
+          agente={caseData.agente?.nome ?? null}
+        />
+      )}
+
+      <div
+        className="space-y-4"
+        hidden={tab !== "respostas" || modoRespostas !== "editar"}
+      >
         {secoes.length === 0 && (
           <Card>
             <p className="text-sm text-muted-foreground">
