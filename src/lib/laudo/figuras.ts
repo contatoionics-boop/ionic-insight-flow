@@ -30,14 +30,15 @@ export const FIGURA_PONTEIRA_NLDIV: FiguraLaudo = {
  * (public/laudo). Não dependem de upload por caso nem de URL assinada.
  */
 export const FIGURA_N2_BICO: FiguraLaudo = {
-  url: "/laudo/nivel2-bico-wireless.svg",
+  // desenho real recortado do documento oficial (fallback vetorial no PDF)
+  url: bicoNldiv.url,
   alt: "Desenho técnico do bico de abastecimento com Módulo Bico Wireless e NLDIV",
   legendaBase: "Bico automatizado com a Solução NLDIV Wireless",
   larguraMax: 400,
 };
 
 export const FIGURA_N2_PONTEIRA: FiguraLaudo = {
-  url: "/laudo/nivel2-nldiv-ponteira.svg",
+  url: ponteiraNldiv.url,
   alt: "Detalhe técnico da ponteira com NLDIV Wireless acoplada e aumento do diâmetro externo",
   legendaBase: "Ponteira do bico com a NLDIV Wireless (antena/leitor) acoplada",
   larguraMax: 400,
