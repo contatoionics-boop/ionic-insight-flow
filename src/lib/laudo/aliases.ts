@@ -14,10 +14,10 @@ function norm(s: string): string {
 /** pares [chave do laudo, trechos que identificam a pergunta] */
 const ALIASES: Array<[string, string[]]> = [
   ["nome_cliente", ["cliente unidade", "nome do cliente", "razao social", "nome fantasia", "empresa cliente", "cliente"]],
-  ["unidade", ["unidade filial", "cliente unidade", "nome da unidade", "unidade atendida", "filial", "unidade"]],
+  ["unidade", ["unidade filial", "cliente unidade", "nome da unidade", "unidade atendida", "filial"]],
   [
     "data_mapeamento",
-    ["data do mapeamento", "data da vistoria", "data do atendimento", "data de realizacao", "data da visita", "data"],
+    ["data do mapeamento", "data da vistoria", "data do atendimento", "data de realizacao", "data da visita"],
   ],
   ["responsavel_cliente", ["responsavel pelo acompanhamento", "responsavel do cliente"]],
   [
