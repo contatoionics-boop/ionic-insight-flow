@@ -16,21 +16,35 @@ Cliente / Unidade, Pista, Data, Responsável, Contato.
 Tipo de bomba (Eletrônica/Mecânica), Marca/Modelo da bomba, Vazão fornecida (L/min), Tensão de alimentação (220VCA/380VCA), Marca/Modelo do Registrador Mecânico, Marca/Modelo do Bloco Medidor, Diâmetro da saída do Bloco Medidor, Diâmetro da mangueira de abastecimento, Marca/Modelo do bico, Diâmetro da ponteira do bico, Comprimento da ponteira do bico, Diâmetro da entrada do corpo do bico.
 
 ### Seção 1.1 — Registro fotográfico do dispositivo (bloco de fotos)
-12 fotos, cada uma com o texto de instrução do documento como orientação ao agente:
-frontal 1 m do registrador; lateral direita 90° 1 m; lateral esquerda 90° 1 m; frontal do dispositivo; lateral direita do dispositivo; lateral esquerda do dispositivo; frontal 1 m do bloco medidor; lateral direita 90° do bloco medidor; lateral esquerda 90° do bloco medidor; bico 70° lateral; conexão da mangueira no bico; conexão da mangueira no bloco medidor.
-Mais 2 fotos do descanso/suporte do bico (panorâmica 2 m e aproximada 70 cm).
+**11 fotos**, na ordem exata do FR-29-10, cada uma com o texto de instrução original como orientação ao agente:
+1. Aproximada frontal a 1 m do Registrador Mecânico (Display/CPU em bomba eletrônica)
+2. Aproximada lateral direita (90°) a 1 m do Registrador Mecânico
+3. Aproximada lateral esquerda (90°) a 1 m do Registrador Mecânico
+4. Aproximada frontal do dispositivo de abastecimento
+5. Aproximada lateral direita do dispositivo de abastecimento
+6. Aproximada lateral esquerda do dispositivo de abastecimento
+7. Aproximada frontal a 1 m do Bloco Medidor (ou interna "sem tampas" da parte inferior, em bomba eletrônica)
+8. Aproximada lateral direita (90°) a 1 m do Bloco Medidor (ou lateral completa, em bomba eletrônica)
+9. Aproximada lateral esquerda (90°) a 1 m do Bloco Medidor (ou lateral completa, em bomba eletrônica)
+10. Aproximada lateral (90°) a 70 cm do Bico de Abastecimento (corpo e ponteira), incluindo a conexão da mangueira no bico e no bloco medidor conforme instrução do documento
+11. Descanso / suporte do Bico de Abastecimento (panorâmica frontal a ~2 m e detalhe a 70 cm, no mesmo campo, como no original)
+
+Nenhum campo fotográfico adicional é criado além dos que existem como registro independente no documento.
+
 
 ### Seção 2 — Descrição geral da pista (bloco em matriz)
 Área coberta (sim/não), possui controle/automação (sim/não), possui suporte para o bico (sim/não), distância da ilha até a pista, altura do registrador mecânico, e as 4 distâncias do bloco medidor (frente, trás, direita, esquerda) — cada uma com **dois campos**: objeto identificado + distância. Nota fixa: em bomba eletrônica, considerar a bomba no lugar do bloco medidor.
 
 ### Seção 2.1 — Registro fotográfico da pista (bloco de fotos)
-5 fotos: panorâmica frontal de toda a pista; frontal a 5 m; traseira a 5 m; diagonal direita 45° a 7 m; diagonal esquerda 45° a 7 m.
+**5 fotos**, na ordem do documento: panorâmica frontal de toda a pista; panorâmica frontal a ~5 m do dispositivo; panorâmica traseira a ~5 m; panorâmica diagonal direita (45°) a ~7 m; panorâmica diagonal esquerda (45°) a ~7 m.
 
 ### Seção 3 — Processo de abastecimento e transferência de dados
 Combustível fornecido (Gasolina/Etanol/Diesel S10/Diesel S500), Tipos de veículos que abastece (múltipla: Motos/Leves/Pesados/Máquinas/Comboios), Potência do sinal GPRS/2G, Estabilidade do sinal GPRS/2G, Operadora local (Vivo/Claro/TIM/Oi/Outras + campo livre), Dispõe de Wi-Fi (sim/não), Frequência do Wi-Fi (2.4/5 GHz/Outra), Potência do Wi-Fi, Estabilidade do Wi-Fi, Velocidade da conexão.
 
 ### Seção 3.1 — Registro fotográfico de sinal (bloco de fotos)
-Print do Aquário Analyzer (sinal da operadora em 2G); print do WiFi Network Analyzer com SSID/Intensidade/Detalhes da rede; print do gráfico "Redes" com legenda. Texto de instrução sobre instalar os apps entra como orientação da seção.
+**3 prints**, na ordem do documento: Aquário Analyzer (intensidade do sinal da operadora, celular em 2G/GSM no local da transferência); WiFi Network Analyzer com "SSID", "Intensidade do Sinal" e "Detalhes da Rede"; WiFi Network Analyzer com o gráfico "Redes" (com legenda). A instrução sobre instalar os aplicativos entra como orientação da seção.
+
+Total de registros fotográficos do formulário: **19** (11 + 5 + 3).
 
 ### Seção 4 — Observações finais
 Anomalias observadas; recomendações/sugestões (campos livres, mantidos do formulário atual).
