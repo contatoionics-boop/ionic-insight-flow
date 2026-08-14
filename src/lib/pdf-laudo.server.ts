@@ -223,66 +223,106 @@ function need(ctx: Ctx, h: number) {
   if (ctx.y - h < BOTTOM) newPage(ctx);
 }
 
-function paragraph(ctx: Ctx, text: string, size = 10, indent = 14) {
-  const lines = wrap(text, ctx.font, size, CONTENT_W - indent);
-  for (const line of lines) {
-    need(ctx, size + 5);
-    // destaca pendências em âmbar
-    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
-    ctx.page.drawText(line, {
-      x: MARGIN_X + indent,
-      y: ctx.y,
-      size,
-      font: ctx.font,
-      color: cor,
-    });
-    ctx.y -= size + 5;
+/** Desenha uma linha justificada (exceto a última do parágrafo). */
+function drawJustified(
+  ctx: Ctx,
+  line: string,
+  x: number,
+  maxW: number,
+  size: number,
+  cor: ReturnType<typeof rgb>,
+  justificar: boolean,
+) {
+  const palavras = line.split(" ").filter(Boolean);
+  const larguraTexto = ctx.font.widthOfTextAtSize(line, size);
+  if (!justificar || palavras.length < 2 || larguraTexto >= maxW) {
+    ctx.page.drawText(line, { x, y: ctx.y, size, font: ctx.font, color: cor });
+    return;
   }
-  ctx.y -= 6;
+  const espaco =
+    (maxW - palavras.reduce((a, p) => a + ctx.font.widthOfTextAtSize(p, size), 0)) /
+    (palavras.length - 1);
+  let cx = x;
+  for (const p of palavras) {
+    ctx.page.drawText(p, { x: cx, y: ctx.y, size, font: ctx.font, color: cor });
+    cx += ctx.font.widthOfTextAtSize(p, size) + espaco;
+  }
+}
+
+function paragraph(ctx: Ctx, text: string, size = 10, indent = 28) {
+  const maxW = CONTENT_W - indent;
+  // recuo de primeira linha, como no formulário original
+  const primeiraIndent = 28;
+  const lines = wrap(text, ctx.font, size, maxW);
+  const leading = size + 4.5;
+  lines.forEach((line, i) => {
+    need(ctx, leading);
+    const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
+    const x = MARGIN_X + indent + (i === 0 ? primeiraIndent : 0);
+    const w = maxW - (i === 0 ? primeiraIndent : 0);
+    drawJustified(ctx, line, x, w, size, cor, i < lines.length - 1);
+    ctx.y -= leading;
+  });
+  ctx.y -= 8;
 }
 
 function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
   const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
-  const size = nivel === 1 ? 11.5 : nivel === 2 ? 10.5 : 10;
+  const size = nivel === 1 ? 11.5 : nivel === 2 ? 9.5 : 9;
   // reserva espaço para o título + início do conteúdo (evita título órfão)
   need(ctx, size + 60);
-  ctx.y -= nivel === 1 ? 10 : 6;
-  // padrão FR-31-10: numeração com ponto final e título em caixa alta
-  const label = sanitize(
-    `${numero ? `${numero}. ` : ""}${texto}`.toLocaleUpperCase("pt-BR"),
-  );
+  ctx.y -= nivel === 1 ? 16 : 12;
+  // padrão FR-31-10: numeração com ponto final, tabulação e título em caixa alta
+  const num = numero ? `${numero}.` : "";
+  const label = sanitize(texto.toLocaleUpperCase("pt-BR"));
+  const x = MARGIN_X + (nivel === 1 ? 28 : nivel === 2 ? 34 : 50);
+  const larguraNum = nivel === 1 ? 20 : 30;
+  if (num) {
+    ctx.page.drawText(sanitize(num), {
+      x,
+      y: ctx.y,
+      size,
+      font: ctx.bold,
+      color: NAVY,
+    });
+  }
   ctx.page.drawText(label, {
-    x: MARGIN_X + (nivel === 1 ? 0 : nivel === 2 ? 8 : 20),
+    x: num ? x + larguraNum : x,
     y: ctx.y,
     size,
     font: ctx.bold,
     color: NAVY,
   });
-  ctx.y -= size + 8;
+  ctx.y -= size + (nivel === 1 ? 12 : 10);
 }
 
 
 function bullets(ctx: Ctx, itens: string[]) {
+  const indent = 56;
+  const maxW = CONTENT_W - indent - 6;
   for (const it of itens) {
-    const lines = wrap(it, ctx.font, 9.5, CONTENT_W - 14);
+    const lines = wrap(it, ctx.font, 10, maxW);
     lines.forEach((line, i) => {
-      need(ctx, 14);
+      need(ctx, 15);
       if (i === 0) {
-        ctx.page.drawText("•", { x: MARGIN_X + 2, y: ctx.y, size: 9.5, font: ctx.bold, color: BLUE });
+        ctx.page.drawText("•", {
+          x: MARGIN_X + indent - 14,
+          y: ctx.y,
+          size: 10,
+          font: ctx.bold,
+          color: TINTA,
+        });
       }
-      ctx.page.drawText(line, {
-        x: MARGIN_X + 14,
-        y: ctx.y,
-        size: 9.5,
-        font: ctx.font,
-        color: line.includes("[CONFIRMAR:") ? AMBER : rgb(0.15, 0.17, 0.2),
-      });
-      ctx.y -= 13;
+      const cor = line.includes("[CONFIRMAR:") ? AMBER : TINTA;
+      drawJustified(ctx, line, MARGIN_X + indent, maxW, 10, cor, i < lines.length - 1);
+      ctx.y -= 14.5;
     });
-    ctx.y -= 2;
+    ctx.y -= 4;
   }
-  ctx.y -= 4;
+  ctx.y -= 6;
 }
+
+
 
 function table(
   ctx: Ctx,
