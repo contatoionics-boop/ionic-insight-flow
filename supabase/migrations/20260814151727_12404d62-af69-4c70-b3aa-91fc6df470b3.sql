@@ -1,0 +1,1 @@
+ALTER TYPE pergunta_tipo ADD VALUE IF NOT EXISTS 'multipla_escolha';
