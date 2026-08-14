@@ -88,67 +88,85 @@ async function loadLogo(pdf: PDFDocument, meta: LaudoPdfMeta) {
       meta.logoMime?.includes("png") || !meta.logoMime
         ? await pdf.embedPng(meta.logoBytes)
         : await pdf.embedJpg(meta.logoBytes);
-    const h = 26;
+    const h = 24;
     return { img, w: (img.width / img.height) * h, h };
   } catch {
     return null;
   }
 }
 
+/** Cabeçalho padrão do formulário: quadro com título, código e linha de controle. */
 function drawHeader(ctx: Ctx) {
   const { page, meta } = ctx;
-  page.drawRectangle({
-    x: 0,
-    y: PAGE_H - HEADER_H,
-    width: PAGE_W,
-    height: HEADER_H,
-    color: NAVY,
-  });
-  let x = MARGIN_X;
+  const topo = PAGE_H - 24;
+  const linhaControleH = 16;
+  const tituloH = 40;
+  const alturaQuadro = tituloH + linhaControleH;
+  const base = topo - alturaQuadro;
+  const larguraCodigo = 108;
+  const xCodigo = MARGIN_X + CONTENT_W - larguraCodigo;
+
+  const box = (x: number, y: number, w: number, h: number) =>
+    page.drawRectangle({ x, y, width: w, height: h, borderColor: BORDA, borderWidth: 0.8 });
+
+  box(MARGIN_X, base, CONTENT_W, alturaQuadro);
+  box(MARGIN_X, base + linhaControleH, CONTENT_W - larguraCodigo, tituloH);
+  box(xCodigo, base + linhaControleH, larguraCodigo, tituloH);
+
+  // logo à esquerda dentro da célula do título
+  let xTitulo = MARGIN_X + 8;
   if (ctx.logo) {
     page.drawImage(ctx.logo.img, {
-      x,
-      y: PAGE_H - HEADER_H + (HEADER_H - ctx.logo.h) / 2,
+      x: xTitulo,
+      y: base + linhaControleH + (tituloH - ctx.logo.h) / 2,
       width: ctx.logo.w,
       height: ctx.logo.h,
     });
-    x += ctx.logo.w + 12;
+    xTitulo += ctx.logo.w + 10;
   }
-  page.drawText(sanitize(meta.titulo).slice(0, 58), {
-    x,
-    y: PAGE_H - 34,
+  const titulo = sanitize("RESULTADO DE MAPEAMENTO TÉCNICO");
+  const disponivel = CONTENT_W - larguraCodigo - (xTitulo - MARGIN_X) - 8;
+  const tw = ctx.bold.widthOfTextAtSize(titulo, 12);
+  page.drawText(titulo, {
+    x: xTitulo + Math.max(0, (disponivel - tw) / 2),
+    y: base + linhaControleH + tituloH / 2 - 4,
     size: 12,
     font: ctx.bold,
-    color: rgb(1, 1, 1),
+    color: NAVY,
   });
-  page.drawText(sanitize(`${meta.cliente} — ${meta.unidade}`).slice(0, 78), {
-    x,
-    y: PAGE_H - 50,
-    size: 8.5,
+
+  const rotulo = "Código";
+  const rw = ctx.font.widthOfTextAtSize(rotulo, 8);
+  page.drawText(rotulo, {
+    x: xCodigo + (larguraCodigo - rw) / 2,
+    y: base + linhaControleH + tituloH - 15,
+    size: 8,
     font: ctx.font,
-    color: rgb(0.78, 0.82, 0.88),
+    color: GREY,
   });
-  const cod = sanitize(meta.codigo ?? "");
-  if (cod) {
-    const w = ctx.bold.widthOfTextAtSize(cod, 11);
-    page.drawText(cod, {
-      x: PAGE_W - MARGIN_X - w,
-      y: PAGE_H - 34,
-      size: 11,
-      font: ctx.bold,
-      color: BLUE,
-    });
-  }
-  const sub = sanitize(`${meta.data}${meta.revisao ? ` · Rev. ${meta.revisao}` : ""}`);
-  const sw = ctx.font.widthOfTextAtSize(sub, 8.5);
-  page.drawText(sub, {
-    x: PAGE_W - MARGIN_X - sw,
-    y: PAGE_H - 50,
-    size: 8.5,
+  const cod = sanitize(meta.codigoDocumento || "FR-31-10");
+  const cw = ctx.bold.widthOfTextAtSize(cod, 11);
+  page.drawText(cod, {
+    x: xCodigo + (larguraCodigo - cw) / 2,
+    y: base + linhaControleH + 10,
+    size: 11,
+    font: ctx.bold,
+    color: NAVY,
+  });
+
+  const controle = sanitize(
+    `Elaborado por: ${meta.elaboradoPor || "—"}      Aprovado por: ${meta.aprovadoPor || "—"}      ` +
+      `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}      Data da revisão: ${meta.dataRevisao || "—"}`,
+  );
+  page.drawText(controle, {
+    x: MARGIN_X + 6,
+    y: base + 5,
+    size: 7,
     font: ctx.font,
-    color: rgb(0.78, 0.82, 0.88),
+    color: rgb(0.25, 0.27, 0.31),
   });
 }
+
 
 function drawFooter(page: PDFPage, font: PDFFont, meta: LaudoPdfMeta, i: number, total: number) {
   page.drawLine({
