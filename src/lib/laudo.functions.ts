@@ -403,8 +403,11 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
 
     const pendencias = blocosComPendencia(conteudo.blocos as BlocoLaudo[]);
     if (pendencias) {
+      const rotulos = rotulosPendencias(conteudo.blocos as BlocoLaudo[]);
       throw new Error(
-        `O documento possui ${pendencias} pendência(s) [CONFIRMAR]. Resolva-as ou remova os blocos não aplicáveis antes de emitir o PDF final.`,
+        `O documento possui ${pendencias} pendência(s) [CONFIRMAR]${
+          rotulos.length ? `: ${rotulos.join(", ")}` : ""
+        }. Abra a etapa “3. Documento”, aba “Pendências”, preencha o valor ou remova o bloco não aplicável, salve a revisão e gere o PDF novamente.`,
       );
     }
 
