@@ -115,13 +115,13 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
     }
     case "paragraph":
       return (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p id={`bloco-${bloco.id}`} className="mt-2 text-sm leading-relaxed text-muted-foreground">
           <Pendencia texto={bloco.texto} />
         </p>
       );
     case "bullets":
       return (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+        <ul id={`bloco-${bloco.id}`} className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {bloco.itens.map((i, k) => (
             <li key={k}>
               <Pendencia texto={i} />
@@ -131,7 +131,7 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "table":
       return (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+        <div id={`bloco-${bloco.id}`} className="mt-3 overflow-x-auto rounded-lg border border-border">
           {bloco.titulo ? (
             <div className="border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold">
               {bloco.titulo}
@@ -184,7 +184,7 @@ function Visual({ bloco }: { bloco: BlocoLaudo }) {
       );
     case "observacao":
       return (
-        <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+        <div id={`bloco-${bloco.id}`} className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
           <p className="text-xs font-semibold tracking-wide text-foreground">
             {bloco.titulo || "OBSERVAÇÃO TÉCNICA"}
           </p>
