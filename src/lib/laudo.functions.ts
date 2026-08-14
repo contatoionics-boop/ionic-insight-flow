@@ -368,9 +368,10 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     }
 
     const meta = metaDoCaso(caso);
+    const vars = (caso.laudo_variaveis ?? {}) as unknown as VariaveisLaudo;
     const bytes = await buildLaudoPdf({
       meta: {
-        titulo: formulario?.nome ?? "Resultado do Mapeamento Técnico",
+        titulo: formulario?.nome ?? "Resultado de Mapeamento Técnico",
         codigo: caso.codigo ?? null,
         revisao: formulario?.revisao ?? null,
         empresaNome: config?.nome_empresa || "Ionics",
@@ -380,7 +381,15 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         unidade: meta.unidade,
         data: meta.data,
         agente: meta.agente,
+        codigoDocumento: "FR-31-10",
+        elaboradoPor: vars["elaborado_por"]?.valor || "Sheron Williams",
+        aprovadoPor: vars["aprovado_por"]?.valor || "Guilherme Sombrio",
+        revisaoDocumento: formulario?.revisao ?? "01",
+        dataRevisao: vars["data_revisao"]?.valor || "02/04/2024",
+        analista: vars["analista_projetos"]?.valor || null,
+        especialista: vars["especialista_automacao"]?.valor || null,
       },
+
       blocos: renumerar(conteudo.blocos as BlocoLaudo[]).filter((b) => !b.oculto),
       baseUrl: (() => {
         try {
