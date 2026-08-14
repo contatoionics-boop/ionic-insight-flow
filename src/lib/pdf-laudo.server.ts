@@ -479,13 +479,9 @@ export async function buildLaudoPdf(input: {
   };
   newPage(ctx);
 
-  // Identificação
-  table(ctx, "Identificação", ["Campo", "Valor"], [
-    { celulas: ["Cliente", input.meta.cliente] },
-    { celulas: ["Unidade", input.meta.unidade] },
-    { celulas: ["Data", input.meta.data] },
-    { celulas: ["Agente técnico", input.meta.agente] },
-  ]);
+  // Identificação — quadro do padrão FR-31-10
+  identificacao(ctx);
+
 
   for (const b of input.blocos) {
     if (b.oculto) continue;
