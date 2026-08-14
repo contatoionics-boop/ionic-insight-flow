@@ -73,6 +73,17 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         } catch {
           // sem rascunho local
         }
+        // Respostas que só existem no rascunho local precisam ser enviadas ao
+        // servidor — senão a finalização é recusada por "pendência" fantasma.
+        for (const [id, r] of Object.entries(inicial)) {
+          const b = base[id];
+          const mudou =
+            (r.text ?? "") !== (b?.text ?? "") ||
+            (r.transcription ?? "") !== (b?.transcription ?? "") ||
+            (r.filePath ?? "") !== (b?.filePath ?? "") ||
+            (r.audioPath ?? "") !== (b?.audioPath ?? "");
+          if (mudou) sujosRef.current.add(id);
+        }
         setDados(d);
         setState(inicial);
       } catch (e) {
@@ -81,6 +92,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, casoId]);
+
 
   // Rascunho local: trocar de aba ou recarregar não perde nada.
   useEffect(() => {
@@ -232,8 +244,16 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   };
 
   const handleFinalizar = async () => {
+    // Reenvia tudo que está preenchido localmente: garante que o servidor
+    // enxergue exatamente o mesmo estado do checklist antes de validar.
+    for (const [id, r] of Object.entries(stateRef.current)) {
+      if (r.text?.trim() || r.transcription?.trim() || r.filePath || r.audioPath) {
+        sujosRef.current.add(id);
+      }
+    }
     const ok = await persistir();
     if (!ok) return;
+
     setFinalizando(true);
     try {
       await finalizar({ data: { ...(token ? { token } : {}), ...(casoId ? { casoId } : {}) } });
@@ -317,7 +337,13 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             <section className="space-y-4">
               <h2 className="text-base font-semibold text-foreground">Revisão final</h2>
               <PainelRevisao resumo={resumo} onIrPara={(i, p) => void irPara(i, p)} />
+              {erro && (
+                <p className="whitespace-pre-line rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {erro}
+                </p>
+              )}
               <div className="flex justify-end">
+
                 <Button
                   variant="primary"
                   onClick={handleFinalizar}
