@@ -35,9 +35,9 @@ export type MetaBloco = {
   origem?: OrigemBloco;
   editado_manualmente?: boolean;
   /** conteúdo produzido pelo gerador antes da edição manual */
-  conteudo_original?: Record<string, unknown> | null;
+  conteudo_original?: Record<string, any> | null;
   /** conflito detectado: o gerador passou a produzir algo diferente da edição */
-  conflito?: Record<string, unknown> | null;
+  conflito?: Record<string, any> | null;
   editavel?: boolean;
   removivel?: boolean;
   /** bloco removido pelo especialista — não renderiza nem ressuscita */
