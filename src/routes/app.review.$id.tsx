@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
-  PageHeader,
   Card,
   Button,
   Textarea,
@@ -13,22 +12,25 @@ import {
   ArrowLeft,
   Check,
   AlertCircle,
+  Eye,
   FileDown,
   Loader2,
   Save,
   ImageOff,
+  Sparkles,
   Trash2,
   Upload,
   RefreshCw,
-
+  X,
 } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { gerarPdfLaudo } from "@/lib/laudo.functions";
-import { LaudoPanel } from "@/components/laudo/LaudoPanel";
+import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
 import { PropostaPanel } from "@/components/proposta/PropostaPanel";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
+
 
 export const Route = createFileRoute("/app/review/$id")({
   component: ReviewCasePage,
