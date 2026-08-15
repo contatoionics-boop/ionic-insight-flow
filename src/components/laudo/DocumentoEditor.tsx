@@ -1265,34 +1265,38 @@ export function DocumentoEditor({
         {conflitos.length > 0 && (
           <Card className="space-y-3 p-4">
             <p className="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="h-4 w-4" /> {conflitos.length} conteúdo(s) alterado(s)
-              manualmente divergem do formulário
+              <AlertTriangle className="h-4 w-4" /> {conflitos.length} trecho(s) alterado(s)
+              manualmente divergem da versão gerada
             </p>
-            {conflitos.map((b) => (
-              <div key={b.chave} className="rounded-lg border border-border p-3 text-xs">
-                <p className="font-medium">Conteúdo atual (edição manual)</p>
-                <pre className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                  {JSON.stringify(conteudoDoBloco(b), null, 1)}
-                </pre>
-                <p className="mt-2 font-medium">Valor do formulário</p>
-                <pre className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                  {JSON.stringify(b.conflito, null, 1)}
-                </pre>
-                <div className="mt-2 flex gap-2">
-                  <Button variant="secondary" onClick={() => resolver(b.chave!, "manter_edicao")}>
-                    Manter edição
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => resolver(b.chave!, "atualizar_formulario")}
-                  >
-                    Atualizar com formulário
-                  </Button>
+            {conflitos.map((b) => {
+              const gerado = { ...(b as any), ...(b.conflito as any), conflito: null } as BlocoLaudo;
+              return (
+                <div key={b.chave} className="rounded-lg border border-border p-3 text-xs">
+                  <p className="mb-1 font-medium">Sua versão</p>
+                  <div className="rounded-md bg-white px-4 py-2">
+                    <Visual bloco={b} />
+                  </div>
+                  <p className="mb-1 mt-3 font-medium">Versão atualizada pelo sistema</p>
+                  <div className="rounded-md bg-white px-4 py-2">
+                    <Visual bloco={gerado} />
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <Button variant="secondary" onClick={() => resolver(b.chave!, "manter_edicao")}>
+                      Manter minha versão
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => resolver(b.chave!, "atualizar_formulario")}
+                    >
+                      Usar versão atualizada
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         )}
+
 
         <div className="flex justify-center rounded-xl bg-muted/40 p-4 sm:p-8">
           <div
