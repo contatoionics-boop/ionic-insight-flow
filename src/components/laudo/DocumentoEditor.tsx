@@ -422,16 +422,16 @@ function CabecalhoFolha({ meta }: { meta: MetaLaudo }) {
       </div>
       <div className="grid grid-cols-4 text-[9px]">
         <div className={cel} style={{ borderColor: NAVY }}>
-          Elaborado por: {meta.elaboradoPor ?? "-"}
+          Elaborado por: {ELABORADO_POR_FIXO}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Aprovado por: {meta.aprovadoPor ?? "-"}
+          Aprovado por: {APROVADO_POR_FIXO}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Revisão: {meta.revisao ?? "01"}
+          Revisão: {REVISAO_FIXA}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Data da revisão: {meta.dataRevisao ?? "-"}
+          Data da revisão: {DATA_REVISAO_FIXA}
         </div>
       </div>
 
