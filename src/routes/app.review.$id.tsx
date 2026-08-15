@@ -30,6 +30,7 @@ import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
 import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
+import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
 
@@ -86,6 +87,7 @@ function ReviewCasePage() {
   const [alertasTecnicos, setAlertasTecnicos] = useState(0);
 
   const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
+  const { abrir: abrirImagem, elemento: lightboxEdicao } = useImagemLightbox();
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
@@ -857,7 +859,14 @@ function ReviewCasePage() {
                                   {fotoList.map((pth, i) => (
                                     <div key={pth + i} className="group relative overflow-hidden rounded-md border border-border bg-muted">
                                       {fotoUrls[pth] ? (
-                                        <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
+                                        <button
+                                          type="button"
+                                          title="Ampliar imagem"
+                                          onClick={() => abrirImagem(fotoUrls[pth], `${p.texto} — imagem ${i + 1}`)}
+                                          className="block w-full cursor-zoom-in"
+                                        >
+                                          <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
+                                        </button>
                                       ) : (
                                         <div className="flex h-24 items-center justify-center text-muted-foreground">
                                           <ImageOff className="h-5 w-5" />
