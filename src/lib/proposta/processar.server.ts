@@ -7,7 +7,7 @@ import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 export async function processarProposta(supabase: any, propostaId: string, userId?: string | null) {
   const { data: row, error } = await supabase
     .from("propostas_comerciais")
-    .select("id, caso_id, arquivo_path")
+    .select("id, caso_id, arquivo_path, escopo")
     .eq("id", propostaId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -33,7 +33,15 @@ export async function processarProposta(supabase: any, propostaId: string, userI
       );
     }
 
-    const escopo = await extrairEscopoProposta(texto);
+    const extraido = await extrairEscopoProposta(texto);
+    // correções manuais anteriores sempre vencem a reextração
+    const anterior = normalizarEscopo((row as any).escopo);
+    const escopo: any = { ...extraido };
+    for (const [chave, campo] of Object.entries(anterior)) {
+      if ((campo as any)?.origem === "manual" && (campo as any)?.valor !== null) {
+        escopo[chave] = campo;
+      }
+    }
     const { data: atualizado, error: uErr } = await supabase
       .from("propostas_comerciais")
       .update({
