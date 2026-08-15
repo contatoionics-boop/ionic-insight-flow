@@ -93,13 +93,14 @@ export function comChaves(blocos: BlocoLaudo[], origemPadrao: "automatic" | "man
 
 
 /**
- * Rede de segurança contra duplicação: remove blocos repetidos por chave e,
- * em seguida, blocos com conteúdo idêntico (mesmo tipo + mesmo conteúdo),
- * independentemente da origem. `pagebreak` é preservado.
+ * Rede de segurança contra duplicação: remove apenas repetições de identidade
+ * estrutural (mesmo `id` ou mesma `chave` estável). Conteúdo/texto igual NÃO é
+ * critério de remoção — dois blocos distintos podem ter o mesmo texto.
+ * `pagebreak` é sempre preservado.
  */
 export function dedupBlocos(blocos: BlocoLaudo[]): BlocoLaudo[] {
+  const ids = new Set<string>();
   const chaves = new Set<string>();
-  const conteudos = new Set<string>();
   const out: BlocoLaudo[] = [];
   for (const b of blocos ?? []) {
     if (!b) continue;
@@ -107,14 +108,16 @@ export function dedupBlocos(blocos: BlocoLaudo[]): BlocoLaudo[] {
       out.push(b);
       continue;
     }
+    const id = (b as any).id as string | undefined;
+    if (id) {
+      if (ids.has(id)) continue;
+      ids.add(id);
+    }
     const k = (b as any).chave as string | undefined;
     if (k) {
       if (chaves.has(k)) continue;
       chaves.add(k);
     }
-    const assinaturaConteudo = `${b.tipo}|${JSON.stringify(conteudoDoBloco(b))}`;
-    if (conteudos.has(assinaturaConteudo)) continue;
-    conteudos.add(assinaturaConteudo);
     out.push(b);
   }
   return out;
