@@ -105,18 +105,23 @@ function figura(opcoes: OpcoesNivel2, chave: string, f: FiguraLaudo): BlocoLaudo
   } as BlocoLaudo;
 }
 
-const TITULO_SECAO_VII =
+const TITULO_SECAO_VII_COMBOIO =
   "VII. Instruções a serem incluídas em Comboios com automatização Nível 2 (Padrão)";
+const TITULO_SECAO_VII_NEUTRO =
+  "VII. Instruções a serem incluídas em Pistas com automatização Nível 2 (Padrão)";
 
 /** Heading único da seção VII. */
-export function blocoSecaoVII(opcoes: OpcoesNivel2 = {}): BlocoLaudo {
+export function blocoSecaoVII(
+  opcoes: OpcoesNivel2 = {},
+  temComboio = false,
+): BlocoLaudo {
   return {
     id: criarId(opcoes, "h"),
     chave: "nivel2:secao",
     tipo: "heading",
     numero: null,
     nivel: 1,
-    texto: TITULO_SECAO_VII,
+    texto: temComboio ? TITULO_SECAO_VII_COMBOIO : TITULO_SECAO_VII_NEUTRO,
   } as BlocoLaudo;
 }
 
@@ -221,7 +226,8 @@ export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
     id: bid,
     proximaFigura,
   };
-  const out = [blocoSecaoVII(opcoes), ...blocos24(opcoes)];
-  if (temComboio(variaveis)) out.push(...blocos241(opcoes));
+  const comboioConfirmado = temComboio(variaveis);
+  const out = [blocoSecaoVII(opcoes, comboioConfirmado), ...blocos24(opcoes)];
+  if (comboioConfirmado) out.push(...blocos241(opcoes));
   return out;
 }
