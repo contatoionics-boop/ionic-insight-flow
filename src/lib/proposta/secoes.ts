@@ -30,7 +30,7 @@ const RE_OBS = /^\s*(observa[cç][õo]es|obs\.?|condi[cç][õo]es\s+gerais)\b/i;
 
 /** Marcadores de que um item numerado descreve o escopo daquele cliente. */
 const RE_ESCOPO_ESPECIFICO =
-  /(automatiza[cç][ãa]o\s+do\s+processo|escopo|kit\s|fase\s*[1-4]\b.*(para|:)|\b\d{1,3}\s*(posto|bomba|bico|comboio|pista|ve[íi]culo))/i;
+  /(automatiza[cç][ãa]o\s+do\s+processo\s+de|escopo\s+contratado|\bkit\b|\bqtd\b|\b\d{1,3}\s*(?:x\s*)?(posto|bomba|bico|comboio|pista|ve[íi]culo|caminh))/i;
 
 /** Segmenta o texto do PDF nas quatro camadas de evidência. */
 export function segmentarProposta(textoBruto: string): SecoesProposta {
