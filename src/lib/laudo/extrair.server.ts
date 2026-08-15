@@ -8,6 +8,8 @@ import { z } from "zod";
 import { createOpenAIProvider } from "@/lib/openai.server";
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
 import { chavesDaPergunta } from "@/lib/laudo/aliases";
+import { chaveCorrigida } from "@/lib/laudo/mapear-chave";
+import { derivarComunicacaoTipos } from "@/lib/laudo/comunicacao";
 import { LIMIAR_CONFIANCA, type VariaveisLaudo } from "@/lib/laudo/tipos";
 
 export type RespostaBruta = {
@@ -41,9 +43,12 @@ export async function extrairVariaveis(
 
   // 1) determinístico (respostas do formulário)
   for (const r of respostas) {
-    const chave = limpar(r.chave_laudo);
+    const bruta = limpar(r.chave_laudo);
     const valor = limpar(r.valor);
-    if (!chave || !valor) continue;
+    if (!bruta || !valor) continue;
+    const chave = chaveCorrigida(bruta, r.pergunta, valor);
+    if (!chave) continue;
+    if (vars[chave]?.valor) continue;
     vars[chave] = { chave, valor, origem: "formulario", confianca: 1 };
   }
 
@@ -52,17 +57,17 @@ export async function extrairVariaveis(
     if (limpar(r.chave_laudo)) continue;
     const valor = limpar(r.valor);
     if (!valor) continue;
-    for (const chave of chavesDaPergunta(r.pergunta)) {
+    for (const bruta of chavesDaPergunta(r.pergunta)) {
+      const chave = chaveCorrigida(bruta, r.pergunta, valor);
+      if (!chave) continue;
       if (!CHAVES_LAUDO.some((c) => c.chave === chave)) continue;
       if (vars[chave]?.valor) continue;
-      let v = valor;
-      if (chave === "comunicacao_tipos" && /^(sim|nao|não)$/i.test(v)) {
-        if (/^n/i.test(v)) continue; // "não tem WiFi" não define o meio de comunicação
-        v = "WiFi";
-      }
-      vars[chave] = { chave, valor: v, origem: "formulario", confianca: 0.9 };
+      vars[chave] = { chave, valor, origem: "formulario", confianca: 0.9 };
     }
   }
+
+  // 1a-bis) comunicação derivada das variáveis estruturadas do campo
+  derivarComunicacaoTipos(vars);
 
   // 1b) camadas complementares: proposta comercial, cadastro do agendamento
   for (const camada of camadas) {
@@ -132,6 +137,9 @@ export async function extrairVariaveis(
       // IA indisponível: segue apenas com o determinístico
     }
   }
+
+  // 2b) a comunicação derivada do campo vence a herdada da proposta
+  derivarComunicacaoTipos(vars);
 
   // 3) valores confirmados manualmente sempre vencem
   for (const [chave, item] of Object.entries(manuais)) {
