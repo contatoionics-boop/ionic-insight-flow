@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { renumerar } from "@/lib/laudo/numeracao";
-import { comChaves } from "@/lib/laudo/mesclar";
+import { comChaves, dedupBlocos } from "@/lib/laudo/mesclar";
 import type { Achado } from "@/lib/laudo/analise/achados";
 import {
   alertasBloqueantes,
@@ -45,7 +45,7 @@ async function gravarDocumento(supabase: any, casoId: string, conteudo: LaudoCon
   const final: LaudoConteudo = {
     ...conteudo,
     editado_em: new Date().toISOString(),
-    blocos: renumerar(comChaves(conteudo.blocos)),
+    blocos: renumerar(dedupBlocos(comChaves(conteudo.blocos))),
   };
   const { error } = await supabase
     .from("casos")

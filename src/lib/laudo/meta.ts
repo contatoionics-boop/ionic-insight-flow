@@ -9,6 +9,15 @@ export const ESPECIALISTA_AUTOMACAO_PADRAO = "PABLO";
 export const TITULO_DOCUMENTO = "Resultado de Mapeamento Técnico";
 export const CODIGO_DOCUMENTO = "FR-31-10";
 
+/**
+ * Cabeçalho administrativo do FR-31-10 — FIXO (confirmado pelo responsável).
+ * Não é dinâmico: vale para a folha WYSIWYG, a pré-visualização e o PDF.
+ */
+export const ELABORADO_POR_FIXO = "Sheron Williams";
+export const APROVADO_POR_FIXO = "Guilherme Sombrio";
+export const REVISAO_FIXA = "01";
+export const DATA_REVISAO_FIXA = "02/04/2024";
+
 export type EntradaMetaLaudo = {
   caso: {
     codigo?: string | null;
@@ -165,15 +174,12 @@ export function resolverMetaLaudo(entrada: EntradaMetaLaudo): MetaLaudo {
     analista,
     especialista,
     codigoDocumento: CODIGO_DOCUMENTO,
-    // cabeçalho de controle: variável confirmada > cadastro do formulário > padrão
-    elaboradoPor:
-      qualquer(vars, "elaborado_por") ?? entrada.formulario?.elaborado_por ?? "Sheron Williams",
-    aprovadoPor:
-      qualquer(vars, "aprovado_por") ?? entrada.formulario?.aprovado_por ?? "Guilherme Sombrio",
-    dataRevisao:
-      qualquer(vars, "data_revisao") ?? dataBR(entrada.formulario?.data_revisao) ?? "02/04/2024",
+    // cabeçalho de controle do FR-31-10: valores fixos, nunca dinâmicos
+    elaboradoPor: ELABORADO_POR_FIXO,
+    aprovadoPor: APROVADO_POR_FIXO,
+    dataRevisao: DATA_REVISAO_FIXA,
     codigoFormulario,
-    revisao: entrada.formulario?.revisao ?? null,
+    revisao: REVISAO_FIXA,
     nomeDocumento: `${codigoFormulario ? `${codigoFormulario} - ` : ""}${TITULO_DOCUMENTO} - ${empresa}`,
     filename: nomeArquivoLaudo(codigoFormulario, empresa),
   };

@@ -26,9 +26,15 @@ import {
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
-import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
+import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
 import type { MetaLaudo } from "@/lib/laudo/meta";
+import {
+  APROVADO_POR_FIXO,
+  DATA_REVISAO_FIXA,
+  ELABORADO_POR_FIXO,
+  REVISAO_FIXA,
+} from "@/lib/laudo/meta";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [
@@ -422,16 +428,16 @@ function CabecalhoFolha({ meta }: { meta: MetaLaudo }) {
       </div>
       <div className="grid grid-cols-4 text-[9px]">
         <div className={cel} style={{ borderColor: NAVY }}>
-          Elaborado por: {meta.elaboradoPor ?? "-"}
+          Elaborado por: {ELABORADO_POR_FIXO}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Aprovado por: {meta.aprovadoPor ?? "-"}
+          Aprovado por: {APROVADO_POR_FIXO}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Revisão: {meta.revisao ?? "01"}
+          Revisão: {REVISAO_FIXA}
         </div>
         <div className={cel} style={{ borderColor: NAVY }}>
-          Data da revisão: {meta.dataRevisao ?? "-"}
+          Data da revisão: {DATA_REVISAO_FIXA}
         </div>
       </div>
 
@@ -981,7 +987,7 @@ export function DocumentoEditor({
     onModoChange?.(m);
   };
   const [blocos, setBlocos] = useState<BlocoLaudo[]>(() =>
-    renumerar(comChaves(conteudo?.blocos ?? [])),
+    renumerar(dedupBlocos(comChaves(conteudo?.blocos ?? []))),
   );
   const [editando, setEditando] = useState<string | null>(null);
   const [sujo, setSujo] = useState(false);
@@ -997,7 +1003,7 @@ export function DocumentoEditor({
   // recarrega quando o documento é regerado no servidor
   if (conteudo && conteudo.gerado_em !== idAtual.current && !sujo) {
     idAtual.current = conteudo.gerado_em;
-    const novos = renumerar(comChaves(conteudo.blocos ?? []));
+    const novos = renumerar(dedupBlocos(comChaves(conteudo.blocos ?? [])));
     if (JSON.stringify(novos) !== JSON.stringify(blocos)) setBlocos(novos);
   }
 
