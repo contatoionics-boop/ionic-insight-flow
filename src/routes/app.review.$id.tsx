@@ -1038,6 +1038,9 @@ function ReviewCasePage() {
           </Button>
         </div>
       </Modal>
+
+      {lightboxEdicao}
     </div>
   );
 }
+
