@@ -14,29 +14,20 @@ import {
   urlProposta,
 } from "@/lib/proposta.functions";
 import {
+  CHAVES_LEGADAS,
   ESCOPO_VAZIO,
   ROTULOS_ESCOPO,
   formatarValorEscopo,
+  resumoEscopo,
   type EscopoProposta,
   type PropostaResumo,
   type ResultadoComparacao,
 } from "@/lib/proposta/tipos";
+import { campoManual } from "@/lib/proposta/campos";
 
-const CHAVES = Object.keys(ESCOPO_VAZIO) as (keyof EscopoProposta)[];
-
-function parseValor(chave: keyof EscopoProposta, texto: string): any {
-  const t = texto.trim();
-  if (!t) return null;
-  if (chave === "itens_inclusos" || chave === "itens_nao_inclusos")
-    return t.split(/;|\n/).map((s) => s.trim()).filter(Boolean);
-  if (chave === "comboio") return /^(sim|s|true|1)$/i.test(t);
-  if (chave === "comunicacao") {
-    const l = t.toLowerCase();
-    return /ambos/.test(l) ? "ambos" : /4g/.test(l) ? "4g" : /wi-?fi/.test(l) ? "wifi" : null;
-  }
-  const n = Number(t.replace(/\D/g, ""));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
+const CHAVES = (Object.keys(ESCOPO_VAZIO) as (keyof EscopoProposta)[]).filter(
+  (c) => !CHAVES_LEGADAS.includes(c),
+);
 
 export function PropostaPanel({ casoId }: { casoId: string }) {
   const carregar = useServerFn(carregarProposta);
@@ -162,6 +153,7 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold">{proposta.arquivo_nome}</h3>
+            <p className="text-xs text-primary">{resumoEscopo(escopo)}</p>
             <p className="text-xs text-muted-foreground">
               Status da leitura:{" "}
               {proposta.status === "pronto"
@@ -243,11 +235,7 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
                   async () => {
                     const novo: any = JSON.parse(JSON.stringify(escopo));
                     for (const [chave, texto] of Object.entries(edits)) {
-                      novo[chave] = {
-                        valor: parseValor(chave as keyof EscopoProposta, texto),
-                        confianca: 1,
-                        trecho: "ajuste manual",
-                      };
+                      novo[chave] = campoManual(chave as keyof EscopoProposta, texto);
                     }
                     await salvar({ data: { propostaId: proposta.id, escopo: novo } });
                     await comparar({ data: { casoId } });
