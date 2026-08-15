@@ -408,8 +408,11 @@ function ReviewCasePage() {
 
   const hasDirty = Object.values(dirty).some(Boolean);
 
+  const podePdf = tab === "documento" ? !estadoDoc?.motivoPdf : true;
+  const motivoPdf = tab === "documento" ? (estadoDoc?.motivoPdf ?? null) : null;
+
   return (
-    <div>
+    <div className="pb-4">
       <Link
         to="/app/review-queue"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -417,92 +420,51 @@ function ReviewCasePage() {
         <ArrowLeft className="h-4 w-4" /> Voltar para fila
       </Link>
 
-      <PageHeader
-        title={`Revisão ${caseData.codigo}`}
-        description={`${caseData.unidade?.matriz?.empresa?.nome ?? "—"}${caseData.unidade?.nome ? ` · ${caseData.unidade.nome}` : ""} · Agente ${caseData.agente?.nome ?? "—"}`}
-        actions={
-          <>
-            <Button variant="outline" onClick={salvarTudo} disabled={savingAll || !hasDirty}>
-              {savingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar alterações
-            </Button>
-            <Button variant="outline" onClick={baixarPdf} disabled={downloading}>
-              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Baixar laudo (PDF)
-            </Button>
+      {/* resumo do mapeamento */}
+      <Card className="mb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold text-foreground">
+              {caseData.unidade?.matriz?.empresa?.nome ?? "Empresa não informada"}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {caseData.codigo}
+              {caseData.unidade?.nome ? ` · ${caseData.unidade.nome}` : ""} · Agente{" "}
+              {caseData.agente?.nome ?? "—"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
+              Status: {caseData.status.replace(/_/g, " ")}
+            </span>
+            {tab === "documento" && estadoDoc && estadoDoc.pendencias + estadoDoc.alertasPendentes > 0 && (
+              <button
+                type="button"
+                onClick={estadoDoc.abrirPendencias}
+                className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300"
+              >
+                {estadoDoc.pendencias + estadoDoc.alertasPendentes} ponto(s) a confirmar
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
 
-            <Button variant="outline" onClick={() => setReopenOpen(true)}>
-              <AlertCircle className="h-4 w-4" /> Solicitar reenvio
-            </Button>
-            <Button variant="success" onClick={() => setApproveOpen(true)}>
-              <Check className="h-4 w-4" /> Aprovar
-            </Button>
-          </>
-        }
-      />
-
-      {pdfError && (
-        <Card className="mb-3 border-destructive/30 bg-destructive/5">
-          <p className="text-sm text-destructive">{pdfError}</p>
-        </Card>
-      )}
-
-      {hasDirty && (
-        <Card className="mb-3 border-amber-300/40 bg-amber-50">
-          <p className="text-sm text-amber-900">
-            Você tem alterações não salvas. Clique em <strong>Salvar alterações</strong> antes de aprovar ou gerar o PDF (também salvamos automaticamente nessas ações).
-          </p>
-        </Card>
-      )}
-      {!hasDirty && savedAt && (
-        <Card className="mb-3 border-emerald-300/40 bg-emerald-50">
-          <p className="text-sm text-emerald-900">Alterações salvas.</p>
-        </Card>
-      )}
-
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
-        {(
-          [
-            ["respostas", "1. Respostas do formulário"],
-            ["analise", "2. Análise técnica"],
-            ["documento", "3. Documento"],
-            ["proposta", "Proposta × Campo"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === key
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {(tab === "analise" || tab === "documento") && (
-        <LaudoPanel casoId={id} etapa={tab === "analise" ? "analise" : "documento"} />
-      )}
-      {tab === "proposta" && <PropostaPanel casoId={id} />}
-
-      {tab === "respostas" && (
-        <div className="mb-3 inline-flex rounded-md border border-border bg-card p-0.5">
+      {/* barra de ações única */}
+      <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 px-3 py-2 shadow-sm backdrop-blur">
+        <div className="flex flex-1 flex-wrap gap-1">
           {(
             [
-              ["leitura", "Leitura"],
-              ["editar", "Editar respostas"],
+              ["conferencia", "1. Conferência"],
+              ["documento", "2. Documento"],
             ] as const
-          ).map(([k, label]) => (
+          ).map(([key, label]) => (
             <button
-              key={k}
+              key={key}
               type="button"
-              onClick={() => setModoRespostas(k)}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-                modoRespostas === k
+              onClick={() => setTab(key)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                tab === key
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted"
               }`}
@@ -511,9 +473,157 @@ function ReviewCasePage() {
             </button>
           ))}
         </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {tab === "conferencia" && (
+            <Button variant="outline" onClick={salvarTudo} disabled={savingAll || !hasDirty}>
+              {savingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar alterações
+            </Button>
+          )}
+          {tab === "documento" && estadoDoc && (
+            <>
+              <Button variant="ghost" onClick={() => void estadoDoc.gerar()} disabled={estadoDoc.gerando}>
+                {estadoDoc.gerando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : estadoDoc.temConteudo ? (
+                  <RefreshCw className="h-4 w-4" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {estadoDoc.temConteudo ? "Regerar rascunho" : "Gerar rascunho"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void estadoDoc.salvar()}
+                disabled={!estadoDoc.docSujo || estadoDoc.salvando}
+              >
+                {estadoDoc.salvando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Salvar documento
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => void previewPdf()}
+            disabled={downloading || !podePdf}
+            title={motivoPdf ?? undefined}
+          >
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Pré-visualizar PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={baixarPdf}
+            disabled={downloading || !podePdf}
+            title={motivoPdf ?? undefined}
+          >
+            <FileDown className="h-4 w-4" /> Baixar PDF
+          </Button>
+          <Button variant="outline" onClick={() => setReopenOpen(true)}>
+            <AlertCircle className="h-4 w-4" /> Solicitar reenvio
+          </Button>
+          <Button variant="success" onClick={() => setApproveOpen(true)}>
+            <Check className="h-4 w-4" /> Aprovar
+          </Button>
+        </div>
+        {motivoPdf ? (
+          <p className="w-full text-[11px] text-amber-600 dark:text-amber-400">
+            PDF bloqueado: {motivoPdf}
+          </p>
+        ) : null}
+      </div>
+
+      {pdfError && (
+        <Card className="mb-3 border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive">{pdfError}</p>
+        </Card>
       )}
 
-      {tab === "respostas" && modoRespostas === "leitura" && (
+      {hasDirty && (
+        <Card className="mb-3 border-amber-300/40 bg-amber-500/5">
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Você tem alterações não salvas nas respostas.
+          </p>
+        </Card>
+      )}
+      {!hasDirty && savedAt && tab === "conferencia" && (
+        <Card className="mb-3 border-emerald-300/40 bg-emerald-500/5">
+          <p className="text-sm text-emerald-700 dark:text-emerald-300">Alterações salvas.</p>
+        </Card>
+      )}
+
+      {pdfUrl && (
+        <Card className="mb-3 space-y-2 p-2">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <p className="text-xs text-muted-foreground">Pré-visualização do PDF</p>
+            <div className="flex gap-2">
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+              >
+                Abrir em nova aba
+              </a>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  URL.revokeObjectURL(pdfUrl);
+                  setPdfUrl(null);
+                }}
+              >
+                <X className="h-4 w-4" /> Fechar
+              </Button>
+            </div>
+          </div>
+          <iframe
+            src={pdfUrl}
+            title="Pré-visualização do PDF"
+            className="h-[70vh] w-full rounded-lg border border-border"
+          />
+        </Card>
+      )}
+
+      {tab === "documento" && <LaudoPanel casoId={id} onEstado={setEstadoDoc} />}
+
+      {tab === "conferencia" && (
+        <div className="space-y-4">
+          <PropostaPanel casoId={id} />
+
+          <div className="inline-flex rounded-md border border-border bg-card p-0.5">
+            {(
+              [
+                ["leitura", "Leitura"],
+                ["editar", "Editar respostas"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setModoRespostas(k)}
+                className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modoRespostas === k
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "conferencia" && modoRespostas === "leitura" && (
         <RespostasLeitura
           secoes={secoes}
           perguntasPorSecao={perguntasPorSecao}
@@ -522,6 +632,7 @@ function ReviewCasePage() {
           agente={caseData.agente?.nome ?? null}
         />
       )}
+
 
       <div
         className="space-y-4"
