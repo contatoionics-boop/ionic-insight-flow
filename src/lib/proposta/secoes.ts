@@ -278,16 +278,16 @@ export function escopoDeterministico(secoes: SecoesProposta): Parcial {
   }
 
   const comboio = comboioExplicito(secoes);
-  set(
-    "tem_comboio",
-    campo(comboio.valor, comboio.valor ? 0.9 : 0.8, "escopo", comboio.trecho),
-  );
-  if (comboio.valor) {
+  if (comboio.valor === true) {
+    set("tem_comboio", campo(true, 0.9, "escopo", comboio.trecho));
     const qtdC = quantidade(esc, /(?:caminh\w+\s+)?comboi\w*/);
     if (qtdC !== null) set("qtd_comboios", campo(qtdC, 0.85, "escopo", comboio.trecho));
-  } else {
+  } else if (comboio.valor === false) {
+    set("tem_comboio", campo(false, 0.8, "escopo", null));
     set("qtd_comboios", campo(0, 0.8, "escopo", null));
   }
+  // ambíguo (null): não afirma nada — vira pendência para revisão humana
+
 
   const bombas = quantidade(esc, /bombas?\b/);
   if (bombas !== null) set("qtd_bombas", campo(bombas, 0.9, "escopo", linhaComTermo(esc, /bomba/)));
