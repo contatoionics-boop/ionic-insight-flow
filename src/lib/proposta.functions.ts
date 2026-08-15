@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { EscopoProposta, PropostaResumo, ResultadoComparacao } from "@/lib/proposta/tipos";
-import { ESCOPO_VAZIO } from "@/lib/proposta/tipos";
+import type { PropostaResumo, ResultadoComparacao } from "@/lib/proposta/tipos";
+import { normalizarEscopo } from "@/lib/proposta/tipos";
 
 const CasoInput = z.object({ casoId: z.string().uuid() });
 
@@ -11,6 +11,8 @@ const RegistrarInput = z.object({
   arquivoNome: z.string().min(1).max(300),
   arquivoPath: z.string().min(1).max(500),
   tamanhoBytes: z.number().int().nonnegative().optional().nullable(),
+  /** escopo já analisado/corrigido no agendamento — evita reextrair */
+  escopo: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 function normalizarProposta(row: any): PropostaResumo {
@@ -22,7 +24,7 @@ function normalizarProposta(row: any): PropostaResumo {
     tamanho_bytes: row.tamanho_bytes ?? null,
     status: row.status,
     erro_mensagem: row.erro_mensagem ?? null,
-    escopo: { ...ESCOPO_VAZIO, ...((row.escopo ?? {}) as EscopoProposta) },
+    escopo: normalizarEscopo(row.escopo),
     criado_em: row.criado_em,
   };
 }
@@ -54,6 +56,12 @@ export const registrarProposta = createServerFn({ method: "POST" })
       atorId: userId,
       metadata: { arquivo: data.arquivoNome },
     });
+
+    if (data.escopo && Object.keys(data.escopo).length) {
+      const { aplicarEscopoProposta } = await import("@/lib/proposta/processar.server");
+      const atualizado = await aplicarEscopoProposta(supabase, row.id, data.escopo, userId);
+      return normalizarProposta(atualizado);
+    }
 
     const { processarProposta } = await import("@/lib/proposta/processar.server");
     const atualizado = await processarProposta(supabase, row.id, userId);
@@ -152,4 +160,29 @@ export const removerProposta = createServerFn({ method: "POST" })
       .eq("id", data.propostaId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Pré-análise do PDF ANTES de concluir o agendamento: lê o escopo preliminar
+ * de um arquivo já enviado ao storage, sem criar registro de proposta.
+ */
+export const analisarPropostaPrevia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ arquivoPath: z.string().min(1).max(500) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: file, error } = await context.supabase.storage
+      .from("propostas")
+      .download(data.arquivoPath);
+    if (error || !file) throw new Error(error?.message ?? "Não foi possível ler o arquivo.");
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { extrairTextoPdf, extrairEscopoProposta } = await import("@/lib/proposta/extrair.server");
+    const texto = await extrairTextoPdf(bytes);
+    if (!texto || texto.length < 40) {
+      throw new Error(
+        "Não foi possível ler texto do PDF (provavelmente é um documento escaneado). Informe o escopo manualmente.",
+      );
+    }
+    const escopo = await extrairEscopoProposta(texto);
+    return { escopo };
   });

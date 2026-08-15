@@ -143,7 +143,7 @@ export function compararPropostaCampo(
   }
 
   // ---------- Comboio ----------
-  const comboioProposta = escopo.comboio?.valor ?? null;
+  const comboioProposta = escopo.tem_comboio?.valor ?? escopo.comboio?.valor ?? null;
   const tipoObjeto = (v(vars, "tipo_objeto") ?? "").toLowerCase();
   const objetoEscopo = (v(vars, "objeto_escopo") ?? "").toLowerCase();
   const comboioCampoDireto = bool(v(vars, "comboio"));
@@ -165,7 +165,7 @@ export function compararPropostaCampo(
   }
 
   // ---------- Comunicação ----------
-  const comProposta = escopo.comunicacao?.valor ?? null;
+  const comProposta = escopo.comunicacao_prevista?.valor ?? escopo.comunicacao?.valor ?? null;
   if (comProposta && comunicacaoCampo) {
     const temWifi = /wi-?fi|wifi/.test(comunicacaoCampo);
     const tem4g = /4g|3g|gsm|gprs/.test(comunicacaoCampo);

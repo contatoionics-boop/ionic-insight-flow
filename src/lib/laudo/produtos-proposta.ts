@@ -58,7 +58,7 @@ export function parsearItemProposta(bruto: string): ProdutoProposta | null {
 export function produtosDaProposta(
   escopo: Partial<EscopoProposta> | null | undefined,
 ): ProdutoProposta[] {
-  const campo = escopo?.itens_inclusos;
+  const campo = escopo?.itens_previstos ?? escopo?.itens_inclusos;
   if (!campo) return [];
   if (Number(campo.confianca ?? 0) < LIMIAR_CONFIANCA_ITENS) return [];
   const itens = Array.isArray(campo.valor) ? campo.valor : [];

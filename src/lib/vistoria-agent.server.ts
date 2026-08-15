@@ -587,6 +587,23 @@ function chavePorTexto(pergunta: AgentPergunta): string | null {
   return null;
 }
 
+/**
+ * Heurística por texto da pergunta → chave do escopo PREVISTO na proposta.
+ * Só entram correspondências inequívocas; o agente confirma/corrige em campo.
+ */
+function chaveProposta(pergunta: AgentPergunta): string | null {
+  if (pergunta.chave_laudo) return pergunta.chave_laudo;
+  const t = normalizarRotulo(pergunta.texto);
+  if (t.includes("solucao")) return "nome_solucao";
+  if (t.includes("nivel")) return "nivel_servico";
+  if (t.includes("comboio")) return "comboio";
+  if (t.includes("bico")) return "qtd_bicos";
+  if (t.includes("bomba") && (t.includes("quant") || t.includes("numero"))) return "qtd_bombas";
+  if (t.includes("tipo") && t.includes("bomba")) return "tipo_bomba";
+  if (t.includes("comunica")) return "comunicacao_tipos";
+  return null;
+}
+
 const TIPOS_NAO_PREENCHIVEIS = new Set(["foto", "video", "audio", "checkbox"]);
 
 /**
@@ -626,7 +643,10 @@ export async function sincronizarCadastro(
     // Precedência: cadastro > proposta comercial (por chave_laudo).
     const bruto =
       (chave ? canon.get(chave) : undefined) ??
-      (pergunta.chave_laudo ? ctx.proposta?.[pergunta.chave_laudo] : undefined);
+      (() => {
+        const kp = chaveProposta(pergunta);
+        return kp ? ctx.proposta?.[kp] : undefined;
+      })();
     if (!bruto) continue;
     const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
 

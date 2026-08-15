@@ -160,6 +160,16 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     nivel: 1,
   });
 
+  // Nome da solução contratada: SAAF ou SSG Frota (padrão SAAF quando não informado).
+  const solucaoRaw = (raw(vars, "nome_solucao") ?? "").toLowerCase();
+  const nomeSolucao = /ssg/.test(solucaoRaw)
+    ? "SSG Frota"
+    : /saaf/.test(solucaoRaw) || !solucaoRaw
+      ? "SAAF"
+      : (raw(vars, "nome_solucao") as string);
+  /** aplica o nome real da solução nos textos padrão escritos com "SAAF" */
+  const sol = (t: string) => (nomeSolucao === "SAAF" ? t : t.replace(/\bSAAF\b/g, nomeSolucao));
+
   // 2.1 TI — a seção existe sempre; a especificação é revisada/preenchida pelo especialista
   const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
   const variante = (raw(vars, "infra_ti_variante") ?? (jaTemSaaf ? "D" : "A")).toUpperCase();
@@ -175,9 +185,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       id: bid("bl"),
       tipo: "bullets",
       itens: [
-        "O cliente já dispõe da Solução SAAF em operação; serão utilizados os equipamentos e o banco de dados existentes.",
+        sol("O cliente já dispõe da Solução SAAF em operação; serão utilizados os equipamentos e o banco de dados existentes."),
         "O computador no qual estão conectados os equipamentos da automação precisará dispor de entrada USB livre para conexão da Base Modem Amplificada Antena Externa (a ser adquirida caso não disponha).",
-        "A criação/atualização do banco de dados SAAF é pré-requisito para a instalação das aplicações; o script será disponibilizado pela equipe SW/IAM - IONICS.",
+        sol("A criação/atualização do banco de dados SAAF é pré-requisito para a instalação das aplicações; o script será disponibilizado pela equipe SW/IAM - IONICS."),
       ],
     });
   } else if (variante === "B_REDUZIDA") {
@@ -186,7 +196,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       tipo: "bullets",
       itens: [
         "É necessário um microcomputador dedicado à aplicação, com acesso à rede local e ao ponto de comunicação do terminal, mantido ligado durante a operação.",
-        "A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS.",
+        sol("A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS."),
       ],
     });
   } else {
@@ -194,10 +204,10 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       id: bid("bl"),
       tipo: "bullets",
       itens: [
-        "Para operação da automação SAAF é importante que seja disponibilizado um servidor local conectado à rede de internet estável e sem restrições, de modo que possa ser acessado mediante o uso dos aplicativos TeamViewer ou AnyDesk.",
-        "Para consultas da automação SAAF é necessário que seja disponibilizado um computador com conexão à rede de internet estável e sem restrições, acessível pelos mesmos aplicativos.",
-        "A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS de acordo com o cronograma de implantação.",
-        "A integração com ERPs também é requisito para operação com o SAAF; a equipe SW/IAM - IONICS dará as instruções para criação das views de importação e exportação de dados.",
+        sol("Para operação da automação SAAF é importante que seja disponibilizado um servidor local conectado à rede de internet estável e sem restrições, de modo que possa ser acessado mediante o uso dos aplicativos TeamViewer ou AnyDesk."),
+        sol("Para consultas da automação SAAF é necessário que seja disponibilizado um computador com conexão à rede de internet estável e sem restrições, acessível pelos mesmos aplicativos."),
+        sol("A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS de acordo com o cronograma de implantação."),
+        sol("A integração com ERPs também é requisito para operação com o SAAF; a equipe SW/IAM - IONICS dará as instruções para criação das views de importação e exportação de dados."),
       ],
     });
   }
@@ -242,7 +252,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     tipo: "observacao",
     titulo: "OBSERVAÇÃO TÉCNICA",
     texto:
-      "As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente.",
+      sol("As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente."),
     origem: "dynamic",
     editavel: true,
   });

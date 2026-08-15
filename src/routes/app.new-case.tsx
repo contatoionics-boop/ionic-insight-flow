@@ -7,7 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
-import { registrarProposta } from "@/lib/proposta.functions";
+import { analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
+import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
+import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -46,7 +48,11 @@ function NewCasePage() {
   const loadAgents = useServerFn(listTechnicalAgents);
   const agendar = useServerFn(agendarMapeamento);
   const registrar = useServerFn(registrarProposta);
+  const analisarPrevia = useServerFn(analisarPropostaPrevia);
   const [proposta, setProposta] = useState<File | null>(null);
+  const [escopoPrevia, setEscopoPrevia] = useState<EscopoProposta | null>(null);
+  const [analisando, setAnalisando] = useState(false);
+  const [erroPrevia, setErroPrevia] = useState<string | null>(null);
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
@@ -221,6 +227,7 @@ function NewCasePage() {
                 arquivoNome: proposta.name,
                 arquivoPath: path,
                 tamanhoBytes: proposta.size,
+                escopo: escopoPrevia ? (escopoPrevia as any) : null,
               },
             });
           }
@@ -240,6 +247,28 @@ function NewCasePage() {
       setWorking(false);
     }
   };
+
+  async function analisarProposta(file: File) {
+    setAnalisando(true);
+    setErroPrevia(null);
+    try {
+      const path = `previas/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+      const up = await supabase.storage.from("propostas").upload(path, file, {
+        contentType: "application/pdf",
+        upsert: false,
+      });
+      if (up.error) throw new Error(up.error.message);
+      const r = await analisarPrevia({ data: { arquivoPath: path } });
+      setEscopoPrevia(normalizarEscopo(r.escopo));
+      await supabase.storage.from("propostas").remove([path]);
+    } catch (e: any) {
+      setErroPrevia(
+        `Não foi possível ler o escopo agora (${e?.message ?? "erro"}). O agendamento pode seguir; o escopo poderá ser revisado na tela de revisão.`,
+      );
+    } finally {
+      setAnalisando(false);
+    }
+  }
 
   const toggleForm = (id: string) => {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -447,6 +476,9 @@ function NewCasePage() {
                     return;
                   }
                   setProposta(f);
+                  setEscopoPrevia(null);
+                  setErroPrevia(null);
+                  if (f) void analisarProposta(f);
                 }}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
@@ -454,6 +486,17 @@ function NewCasePage() {
                 Opcional. O escopo vendido é lido automaticamente e comparado com as respostas do
                 mapeamento na tela de revisão.
               </p>
+              {analisando && (
+                <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
+              )}
+              {erroPrevia && (
+                <p className="mt-2 text-xs text-destructive">{erroPrevia}</p>
+              )}
+              {escopoPrevia && (
+                <div className="mt-3">
+                  <EscopoIdentificado escopo={escopoPrevia} onChange={setEscopoPrevia} />
+                </div>
+              )}
             </div>
           </div>
 
