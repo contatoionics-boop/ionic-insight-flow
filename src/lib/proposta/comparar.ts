@@ -1,6 +1,7 @@
 // Comparador puro: escopo vendido (proposta) x variáveis do mapeamento (campo).
 
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
+import { comunicacaoDoCampo } from "@/lib/laudo/comunicacao";
 import type { Divergencia, EscopoProposta, ResultadoComparacao } from "@/lib/proposta/tipos";
 
 function v(vars: VariaveisLaudo, chave: string): string | null {
@@ -98,12 +99,14 @@ export function compararPropostaCampo(
   // ---------- Nível contratado x viabilidade em campo ----------
   const nivelProposta = escopo.nivel_automacao?.valor ?? null;
   const nivelCampo = nivelDoCampo(vars);
-  const comunicacaoCampo = (v(vars, "comunicacao_tipos") ?? "").toLowerCase();
+  const com = comunicacaoDoCampo(vars);
+  const comunicacaoCampo = (com.rotulo ?? "").toLowerCase();
   const sinal = (v(vars, "qualidade_sinal") ?? "").toLowerCase();
-  const semRede =
-    comunicacaoCampo.length > 0 &&
-    !/wi-?fi|wifi|gprs|4g|3g|gsm|r[aá]dio|rede/.test(comunicacaoCampo);
-  const sinalFraco = /fraco|ruim|inst[aá]vel|intermitente|sem sinal|ausente/.test(sinal);
+  const temComunicacao = com.wifi === true || com.movel === true;
+  // só é "sem rede" quando o campo NEGA explicitamente as duas tecnologias
+  const semRede = com.wifi === false && com.movel === false;
+  const sinalFraco =
+    !temComunicacao && /fraco|ruim|inst[aá]vel|intermitente|sem sinal|ausente/.test(sinal);
 
   if (nivelProposta === null) {
     pendencias.push("Nível de automação não identificado na proposta.");
@@ -121,7 +124,7 @@ export function compararPropostaCampo(
     });
   }
 
-  if (nivelProposta !== null && nivelProposta >= 2 && (semRede || sinalFraco)) {
+  if (nivelProposta !== null && nivelProposta >= 2 && !temComunicacao && (semRede || sinalFraco)) {
     divergencias.push({
       codigo: "nivel2_sem_infra",
       titulo: "Nível 2 contratado sem infraestrutura de rede compatível",
@@ -192,25 +195,25 @@ export function compararPropostaCampo(
 
   // ---------- Comunicação ----------
   const comProposta = escopo.comunicacao_prevista?.valor ?? escopo.comunicacao?.valor ?? null;
-  if (comProposta && comunicacaoCampo) {
-    const temWifi = /wi-?fi|wifi/.test(comunicacaoCampo);
-    const tem4g = /4g|3g|gsm|gprs/.test(comunicacaoCampo);
+  if (!comProposta) {
+    pendencias.push("Módulo de comunicação não identificado na proposta.");
+  } else {
+    // divergência só quando o campo CONFIRMA tecnologia diferente da prevista
     const conflito =
-      (comProposta === "wifi" && !temWifi) ||
-      (comProposta === "4g" && !tem4g) ||
-      (comProposta === "ambos" && !(temWifi && tem4g));
+      (comProposta === "wifi" && com.wifi === false && com.movel === true) ||
+      (comProposta === "4g" && com.movel === false && com.wifi === true) ||
+      (comProposta === "ambos" &&
+        ((com.wifi === false && com.movel === true) || (com.movel === false && com.wifi === true)));
     if (conflito) {
       divergencias.push({
         codigo: "comunicacao_divergente",
         titulo: "Módulo de comunicação previsto diferente do encontrado",
         proposta: comProposta === "wifi" ? "Wi-Fi (comodato)" : comProposta === "4g" ? "4G (adicional)" : "Wi-Fi + 4G",
-        campo: comunicacaoCampo,
+        campo: comunicacaoCampo || "não identificado",
         severidade: "atencao",
         recomendacao: "Ajustar o módulo de comunicação na proposta (Wi-Fi comodato x 4G adicional).",
       });
     }
-  } else if (!comProposta) {
-    pendencias.push("Módulo de comunicação não identificado na proposta.");
   }
 
   // ---------- Tipo de bomba ----------

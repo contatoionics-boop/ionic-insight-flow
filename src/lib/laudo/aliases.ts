@@ -64,16 +64,28 @@ const ALIASES: Array<[string, string[]]> = [
   ["area_coberta", ["area onde esta instalado o dispositivo de abastecimento e coberta"]],
   ["distancia_pista", ["distancia da ilha", "ate a pista"]],
   ["cliente_ja_tem_saaf", ["possui algum tipo de controle automacao"]],
-  ["tipo_objeto", ["tipos de veiculos que abastece", "tipo de veiculo"]],
+  ["tipos_veiculos_abastecidos", ["tipos de veiculos que abastece", "tipo de veiculo", "veiculos atendidos"]],
   ["qualidade_sinal", ["potencia do sinal gprs", "sinal gsm", "sinal da operadora"]],
   ["operadora_gsm", ["operadora local"]],
-  ["comunicacao_tipos", ["dispoe de sinal wi fi", "sinal wifi", "tipo de comunicacao"]],
+  ["wifi_disponivel", ["dispoe de sinal wi fi", "possui sinal wi fi", "sinal wifi no local"]],
+  ["gsm_4g_disponivel", ["dispoe de sinal gsm", "possui sinal 4g", "sinal gprs disponivel"]],
+  ["comunicacao_tipos", ["tipo de comunicacao", "meio de comunicacao", "tecnologia de comunicacao"]],
   ["frequencia_wifi", ["frequencia do sinal de wi fi"]],
   ["qualidade_wifi", ["potencia do sinal de wi fi"]],
   ["marca_veiculo", ["marca modelo do veiculo", "marca e modelo do veiculo"]],
   ["tensao_veiculo", ["tensao do veiculo", "tensao de alimentacao do veiculo"]],
   ["ids_objetos", ["placa", "prefixo do veiculo"]],
-  ["qtd_bicos", ["quantidade de bicos", "numero de bicos"]],
+  [
+    "qtd_bicos",
+    [
+      "quantidade de bicos",
+      "numero de bicos",
+      "quantidade de bicos de abastecimento",
+      "quantidade de bicos da bomba",
+      "bicos por bomba",
+      "qtd de bicos",
+    ],
+  ],
 ];
 
 const INDEX: Array<{ chave: string; termo: string }> = ALIASES.flatMap(([chave, termos]) =>
