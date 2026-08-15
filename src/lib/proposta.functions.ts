@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { EscopoProposta, PropostaResumo, ResultadoComparacao } from "@/lib/proposta/tipos";
+import type { PropostaResumo, ResultadoComparacao } from "@/lib/proposta/tipos";
 import { normalizarEscopo } from "@/lib/proposta/tipos";
 
 const CasoInput = z.object({ casoId: z.string().uuid() });

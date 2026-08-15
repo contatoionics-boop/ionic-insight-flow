@@ -1,6 +1,6 @@
 // Server-only: baixa o PDF, extrai o escopo e compara com o mapeamento.
 import { compararPropostaCampo } from "@/lib/proposta/comparar";
-import { ESCOPO_VAZIO, type EscopoProposta, type ResultadoComparacao } from "@/lib/proposta/tipos";
+import { normalizarEscopo, type ResultadoComparacao } from "@/lib/proposta/tipos";
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 
 /** Extrai o escopo do PDF já anexado e persiste o resultado. */
@@ -82,6 +82,39 @@ export async function processarProposta(supabase: any, propostaId: string, userI
   }
 }
 
+/**
+ * Persiste um escopo já analisado/corrigido (ex.: revisado no agendamento) e
+ * dispara a remontagem do laudo + comparação, sem reextrair o PDF.
+ */
+export async function aplicarEscopoProposta(
+  supabase: any,
+  propostaId: string,
+  escopoBruto: any,
+  userId?: string | null,
+) {
+  const escopo = normalizarEscopo(escopoBruto);
+  const { data: row, error } = await supabase
+    .from("propostas_comerciais")
+    .update({ status: "pronto", erro_mensagem: null, escopo: escopo as any })
+    .eq("id", propostaId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+
+  try {
+    const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+    await montarESalvarLaudo(supabase, row.caso_id);
+  } catch {
+    // formulário ainda não respondido: remontagem é best-effort
+  }
+  try {
+    await compararCasoProposta(supabase, row.caso_id, userId ?? null);
+  } catch {
+    // comparação best-effort
+  }
+  return row;
+}
+
 /** Compara a proposta mais recente do caso com as variáveis do laudo e persiste. */
 export async function compararCasoProposta(
   supabase: any,
@@ -103,7 +136,7 @@ export async function compararCasoProposta(
     .eq("id", casoId)
     .maybeSingle();
 
-  const escopo = { ...ESCOPO_VAZIO, ...((proposta.escopo ?? {}) as EscopoProposta) };
+  const escopo = normalizarEscopo(proposta.escopo);
   const variaveis = (caso?.laudo_variaveis ?? {}) as VariaveisLaudo;
   const comparacao = compararPropostaCampo(escopo, variaveis);
 
