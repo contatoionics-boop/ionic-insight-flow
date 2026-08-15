@@ -81,17 +81,30 @@ export const carregarProposta = createServerFn({ method: "POST" })
       .limit(1);
     if (error) throw new Error(error.message);
 
+    // sem proposta anexada não existe comparação: qualquer resultado salvo é stale
+    if (!rows?.length) {
+      await context.supabase
+        .from("casos")
+        .update({ divergencias_proposta: {} as any })
+        .eq("id", data.casoId);
+      return { proposta: null, comparacao: null as ResultadoComparacao | null };
+    }
+
     const { data: caso } = await context.supabase
       .from("casos")
       .select("divergencias_proposta")
       .eq("id", data.casoId)
       .maybeSingle();
 
+    const salvo = (caso as any)?.divergencias_proposta ?? null;
     return {
-      proposta: rows?.length ? normalizarProposta(rows[0]) : null,
-      comparacao: ((caso as any)?.divergencias_proposta ?? null) as ResultadoComparacao | null,
+      proposta: normalizarProposta(rows[0]),
+      comparacao: (salvo && Object.keys(salvo).length
+        ? salvo
+        : null) as ResultadoComparacao | null,
     };
   });
+
 
 /** URL assinada para baixar/visualizar o PDF da proposta. */
 export const urlProposta = createServerFn({ method: "POST" })
