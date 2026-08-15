@@ -33,6 +33,29 @@ function nivelDoCampo(vars: VariaveisLaudo): number | null {
   return s ? num(s.replace("nivel_", "")) : null;
 }
 
+/**
+ * Evidência de comboio vinda do CAMPO (formulário/manual/IA).
+ * `null` = não confirmado (vira pendência). Nunca infere `false` a partir de
+ * tipos genéricos como "Pesados", "posto" ou "pista".
+ */
+export function evidenciaComboioCampo(vars: VariaveisLaudo): boolean | null {
+  const direto = bool(v(vars, "comboio"));
+  if (direto !== null) return direto;
+
+  const qtd = num(v(vars, "qtd_comboios"));
+  if (qtd !== null) return qtd > 0;
+
+  const tipo = (v(vars, "tipo_objeto") ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  if (/^(caminhao\s+)?comboio(s)?$/.test(tipo)) return true;
+
+  return null;
+}
+
+
 export function compararPropostaCampo(
   escopo: EscopoProposta,
   vars: VariaveisLaudo,
