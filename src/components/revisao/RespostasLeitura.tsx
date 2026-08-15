@@ -413,17 +413,17 @@ export function RespostasLeitura({
                     </p>
                   )}
                   {ps.map((p, pi) => (
-                    <article key={p.id} className="px-5 py-6">
+                    <article key={p.id} className="px-5 py-3.5">
                       <div className="flex gap-3">
-                        <span className="mt-0.5 shrink-0 text-sm tabular-nums text-muted-foreground">
+                        <span className="mt-0.5 shrink-0 text-xs tabular-nums text-muted-foreground">
                           {si + 1}.{pi + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-base font-semibold leading-snug text-foreground">
+                          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             {p.texto}
                           </h4>
                           {p.instrucao_agente && (
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
                               {p.instrucao_agente}
                             </p>
                           )}
@@ -437,6 +437,7 @@ export function RespostasLeitura({
                       </div>
                     </article>
                   ))}
+
                 </div>
               </section>
             );
