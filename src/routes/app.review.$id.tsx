@@ -481,10 +481,10 @@ function ReviewCasePage() {
         <div className="flex flex-1 flex-wrap gap-1">
           {(
             [
-              ["conferencia", "1. Conferência"],
-              ["documento", "2. Documento"],
+              ["conferencia", "1. Conferência do mapeamento", "1. Conferência"],
+              ["documento", "2. Documento final", "2. Documento"],
             ] as const
-          ).map(([key, label]) => (
+          ).map(([key, label, curto]) => (
             <button
               key={key}
               type="button"
@@ -495,65 +495,80 @@ function ReviewCasePage() {
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              {label}
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{curto}</span>
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {tab === "conferencia" && (
-            <Button variant="outline" onClick={salvarTudo} disabled={savingAll || !hasDirty}>
-              {savingAll ? (
+          {tab === "documento" && estadoDoc && (
+            <Button
+              variant="ghost"
+              onClick={() => void estadoDoc.gerar()}
+              disabled={estadoDoc.gerando}
+            >
+              {estadoDoc.gerando ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : estadoDoc.temConteudo ? (
+                <RefreshCw className="h-4 w-4" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
               )}
-              Salvar alterações
+              {estadoDoc.temConteudo ? "Regerar rascunho" : "Gerar rascunho"}
             </Button>
           )}
-          {tab === "documento" && estadoDoc && (
-            <>
-              <Button variant="ghost" onClick={() => void estadoDoc.gerar()} disabled={estadoDoc.gerando}>
-                {estadoDoc.gerando ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : estadoDoc.temConteudo ? (
-                  <RefreshCw className="h-4 w-4" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {estadoDoc.temConteudo ? "Regerar rascunho" : "Gerar rascunho"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void estadoDoc.salvar()}
-                disabled={!estadoDoc.docSujo || estadoDoc.salvando}
-              >
-                {estadoDoc.salvando ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Salvar documento
-              </Button>
-            </>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => void previewPdf()}
-            disabled={downloading || !podePdf}
-            title={motivoPdf ?? undefined}
-          >
-            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Pré-visualizar PDF
+
+          <Button variant="outline" onClick={() => void salvar()} disabled={!podeSalvar}>
+            {salvandoAlgo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Salvar
           </Button>
-          <Button
-            variant="outline"
-            onClick={baixarPdf}
-            disabled={downloading || !podePdf}
-            title={motivoPdf ?? undefined}
-          >
-            <FileDown className="h-4 w-4" /> Baixar PDF
-          </Button>
+
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setPdfMenu((v) => !v)}
+              disabled={downloading || !podePdf}
+              title={motivoPdf ?? undefined}
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              PDF
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            {pdfMenu && !downloading && podePdf && (
+              <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setPdfMenu(false);
+                    void previewPdf();
+                  }}
+                >
+                  <Eye className="h-4 w-4" /> Pré-visualizar PDF
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setPdfMenu(false);
+                    void baixarPdf();
+                  }}
+                >
+                  <FileDown className="h-4 w-4" /> Baixar PDF
+                </button>
+              </div>
+            )}
+          </div>
+
           <Button variant="outline" onClick={() => setReopenOpen(true)}>
             <AlertCircle className="h-4 w-4" /> Solicitar reenvio
           </Button>
@@ -567,6 +582,7 @@ function ReviewCasePage() {
           </p>
         ) : null}
       </div>
+
 
       {pdfError && (
         <Card className="mb-3 border-destructive/30 bg-destructive/5">
