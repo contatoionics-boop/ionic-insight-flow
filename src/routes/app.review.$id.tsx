@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Check,
   AlertCircle,
+  ChevronDown,
   Eye,
   FileDown,
   Loader2,
@@ -25,9 +26,9 @@ import {
 } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarPdfLaudo } from "@/lib/laudo.functions";
+import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
-import { PropostaPanel } from "@/components/proposta/PropostaPanel";
+import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
@@ -80,6 +81,9 @@ function ReviewCasePage() {
   const [tab, setTab] = useState<"conferencia" | "documento">("conferencia");
   const [estadoDoc, setEstadoDoc] = useState<EstadoDocumento | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfMenu, setPdfMenu] = useState(false);
+  const [divergencias, setDivergencias] = useState(0);
+  const [alertasTecnicos, setAlertasTecnicos] = useState(0);
 
   const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
   const navigate = useNavigate();
@@ -182,6 +186,24 @@ function ReviewCasePage() {
     })();
   }, [id]);
 
+  const carregarLaudoFn = useServerFn(carregarLaudo);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await carregarLaudoFn({ data: { casoId: id } });
+        if (!vivo) return;
+        const achados = (r.achados ?? []) as { severidade?: string }[];
+        setAlertasTecnicos(achados.filter((a) => a.severidade === "atencao").length);
+      } catch {
+        /* sem laudo ainda */
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [id, carregarLaudoFn]);
+
   const opcoesPorPergunta = useMemo(() => {
     const m = new Map<string, Opcao[]>();
     for (const o of opcoes) {
@@ -191,6 +213,23 @@ function ReviewCasePage() {
     }
     return m;
   }, [opcoes]);
+
+  const statsRespostas = useMemo(() => {
+    let ok = 0;
+    for (const p of perguntas) {
+      const r = respostas[p.id];
+      if (!r) continue;
+      const temArquivo = arquivosDe(r).length > 0;
+      if (
+        temArquivo ||
+        !!r.valor_texto?.trim() ||
+        !!r.transcricao?.trim()
+      ) {
+        ok++;
+      }
+    }
+    return { total: perguntas.length, ok };
+  }, [perguntas, respostas]);
 
   const perguntasPorSecao = useMemo(() => {
     const m = new Map<string, Pergunta[]>();
@@ -434,6 +473,17 @@ function ReviewCasePage() {
 
   const hasDirty = Object.values(dirty).some(Boolean);
 
+  const salvandoAlgo = savingAll || !!estadoDoc?.salvando;
+  const podeSalvar =
+    !salvandoAlgo && (tab === "documento" ? !!estadoDoc?.docSujo : hasDirty);
+  const salvar = async () => {
+    if (tab === "documento") {
+      if (estadoDoc?.docSujo) await estadoDoc.salvar();
+      return;
+    }
+    await salvarTudo();
+  };
+
   const podePdf = tab === "documento" ? !estadoDoc?.motivoPdf : true;
   const motivoPdf = tab === "documento" ? (estadoDoc?.motivoPdf ?? null) : null;
 
@@ -481,10 +531,10 @@ function ReviewCasePage() {
         <div className="flex flex-1 flex-wrap gap-1">
           {(
             [
-              ["conferencia", "1. Conferência"],
-              ["documento", "2. Documento"],
+              ["conferencia", "1. Conferência do mapeamento", "1. Conferência"],
+              ["documento", "2. Documento final", "2. Documento"],
             ] as const
-          ).map(([key, label]) => (
+          ).map(([key, label, curto]) => (
             <button
               key={key}
               type="button"
@@ -495,65 +545,80 @@ function ReviewCasePage() {
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              {label}
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{curto}</span>
             </button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {tab === "conferencia" && (
-            <Button variant="outline" onClick={salvarTudo} disabled={savingAll || !hasDirty}>
-              {savingAll ? (
+          {tab === "documento" && estadoDoc && (
+            <Button
+              variant="ghost"
+              onClick={() => void estadoDoc.gerar()}
+              disabled={estadoDoc.gerando}
+            >
+              {estadoDoc.gerando ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : estadoDoc.temConteudo ? (
+                <RefreshCw className="h-4 w-4" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
               )}
-              Salvar alterações
+              {estadoDoc.temConteudo ? "Regerar rascunho" : "Gerar rascunho"}
             </Button>
           )}
-          {tab === "documento" && estadoDoc && (
-            <>
-              <Button variant="ghost" onClick={() => void estadoDoc.gerar()} disabled={estadoDoc.gerando}>
-                {estadoDoc.gerando ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : estadoDoc.temConteudo ? (
-                  <RefreshCw className="h-4 w-4" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {estadoDoc.temConteudo ? "Regerar rascunho" : "Gerar rascunho"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void estadoDoc.salvar()}
-                disabled={!estadoDoc.docSujo || estadoDoc.salvando}
-              >
-                {estadoDoc.salvando ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Salvar documento
-              </Button>
-            </>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => void previewPdf()}
-            disabled={downloading || !podePdf}
-            title={motivoPdf ?? undefined}
-          >
-            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Pré-visualizar PDF
+
+          <Button variant="outline" onClick={() => void salvar()} disabled={!podeSalvar}>
+            {salvandoAlgo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Salvar
           </Button>
-          <Button
-            variant="outline"
-            onClick={baixarPdf}
-            disabled={downloading || !podePdf}
-            title={motivoPdf ?? undefined}
-          >
-            <FileDown className="h-4 w-4" /> Baixar PDF
-          </Button>
+
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setPdfMenu((v) => !v)}
+              disabled={downloading || !podePdf}
+              title={motivoPdf ?? undefined}
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              PDF
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            {pdfMenu && !downloading && podePdf && (
+              <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setPdfMenu(false);
+                    void previewPdf();
+                  }}
+                >
+                  <Eye className="h-4 w-4" /> Pré-visualizar PDF
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setPdfMenu(false);
+                    void baixarPdf();
+                  }}
+                >
+                  <FileDown className="h-4 w-4" /> Baixar PDF
+                </button>
+              </div>
+            )}
+          </div>
+
           <Button variant="outline" onClick={() => setReopenOpen(true)}>
             <AlertCircle className="h-4 w-4" /> Solicitar reenvio
           </Button>
@@ -567,6 +632,7 @@ function ReviewCasePage() {
           </p>
         ) : null}
       </div>
+
 
       {pdfError && (
         <Card className="mb-3 border-destructive/30 bg-destructive/5">
@@ -623,7 +689,32 @@ function ReviewCasePage() {
 
       {tab === "conferencia" && (
         <div className="space-y-4">
-          <PropostaPanel casoId={id} />
+          {/* chips de resumo da conferência */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-md bg-muted px-2 py-1 font-medium text-foreground">
+              {statsRespostas.ok}/{statsRespostas.total} respondidas
+            </span>
+            {statsRespostas.total - statsRespostas.ok > 0 && (
+              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
+                {statsRespostas.total - statsRespostas.ok} não respondidas
+              </span>
+            )}
+            {divergencias > 0 && (
+              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
+                {divergencias} divergência(s)
+              </span>
+            )}
+            {alertasTecnicos > 0 && (
+              <span className="rounded-md bg-destructive/15 px-2 py-1 font-medium text-destructive">
+                {alertasTecnicos} alerta(s) técnico(s)
+              </span>
+            )}
+          </div>
+
+          <ConferenciaProposta
+            casoId={id}
+            onResumo={(r: { divergencias: number }) => setDivergencias(r.divergencias)}
+          />
 
           <div className="inline-flex rounded-md border border-border bg-card p-0.5">
             {(
@@ -648,6 +739,7 @@ function ReviewCasePage() {
           </div>
         </div>
       )}
+
 
       {tab === "conferencia" && modoRespostas === "leitura" && (
         <RespostasLeitura
