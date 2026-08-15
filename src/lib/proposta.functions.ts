@@ -96,13 +96,20 @@ export const carregarProposta = createServerFn({ method: "POST" })
       .eq("id", data.casoId)
       .maybeSingle();
 
-    const salvo = (caso as any)?.divergencias_proposta ?? null;
+    let salvo = (caso as any)?.divergencias_proposta ?? null;
+    if (!salvo || !Object.keys(salvo).length) {
+      // sem comparação persistida (ou limpa por mudança de regra): recalcula
+      const { compararCasoProposta } = await import("@/lib/proposta/processar.server");
+      const r = await compararCasoProposta(context.supabase, data.casoId, context.userId);
+      salvo = r.comparacao;
+    }
     return {
       proposta: normalizarProposta(rows[0]),
       comparacao: (salvo && Object.keys(salvo).length
         ? salvo
         : null) as ResultadoComparacao | null,
     };
+
   });
 
 
