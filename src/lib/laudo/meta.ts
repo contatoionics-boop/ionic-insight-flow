@@ -9,6 +9,15 @@ export const ESPECIALISTA_AUTOMACAO_PADRAO = "PABLO";
 export const TITULO_DOCUMENTO = "Resultado de Mapeamento Técnico";
 export const CODIGO_DOCUMENTO = "FR-31-10";
 
+/**
+ * Cabeçalho administrativo do FR-31-10 — FIXO (confirmado pelo responsável).
+ * Não é dinâmico: vale para a folha WYSIWYG, a pré-visualização e o PDF.
+ */
+export const ELABORADO_POR_FIXO = "Sheron Williams";
+export const APROVADO_POR_FIXO = "Guilherme Sombrio";
+export const REVISAO_FIXA = "01";
+export const DATA_REVISAO_FIXA = "02/04/2024";
+
 export type EntradaMetaLaudo = {
   caso: {
     codigo?: string | null;
