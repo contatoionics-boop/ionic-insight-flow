@@ -29,6 +29,12 @@ import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
 import type { MetaLaudo } from "@/lib/laudo/meta";
+import {
+  APROVADO_POR_FIXO,
+  DATA_REVISAO_FIXA,
+  ELABORADO_POR_FIXO,
+  REVISAO_FIXA,
+} from "@/lib/laudo/meta";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [
