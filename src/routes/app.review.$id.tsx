@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Check,
   AlertCircle,
+  ChevronDown,
   Eye,
   FileDown,
   Loader2,
@@ -80,6 +81,8 @@ function ReviewCasePage() {
   const [tab, setTab] = useState<"conferencia" | "documento">("conferencia");
   const [estadoDoc, setEstadoDoc] = useState<EstadoDocumento | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfMenu, setPdfMenu] = useState(false);
+  const [divergencias, setDivergencias] = useState(0);
 
   const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
   const navigate = useNavigate();
@@ -433,6 +436,17 @@ function ReviewCasePage() {
   }
 
   const hasDirty = Object.values(dirty).some(Boolean);
+
+  const salvandoAlgo = savingAll || !!estadoDoc?.salvando;
+  const podeSalvar =
+    !salvandoAlgo && (tab === "documento" ? !!estadoDoc?.docSujo : hasDirty);
+  const salvar = async () => {
+    if (tab === "documento") {
+      if (estadoDoc?.docSujo) await estadoDoc.salvar();
+      return;
+    }
+    await salvarTudo();
+  };
 
   const podePdf = tab === "documento" ? !estadoDoc?.motivoPdf : true;
   const motivoPdf = tab === "documento" ? (estadoDoc?.motivoPdf ?? null) : null;
