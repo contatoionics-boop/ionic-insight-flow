@@ -26,7 +26,7 @@ import {
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
-import { comChaves, conteudoDoBloco, marcarEdicao } from "@/lib/laudo/mesclar";
+import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
 import type { MetaLaudo } from "@/lib/laudo/meta";
 import {
