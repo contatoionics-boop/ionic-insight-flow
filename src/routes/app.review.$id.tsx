@@ -662,7 +662,7 @@ function ReviewCasePage() {
 
       <div
         className="space-y-4"
-        hidden={tab !== "respostas" || modoRespostas !== "editar"}
+        hidden={tab !== "conferencia" || modoRespostas !== "editar"}
       >
         {secoes.length === 0 && (
           <Card>
