@@ -75,6 +75,16 @@ describe("escopo SETEL", () => {
     expect(comboioExplicito(segmentarProposta(PROPOSTA_SETEL)).valor).toBe(false);
   });
 
+  it("menção ambígua a comboio (catálogo/terminal) fica null, nunca true", () => {
+    const texto = PROPOSTA_SETEL.replace(
+      "Terminal T850 e NLDIV Wireless inclusos no kit.",
+      "Terminal Comboio T550 / T750 / T850 compatível com caminhões comboio.",
+    );
+    const secoes = segmentarProposta(texto);
+    expect(comboioExplicito(secoes).valor).toBeNull();
+    expect(extrairEscopoDeterministico(texto).tem_comboio.valor).toBeNull();
+  });
+
   it("lê comunicação prevista Wi-Fi (4G é adicional)", () => {
     expect(escopo.comunicacao_prevista.valor).toBe("wifi");
   });
