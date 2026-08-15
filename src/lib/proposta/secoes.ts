@@ -142,24 +142,31 @@ export function faseParaNivel(fase: number | null | undefined): 1 | 2 | null {
 
 /**
  * Comboio só é verdadeiro quando o escopo ESPECÍFICO cita comboio como
- * estrutura a automatizar (com quantidade ou em lista de escopo).
+ * estrutura contratada, com quantidade/aplicação explícita.
+ *
+ * - `true`  -> quantidade ou enumeração de estrutura ("02 caminhões comboio");
+ * - `null`  -> menção ambígua (catálogo, "Terminal Comboio", compatibilidade);
+ * - `false` -> nenhuma menção no escopo específico do cliente.
  */
-export function comboioExplicito(secoes: SecoesProposta): { valor: boolean; trecho: string | null } {
+export function comboioExplicito(secoes: SecoesProposta): {
+  valor: boolean | null;
+  trecho: string | null;
+} {
   const alvo = textoConfirmatorio(secoes.escopo);
   const linhas = alvo.split("\n");
+  let ambiguo: string | null = null;
   for (const linha of linhas) {
     const s = semAcento(linha).toLowerCase();
-    if (!/comboio/.test(s)) continue;
-    // exige quantidade explícita ou enumeração de estrutura ("para: … comboio")
-    if (
-      /(\d{1,3}|um|uma|dois|duas|tres)\s*(?:x\s*)?(?:caminh\w+\s+)?comboi/.test(s) ||
-      /(para|escopo|automatiza\w*)[^\n]*\bcomboi/.test(s)
-    ) {
-      return { valor: true, trecho: linha.trim().slice(0, 240) };
-    }
+    if (!/comboi/.test(s)) continue;
+    const comQuantidade =
+      /(\d{1,3}|um|uma|dois|duas|tres)\s*(?:x\s*)?(?:caminh\w+\s+)?comboi/.test(s);
+    if (comQuantidade) return { valor: true, trecho: linha.trim().slice(0, 240) };
+    // nome de produto/terminal ou capacidade genérica não confirma escopo
+    if (ambiguo === null) ambiguo = linha.trim().slice(0, 240);
   }
-  return { valor: false, trecho: null };
+  return ambiguo ? { valor: null, trecho: ambiguo } : { valor: false, trecho: null };
 }
+
 
 type Parcial = Partial<Record<keyof EscopoProposta, CampoProposta<any>>>;
 
@@ -271,16 +278,16 @@ export function escopoDeterministico(secoes: SecoesProposta): Parcial {
   }
 
   const comboio = comboioExplicito(secoes);
-  set(
-    "tem_comboio",
-    campo(comboio.valor, comboio.valor ? 0.9 : 0.8, "escopo", comboio.trecho),
-  );
-  if (comboio.valor) {
+  if (comboio.valor === true) {
+    set("tem_comboio", campo(true, 0.9, "escopo", comboio.trecho));
     const qtdC = quantidade(esc, /(?:caminh\w+\s+)?comboi\w*/);
     if (qtdC !== null) set("qtd_comboios", campo(qtdC, 0.85, "escopo", comboio.trecho));
-  } else {
+  } else if (comboio.valor === false) {
+    set("tem_comboio", campo(false, 0.8, "escopo", null));
     set("qtd_comboios", campo(0, 0.8, "escopo", null));
   }
+  // ambíguo (null): não afirma nada — vira pendência para revisão humana
+
 
   const bombas = quantidade(esc, /bombas?\b/);
   if (bombas !== null) set("qtd_bombas", campo(bombas, 0.9, "escopo", linhaComTermo(esc, /bomba/)));

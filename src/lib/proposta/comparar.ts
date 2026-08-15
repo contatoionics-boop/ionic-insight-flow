@@ -33,6 +33,29 @@ function nivelDoCampo(vars: VariaveisLaudo): number | null {
   return s ? num(s.replace("nivel_", "")) : null;
 }
 
+/**
+ * Evidência de comboio vinda do CAMPO (formulário/manual/IA).
+ * `null` = não confirmado (vira pendência). Nunca infere `false` a partir de
+ * tipos genéricos como "Pesados", "posto" ou "pista".
+ */
+export function evidenciaComboioCampo(vars: VariaveisLaudo): boolean | null {
+  const direto = bool(v(vars, "comboio"));
+  if (direto !== null) return direto;
+
+  const qtd = num(v(vars, "qtd_comboios"));
+  if (qtd !== null) return qtd > 0;
+
+  const tipo = (v(vars, "tipo_objeto") ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  if (/^(caminhao\s+)?comboio(s)?$/.test(tipo)) return true;
+
+  return null;
+}
+
+
 export function compararPropostaCampo(
   escopo: EscopoProposta,
   vars: VariaveisLaudo,
@@ -143,14 +166,16 @@ export function compararPropostaCampo(
   }
 
   // ---------- Comboio ----------
+  // Só há divergência quando o CAMPO traz evidência estruturada confiável.
+  // Tipos genéricos de veículo/objeto ("Pesados", "posto", "pista") NÃO provam
+  // ausência de comboio — nesse caso o resultado é pendência, não divergência.
   const comboioProposta = escopo.tem_comboio?.valor ?? escopo.comboio?.valor ?? null;
-  const tipoObjeto = (v(vars, "tipo_objeto") ?? "").toLowerCase();
-  const objetoEscopo = (v(vars, "objeto_escopo") ?? "").toLowerCase();
-  const comboioCampoDireto = bool(v(vars, "comboio"));
-  const comboioCampo =
-    comboioCampoDireto ?? (tipoObjeto || objetoEscopo ? /comboio/.test(`${tipoObjeto} ${objetoEscopo}`) : null);
+  const comboioCampo = evidenciaComboioCampo(vars);
   if (comboioProposta === null) pendencias.push("Comboio não identificado na proposta.");
-  else if (comboioCampo === null) pendencias.push("Presença de comboio não informada no mapeamento.");
+  else if (comboioCampo === null)
+    pendencias.push(
+      "Presença de comboio não confirmada no mapeamento (sem resposta estruturada). Confirmar com o especialista.",
+    );
   else if (comboioProposta !== comboioCampo) {
     divergencias.push({
       codigo: "comboio_divergente",
@@ -163,6 +188,7 @@ export function compararPropostaCampo(
         : "Incluir o comboio no investimento (solução CMB, válvulas 24V).",
     });
   }
+
 
   // ---------- Comunicação ----------
   const comProposta = escopo.comunicacao_prevista?.valor ?? escopo.comunicacao?.valor ?? null;
