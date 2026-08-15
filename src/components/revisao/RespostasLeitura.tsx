@@ -111,7 +111,7 @@ function Resposta({
 
   if (p.tipo === "foto") {
     return (
-      <div className="mt-3 space-y-3">
+      <div className="mt-2 space-y-2">
         {arquivos.length === 0 ? (
           <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground">
             <ImageOff className="mr-2 h-5 w-5" /> Sem imagem enviada
@@ -155,7 +155,7 @@ function Resposta({
   if (p.tipo === "video") {
     const url = arquivos[0] ? urls[arquivos[0]] : undefined;
     return (
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 space-y-2">
         {url ? (
           <video
             controls
@@ -175,7 +175,7 @@ function Resposta({
     const url = arquivos[0] ? urls[arquivos[0]] : undefined;
     const transcricao = (r?.transcricao ?? "").trim() || texto;
     return (
-      <div className="mt-3 space-y-2">
+      <div className="mt-2 space-y-2">
         {url && <audio controls src={url} className="w-full max-w-lg" />}
         {transcricao ? (
           <div className="rounded-lg border-l-4 border-primary/50 bg-muted/50 px-4 py-3">
@@ -201,9 +201,9 @@ function Resposta({
   if (p.tipo === "multipla_escolha") {
     const itens = valoresMultiplos(texto);
     return (
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         {itens.map((v, i) => (
-          <Badge key={v + i} className="bg-primary/10 px-3 py-1 text-sm text-primary">
+          <Badge key={v + i} className="bg-muted px-2.5 py-0.5 text-sm font-medium text-foreground">
             {v}
           </Badge>
         ))}
@@ -213,8 +213,8 @@ function Resposta({
 
   if (p.tipo === "selecao_unica") {
     return (
-      <div className="mt-3">
-        <Badge className="bg-primary/10 px-3 py-1 text-sm text-primary">{texto}</Badge>
+      <div className="mt-2">
+        <Badge className="bg-muted px-2.5 py-0.5 text-sm font-medium text-foreground">{texto}</Badge>
       </div>
     );
   }
@@ -222,7 +222,7 @@ function Resposta({
   if (p.tipo === "toggle" || p.tipo === "checkbox") {
     const sim = /^(sim|true|1|ok)$/i.test(texto);
     return (
-      <div className="mt-3">
+      <div className="mt-2">
         <span
           className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-semibold ${
             sim
@@ -239,22 +239,22 @@ function Resposta({
 
   if (p.tipo === "numero") {
     return (
-      <p className="mt-3 text-2xl font-semibold tabular-nums text-foreground">{texto}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{texto}</p>
     );
   }
 
   if (p.tipo === "data") {
-    return <p className="mt-3 text-lg font-medium text-foreground">{formatarData(texto)}</p>;
+    return <p className="mt-1 text-base font-semibold text-foreground">{formatarData(texto)}</p>;
   }
 
   const longo = texto.length > 90 || texto.includes("\n");
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-2 space-y-2">
       <div
         className={
           longo
             ? "whitespace-pre-wrap rounded-lg border-l-4 border-primary/40 bg-muted/50 px-4 py-3 text-[15px] leading-relaxed text-foreground"
-            : "text-lg font-medium text-foreground"
+            : "text-base font-semibold text-foreground"
         }
       >
         {texto}
@@ -413,17 +413,17 @@ export function RespostasLeitura({
                     </p>
                   )}
                   {ps.map((p, pi) => (
-                    <article key={p.id} className="px-5 py-6">
+                    <article key={p.id} className="px-5 py-3.5">
                       <div className="flex gap-3">
-                        <span className="mt-0.5 shrink-0 text-sm tabular-nums text-muted-foreground">
+                        <span className="mt-0.5 shrink-0 text-xs tabular-nums text-muted-foreground">
                           {si + 1}.{pi + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-base font-semibold leading-snug text-foreground">
+                          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             {p.texto}
                           </h4>
                           {p.instrucao_agente && (
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
                               {p.instrucao_agente}
                             </p>
                           )}
@@ -437,6 +437,7 @@ export function RespostasLeitura({
                       </div>
                     </article>
                   ))}
+
                 </div>
               </section>
             );
