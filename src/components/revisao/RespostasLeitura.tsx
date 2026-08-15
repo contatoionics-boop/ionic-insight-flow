@@ -70,10 +70,20 @@ function respondida(p: LeituraPergunta, r?: LeituraResposta) {
 
 function SemResposta() {
   return (
-    <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground/70">
+    <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
       <Minus className="h-3.5 w-3.5" /> Não respondido
     </p>
   );
+}
+
+/** true quando a pergunta precisa da largura total da grade */
+function larga(p: LeituraPergunta, r?: LeituraResposta) {
+  if (["foto", "video", "audio", "tabela", "table", "assinatura"].includes(p.tipo)) return true;
+  const texto = (r?.valor_texto ?? "").trim();
+  const transcricao = (r?.transcricao ?? "").trim();
+  if (texto.length > 140 || transcricao.length > 140) return true;
+  if (texto.includes("\n") || transcricao.includes("\n")) return true;
+  return false;
 }
 
 function BotaoCopiar({ texto }: { texto: string }) {
@@ -113,11 +123,11 @@ function Resposta({
     return (
       <div className="mt-2 space-y-2">
         {arquivos.length === 0 ? (
-          <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground">
+          <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground">
             <ImageOff className="mr-2 h-5 w-5" /> Sem imagem enviada
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
             {arquivos.map((path, i) => {
               const url = urls[path];
               return url ? (
@@ -131,13 +141,13 @@ function Resposta({
                     src={url}
                     alt={`${p.texto} — imagem ${i + 1}`}
                     loading="lazy"
-                    className="h-56 w-full object-cover transition-transform group-hover:scale-[1.02]"
+                    className="h-28 w-full object-cover transition-transform group-hover:scale-[1.02]"
                   />
                 </button>
               ) : (
                 <div
                   key={path + i}
-                  className="flex h-56 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground"
+                  className="flex h-28 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground"
                 >
                   <ImageOff className="h-5 w-5" />
                 </div>
@@ -396,7 +406,7 @@ export function RespostasLeitura({
               >
                 <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-5 py-4">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Seção {si + 1} de {secoes.length}
                     </p>
                     <h3 className="truncate text-lg font-semibold text-foreground">{s.titulo}</h3>
@@ -406,38 +416,43 @@ export function RespostasLeitura({
                   </Badge>
                 </header>
 
-                <div className="divide-y divide-border">
+                <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
                   {ps.length === 0 && (
-                    <p className="px-5 py-4 text-sm text-muted-foreground">
-                      Sem perguntas nesta seção.
-                    </p>
+                    <p className="text-sm text-muted-foreground">Sem perguntas nesta seção.</p>
                   )}
-                  {ps.map((p, pi) => (
-                    <article key={p.id} className="px-5 py-3.5">
-                      <div className="flex gap-3">
-                        <span className="mt-0.5 shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {si + 1}.{pi + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {p.texto}
-                          </h4>
-                          {p.instrucao_agente && (
-                            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                              {p.instrucao_agente}
-                            </p>
-                          )}
-                          <Resposta
-                            p={p}
-                            r={respostas[p.id]}
-                            urls={urls}
-                            onAbrirImagem={(url, legenda) => setLightbox({ url, legenda })}
-                          />
+                  {ps.map((p, pi) => {
+                    const r = respostas[p.id];
+                    return (
+                      <article
+                        key={p.id}
+                        className={`rounded-lg border border-border bg-background/40 px-4 py-3 ${
+                          larga(p, r) ? "lg:col-span-2" : ""
+                        }`}
+                      >
+                        <div className="flex gap-2">
+                          <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                            {si + 1}.{pi + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              {p.texto}
+                            </h4>
+                            {p.instrucao_agente && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                                {p.instrucao_agente}
+                              </p>
+                            )}
+                            <Resposta
+                              p={p}
+                              r={r}
+                              urls={urls}
+                              onAbrirImagem={(url, legenda) => setLightbox({ url, legenda })}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  ))}
-
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             );
