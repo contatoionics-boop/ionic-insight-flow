@@ -226,7 +226,8 @@ export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
     id: bid,
     proximaFigura,
   };
-  const out = [blocoSecaoVII(opcoes), ...blocos24(opcoes)];
-  if (temComboio(variaveis)) out.push(...blocos241(opcoes));
+  const comboioConfirmado = temComboio(variaveis);
+  const out = [blocoSecaoVII(opcoes, comboioConfirmado), ...blocos24(opcoes)];
+  if (comboioConfirmado) out.push(...blocos241(opcoes));
   return out;
 }
