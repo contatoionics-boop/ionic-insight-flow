@@ -10,6 +10,7 @@ import {
   type MaterialCatalogo,
 } from "./regras";
 import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
+import { solucaoContratada } from "./solucao";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -160,103 +161,110 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     nivel: 1,
   });
 
-  // Nome da solução contratada: SAAF ou SSG Frota (padrão SAAF quando não informado).
-  const solucaoRaw = (raw(vars, "nome_solucao") ?? "").toLowerCase();
-  const nomeSolucao = /ssg/.test(solucaoRaw)
-    ? "SSG Frota"
-    : /saaf/.test(solucaoRaw) || !solucaoRaw
-      ? "SAAF"
-      : (raw(vars, "nome_solucao") as string);
-  /** aplica o nome real da solução nos textos padrão escritos com "SAAF" */
-  const sol = (t: string) => (nomeSolucao === "SAAF" ? t : t.replace(/\bSAAF\b/g, nomeSolucao));
+  // Solução contratada: define se a seção 2.1 (TI/banco de dados/ERP, exclusiva
+  // do SAAF) entra no documento. SSG Frota NÃO possui esses requisitos e o
+  // sistema jamais assume SAAF por omissão.
+  const solucao = solucaoContratada(vars);
 
-  // 2.1 TI — a seção existe sempre; a especificação é revisada/preenchida pelo especialista
-  const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
-  const variante = (raw(vars, "infra_ti_variante") ?? (jaTemSaaf ? "D" : "A")).toUpperCase();
-  blocos.push({
-    id: bid("h"),
-    tipo: "heading",
-    numero: "2.1",
-    texto: "Equipamentos de TI e banco de dados",
-    nivel: 2,
-  });
-  if (variante === "D") {
+  if (solucao === "saaf") {
+    const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
+    const variante = (raw(vars, "infra_ti_variante") ?? (jaTemSaaf ? "D" : "A")).toUpperCase();
     blocos.push({
-      id: bid("bl"),
-      tipo: "bullets",
-      itens: [
-        sol("O cliente já dispõe da Solução SAAF em operação; serão utilizados os equipamentos e o banco de dados existentes."),
-        "O computador no qual estão conectados os equipamentos da automação precisará dispor de entrada USB livre para conexão da Base Modem Amplificada Antena Externa (a ser adquirida caso não disponha).",
-        sol("A criação/atualização do banco de dados SAAF é pré-requisito para a instalação das aplicações; o script será disponibilizado pela equipe SW/IAM - IONICS."),
+      id: bid("h"),
+      tipo: "heading",
+      numero: "2.1",
+      texto: "Equipamentos de TI e banco de dados",
+      nivel: 2,
+    });
+    if (variante === "D") {
+      blocos.push({
+        id: bid("bl"),
+        tipo: "bullets",
+        itens: [
+          "O cliente já dispõe da Solução SAAF em operação; serão utilizados os equipamentos e o banco de dados existentes.",
+          "O computador no qual estão conectados os equipamentos da automação precisará dispor de entrada USB livre para conexão da Base Modem Amplificada Antena Externa (a ser adquirida caso não disponha).",
+          "A criação/atualização do banco de dados SAAF é pré-requisito para a instalação das aplicações; o script será disponibilizado pela equipe SW/IAM - IONICS.",
+        ],
+      });
+    } else if (variante === "B_REDUZIDA") {
+      blocos.push({
+        id: bid("bl"),
+        tipo: "bullets",
+        itens: [
+          "É necessário um microcomputador dedicado à aplicação, com acesso à rede local e ao ponto de comunicação do terminal, mantido ligado durante a operação.",
+          "A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS.",
+        ],
+      });
+    } else {
+      blocos.push({
+        id: bid("bl"),
+        tipo: "bullets",
+        itens: [
+          "Para operação da automação SAAF é importante que seja disponibilizado um servidor local conectado à rede de internet estável e sem restrições, de modo que possa ser acessado mediante o uso dos aplicativos TeamViewer ou AnyDesk.",
+          "Para consultas da automação SAAF é necessário que seja disponibilizado um computador com conexão à rede de internet estável e sem restrições, acessível pelos mesmos aplicativos.",
+          "A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS de acordo com o cronograma de implantação.",
+          "A integração com ERPs também é requisito para operação com o SAAF; a equipe SW/IAM - IONICS dará as instruções para criação das views de importação e exportação de dados.",
+        ],
+      });
+    }
+
+    // Bloco de equipamentos: sempre presente, para ajuste/preenchimento pelo especialista.
+    blocos.push({
+      id: bid("t"),
+      tipo: "table",
+      titulo: "Especificação do servidor (a validar pelo especialista)",
+      colunas: ["Item", "Especificação mínima"],
+      origem: "dynamic",
+      editavel: true,
+      linhas: [
+        { celulas: ["Processador", "Intel Core i5 ou superior"] },
+        { celulas: ["Memória", "8 GB RAM"] },
+        { celulas: ["Armazenamento", "256 GB SSD"] },
+        { celulas: ["Sistema operacional", "Windows 10/11 ou Windows Server"] },
+        { celulas: ["Banco de dados", "SQL Server / PostgreSQL conforme projeto"] },
+        { celulas: ["Rede", "Ethernet 100/1000 Mbps com acesso ao ponto de comunicação do terminal"] },
+        ...(variante === "B_COMPLETA"
+          ? [{ celulas: ["Expansão", "Slot disponível para módulo GSM"] }]
+          : []),
       ],
     });
-  } else if (variante === "B_REDUZIDA") {
     blocos.push({
-      id: bid("bl"),
-      tipo: "bullets",
-      itens: [
-        "É necessário um microcomputador dedicado à aplicação, com acesso à rede local e ao ponto de comunicação do terminal, mantido ligado durante a operação.",
-        sol("A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS."),
+      id: bid("t"),
+      tipo: "table",
+      titulo: "Especificação do computador de consulta (a validar pelo especialista)",
+      colunas: ["Item", "Especificação mínima"],
+      origem: "dynamic",
+      editavel: true,
+      linhas: [
+        { celulas: ["Processador", "Intel Core i3 ou superior"] },
+        { celulas: ["Memória", "8 GB RAM"] },
+        { celulas: ["Armazenamento", "256 GB SSD"] },
+        { celulas: ["Sistema operacional", "Windows 10/11"] },
+        { celulas: ["Rede", "Acesso à internet estável e sem restrições (TeamViewer / AnyDesk)"] },
       ],
     });
-  } else {
     blocos.push({
-      id: bid("bl"),
-      tipo: "bullets",
-      itens: [
-        sol("Para operação da automação SAAF é importante que seja disponibilizado um servidor local conectado à rede de internet estável e sem restrições, de modo que possa ser acessado mediante o uso dos aplicativos TeamViewer ou AnyDesk."),
-        sol("Para consultas da automação SAAF é necessário que seja disponibilizado um computador com conexão à rede de internet estável e sem restrições, acessível pelos mesmos aplicativos."),
-        sol("A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS de acordo com o cronograma de implantação."),
-        sol("A integração com ERPs também é requisito para operação com o SAAF; a equipe SW/IAM - IONICS dará as instruções para criação das views de importação e exportação de dados."),
-      ],
+      id: bid("o"),
+      tipo: "observacao",
+      titulo: "OBSERVAÇÃO TÉCNICA",
+      texto:
+        "As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente.",
+      origem: "dynamic",
+      editavel: true,
+    });
+  } else if (solucao === null) {
+    // Solução não identificada: não inventa requisitos nem assume SAAF.
+    blocos.push({
+      id: bid("o"),
+      tipo: "observacao",
+      titulo: "OBSERVAÇÃO TÉCNICA",
+      texto:
+        `Requisitos de TI e banco de dados não incluídos: ${pendencia("nome_solucao", "solução contratada (SAAF ou SSG Frota)")}. ` +
+        "A seção 2.1 é aplicável apenas à solução SAAF e deve ser confirmada pelo especialista.",
+      origem: "dynamic",
+      editavel: true,
     });
   }
-
-  // Bloco de equipamentos: sempre presente, para ajuste/preenchimento pelo especialista.
-  blocos.push({
-    id: bid("t"),
-    tipo: "table",
-    titulo: "Especificação do servidor (a validar pelo especialista)",
-    colunas: ["Item", "Especificação mínima"],
-    origem: "dynamic",
-    editavel: true,
-    linhas: [
-      { celulas: ["Processador", "Intel Core i5 ou superior"] },
-      { celulas: ["Memória", "8 GB RAM"] },
-      { celulas: ["Armazenamento", "256 GB SSD"] },
-      { celulas: ["Sistema operacional", "Windows 10/11 ou Windows Server"] },
-      { celulas: ["Banco de dados", "SQL Server / PostgreSQL conforme projeto"] },
-      { celulas: ["Rede", "Ethernet 100/1000 Mbps com acesso ao ponto de comunicação do terminal"] },
-      ...(variante === "B_COMPLETA"
-        ? [{ celulas: ["Expansão", "Slot disponível para módulo GSM"] }]
-        : []),
-    ],
-  });
-  blocos.push({
-    id: bid("t"),
-    tipo: "table",
-    titulo: "Especificação do computador de consulta (a validar pelo especialista)",
-    colunas: ["Item", "Especificação mínima"],
-    origem: "dynamic",
-    editavel: true,
-    linhas: [
-      { celulas: ["Processador", "Intel Core i3 ou superior"] },
-      { celulas: ["Memória", "8 GB RAM"] },
-      { celulas: ["Armazenamento", "256 GB SSD"] },
-      { celulas: ["Sistema operacional", "Windows 10/11"] },
-      { celulas: ["Rede", "Acesso à internet estável e sem restrições (TeamViewer / AnyDesk)"] },
-    ],
-  });
-  blocos.push({
-    id: bid("o"),
-    tipo: "observacao",
-    titulo: "OBSERVAÇÃO TÉCNICA",
-    texto:
-      sol("As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente."),
-    origem: "dynamic",
-    editavel: true,
-  });
-
 
   // 2.2 Transferência de dados — numeração sequencial conforme o que é incluído
   blocos.push({
