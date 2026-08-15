@@ -26,9 +26,9 @@ import {
 } from "lucide-react";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarPdfLaudo } from "@/lib/laudo.functions";
+import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
-import { PropostaPanel } from "@/components/proposta/PropostaPanel";
+import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 
@@ -83,6 +83,7 @@ function ReviewCasePage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfMenu, setPdfMenu] = useState(false);
   const [divergencias, setDivergencias] = useState(0);
+  const [alertasTecnicos, setAlertasTecnicos] = useState(0);
 
   const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
   const navigate = useNavigate();
@@ -185,6 +186,24 @@ function ReviewCasePage() {
     })();
   }, [id]);
 
+  const carregarLaudoFn = useServerFn(carregarLaudo);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await carregarLaudoFn({ data: { casoId: id } });
+        if (!vivo) return;
+        const achados = (r.achados ?? []) as { severidade?: string }[];
+        setAlertasTecnicos(achados.filter((a) => a.severidade === "atencao").length);
+      } catch {
+        /* sem laudo ainda */
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [id, carregarLaudoFn]);
+
   const opcoesPorPergunta = useMemo(() => {
     const m = new Map<string, Opcao[]>();
     for (const o of opcoes) {
@@ -194,6 +213,23 @@ function ReviewCasePage() {
     }
     return m;
   }, [opcoes]);
+
+  const statsRespostas = useMemo(() => {
+    let ok = 0;
+    for (const p of perguntas) {
+      const r = respostas[p.id];
+      if (!r) continue;
+      const temArquivo = arquivosDe(r).length > 0;
+      if (
+        temArquivo ||
+        !!r.valor_texto?.trim() ||
+        !!r.transcricao?.trim()
+      ) {
+        ok++;
+      }
+    }
+    return { total: perguntas.length, ok };
+  }, [perguntas, respostas]);
 
   const perguntasPorSecao = useMemo(() => {
     const m = new Map<string, Pergunta[]>();
@@ -677,7 +713,7 @@ function ReviewCasePage() {
 
           <ConferenciaProposta
             casoId={id}
-            onResumo={(r) => setDivergencias(r.divergencias)}
+            onResumo={(r: { divergencias: number }) => setDivergencias(r.divergencias)}
           />
 
           <div className="inline-flex rounded-md border border-border bg-card p-0.5">
