@@ -6,6 +6,13 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { limparTexto } from "@/lib/texto";
 import { figuraEstatica, figuraEstaticaFallback } from "@/lib/laudo/figuras-estaticas.server";
+import {
+  APROVADO_POR_FIXO,
+  DATA_REVISAO_FIXA,
+  ELABORADO_POR_FIXO,
+  REVISAO_FIXA,
+} from "@/lib/laudo/meta";
+import { dedupBlocos } from "@/lib/laudo/mesclar";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -173,10 +180,10 @@ function drawHeader(ctx: Ctx) {
 
   // linha de controle: 4 células com bordas, como no formulário original
   const celulas = [
-    `Elaborado por: ${meta.elaboradoPor || "-"}`,
-    `Aprovado por: ${meta.aprovadoPor || "-"}`,
-    `Revisão: ${meta.revisaoDocumento || meta.revisao || "01"}`,
-    `Data da revisão: ${meta.dataRevisao || "-"}`,
+    `Elaborado por: ${ELABORADO_POR_FIXO}`,
+    `Aprovado por: ${APROVADO_POR_FIXO}`,
+    `Revisão: ${REVISAO_FIXA}`,
+    `Data da revisão: ${DATA_REVISAO_FIXA}`,
   ];
   const pesos = [1.15, 1.15, 0.7, 1];
   const somaPesos = pesos.reduce((a, b) => a + b, 0);
@@ -659,7 +666,7 @@ export async function buildLaudoPdf(input: {
   identificacao(ctx);
 
 
-  for (const b of input.blocos) {
+  for (const b of dedupBlocos(input.blocos)) {
     if (b.oculto) continue;
     switch (b.tipo) {
       case "heading":
