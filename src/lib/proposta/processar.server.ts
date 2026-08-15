@@ -136,7 +136,12 @@ export async function compararCasoProposta(
     .order("criado_em", { ascending: false })
     .limit(1);
   const proposta = props?.[0];
-  if (!proposta) return { comparacao: null };
+  if (!proposta) {
+    // sem proposta não há comparação: limpa qualquer resultado stale do caso
+    await supabase.from("casos").update({ divergencias_proposta: {} as any }).eq("id", casoId);
+    return { comparacao: null };
+  }
+
 
   const { data: caso } = await supabase
     .from("casos")
