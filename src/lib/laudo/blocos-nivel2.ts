@@ -33,19 +33,19 @@ function bool(valor: string | null | undefined): boolean | null {
 }
 
 /**
- * Comboio pelo campo estruturado `comboio` (proposta/formulário). Só cai para
- * o tipo de objeto / objeto do escopo quando não há a chave confiável.
- * Conservador: na dúvida, não inventa comboio.
+ * Comboio SOMENTE por evidência estruturada (`comboio` ou `qtd_comboios`),
+ * vinda da proposta (escopo específico) ou do formulário. Nunca é inferido de
+ * texto livre: títulos genéricos ("postos fixos e comboios") ou nomes de kit
+ * ("para bomba fixa ou móvel") não podem ligar o 2.4.1.
  */
 export function temComboio(vars: VariaveisLaudo): boolean {
   const direto = bool(vars["comboio"]?.valor);
   if (direto !== null) return direto;
   const qtd = parseInt((vars["qtd_comboios"]?.valor ?? "").replace(/[^0-9]/g, ""), 10);
   if (Number.isFinite(qtd)) return qtd > 0;
-  const texto = `${vars["tipo_objeto"]?.valor ?? ""} ${vars["objeto_escopo"]?.valor ?? ""} ${
-    vars["aplicacao"]?.valor ?? ""
-  }`;
-  return /comboio/i.test(texto);
+  const tipo = (vars["tipo_objeto"]?.valor ?? "").trim().toLowerCase();
+  if (tipo === "comboio" || tipo === "caminhao comboio" || tipo === "caminhão comboio") return true;
+  return false;
 }
 
 /**
