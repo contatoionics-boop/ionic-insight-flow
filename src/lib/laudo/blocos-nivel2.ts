@@ -32,21 +32,32 @@ function bool(valor: string | null | undefined): boolean | null {
   return null;
 }
 
+/** origens que confirmam o escopo em campo (proposta sozinha não confirma) */
+const ORIGENS_CONFIRMADAS = new Set(["formulario", "manual", "ia"]);
+
+function confirmada(vars: VariaveisLaudo, chave: string): string | null {
+  const item = vars[chave];
+  if (!item || !ORIGENS_CONFIRMADAS.has(String(item.origem))) return null;
+  const s = (item.valor ?? "").toString().trim();
+  return s.length ? s : null;
+}
+
 /**
- * Comboio SOMENTE por evidência estruturada (`comboio` ou `qtd_comboios`),
- * vinda da proposta (escopo específico) ou do formulário. Nunca é inferido de
- * texto livre: títulos genéricos ("postos fixos e comboios") ou nomes de kit
- * ("para bomba fixa ou móvel") não podem ligar o 2.4.1.
+ * Comboio SOMENTE por evidência estruturada CONFIRMADA em campo
+ * (`comboio`, `qtd_comboios` ou `tipo_objeto` explicitamente comboio), com
+ * origem formulário/manual/IA. Proposta isolada não liga o 2.4.1 — ela gera
+ * divergência/pendência para o especialista. Nunca é inferido de texto livre.
  */
 export function temComboio(vars: VariaveisLaudo): boolean {
-  const direto = bool(vars["comboio"]?.valor);
+  const direto = bool(confirmada(vars, "comboio"));
   if (direto !== null) return direto;
-  const qtd = parseInt((vars["qtd_comboios"]?.valor ?? "").replace(/[^0-9]/g, ""), 10);
+  const qtd = parseInt((confirmada(vars, "qtd_comboios") ?? "").replace(/[^0-9]/g, ""), 10);
   if (Number.isFinite(qtd)) return qtd > 0;
-  const tipo = (vars["tipo_objeto"]?.valor ?? "").trim().toLowerCase();
+  const tipo = (confirmada(vars, "tipo_objeto") ?? "").trim().toLowerCase();
   if (tipo === "comboio" || tipo === "caminhao comboio" || tipo === "caminhão comboio") return true;
   return false;
 }
+
 
 /**
  * Nome da solução para o parágrafo de abertura do 2.4.
