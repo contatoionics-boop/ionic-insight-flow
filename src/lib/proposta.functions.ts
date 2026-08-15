@@ -161,7 +161,7 @@ export const removerProposta = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: row } = await context.supabase
       .from("propostas_comerciais")
-      .select("arquivo_path")
+      .select("arquivo_path, caso_id")
       .eq("id", data.propostaId)
       .maybeSingle();
     if (row?.arquivo_path) {
@@ -172,8 +172,15 @@ export const removerProposta = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.propostaId);
     if (error) throw new Error(error.message);
+
+    // removida a última proposta do caso: as divergências salvas ficam stale
+    if (row?.caso_id) {
+      const { compararCasoProposta } = await import("@/lib/proposta/processar.server");
+      await compararCasoProposta(context.supabase, row.caso_id, context.userId);
+    }
     return { ok: true };
   });
+
 
 /**
  * Pré-análise do PDF ANTES de concluir o agendamento: lê o escopo preliminar
