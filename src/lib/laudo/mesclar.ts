@@ -92,6 +92,34 @@ export function comChaves(blocos: BlocoLaudo[], origemPadrao: "automatic" | "man
 }
 
 
+/**
+ * Rede de segurança contra duplicação: remove blocos repetidos por chave e,
+ * em seguida, blocos com conteúdo idêntico (mesmo tipo + mesmo conteúdo),
+ * independentemente da origem. `pagebreak` é preservado.
+ */
+export function dedupBlocos(blocos: BlocoLaudo[]): BlocoLaudo[] {
+  const chaves = new Set<string>();
+  const conteudos = new Set<string>();
+  const out: BlocoLaudo[] = [];
+  for (const b of blocos ?? []) {
+    if (!b) continue;
+    if (b.tipo === "pagebreak") {
+      out.push(b);
+      continue;
+    }
+    const k = (b as any).chave as string | undefined;
+    if (k) {
+      if (chaves.has(k)) continue;
+      chaves.add(k);
+    }
+    const assinaturaConteudo = `${b.tipo}|${JSON.stringify(conteudoDoBloco(b))}`;
+    if (conteudos.has(assinaturaConteudo)) continue;
+    conteudos.add(assinaturaConteudo);
+    out.push(b);
+  }
+  return out;
+}
+
 export type ResultadoMescla = {
   blocos: BlocoLaudo[];
   conflitos: number;
@@ -109,7 +137,7 @@ export type ResultadoMescla = {
 export function mesclarDocumento(salvos: BlocoLaudo[], novos: BlocoLaudo[]): ResultadoMescla {
   const base = comChaves(salvos ?? []);
   const gerados = comChaves(novos ?? []);
-  if (!base.length) return { blocos: renumerar(gerados), conflitos: 0, manuais: 0 };
+  if (!base.length) return { blocos: renumerar(dedupBlocos(gerados)), conflitos: 0, manuais: 0 };
 
   const porChave = new Map(gerados.map((b) => [b.chave as string, b]));
   const resultado: BlocoLaudo[] = [];
@@ -173,17 +201,8 @@ export function mesclarDocumento(salvos: BlocoLaudo[], novos: BlocoLaudo[]): Res
     usados.add(n.chave as string);
   }
 
-  // rede de segurança: nunca devolver duas vezes a mesma chave
-  const vistos = new Set<string>();
-  const unicos = resultado.filter((b) => {
-    const k = b.chave as string;
-    if (!k) return true;
-    if (vistos.has(k)) return false;
-    vistos.add(k);
-    return true;
-  });
-
-  return { blocos: renumerar(unicos), conflitos, manuais };
+  // rede de segurança: nunca devolver blocos repetidos (chave ou conteúdo)
+  return { blocos: renumerar(dedupBlocos(resultado)), conflitos, manuais };
 
 }
 

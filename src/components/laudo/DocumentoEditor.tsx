@@ -987,7 +987,7 @@ export function DocumentoEditor({
     onModoChange?.(m);
   };
   const [blocos, setBlocos] = useState<BlocoLaudo[]>(() =>
-    renumerar(comChaves(conteudo?.blocos ?? [])),
+    renumerar(dedupBlocos(comChaves(conteudo?.blocos ?? []))),
   );
   const [editando, setEditando] = useState<string | null>(null);
   const [sujo, setSujo] = useState(false);
@@ -1003,7 +1003,7 @@ export function DocumentoEditor({
   // recarrega quando o documento é regerado no servidor
   if (conteudo && conteudo.gerado_em !== idAtual.current && !sujo) {
     idAtual.current = conteudo.gerado_em;
-    const novos = renumerar(comChaves(conteudo.blocos ?? []));
+    const novos = renumerar(dedupBlocos(comChaves(conteudo.blocos ?? [])));
     if (JSON.stringify(novos) !== JSON.stringify(blocos)) setBlocos(novos);
   }
 
