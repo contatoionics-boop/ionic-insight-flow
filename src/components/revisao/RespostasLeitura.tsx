@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Badge, Card, Modal } from "@/components/ui-bits";
+import { Badge, Card } from "@/components/ui-bits";
+import { ImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import {
   Check,
   ChevronDown,
@@ -135,7 +136,8 @@ function Resposta({
                   key={path + i}
                   type="button"
                   onClick={() => onAbrirImagem(url, p.texto)}
-                  className="group overflow-hidden rounded-lg border border-border bg-muted"
+                  title="Ampliar imagem"
+                  className="group cursor-zoom-in overflow-hidden rounded-lg border border-border bg-muted"
                 >
                   <img
                     src={url}
@@ -460,19 +462,7 @@ export function RespostasLeitura({
         </div>
       </div>
 
-      <Modal
-        open={!!lightbox}
-        onClose={() => setLightbox(null)}
-        title={lightbox?.legenda ?? "Imagem"}
-      >
-        {lightbox && (
-          <img
-            src={lightbox.url}
-            alt={lightbox.legenda}
-            className="max-h-[75vh] w-full rounded-lg object-contain"
-          />
-        )}
-      </Modal>
+      <ImagemLightbox imagem={lightbox} onClose={() => setLightbox(null)} />
     </div>
   );
 }
