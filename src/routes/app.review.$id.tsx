@@ -653,7 +653,32 @@ function ReviewCasePage() {
 
       {tab === "conferencia" && (
         <div className="space-y-4">
-          <PropostaPanel casoId={id} />
+          {/* chips de resumo da conferência */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-md bg-muted px-2 py-1 font-medium text-foreground">
+              {statsRespostas.ok}/{statsRespostas.total} respondidas
+            </span>
+            {statsRespostas.total - statsRespostas.ok > 0 && (
+              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
+                {statsRespostas.total - statsRespostas.ok} não respondidas
+              </span>
+            )}
+            {divergencias > 0 && (
+              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
+                {divergencias} divergência(s)
+              </span>
+            )}
+            {alertasTecnicos > 0 && (
+              <span className="rounded-md bg-destructive/15 px-2 py-1 font-medium text-destructive">
+                {alertasTecnicos} alerta(s) técnico(s)
+              </span>
+            )}
+          </div>
+
+          <ConferenciaProposta
+            casoId={id}
+            onResumo={(r) => setDivergencias(r.divergencias)}
+          />
 
           <div className="inline-flex rounded-md border border-border bg-card p-0.5">
             {(
@@ -678,6 +703,7 @@ function ReviewCasePage() {
           </div>
         </div>
       )}
+
 
       {tab === "conferencia" && modoRespostas === "leitura" && (
         <RespostasLeitura
