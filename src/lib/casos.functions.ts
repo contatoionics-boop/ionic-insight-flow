@@ -748,7 +748,10 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
     if (data.agenteId) q = q.eq("agente_id", data.agenteId);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []).filter((r: any) => r.agendamento?.aceite_status === "confirmado");
+    // A agenda mostra todos os agendamentos do período (aguardando aceite,
+    // confirmados e recusados) — o status de aceite é sinalizado na UI.
+    return rows ?? [];
+
   });
 
 /** Exclui definitivamente um mapeamento (e o agendamento, se ficar vazio). Admin/especialista. */

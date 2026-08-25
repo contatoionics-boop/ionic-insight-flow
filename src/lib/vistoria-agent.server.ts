@@ -528,8 +528,15 @@ function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   set("telefone", get("Telefone da unidade", "Telefone da matriz"));
   set("email", get("E-mail da unidade", "E-mail da matriz"));
   set("agente_tecnico", get("Agente técnico"));
-  set("data_mapeamento", get("Data do mapeamento"));
+  const dataBr = get("Data do mapeamento");
+  set("data_mapeamento", dataBr);
+  // Campos do tipo "data" exigem yyyy-MM-dd.
+  const m = dataBr?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) set("data_mapeamento_iso", `${m[3]}-${m[2]}-${m[1]}`);
   set("hora_mapeamento", get("Hora do mapeamento"));
+  set("responsavel_acompanhamento", get("Agente técnico"));
+  set("contato_responsavel", get("Telefone da unidade", "Telefone da matriz", "E-mail da unidade", "E-mail da matriz"));
+
   set("tipo_acao", get("Tipo de solicitação"));
   set("modalidade", get("Modalidade"));
   set("nivel_servico", get("Nível do serviço"));
@@ -555,7 +562,17 @@ const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
   tipo_acao: "tipo_acao",
   modalidade: "modalidade",
   nivel_servico: "nivel_servico",
+  responsavel_cliente: "responsavel_acompanhamento",
+  agente_tecnico: "agente_tecnico",
+  endereco_vistoria: "endereco",
+  data_mapeamento: "data_mapeamento",
+  cnpj: "cnpj",
+  cep: "cep",
+  cidade: "cidade",
+  estado: "estado",
+  unidade: "unidade",
 };
+
 
 /** Heurística por texto da pergunta → chave canônica. */
 function chavePorTexto(pergunta: AgentPergunta): string | null {
@@ -570,6 +587,8 @@ function chavePorTexto(pergunta: AgentPergunta): string | null {
     return "data_mapeamento";
   if (t.includes("hora") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento")))
     return "hora_mapeamento";
+  if (t.includes("contato") && t.includes("responsavel")) return "contato_responsavel";
+  if (t.includes("responsavel")) return "responsavel_acompanhamento";
   if (t.includes("cliente") && t.includes("unidade")) return "cliente_unidade";
   if (t.includes("razao social") || t.includes("nome do cliente") || t.includes("nome da empresa") || t === "cliente" || t.includes("cliente:"))
     return "nome_cliente";
@@ -578,6 +597,7 @@ function chavePorTexto(pergunta: AgentPergunta): string | null {
   if (t.includes("endereco")) return "endereco";
   if (t.includes("cidade")) return "cidade";
   if (t.includes("estado") || t === "uf") return "estado";
+
   if (t.includes("bairro")) return "bairro";
   if (t.includes("telefone") || t.includes("contato telefonico")) return "telefone";
   if (t.includes("e-mail") || t.includes("email")) return "email";
@@ -637,11 +657,20 @@ export async function sincronizarCadastro(
     if (jaRespondida) continue;
     if (TIPOS_NAO_PREENCHIVEIS.has(pergunta.tipo)) continue;
 
+    // O texto da pergunta é mais específico que a chave do laudo (ex.: uma
+    // pergunta "Cliente / Unidade" com chave_laudo=nome_cliente deve receber
+    // empresa + unidade, não só a empresa).
+    const porTexto = chavePorTexto(pergunta);
+    const porChave = pergunta.chave_laudo
+      ? CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]
+      : undefined;
     const chave =
-      (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
-      chavePorTexto(pergunta);
+      (porTexto && canon.has(porTexto) ? porTexto : undefined) ?? porChave ?? porTexto;
     // Precedência: cadastro > proposta comercial (por chave_laudo).
     const bruto =
+      (chave === "data_mapeamento" && pergunta.tipo === "data"
+        ? canon.get("data_mapeamento_iso")
+        : undefined) ??
       (chave ? canon.get(chave) : undefined) ??
       (() => {
         const kp = chaveProposta(pergunta);
@@ -649,6 +678,7 @@ export async function sincronizarCadastro(
       })();
     if (!bruto) continue;
     const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
+
 
 
     // Seleção única só é preenchida quando o valor bate com uma opção.
