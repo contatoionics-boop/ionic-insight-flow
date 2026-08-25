@@ -585,8 +585,9 @@ function chavePorTexto(pergunta: AgentPergunta): string | null {
   if (t.includes("unidade") || t.includes("loja") || t.includes("posto") || t.includes("filial"))
     return "unidade";
   if (t.includes("endereco")) return "endereco";
-
+  if (t.includes("cidade")) return "cidade";
   if (t.includes("estado") || t === "uf") return "estado";
+
   if (t.includes("bairro")) return "bairro";
   if (t.includes("telefone") || t.includes("contato telefonico")) return "telefone";
   if (t.includes("e-mail") || t.includes("email")) return "email";
