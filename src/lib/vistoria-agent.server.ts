@@ -528,8 +528,15 @@ function resolverFatosCanonicos(ctx: AgentContext): Map<string, string> {
   set("telefone", get("Telefone da unidade", "Telefone da matriz"));
   set("email", get("E-mail da unidade", "E-mail da matriz"));
   set("agente_tecnico", get("Agente técnico"));
-  set("data_mapeamento", get("Data do mapeamento"));
+  const dataBr = get("Data do mapeamento");
+  set("data_mapeamento", dataBr);
+  // Campos do tipo "data" exigem yyyy-MM-dd.
+  const m = dataBr?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) set("data_mapeamento_iso", `${m[3]}-${m[2]}-${m[1]}`);
   set("hora_mapeamento", get("Hora do mapeamento"));
+  set("responsavel_acompanhamento", get("Agente técnico"));
+  set("contato_responsavel", get("Telefone da unidade", "Telefone da matriz", "E-mail da unidade", "E-mail da matriz"));
+
   set("tipo_acao", get("Tipo de solicitação"));
   set("modalidade", get("Modalidade"));
   set("nivel_servico", get("Nível do serviço"));
