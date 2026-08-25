@@ -647,11 +647,20 @@ export async function sincronizarCadastro(
     if (jaRespondida) continue;
     if (TIPOS_NAO_PREENCHIVEIS.has(pergunta.tipo)) continue;
 
+    // O texto da pergunta é mais específico que a chave do laudo (ex.: uma
+    // pergunta "Cliente / Unidade" com chave_laudo=nome_cliente deve receber
+    // empresa + unidade, não só a empresa).
+    const porTexto = chavePorTexto(pergunta);
+    const porChave = pergunta.chave_laudo
+      ? CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]
+      : undefined;
     const chave =
-      (pergunta.chave_laudo && CHAVE_LAUDO_PARA_CANONICA[pergunta.chave_laudo]) ||
-      chavePorTexto(pergunta);
+      (porTexto && canon.has(porTexto) ? porTexto : undefined) ?? porChave ?? porTexto;
     // Precedência: cadastro > proposta comercial (por chave_laudo).
     const bruto =
+      (chave === "data_mapeamento" && pergunta.tipo === "data"
+        ? canon.get("data_mapeamento_iso")
+        : undefined) ??
       (chave ? canon.get(chave) : undefined) ??
       (() => {
         const kp = chaveProposta(pergunta);
@@ -659,6 +668,7 @@ export async function sincronizarCadastro(
       })();
     if (!bruto) continue;
     const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
+
 
 
     // Seleção única só é preenchida quando o valor bate com uma opção.
