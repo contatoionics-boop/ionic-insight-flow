@@ -577,13 +577,15 @@ function chavePorTexto(pergunta: AgentPergunta): string | null {
     return "data_mapeamento";
   if (t.includes("hora") && (t.includes("vistoria") || t.includes("mapeamento") || t.includes("atendimento")))
     return "hora_mapeamento";
+  if (t.includes("contato") && t.includes("responsavel")) return "contato_responsavel";
+  if (t.includes("responsavel")) return "responsavel_acompanhamento";
   if (t.includes("cliente") && t.includes("unidade")) return "cliente_unidade";
   if (t.includes("razao social") || t.includes("nome do cliente") || t.includes("nome da empresa") || t === "cliente" || t.includes("cliente:"))
     return "nome_cliente";
   if (t.includes("unidade") || t.includes("loja") || t.includes("posto") || t.includes("filial"))
     return "unidade";
   if (t.includes("endereco")) return "endereco";
-  if (t.includes("cidade")) return "cidade";
+
   if (t.includes("estado") || t === "uf") return "estado";
   if (t.includes("bairro")) return "bairro";
   if (t.includes("telefone") || t.includes("contato telefonico")) return "telefone";
