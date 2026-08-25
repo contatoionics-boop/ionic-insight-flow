@@ -562,7 +562,17 @@ const CHAVE_LAUDO_PARA_CANONICA: Record<string, string> = {
   tipo_acao: "tipo_acao",
   modalidade: "modalidade",
   nivel_servico: "nivel_servico",
+  responsavel_cliente: "responsavel_acompanhamento",
+  agente_tecnico: "agente_tecnico",
+  endereco_vistoria: "endereco",
+  data_mapeamento: "data_mapeamento",
+  cnpj: "cnpj",
+  cep: "cep",
+  cidade: "cidade",
+  estado: "estado",
+  unidade: "unidade",
 };
+
 
 /** Heurística por texto da pergunta → chave canônica. */
 function chavePorTexto(pergunta: AgentPergunta): string | null {
