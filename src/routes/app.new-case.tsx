@@ -9,7 +9,7 @@ import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
 import { analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
-import { ESCOPO_VAZIO, normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
+import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -516,18 +516,6 @@ function NewCasePage() {
               {escopoPrevia && (
                 <div className="mt-3">
                   <EscopoIdentificado escopo={escopoPrevia} onChange={setEscopoPrevia} />
-                </div>
-              )}
-              {!escopoPrevia && !analisando && (
-                <div className="mt-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEscopoPrevia(normalizarEscopo(ESCOPO_VAZIO))}
-                  >
-                    Preencher escopo manualmente
-                  </Button>
                 </div>
               )}
             </div>
