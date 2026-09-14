@@ -9,11 +9,21 @@ import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
 import { analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
-import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
+import { ESCOPO_VAZIO, normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
+  head: () => ({
+    meta: [
+      { title: "Agendar mapeamento | Ionics" },
+      { name: "description", content: "Agende um novo mapeamento técnico Ionics." },
+      { property: "og:title", content: "Agendar mapeamento | Ionics" },
+      { property: "og:description", content: "Agende um novo mapeamento técnico Ionics." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type Empresa = { id: string; nome: string; codigo_ionics: string | null };
@@ -50,6 +60,7 @@ function NewCasePage() {
   const registrar = useServerFn(registrarProposta);
   const analisarPrevia = useServerFn(analisarPropostaPrevia);
   const [proposta, setProposta] = useState<File | null>(null);
+  const [propostaPathPrevia, setPropostaPathPrevia] = useState<string | null>(null);
   const [escopoPrevia, setEscopoPrevia] = useState<EscopoProposta | null>(null);
   const [analisando, setAnalisando] = useState(false);
   const [erroPrevia, setErroPrevia] = useState<string | null>(null);
@@ -179,6 +190,14 @@ function NewCasePage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!matrizId) {
+      setError("Selecione a empresa e a matriz.");
+      return;
+    }
+    if (!data) {
+      setError("Selecione a data do mapeamento.");
+      return;
+    }
     if (formIds.length === 0) {
       setError("Selecione ao menos um formulário.");
       return;
@@ -188,7 +207,7 @@ function NewCasePage() {
       return;
     }
     if (conflito) {
-      // Bloqueia completamente
+      setError("O agente já possui outro atendimento neste horário. Escolha outro agente, data ou hora.");
       return;
     }
     setWorking(true);
@@ -212,15 +231,13 @@ function NewCasePage() {
         },
       });
 
-      if (proposta && res?.casos?.length) {
+      if (proposta && propostaPathPrevia && res?.casos?.length) {
         try {
-          for (const c of res.casos as { id: string }[]) {
+          const casos = res.casos as { id: string }[];
+          for (const c of casos) {
             const path = `casos/${c.id}/${Date.now()}-${proposta.name.replace(/[^\w.-]+/g, "_")}`;
-            const up = await supabase.storage.from("propostas").upload(path, proposta, {
-              contentType: "application/pdf",
-              upsert: false,
-            });
-            if (up.error) throw new Error(up.error.message);
+            const copia = await supabase.storage.from("propostas").copy(propostaPathPrevia, path);
+            if (copia.error) throw new Error(copia.error.message);
             await registrar({
               data: {
                 casoId: c.id,
@@ -231,6 +248,7 @@ function NewCasePage() {
               },
             });
           }
+          await supabase.storage.from("propostas").remove([propostaPathPrevia]);
         } catch (errProposta: any) {
           setError(
             `Mapeamento agendado, mas a proposta não pôde ser processada: ${errProposta?.message ?? "erro desconhecido"}. Anexe-a novamente na tela de revisão.`,
@@ -258,9 +276,9 @@ function NewCasePage() {
         upsert: false,
       });
       if (up.error) throw new Error(up.error.message);
+      setPropostaPathPrevia(path);
       const r = await analisarPrevia({ data: { arquivoPath: path } });
       setEscopoPrevia(normalizarEscopo(r.escopo));
-      await supabase.storage.from("propostas").remove([path]);
     } catch (e: any) {
       setErroPrevia(
         `Não foi possível ler o escopo agora (${e?.message ?? "erro"}). O agendamento pode seguir; o escopo poderá ser revisado na tela de revisão.`,
@@ -476,6 +494,10 @@ function NewCasePage() {
                     return;
                   }
                   setProposta(f);
+                  if (propostaPathPrevia) {
+                    void supabase.storage.from("propostas").remove([propostaPathPrevia]);
+                  }
+                  setPropostaPathPrevia(null);
                   setEscopoPrevia(null);
                   setErroPrevia(null);
                   if (f) void analisarProposta(f);
@@ -483,8 +505,7 @@ function NewCasePage() {
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Opcional. O escopo vendido é lido automaticamente e comparado com as respostas do
-                mapeamento na tela de revisão.
+                Opcional. Envie uma única vez; o escopo vendido será lido e comparado com o mapeamento.
               </p>
               {analisando && (
                 <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
@@ -497,6 +518,18 @@ function NewCasePage() {
                   <EscopoIdentificado escopo={escopoPrevia} onChange={setEscopoPrevia} />
                 </div>
               )}
+              {!escopoPrevia && !analisando && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEscopoPrevia(normalizarEscopo(ESCOPO_VAZIO))}
+                  >
+                    Preencher escopo manualmente
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -504,7 +537,7 @@ function NewCasePage() {
             {conflito && (
               <span className="text-xs text-destructive">Conflito detectado — escolha outro agente ou data.</span>
             )}
-            <Button type="submit" disabled={working || !matrizId || !!conflito}>
+            <Button type="submit" disabled={working || !!conflito}>
               {working ? "Agendando..." : "Agendar mapeamento"}
             </Button>
           </div>

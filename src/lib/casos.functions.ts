@@ -4,14 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { registrarEvento, casosDoAgendamento } from "@/lib/eventos.server";
 
-async function assertAdminOrSuper(supabase: any, userId: string) {
+async function assertPodeGerenciarAgendamentos(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .in("role", ["super_admin", "admin"]);
+    .in("role", ["super_admin", "admin", "especialista"]);
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error("Apenas admins podem agendar vistorias.");
+  if (!data?.length) throw new Error("Seu perfil não tem permissão para gerenciar agendamentos.");
 }
 
 async function assertVistoriador(supabase: any, userId: string) {
@@ -197,7 +197,7 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => AgendarInput.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const agenteId = data.agenteId ?? null;
     const agenteNomeManual = data.agenteNomeManual?.trim() || null;
     if (agenteId) {
@@ -326,7 +326,7 @@ export const atribuirAgenteAgendamento = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const agenteId = data.agenteId ?? null;
     const agenteNomeManual = data.agenteNomeManual?.trim() || null;
     if (!agenteId && !agenteNomeManual) throw new Error("Informe um agente ou um nome.");
@@ -406,7 +406,7 @@ export const adicionarFormularioAoAgendamento = createServerFn({ method: "POST" 
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const { data: ag, error } = await supabaseAdmin
       .from("agendamentos")
       .select("id, unidade_id, agente_id, agente_nome_manual, tipo_solicitacao, modalidade, nivel, criado_por, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento")
@@ -444,7 +444,7 @@ export const removerCasoDoAgendamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ casoId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const { data: caso } = await supabaseAdmin
       .from("casos")
       .select("status")
@@ -494,7 +494,7 @@ export const agendarVistoria = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     await checarConflito({ agenteId: data.agenteId, inicio: data.agendadoEm, duracaoMin: data.duracaoMin });
     const unidadeId = await resolveUnidadeId({ unidadeId: data.unidadeId, matrizId: data.matrizId, userId: context.userId });
     const enderecoVistoria = data.enderecoVistoria?.trim() || (await getEnderecoVistoria(unidadeId));
@@ -545,7 +545,7 @@ export const reagendarVistoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ReagendarInput.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const { data: caso, error: cErr } = await supabaseAdmin
       .from("casos")
       .select("agente_id, status, agendado_em, agendamento_id")
@@ -593,7 +593,7 @@ export const cancelarVistoria = createServerFn({ method: "POST" })
     z.object({ casoId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const { data: caso } = await supabaseAdmin
       .from("casos").select("agendamento_id").eq("id", data.casoId).maybeSingle();
     const { error } = await supabaseAdmin
@@ -617,7 +617,7 @@ export const deletarVistoria = createServerFn({ method: "POST" })
     z.object({ casoId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     const { error } = await supabaseAdmin
       .from("casos")
       .delete()
@@ -734,7 +734,7 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdminOrSuper(context.supabase, context.userId);
+    await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
     let q = supabaseAdmin
       .from("casos")
       .select(
