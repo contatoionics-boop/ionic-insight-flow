@@ -27,19 +27,25 @@ export const verificarConflitoAgente = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ConflitoResult> => {
     const ini = new Date(data.data);
     if (Number.isNaN(ini.getTime())) return { conflito: false };
+    const fim = new Date(ini.getTime() + data.duracaoMin * 60_000);
     const diaIni = new Date(ini); diaIni.setHours(0, 0, 0, 0);
     const diaFim = new Date(ini); diaFim.setHours(23, 59, 59, 999);
 
     let q = supabaseAdmin
       .from("agendamentos")
-      .select("id, agendado_em, agente_id, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
+      .select("id, agendado_em, duracao_min, aceite_status, agente_id, unidade:unidades(matriz:matrizes(empresa:empresas(nome)))")
       .eq("agente_id", data.agenteId)
       .gte("agendado_em", diaIni.toISOString())
       .lte("agendado_em", diaFim.toISOString());
     if (data.ignorarAgendamentoId) q = q.neq("id", data.ignorarAgendamentoId);
-    const { data: rows, error } = await q.limit(1);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const row: any = rows?.[0];
+    const row: any = (rows ?? []).find((item: any) => {
+      if (item.aceite_status === "recusado") return false;
+      const itemInicio = new Date(item.agendado_em);
+      const itemFim = new Date(itemInicio.getTime() + (item.duracao_min ?? 60) * 60_000);
+      return ini < itemFim && fim > itemInicio;
+    });
     if (!row) return { conflito: false };
     const { data: agente } = await supabaseAdmin
       .from("profiles")
