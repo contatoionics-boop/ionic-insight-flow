@@ -59,7 +59,9 @@ export function parseValorCampo(chave: keyof EscopoProposta, texto: string): any
       return Number.isFinite(n) && t.match(/\d/) ? n : null;
     }
     default:
-      return t;
+      // Preserva o espaço digitado enquanto o campo de texto é editado.
+      // O trim a cada tecla impedia escrever valores compostos, como marca + modelo.
+      return texto;
   }
 }
 

@@ -1,7 +1,7 @@
 // Resumo editável do ESCOPO PRELIMINAR lido da proposta comercial.
 // Aparece no agendamento (antes de salvar) e na tela de revisão.
 
-import { Badge, Input } from "@/components/ui-bits";
+import { Badge, Input, Select } from "@/components/ui-bits";
 import { campoManual, tipoDoCampo } from "@/lib/proposta/campos";
 import {
   CHAVES_RESUMO,
@@ -65,12 +65,23 @@ export function EscopoIdentificado({
                   {manual ? "confirmado" : identificado ? "previsto na proposta" : "não identificado"}
                 </span>
               </label>
-              {editavel ? (
+              {editavel && tipoDoCampo(chave) === "comunicacao" ? (
+                <Select value={(campo?.valor as string | null) ?? ""} onChange={(e) => alterar(chave, e.target.value)}>
+                  <option value="">Não identificado</option>
+                  <option value="wifi">Wi-Fi</option>
+                  <option value="4g">4G/GSM</option>
+                  <option value="ambos">Wi-Fi + 4G/GSM</option>
+                </Select>
+              ) : editavel && tipoDoCampo(chave) === "booleano" ? (
+                <Select value={campo?.valor === true ? "sim" : campo?.valor === false ? "não" : ""} onChange={(e) => alterar(chave, e.target.value)}>
+                  <option value="">Não identificado</option>
+                  <option value="sim">Sim</option>
+                  <option value="não">Não</option>
+                </Select>
+              ) : editavel ? (
                 <Input
                   value={texto}
-                  placeholder={
-                    tipoDoCampo(chave) === "booleano" ? "sim / não" : "não identificado"
-                  }
+                  placeholder={chave === "tipo_bomba_previsto" ? "Ex.: elétrica, marca e modelo" : "não identificado"}
                   onChange={(e) => alterar(chave, e.target.value)}
                 />
               ) : (
