@@ -79,9 +79,10 @@ function ClientsPage() {
   const [renameNome, setRenameNome] = useState("");
   const [toDelete, setToDelete] = useState<EmpresaRow | null>(null);
   const [busca, setBusca] = useState("");
-  const draftKey = `empresa-draft:${userId ?? "anonimo"}`;
+  const draftKey = userId ? `empresa-draft:${userId}` : null;
 
   useEffect(() => {
+    if (!draftKey) return;
     try {
       const raw = window.localStorage.getItem(draftKey);
       if (!raw) return;
@@ -96,7 +97,7 @@ function ClientsPage() {
   }, [draftKey]);
 
   useEffect(() => {
-    if (!modalOpen) return;
+    if (!modalOpen || !draftKey) return;
     try {
       window.localStorage.setItem(draftKey, JSON.stringify(form));
     } catch {
@@ -234,7 +235,7 @@ function ClientsPage() {
       }
 
       showToast("Empresa cadastrada ✓");
-      window.localStorage.removeItem(draftKey);
+      if (draftKey) window.localStorage.removeItem(draftKey);
       setForm(emptyForm);
       setModalOpen(false);
       await refresh();

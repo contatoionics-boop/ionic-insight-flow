@@ -114,9 +114,11 @@ function NewCasePage() {
   const [conflito, setConflito] = useState<{ agenteNome?: string | null; clienteNome?: string | null; dataConflito?: string | null } | null>(null);
   const verificar = useServerFn(verificarConflitoAgente);
   const [draftReady, setDraftReady] = useState(false);
-  const draftKey = `agendamento-draft:${userId ?? "anonimo"}`;
+  const draftKey = userId ? `agendamento-draft:${userId}` : null;
 
   useEffect(() => {
+    if (!draftKey) return;
+    setDraftReady(false);
     try {
       const raw = window.localStorage.getItem(draftKey);
       if (raw) {
@@ -147,7 +149,7 @@ function NewCasePage() {
   }, [draftKey]);
 
   useEffect(() => {
-    if (!draftReady) return;
+    if (!draftReady || !draftKey) return;
     const draft: AgendamentoDraft = {
       empresaId, matrizId, unidadeId, formIds, agentId, agenteNomeManual,
       tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
@@ -310,7 +312,7 @@ function NewCasePage() {
         },
       });
 
-      window.localStorage.removeItem(draftKey);
+      if (draftKey) window.localStorage.removeItem(draftKey);
 
       if (propostaPathPrevia && propostaNome && res?.casos?.length) {
         try {

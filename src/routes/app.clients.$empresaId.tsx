@@ -78,10 +78,11 @@ function EmpresaDetailPage() {
   const [uSaving, setUSaving] = useState(false);
   const [uCepLoading, setUCepLoading] = useState(false);
   const [toDelU, setToDelU] = useState<Unidade | null>(null);
-  const matrizDraftKey = `matriz-draft:${userId ?? "anonimo"}:${empresaId}`;
-  const unidadeDraftKey = `unidade-draft:${userId ?? "anonimo"}:${empresaId}`;
+  const matrizDraftKey = userId ? `matriz-draft:${userId}:${empresaId}` : null;
+  const unidadeDraftKey = userId ? `unidade-draft:${userId}:${empresaId}` : null;
 
   useEffect(() => {
+    if (!matrizDraftKey || !unidadeDraftKey) return;
     try {
       const matrizRaw = window.localStorage.getItem(matrizDraftKey);
       if (matrizRaw) {
@@ -106,14 +107,14 @@ function EmpresaDetailPage() {
   }, [matrizDraftKey, unidadeDraftKey]);
 
   useEffect(() => {
-    if (!mModal || editingM) return;
+    if (!mModal || editingM || !matrizDraftKey) return;
     try {
       window.localStorage.setItem(matrizDraftKey, JSON.stringify(mForm));
     } catch {}
   }, [mModal, editingM, mForm, matrizDraftKey]);
 
   useEffect(() => {
-    if (!uModal || editingU) return;
+    if (!uModal || editingU || !unidadeDraftKey) return;
     try {
       window.localStorage.setItem(unidadeDraftKey, JSON.stringify({ matrizId: uModal.matrizId, form: uForm }));
     } catch {}
@@ -257,7 +258,7 @@ function EmpresaDetailPage() {
           .from("matrizes")
           .insert({ ...payload, empresa_id: empresaId, criado_por: userId });
         if (error) throw error;
-        window.localStorage.removeItem(matrizDraftKey);
+        if (matrizDraftKey) window.localStorage.removeItem(matrizDraftKey);
         showToast("Matriz cadastrada ✓");
       }
       setMModal(false);
@@ -334,7 +335,7 @@ function EmpresaDetailPage() {
           .from("unidades")
           .insert({ ...payload, matriz_id: uModal.matrizId, criado_por: userId });
         if (error) throw error;
-        window.localStorage.removeItem(unidadeDraftKey);
+        if (unidadeDraftKey) window.localStorage.removeItem(unidadeDraftKey);
         showToast("Unidade cadastrada ✓");
       }
       setUModal(null);
