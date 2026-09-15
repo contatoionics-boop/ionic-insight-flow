@@ -108,8 +108,13 @@ function NewCasePage() {
       setEmpresas(((e.data ?? []) as unknown) as Empresa[]);
       setMatrizes((m.data ?? []) as Matriz[]);
       setUnidades(((u.data ?? []) as unknown) as Unidade[]);
-      setForms((f.data ?? []) as Form[]);
+      const formulariosAtivos = (f.data ?? []) as Form[];
+      setForms(formulariosAtivos);
+      if (formulariosAtivos.length === 1) setFormIds([formulariosAtivos[0].id]);
       setAgents((ag ?? []) as Agente[]);
+      if (e.error || m.error || u.error || f.error) {
+        setError("Não foi possível carregar todos os dados do agendamento. Atualize a página e tente novamente.");
+      }
     })();
   }, [loadAgents]);
 
@@ -404,7 +409,7 @@ function NewCasePage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <Label>Formulários ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
+              <Label>Formulário obrigatório ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
               <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
                 {forms.length === 0 ? (
                   <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
@@ -418,14 +423,20 @@ function NewCasePage() {
                         type="checkbox"
                         checked={formIds.includes(f.id)}
                         onChange={() => toggleForm(f.id)}
-                        className="h-4 w-4 rounded border-border"
+                        disabled={forms.length === 1}
+                        aria-label={`Selecionar formulário ${f.nome}`}
+                        className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                       />
                       <span className="text-foreground">{f.nome}</span>
                     </label>
                   ))
                 )}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Cada formulário gera um mapeamento independente dentro deste agendamento.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {forms.length === 1
+                  ? "O único formulário ativo já foi selecionado automaticamente."
+                  : "Selecione ao menos um formulário. Cada opção gera um mapeamento independente."}
+              </p>
             </div>
             <div>
               <Label>Agente técnico{modalidade === "remoto" ? " (opcional)" : ""}</Label>
