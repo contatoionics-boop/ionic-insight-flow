@@ -64,7 +64,10 @@ const AgendarInput = z
   .object({
     unidadeId: z.string().uuid().optional().nullable(),
     matrizId: z.string().uuid().optional().nullable(),
-    formIds: z.array(z.string().uuid()).min(1, "Selecione ao menos um formulário."),
+    formIds: z.preprocess(
+      (valor) => (Array.isArray(valor) ? valor : []),
+      z.array(z.string().uuid()).min(1, "Selecione ao menos um formulário."),
+    ),
     agenteId: z.string().uuid().optional().nullable(),
     agenteNomeManual: z.string().max(200).optional().nullable(),
     tipoSolicitacao: z.enum(["instalacao", "upgrade"]),
