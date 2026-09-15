@@ -423,8 +423,9 @@ function NewCasePage() {
                         type="checkbox"
                         checked={formIds.includes(f.id)}
                         onChange={() => toggleForm(f.id)}
+                        disabled={forms.length === 1}
                         aria-label={`Selecionar formulário ${f.nome}`}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                       />
                       <span className="text-foreground">{f.nome}</span>
                     </label>
