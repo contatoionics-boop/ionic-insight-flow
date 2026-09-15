@@ -79,6 +79,30 @@ function ClientsPage() {
   const [renameNome, setRenameNome] = useState("");
   const [toDelete, setToDelete] = useState<EmpresaRow | null>(null);
   const [busca, setBusca] = useState("");
+  const draftKey = `empresa-draft:${userId ?? "anonimo"}`;
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Partial<NovaForm>;
+      if (Object.values(draft).some(Boolean)) {
+        setForm({ ...emptyForm, ...draft });
+        setModalOpen(true);
+      }
+    } catch {
+      window.localStorage.removeItem(draftKey);
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(form));
+    } catch {
+      // O cadastro continua funcionando mesmo se o armazenamento local estiver indisponível.
+    }
+  }, [draftKey, form, modalOpen]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -119,7 +143,6 @@ function ClientsPage() {
   };
 
   const openCreate = () => {
-    setForm(emptyForm);
     setCnpjMsg(null);
     setModalOpen(true);
   };
@@ -211,6 +234,8 @@ function ClientsPage() {
       }
 
       showToast("Empresa cadastrada ✓");
+      window.localStorage.removeItem(draftKey);
+      setForm(emptyForm);
       setModalOpen(false);
       await refresh();
       await router.invalidate();

@@ -11,6 +11,7 @@ import { analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functi
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
@@ -39,6 +40,26 @@ type Unidade = { id: string; matriz_id: string; nome: string; codigo_ionics: str
 type Form = { id: string; nome: string };
 type Agente = { id: string; nome: string; user_id: string };
 
+type AgendamentoDraft = {
+  empresaId: string;
+  matrizId: string;
+  unidadeId: string;
+  formIds: string[];
+  agentId: string;
+  agenteNomeManual: string;
+  tipoSolicitacao: "instalacao" | "upgrade";
+  modalidade: "presencial" | "remoto";
+  nivel: "nivel_1" | "nivel_2" | "nivel_3";
+  data: string;
+  hora: string;
+  endereco: string;
+  observacoes: string;
+  propostaPathPrevia: string | null;
+  propostaNome: string | null;
+  propostaTamanho: number | null;
+  escopoPrevia: EscopoProposta | null;
+};
+
 function formatEndereco(u?: EnderecoBase | null) {
   if (!u) return "";
   const parts = [
@@ -55,12 +76,15 @@ function temEndereco(e?: EnderecoBase | null) {
 
 function NewCasePage() {
   const navigate = useNavigate();
+  const { userId } = useAuth();
   const loadAgents = useServerFn(listTechnicalAgents);
   const agendar = useServerFn(agendarMapeamento);
   const registrar = useServerFn(registrarProposta);
   const analisarPrevia = useServerFn(analisarPropostaPrevia);
   const [proposta, setProposta] = useState<File | null>(null);
   const [propostaPathPrevia, setPropostaPathPrevia] = useState<string | null>(null);
+  const [propostaNome, setPropostaNome] = useState<string | null>(null);
+  const [propostaTamanho, setPropostaTamanho] = useState<number | null>(null);
   const [escopoPrevia, setEscopoPrevia] = useState<EscopoProposta | null>(null);
   const [analisando, setAnalisando] = useState(false);
   const [erroPrevia, setErroPrevia] = useState<string | null>(null);
@@ -89,6 +113,54 @@ function NewCasePage() {
   const [working, setWorking] = useState(false);
   const [conflito, setConflito] = useState<{ agenteNome?: string | null; clienteNome?: string | null; dataConflito?: string | null } | null>(null);
   const verificar = useServerFn(verificarConflitoAgente);
+  const [draftReady, setDraftReady] = useState(false);
+  const draftKey = `agendamento-draft:${userId ?? "anonimo"}`;
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw) as Partial<AgendamentoDraft>;
+        setEmpresaId(draft.empresaId ?? "");
+        setMatrizId(draft.matrizId ?? "");
+        setUnidadeId(draft.unidadeId ?? "");
+        setFormIds(Array.isArray(draft.formIds) ? draft.formIds : []);
+        setAgentId(draft.agentId ?? "");
+        setAgenteNomeManual(draft.agenteNomeManual ?? "");
+        setTipoSolicitacao(draft.tipoSolicitacao ?? "instalacao");
+        setModalidade(draft.modalidade ?? "presencial");
+        setNivel(draft.nivel ?? "nivel_1");
+        setData(draft.data ?? "");
+        setHora(draft.hora ?? "09:00");
+        setEndereco(draft.endereco ?? "");
+        setObservacoes(draft.observacoes ?? "");
+        setPropostaPathPrevia(draft.propostaPathPrevia ?? null);
+        setPropostaNome(draft.propostaNome ?? null);
+        setPropostaTamanho(draft.propostaTamanho ?? null);
+        setEscopoPrevia(draft.escopoPrevia ? normalizarEscopo(draft.escopoPrevia) : null);
+      }
+    } catch {
+      window.localStorage.removeItem(draftKey);
+    } finally {
+      setDraftReady(true);
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const draft: AgendamentoDraft = {
+      empresaId, matrizId, unidadeId, formIds, agentId, agenteNomeManual,
+      tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
+      propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
+    };
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch {
+      // O preenchimento continua funcionando mesmo se o armazenamento local estiver indisponível.
+    }
+  }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, agentId,
+    agenteNomeManual, tipoSolicitacao, modalidade, nivel, data, hora, endereco,
+    observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia]);
 
   useEffect(() => {
     (async () => {
@@ -110,7 +182,9 @@ function NewCasePage() {
       setUnidades(((u.data ?? []) as unknown) as Unidade[]);
       const formulariosAtivos = (f.data ?? []) as Form[];
       setForms(formulariosAtivos);
-      if (formulariosAtivos.length === 1) setFormIds([formulariosAtivos[0].id]);
+      if (formulariosAtivos.length === 1) {
+        setFormIds((atuais) => atuais.length > 0 ? atuais : [formulariosAtivos[0].id]);
+      }
       setAgents((ag ?? []) as Agente[]);
       if (e.error || m.error || u.error || f.error) {
         setError("Não foi possível carregar todos os dados do agendamento. Atualize a página e tente novamente.");
@@ -236,19 +310,21 @@ function NewCasePage() {
         },
       });
 
-      if (proposta && propostaPathPrevia && res?.casos?.length) {
+      window.localStorage.removeItem(draftKey);
+
+      if (propostaPathPrevia && propostaNome && res?.casos?.length) {
         try {
           const casos = res.casos as { id: string }[];
           for (const c of casos) {
-            const path = `casos/${c.id}/${Date.now()}-${proposta.name.replace(/[^\w.-]+/g, "_")}`;
+            const path = `casos/${c.id}/${Date.now()}-${propostaNome.replace(/[^\w.-]+/g, "_")}`;
             const copia = await supabase.storage.from("propostas").copy(propostaPathPrevia, path);
             if (copia.error) throw new Error(copia.error.message);
             await registrar({
               data: {
                 casoId: c.id,
-                arquivoNome: proposta.name,
+                arquivoNome: propostaNome,
                 arquivoPath: path,
-                tamanhoBytes: proposta.size,
+                tamanhoBytes: propostaTamanho ?? 0,
                 escopo: escopoPrevia ? (escopoPrevia as any) : null,
               },
             });
@@ -282,6 +358,8 @@ function NewCasePage() {
       });
       if (up.error) throw new Error(up.error.message);
       setPropostaPathPrevia(path);
+      setPropostaNome(file.name);
+      setPropostaTamanho(file.size);
       const r = await analisarPrevia({ data: { arquivoPath: path } });
       setEscopoPrevia(normalizarEscopo(r.escopo));
     } catch (e: any) {
@@ -505,6 +583,8 @@ function NewCasePage() {
                     return;
                   }
                   setProposta(f);
+                  setPropostaNome(f?.name ?? null);
+                  setPropostaTamanho(f?.size ?? null);
                   if (propostaPathPrevia) {
                     void supabase.storage.from("propostas").remove([propostaPathPrevia]);
                   }
@@ -518,6 +598,9 @@ function NewCasePage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Opcional. Envie uma única vez; o escopo vendido será lido e comparado com o mapeamento.
               </p>
+              {!proposta && propostaPathPrevia && propostaNome && (
+                <p className="mt-2 text-xs text-success">Proposta recuperada: {propostaNome}</p>
+              )}
               {analisando && (
                 <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
               )}
