@@ -7,7 +7,7 @@ import {
   execValidarFoto,
   loadAgentContext,
   validarTokenAcesso,
-  validarUsuarioCaso,
+  validarExecutorCaso,
   type AgentContext,
 } from "@/lib/vistoria-agent.server";
 import { createOpenAIProvider } from "@/lib/openai.server";
@@ -39,7 +39,7 @@ async function resolveAccess(body: Body, request: Request): Promise<string> {
     );
     const { data, error } = await supa.auth.getClaims(accessToken);
     if (error || !data?.claims?.sub) throw new Error("Sessão inválida.");
-    await validarUsuarioCaso(body.casoId, data.claims.sub);
+    await validarExecutorCaso(body.casoId, data.claims.sub);
     return body.casoId;
   }
   throw new Error("Informe token ou casoId.");

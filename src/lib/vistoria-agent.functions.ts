@@ -214,11 +214,12 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let casoId: string;
+    let atorId: string | null = null;
     if (data.token) {
       casoId = await validarTokenAcesso(data.token);
     } else if (data.casoId) {
       casoId = data.casoId;
-      await validarCasoDaSessao(casoId);
+      atorId = await validarCasoDaSessao(casoId);
     } else {
       throw new Error("Informe token ou casoId.");
     }
@@ -262,7 +263,7 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
       casoId,
       agendamentoId: (caso as any)?.agendamento_id ?? null,
       tipo: "vistoria_finalizada",
-      atorId: (caso as any)?.agente_id ?? null,
+      atorId: atorId ?? (caso as any)?.agente_id ?? null,
     });
 
     // Gera o laudo estruturado já na entrega — falha aqui não bloqueia a finalização.
@@ -441,10 +442,11 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
       "@/lib/vistoria-agent.server"
     );
     let casoId: string;
+    let atorId: string | null = null;
     if (data.token) casoId = await validarTokenAcesso(data.token);
     else if (data.casoId) {
       casoId = data.casoId;
-      await validarCasoDaSessao(casoId);
+      atorId = await validarCasoDaSessao(casoId);
     }
     else throw new Error("Informe token ou casoId.");
 
@@ -469,7 +471,7 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
           casoId,
           agendamentoId: caso.agendamento_id ?? null,
           tipo: "vistoria_iniciada",
-          atorId: caso.agente_id ?? null,
+          atorId: atorId ?? caso.agente_id ?? null,
         });
       }
     }
