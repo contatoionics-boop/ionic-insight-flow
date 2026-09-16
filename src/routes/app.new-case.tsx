@@ -283,8 +283,8 @@ function NewCasePage() {
       setError("Selecione ao menos um formulário.");
       return;
     }
-    if (modalidade === "presencial" && !agentId) {
-      setError("Selecione o agente técnico para atendimento presencial.");
+    if (!agentId) {
+      setError("Selecione o responsável pelo mapeamento.");
       return;
     }
     if (conflito) {
@@ -300,8 +300,8 @@ function NewCasePage() {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
           formIds,
-          agenteId: agentId || null,
-          agenteNomeManual: agentId ? null : agenteNomeManual.trim() || null,
+          agenteId: agentId,
+          agenteNomeManual: null,
           tipoSolicitacao,
           modalidade,
           nivel,
@@ -519,31 +519,19 @@ function NewCasePage() {
               </p>
             </div>
             <div>
-              <Label>Agente técnico{modalidade === "remoto" ? " (opcional)" : ""}</Label>
+              <Label required>Responsável pelo mapeamento</Label>
               <Select
                 value={agentId}
                 onChange={(e) => setAgentId(e.target.value)}
-                required={modalidade === "presencial"}
+                required
                 className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
               >
                 <option value="">
-                  {modalidade === "remoto" ? "Selecione ou deixe em branco" : "Selecione o agente técnico"}
+                  Selecione um agente técnico ou especialista
                 </option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
-              {modalidade === "remoto" && !agentId && (
-                <>
-                  <Input
-                    className="mt-2"
-                    value={agenteNomeManual}
-                    onChange={(e) => setAgenteNomeManual(e.target.value)}
-                    placeholder="Ou digite o nome do agente (opcional)"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    No atendimento remoto o nome pode ser digitado manualmente ou definido depois.
-                  </p>
-                </>
-              )}
+              <p className="mt-1 text-xs text-muted-foreground">Todo mapeamento precisa nascer atribuído a um responsável cadastrado.</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
