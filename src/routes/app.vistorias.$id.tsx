@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CalendarDays, MapPin, FileText, User, Building2, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
-import { PageHeader, Card, Badge, Button } from "@/components/ui-bits";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, CalendarDays, MapPin, FileText, User, Building2, CheckCircle2, XCircle, ExternalLink, UserPlus } from "lucide-react";
+import { PageHeader, Card, Badge, Button, Label, Select } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { listTechnicalAgents } from "@/lib/admin-users.functions";
+import { atribuirAgenteAgendamento } from "@/lib/casos.functions";
 
 
 export const Route = createFileRoute("/app/vistorias/$id")({
@@ -31,6 +34,7 @@ type Caso = {
   endereco_vistoria: string | null;
   observacoes_agendamento: string | null;
   formulario_id: string | null;
+  agendamento_id: string;
   data_execucao: string | null;
   data_entrega_agente: string | null;
   data_aprovacao_pablo: string | null;
@@ -64,6 +68,7 @@ type Resposta = {
   ia_motivo: string | null;
   criado_em: string;
 };
+type Agente = { id: string; nome: string };
 
 function fmtData(iso: string | null) {
   if (!iso) return "—";
@@ -80,6 +85,8 @@ function VistoriaDetalhesPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const auth = useAuth();
+  const listarAgentes = useServerFn(listTechnicalAgents);
+  const atribuirAgente = useServerFn(atribuirAgenteAgendamento);
   const [caso, setCaso] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
   const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
@@ -87,6 +94,10 @@ function VistoriaDetalhesPage() {
   const [respostas, setRespostas] = useState<Resposta[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [agents, setAgents] = useState<Agente[]>([]);
+  const [novoAgenteId, setNovoAgenteId] = useState("");
+  const [atribuindo, setAtribuindo] = useState(false);
+  const [erroAtribuicao, setErroAtribuicao] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -95,7 +106,7 @@ function VistoriaDetalhesPage() {
       const { data: casoData } = await supabase
         .from("casos")
         .select(
-          "id, codigo, status, criado_em, agendado_em, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, motivo_recusa, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
+          "id, codigo, status, criado_em, agendado_em, agendamento_id, duracao_min, endereco_vistoria, observacoes_agendamento, formulario_id, data_execucao, data_entrega_agente, data_aprovacao_pablo, motivo_recusa, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome), formulario:formularios(nome)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -161,6 +172,31 @@ function VistoriaDetalhesPage() {
       active = false;
     };
   }, [id]);
+
+  const podeAtribuir = auth.role === "admin" || auth.role === "especialista" || auth.role === "super_admin";
+
+  useEffect(() => {
+    if (!podeAtribuir || caso?.agente) return;
+    void listarAgentes()
+      .then((data) => setAgents((data ?? []) as Agente[]))
+      .catch((error: unknown) => setErroAtribuicao(error instanceof Error ? error.message : "Não foi possível carregar os responsáveis."));
+  }, [caso?.agente, listarAgentes, podeAtribuir]);
+
+  const salvarResponsavel = async () => {
+    if (!caso || !novoAgenteId) return;
+    setAtribuindo(true);
+    setErroAtribuicao(null);
+    try {
+      await atribuirAgente({ data: { agendamentoId: caso.agendamento_id, agenteId: novoAgenteId, agenteNomeManual: null } });
+      const selecionado = agents.find((agente) => agente.id === novoAgenteId);
+      setCaso((atual) => atual ? { ...atual, agente: { nome: selecionado?.nome || "Responsável atribuído" } } : atual);
+      setNovoAgenteId("");
+    } catch (error: unknown) {
+      setErroAtribuicao(error instanceof Error ? error.message : "Não foi possível atribuir o responsável.");
+    } finally {
+      setAtribuindo(false);
+    }
+  };
 
   const respostasPorPergunta = useMemo(() => {
     const map = new Map<string, Resposta[]>();
@@ -274,6 +310,21 @@ function VistoriaDetalhesPage() {
             <Info icon={MapPin} label="Endereço" value={caso.endereco_vistoria} />
           )}
         </div>
+        {!caso.agente && podeAtribuir && (
+          <div className="mt-4 border-t border-border pt-4">
+            <Label required>Definir responsável</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Select value={novoAgenteId} onChange={(event) => setNovoAgenteId(event.target.value)} className="flex-1">
+                <option value="">Selecione um agente técnico ou especialista</option>
+                {agents.map((agente) => <option key={agente.id} value={agente.id}>{agente.nome || "(sem nome)"}</option>)}
+              </Select>
+              <Button onClick={salvarResponsavel} disabled={!novoAgenteId || atribuindo}>
+                <UserPlus className="h-4 w-4" /> {atribuindo ? "Atribuindo..." : "Atribuir"}
+              </Button>
+            </div>
+            {erroAtribuicao && <p className="mt-2 text-xs text-destructive">{erroAtribuicao}</p>}
+          </div>
+        )}
         {caso.observacoes_agendamento && (
           <p className="mt-3 rounded-md bg-muted/50 p-3 text-xs italic text-muted-foreground">
             {caso.observacoes_agendamento}
