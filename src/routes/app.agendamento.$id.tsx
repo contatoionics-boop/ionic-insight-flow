@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
+import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-bits";
 import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import {
   obterAgendamento,
@@ -55,7 +55,6 @@ function AgendamentoDetalhe() {
   const [forms, setForms] = useState<Form[]>([]);
   const [agents, setAgents] = useState<Agente[]>([]);
   const [novoAgenteId, setNovoAgenteId] = useState("");
-  const [novoAgenteNome, setNovoAgenteNome] = useState("");
   const [novoFormId, setNovoFormId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -78,7 +77,7 @@ function AgendamentoDetalhe() {
   useEffect(() => { void load(); }, [load]);
 
   const salvarAgente = async () => {
-    if (!novoAgenteId && !novoAgenteNome.trim()) return;
+    if (!novoAgenteId) return;
     setWorking(true);
     setError(null);
     try {
@@ -86,11 +85,10 @@ function AgendamentoDetalhe() {
         data: {
           agendamentoId: id,
           agenteId: novoAgenteId || null,
-          agenteNomeManual: novoAgenteId ? null : novoAgenteNome.trim() || null,
+          agenteNomeManual: null,
         },
       });
       setNovoAgenteId("");
-      setNovoAgenteNome("");
       await load();
     } catch (e: any) {
       setError(e?.message ?? "Erro ao atribuir agente.");
@@ -186,15 +184,7 @@ function AgendamentoDetalhe() {
                 <option value="">Selecione um agente cadastrado</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
-              {!novoAgenteId && (
-                <Input
-                  className="flex-1"
-                  value={novoAgenteNome}
-                  onChange={(e) => setNovoAgenteNome(e.target.value)}
-                  placeholder="Ou digite o nome do agente"
-                />
-              )}
-              <Button onClick={salvarAgente} disabled={working || (!novoAgenteId && !novoAgenteNome.trim())}>
+              <Button onClick={salvarAgente} disabled={working || !novoAgenteId}>
                 <UserPlus className="mr-1 h-4 w-4" /> Salvar
               </Button>
             </div>
