@@ -29,6 +29,16 @@ const ProgressoContext = createContext<ProgressoCtx>({
 
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
+  head: () => ({
+    meta: [
+      { title: "Meus mapeamentos | IONICS" },
+      { name: "description", content: "Consulte e execute os mapeamentos técnicos atribuídos a você." },
+      { property: "og:title", content: "Meus mapeamentos | IONICS" },
+      { property: "og:description", content: "Consulte e execute os mapeamentos técnicos atribuídos a você." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: MinhasVistoriasPage,
 });
 

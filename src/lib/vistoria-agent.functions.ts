@@ -7,6 +7,18 @@ const EstadoInput = z.object({
   casoId: z.string().uuid().optional(),
 });
 
+async function usuarioAutenticado(): Promise<string> {
+  const { getUsuarioAutenticadoId } = await import("@/lib/vistoria-auth.server");
+  return getUsuarioAutenticadoId();
+}
+
+async function validarCasoDaSessao(casoId: string): Promise<string> {
+  const userId = await usuarioAutenticado();
+  const { validarExecutorCaso } = await import("@/lib/vistoria-agent.server");
+  await validarExecutorCaso(casoId, userId);
+  return userId;
+}
+
 export type BlocoPerguntaDTO = {
   id: string;
   texto: string;
@@ -83,9 +95,8 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
     if (data.token) {
       casoId = await validarTokenAcesso(data.token);
     } else if (data.casoId) {
-      // Authenticated path: we rely on requireSupabaseAuth wrapper if called by app.
-      // For simplicity we trust casoId; the chat route validates again.
       casoId = data.casoId;
+      await validarCasoDaSessao(casoId);
     } else {
       throw new Error("Informe token ou casoId.");
     }
@@ -189,10 +200,12 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let casoId: string;
+    let atorId: string | null = null;
     if (data.token) {
       casoId = await validarTokenAcesso(data.token);
     } else if (data.casoId) {
       casoId = data.casoId;
+      atorId = await validarCasoDaSessao(casoId);
     } else {
       throw new Error("Informe token ou casoId.");
     }
@@ -236,7 +249,7 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
       casoId,
       agendamentoId: (caso as any)?.agendamento_id ?? null,
       tipo: "vistoria_finalizada",
-      atorId: (caso as any)?.agente_id ?? null,
+      atorId: atorId ?? (caso as any)?.agente_id ?? null,
     });
 
     // Gera o laudo estruturado já na entrega — falha aqui não bloqueia a finalização.
@@ -266,7 +279,10 @@ async function resolverCasoId(data: { token?: string; casoId?: string }): Promis
     const { validarTokenAcesso } = await import("@/lib/vistoria-agent.server");
     return validarTokenAcesso(data.token);
   }
-  if (data.casoId) return data.casoId;
+  if (data.casoId) {
+    await validarCasoDaSessao(data.casoId);
+    return data.casoId;
+  }
   throw new Error("Informe token ou casoId.");
 }
 
@@ -412,8 +428,12 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
       "@/lib/vistoria-agent.server"
     );
     let casoId: string;
+    let atorId: string | null = null;
     if (data.token) casoId = await validarTokenAcesso(data.token);
-    else if (data.casoId) casoId = data.casoId;
+    else if (data.casoId) {
+      casoId = data.casoId;
+      atorId = await validarCasoDaSessao(casoId);
+    }
     else throw new Error("Informe token ou casoId.");
 
     const ctx = await loadAgentContext(casoId);
@@ -437,7 +457,7 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
           casoId,
           agendamentoId: caso.agendamento_id ?? null,
           tipo: "vistoria_iniciada",
-          atorId: caso.agente_id ?? null,
+          atorId: atorId ?? caso.agente_id ?? null,
         });
       }
     }

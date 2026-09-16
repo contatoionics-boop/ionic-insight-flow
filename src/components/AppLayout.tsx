@@ -59,6 +59,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
   especialista: [
+    { to: "/app/minhas-vistorias", label: "Meus mapeamentos", icon: ClipboardList },
     { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/history", label: "Histórico", icon: History },
   ],

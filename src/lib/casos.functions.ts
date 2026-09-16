@@ -19,10 +19,9 @@ async function assertVistoriador(supabase: any, userId: string) {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .eq("role", "agente_tecnico")
-    .maybeSingle();
+    .in("role", ["agente_tecnico", "especialista"]);
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Acesso restrito a vistoriadores.");
+  if (!data?.length) throw new Error("Acesso restrito a agentes técnicos e especialistas.");
 }
 
 async function checarConflito(opts: {
