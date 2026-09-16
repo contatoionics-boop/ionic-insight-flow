@@ -15,6 +15,16 @@ import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft, UserPlus } from "lucide-
 
 export const Route = createFileRoute("/app/agendamento/$id")({
   component: AgendamentoDetalhe,
+  head: () => ({
+    meta: [
+      { title: "Detalhes do agendamento | IONICS" },
+      { name: "description", content: "Consulte os detalhes e o responsável pelo agendamento técnico." },
+      { property: "og:title", content: "Detalhes do agendamento | IONICS" },
+      { property: "og:description", content: "Consulte os detalhes e o responsável pelo agendamento técnico." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type Form = { id: string; nome: string };
@@ -178,10 +188,10 @@ function AgendamentoDetalhe() {
 
         {!ag.agente_id && (
           <div className="mt-4 border-t border-border pt-4">
-            <Label>Definir agente técnico</Label>
+            <Label required>Definir responsável</Label>
             <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <Select value={novoAgenteId} onChange={(e) => setNovoAgenteId(e.target.value)} className="flex-1">
-                <option value="">Selecione um agente cadastrado</option>
+                <option value="">Selecione um agente técnico ou especialista</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
               </Select>
               <Button onClick={salvarAgente} disabled={working || !novoAgenteId}>

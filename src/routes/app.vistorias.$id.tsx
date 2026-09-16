@@ -16,6 +16,16 @@ import { atribuirAgenteAgendamento } from "@/lib/casos.functions";
 
 export const Route = createFileRoute("/app/vistorias/$id")({
   component: VistoriaDetalhesPage,
+  head: () => ({
+    meta: [
+      { title: "Detalhes do mapeamento | IONICS" },
+      { name: "description", content: "Acompanhe os dados, o responsável e o progresso do mapeamento técnico." },
+      { property: "og:title", content: "Detalhes do mapeamento | IONICS" },
+      { property: "og:description", content: "Acompanhe os dados, o responsável e o progresso do mapeamento técnico." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   errorComponent: ({ error }) => (
     <div className="p-6 text-sm text-destructive">Erro ao carregar mapeamento: {error.message}</div>
   ),
