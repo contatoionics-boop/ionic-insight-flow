@@ -108,6 +108,25 @@ export async function validarUsuarioCaso(casoId: string, userId: string): Promis
   }
 }
 
+/** Garante que o usuário autenticado é o executor atribuído ao caso. */
+export async function validarExecutorCaso(casoId: string, userId: string): Promise<void> {
+  const { data: caso, error: casoError } = await supabaseAdmin
+    .from("casos")
+    .select("agente_id")
+    .eq("id", casoId)
+    .maybeSingle();
+  if (casoError || !caso) throw new Error("Caso não encontrado.");
+  if (caso.agente_id !== userId) throw new Error("Apenas o responsável atribuído pode executar este mapeamento.");
+
+  const { data: roles, error: rolesError } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["agente_tecnico", "especialista"]);
+  if (rolesError) throw new Error(rolesError.message);
+  if (!roles?.length) throw new Error("Seu perfil não tem permissão para executar mapeamentos.");
+}
+
 export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")

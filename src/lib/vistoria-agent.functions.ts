@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -6,6 +8,30 @@ const EstadoInput = z.object({
   token: z.string().min(1).optional(),
   casoId: z.string().uuid().optional(),
 });
+
+async function usuarioAutenticado(): Promise<string> {
+  const authorization = getRequest()?.headers.get("authorization");
+  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
+  if (!token) throw new Error("Faça login para acessar este mapeamento.");
+  const url = process.env["SUPABASE_URL"];
+  const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !key) throw new Error("Configuração de autenticação indisponível.");
+  const client = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.auth.getClaims(token);
+  const userId = data?.claims?.sub;
+  if (error || typeof userId !== "string") throw new Error("Sessão inválida.");
+  return userId;
+}
+
+async function validarCasoDaSessao(casoId: string): Promise<string> {
+  const userId = await usuarioAutenticado();
+  const { validarExecutorCaso } = await import("@/lib/vistoria-agent.server");
+  await validarExecutorCaso(casoId, userId);
+  return userId;
+}
 
 export type BlocoPerguntaDTO = {
   id: string;
@@ -83,9 +109,8 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
     if (data.token) {
       casoId = await validarTokenAcesso(data.token);
     } else if (data.casoId) {
-      // Authenticated path: we rely on requireSupabaseAuth wrapper if called by app.
-      // For simplicity we trust casoId; the chat route validates again.
       casoId = data.casoId;
+      await validarCasoDaSessao(casoId);
     } else {
       throw new Error("Informe token ou casoId.");
     }
@@ -193,6 +218,7 @@ export const finalizarVistoriaChat = createServerFn({ method: "POST" })
       casoId = await validarTokenAcesso(data.token);
     } else if (data.casoId) {
       casoId = data.casoId;
+      await validarCasoDaSessao(casoId);
     } else {
       throw new Error("Informe token ou casoId.");
     }
@@ -266,7 +292,10 @@ async function resolverCasoId(data: { token?: string; casoId?: string }): Promis
     const { validarTokenAcesso } = await import("@/lib/vistoria-agent.server");
     return validarTokenAcesso(data.token);
   }
-  if (data.casoId) return data.casoId;
+  if (data.casoId) {
+    await validarCasoDaSessao(data.casoId);
+    return data.casoId;
+  }
   throw new Error("Informe token ou casoId.");
 }
 
@@ -413,7 +442,10 @@ export const confirmarCadastroVistoria = createServerFn({ method: "POST" })
     );
     let casoId: string;
     if (data.token) casoId = await validarTokenAcesso(data.token);
-    else if (data.casoId) casoId = data.casoId;
+    else if (data.casoId) {
+      casoId = data.casoId;
+      await validarCasoDaSessao(casoId);
+    }
     else throw new Error("Informe token ou casoId.");
 
     const ctx = await loadAgentContext(casoId);

@@ -169,7 +169,7 @@ export const listTechnicalAgents = createServerFn({ method: "GET" })
     const { data: roles, error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
-      .eq("role", "agente_tecnico");
+      .in("role", ["agente_tecnico", "especialista"]);
     if (rolesError) throw new Error(rolesError.message);
 
     const ids = [...new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean))];
