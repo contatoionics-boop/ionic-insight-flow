@@ -1,5 +1,6 @@
 {
   "name": "Ionics Agente Técnico",
+  "lang": "pt-BR",
   "short_name": "Ionics Agente",
   "description": "App de campo do agente técnico Ionics para mapeamentos e vistorias.",
   "start_url": "/app/minhas-vistorias",

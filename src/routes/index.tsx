@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
-import { roleLabels, routeForRole, type Role } from "@/lib/auth";
+import { roleLabels, routeForRole, traduzirErroAuth, type Role } from "@/lib/auth";
 import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,7 +58,7 @@ function LoginPage() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
       setLoading(false);
-      setError(error?.message ?? "Não foi possível entrar.");
+      setError(traduzirErroAuth(error?.message, "Não foi possível entrar."));
       return;
     }
     setSuccess(true);
@@ -78,7 +78,7 @@ function LoginPage() {
     });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(traduzirErroAuth(error.message));
       return;
     }
     setInfo("E-mail de redefinição enviado. Verifique sua caixa de entrada.");

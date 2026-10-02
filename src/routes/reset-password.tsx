@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { Button, Input, Label } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
-import { routeForRole, type Role } from "@/lib/auth";
+import { routeForRole, traduzirErroAuth, type Role } from "@/lib/auth";
 
 export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
@@ -43,7 +43,7 @@ function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       setLoading(false);
-      setError(error.message);
+      setError(traduzirErroAuth(error.message));
       return;
     }
     const { data: roleData } = await supabase.rpc("current_user_role");

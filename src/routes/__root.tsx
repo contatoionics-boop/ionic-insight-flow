@@ -15,16 +15,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          A página que você procura não existe ou foi movida.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Ir para o início
           </Link>
         </div>
       </div>
@@ -40,10 +40,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Não foi possível carregar esta página
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Algo deu errado do nosso lado. Tente atualizar a página ou volte ao início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -53,13 +53,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Tentar novamente
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Ir para o início
           </a>
         </div>
       </div>
@@ -77,16 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Ionics Agente" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { title: "Lovable App" },
-      { name: "description", content: "Fleet Vision Pro manages fleet technical mapping post-inspection with AI." },
+      { title: "IONICS" },
+      { name: "description", content: "Plataforma IONICS de mapeamento técnico de frotas e vistorias, com apoio de IA." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Fleet Vision Pro manages fleet technical mapping post-inspection with AI." },
+      { property: "og:title", content: "IONICS" },
+      { property: "og:description", content: "Plataforma IONICS de mapeamento técnico de frotas e vistorias, com apoio de IA." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Fleet Vision Pro manages fleet technical mapping post-inspection with AI." },
+      { name: "twitter:title", content: "IONICS" },
+      { name: "twitter:description", content: "Plataforma IONICS de mapeamento técnico de frotas e vistorias, com apoio de IA." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e9fa7772-b6d9-4315-bfee-2449a2749353/id-preview-454f7092--f7e6b65a-9f86-4fe2-94b7-329a03be7de6.lovable.app-1779885668474.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e9fa7772-b6d9-4315-bfee-2449a2749353/id-preview-454f7092--f7e6b65a-9f86-4fe2-94b7-329a03be7de6.lovable.app-1779885668474.png" },
     ],
@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>
