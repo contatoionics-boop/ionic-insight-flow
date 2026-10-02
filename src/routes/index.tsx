@@ -61,12 +61,11 @@ function LoginPage() {
       setError(error?.message ?? "Não foi possível entrar.");
       return;
     }
-    setLoading(false);
     setSuccess(true);
-    // Aguarda a animação concluir antes de redirecionar
+    // Aguarda o círculo cobrir a tela antes de navegar
     setTimeout(() => {
-      goAfterLogin();
-    }, 1100);
+      void goAfterLogin();
+    }, 700);
   };
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -87,63 +86,51 @@ function LoginPage() {
 
   return (
     <div className="relative grid min-h-screen overflow-hidden md:grid-cols-2">
-      {/* Painel lateral de marca */}
+      {/* Transição de sucesso: círculo que se expande do centro e cobre a tela */}
       <div
-        className={`relative z-20 hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground transition-all duration-[900ms] ease-in-out md:flex ${
-          success ? "md:col-span-2" : ""
+        aria-hidden
+        className={`pointer-events-none fixed left-1/2 top-1/2 z-50 h-[250vmax] w-[250vmax] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary transition-transform duration-700 ease-in-out ${
+          success ? "scale-100" : "scale-0"
+        }`}
+      />
+      <div
+        className={`pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 text-primary-foreground transition-opacity duration-300 ${
+          success ? "opacity-100 delay-500" : "opacity-0"
         }`}
       >
+        <CheckCircle2 className="h-10 w-10" />
+        <p className="text-lg font-semibold">Bem-vindo de volta</p>
+        <p className="text-sm text-primary-foreground/80">Entrando na plataforma...</p>
+      </div>
+
+      {/* Painel lateral de marca */}
+      <div className="relative z-20 hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
         {/* Glow decorativo */}
         <div
           aria-hidden
-          className={`pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary/20 blur-3xl transition-all duration-[900ms] ease-in-out ${
-            success ? "scale-150 opacity-100" : "opacity-60"
-          }`}
+          className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary/20 opacity-60 blur-3xl"
         />
         <div
           aria-hidden
-          className={`pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl transition-all duration-[900ms] ease-in-out ${
-            success ? "scale-150 opacity-100" : "opacity-50"
-          }`}
+          className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-primary/10 opacity-50 blur-3xl"
         />
 
         <span className="relative text-2xl font-bold tracking-tight text-sidebar-foreground">
           IONICS
         </span>
 
-        <div
-          className={`relative transition-all duration-[900ms] ease-in-out ${
-            success ? "translate-x-8 opacity-0" : "translate-x-0 opacity-100"
-          }`}
-        >
+        <div className="relative">
           <h2 className="text-3xl font-semibold leading-tight">Portal de Mapeamento Técnico IONICS</h2>
           <p className="mt-3 max-w-md text-sm text-sidebar-foreground/70">
             Acesse sua conta para registrar e acompanhar os mapeamentos técnicos no campo.
           </p>
         </div>
 
-        {/* Mensagem de sucesso que aparece centralizada quando autenticado */}
-        <div
-          className={`pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 transition-all duration-[700ms] ease-out ${
-            success ? "translate-y-0 opacity-100 delay-300" : "translate-y-4 opacity-0"
-          }`}
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 ring-1 ring-primary/40">
-            <CheckCircle2 className="h-8 w-8 text-primary" />
-          </div>
-          <p className="text-lg font-semibold">Bem-vindo de volta</p>
-          <p className="text-sm text-sidebar-foreground/70">Entrando na plataforma...</p>
-        </div>
-
         <p className="relative text-xs text-sidebar-foreground/50">© 2026 IONICS</p>
       </div>
 
       {/* Painel do formulário */}
-      <div
-        className={`relative z-10 flex items-center justify-center bg-background p-6 transition-all duration-[900ms] ease-in-out ${
-          success ? "translate-x-full opacity-0" : "translate-x-0 opacity-100"
-        }`}
-      >
+      <div className="relative z-10 flex items-center justify-center bg-background p-6">
         <form
           onSubmit={mode === "login" ? handleLogin : handleForgot}
           className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm"
@@ -193,7 +180,7 @@ function LoginPage() {
             )}
           </div>
 
-          <Button type="submit" className="mt-6 w-full" disabled={loading || success}>
+          <Button type="submit" className="mt-6 w-full" disabled={loading}>
             {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Enviar link"}
           </Button>
 

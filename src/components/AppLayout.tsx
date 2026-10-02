@@ -102,9 +102,8 @@ export function AppLayout() {
 
   if (auth.status !== "authenticated" || !auth.role) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <img src="/bico-loading.png" alt="" className="h-16 w-16 animate-bounce" />
-        <span className="text-2xl font-bold tracking-tight text-primary">IONICS</span>
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Carregando...
       </div>
     );
   }
