@@ -6,12 +6,20 @@ import {
   Check,
   CircleAlert,
   Loader2,
+  CloudOff,
   MessageSquare,
   Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui-bits";
 import { LumaSpin } from "@/components/ui/luma-spin";
+import {
+  aoUploadConcluir,
+  caminhoPendente,
+  filaPronta,
+  traduzirErroRede,
+  useFilaUploads,
+} from "@/lib/midia-upload";
 import type { Resposta } from "@/components/agent/FormFields";
 import { EtapasNav, IconeStatus } from "@/components/agent/checklist/EtapasNav";
 import { EtapaPerguntas } from "@/components/agent/checklist/EtapaPerguntas";
@@ -59,11 +67,13 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   const stateRef = useRef<Record<string, Resposta>>({});
   stateRef.current = state;
 
+  const fila = useFilaUploads();
   const draftKey = dados ? `checklist-draft:${dados.casoId}` : null;
 
   useEffect(() => {
     (async () => {
       try {
+        await filaPronta();
         const d = await carregar({ data: { token, casoId } });
         const base = estadoInicial(d);
         const perguntasAtuais = new Set(
@@ -138,7 +148,10 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     const respostas = ids
       .map((id) => {
         const r = atual[id] ?? {};
-        const arquivos = [r.filePath, r.audioPath].filter(Boolean) as string[];
+        // Arquivo ainda na fila offline não existe no servidor: só é enviado depois do upload.
+        const arquivos = ([r.filePath, r.audioPath].filter(Boolean) as string[]).filter(
+          (p) => !caminhoPendente(p),
+        );
         return {
           perguntaId: id,
           ...(r.text?.trim() ? { valorTexto: r.text.trim() } : {}),
@@ -169,12 +182,24 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
       setErro(null);
       return true;
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar as respostas.");
+      setErro(traduzirErroRede(e, "Falha ao salvar as respostas. Tentaremos de novo automaticamente."));
       return false;
     } finally {
       setSalvando(false);
     }
   }, [dados, salvar, token, casoId]);
+
+  // Quando um arquivo da fila offline termina de subir, marca a resposta para ser enviada.
+  useEffect(
+    () =>
+      aoUploadConcluir((path) => {
+        for (const [id, r] of Object.entries(stateRef.current)) {
+          if (r.filePath === path || r.audioPath === path) sujosRef.current.add(id);
+        }
+        void persistir();
+      }),
+    [persistir],
+  );
 
   // Autosave periódico
   useEffect(() => {
@@ -326,7 +351,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             ) : salvoEm ? (
               `Salvo às ${salvoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
             ) : (
-              "Rascunho local ativo"
+              "Salvo no aparelho"
             )}
           </span>
         </div>
@@ -337,6 +362,25 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           />
         </div>
       </div>
+
+      {(!fila.online || fila.pendentes.length > 0) && (
+        <div
+          role="status"
+          className="mt-3 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground"
+        >
+          <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+          <div className="min-w-0">
+            {!fila.online && <p className="font-medium">Sem conexão — o que você preencher fica salvo no aparelho.</p>}
+            {fila.pendentes.length > 0 && (
+              <p className={fila.online ? "font-medium" : "text-xs text-muted-foreground"}>
+                {fila.pendentes.length} arquivo(s) aguardando envio
+                {fila.enviando ? ` — enviando agora${fila.progresso ? ` (${fila.progresso}%)` : ""}` : ""}. Eles sobem
+                sozinhos quando houver sinal; mantenha o aplicativo aberto.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)_18rem] lg:gap-5">
         <aside className="lg:sticky lg:top-4 lg:self-start">
@@ -357,12 +401,17 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
                   {erro}
                 </p>
               )}
+              {fila.pendentes.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Aguarde o envio dos arquivos pendentes para finalizar o mapeamento.
+                </p>
+              )}
               <div className="flex justify-end">
 
                 <Button
                   variant="primary"
                   onClick={handleFinalizar}
-                  disabled={!resumo.podeFinalizar || finalizando}
+                  disabled={!resumo.podeFinalizar || finalizando || fila.pendentes.length > 0}
                 >
                   {finalizando ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

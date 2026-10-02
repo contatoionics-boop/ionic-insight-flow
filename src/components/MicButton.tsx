@@ -41,7 +41,7 @@ export function MicButton({
         onClick={recording ? stop : start}
         disabled={disabled}
         title={recording ? "Parar gravação" : title}
-        className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs transition ${
+        className={`inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-xs sm:h-8 sm:px-2 transition ${
           recording
             ? "border-destructive bg-destructive/10 text-destructive"
             : "border-input bg-card text-foreground hover:bg-muted"

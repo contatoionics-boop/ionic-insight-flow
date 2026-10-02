@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Camera,
+  CloudOff,
+  Images,
   Video,
   Check,
   Loader2,
@@ -16,7 +18,25 @@ import { Button, Card, Textarea } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { transcreverAudio, validarFoto } from "@/lib/agent-ai.functions";
-import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
+import {
+  MAX_SEGUNDOS_GRAVACAO,
+  blobToBase64,
+  blobToWav16k,
+  useGravacaoVoz,
+  useGravador,
+} from "@/components/agent/use-gravacao-voz";
+import {
+  LIMITE_FOTO_BYTES,
+  LIMITE_VIDEO_BYTES,
+  caminhoPendente,
+  criarLoteadorUrls,
+  descartarArquivo,
+  ehErroDeRede,
+  enviarArquivo,
+  prepararImagem,
+  traduzirErroRede,
+  useFilaUploads,
+} from "@/lib/midia-upload";
 import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
@@ -26,6 +46,13 @@ import { urlsArquivosVistoria } from "@/lib/vistoria-agent.functions";
  * Depois de recarregar a página o objectURL local some; buscamos uma URL
  * assinada a partir do caminho salvo para o agente continuar vendo a mídia.
  */
+// Várias fotos na mesma tela viram uma única chamada de URLs assinadas.
+const pedirUrl = criarLoteadorUrls<string>(async (chave, paths) => {
+  const { buscar } = urlFetchers.get(chave)!;
+  return buscar(paths);
+});
+const urlFetchers = new Map<string, { buscar: (paths: string[]) => Promise<Record<string, string>> }>();
+
 function useUrlArquivo(
   filePath: string | undefined,
   filePreview: string | undefined,
@@ -43,19 +70,20 @@ function useUrlArquivo(
       return;
     }
     const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(casoId);
-    void gerarUrls({
-      data: {
-        paths: [filePath],
-        ...(ehUuid ? { casoId } : {}),
-        ...(!ehUuid && token && token !== "app" ? { token } : {}),
-      },
-    })
-      .then((mapa: Record<string, string>) => {
-        if (ativo) setUrl(mapa?.[filePath] ?? null);
-      })
-      .catch(() => {
-        if (ativo) setUrl(null);
-      });
+    const chave = `${casoId}|${ehUuid ? "" : token}`;
+    urlFetchers.set(chave, {
+      buscar: (paths) =>
+        gerarUrls({
+          data: {
+            paths,
+            ...(ehUuid ? { casoId } : {}),
+            ...(!ehUuid && token && token !== "app" ? { token } : {}),
+          },
+        }) as Promise<Record<string, string>>,
+    });
+    void pedirUrl(chave, filePath).then((u) => {
+      if (ativo) setUrl(u);
+    });
     return () => {
       ativo = false;
     };
@@ -313,7 +341,7 @@ export function PerguntaBloco({
               key={o.id}
               type="button"
               onClick={() => update({ text: o.texto })}
-              className={`block w-full rounded-md border px-4 py-3 text-left text-sm transition ${
+              className={`block min-h-12 w-full rounded-md border px-4 py-3 text-left text-base transition ${
                 resposta.text === o.texto
                   ? "border-primary bg-primary/5 text-foreground"
                   : "border-border bg-background hover:bg-muted"
@@ -342,7 +370,7 @@ export function PerguntaBloco({
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4"
+                  className="h-5 w-5 shrink-0"
                   checked={marcado}
                   onChange={() => {
                     const novo = marcado ? sel.filter((v) => v !== o.texto) : [...sel, o.texto];
@@ -357,12 +385,12 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "checkbox" && (
-        <label className="flex items-start gap-2 text-sm">
+        <label className="flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
             checked={resposta.text === "sim"}
             onChange={(e) => update({ text: e.target.checked ? "sim" : "" })}
-            className="mt-0.5 h-4 w-4"
+            className="h-5 w-5 shrink-0"
           />
           <span>Confirmo</span>
         </label>
@@ -622,7 +650,7 @@ function CampoCnpj({
             Selecione a unidade desta vistoria:
           </p>
           <select
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
             value={unidadeIdx}
             onChange={(e) => {
               const i = Number(e.target.value);
@@ -771,6 +799,32 @@ function CampoCidade({
 }
 
 
+function BarraProgresso({ pct, rotulo }: { pct: number; rotulo: string }) {
+  return (
+    <div className="space-y-1" role="status" aria-live="polite">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{rotulo}</span>
+        {pct > 0 && <span className="tabular-nums">{pct}%</span>}
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full bg-primary transition-all ${pct === 0 ? "w-1/3 animate-pulse" : ""}`}
+          style={pct > 0 ? { width: `${pct}%` } : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AvisoPendente({ texto }: { texto: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+      <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+      <span>{texto}</span>
+    </div>
+  );
+}
+
 function CampoFoto({
   pergunta,
   casoId,
@@ -789,40 +843,52 @@ function CampoFoto({
   validarImagensIa?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [progresso, setProgresso] = useState(0);
   const [analisando, setAnalisando] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galeriaRef = useRef<HTMLInputElement>(null);
   const validarFn = useServerFn(validarFoto);
   const urlFoto = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
+  const fila = useFilaUploads();
+  const pendente = !!resposta.filePath && fila.pendentes.includes(resposta.filePath);
 
+  const limparInputs = () => {
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galeriaRef.current) galeriaRef.current.value = "";
+  };
 
   const enviar = async (file: File) => {
     setErr(null);
     if (!file.size) return setErr("A foto selecionada está vazia. Tente novamente.");
-    if (file.size > 25 * 1024 * 1024) return setErr("A foto deve ter no máximo 25 MB.");
+    if (file.size > LIMITE_FOTO_BYTES) return setErr("A foto deve ter no máximo 25 MB.");
+    if (file.type && !file.type.startsWith("image/")) return setErr("Selecione um arquivo de imagem.");
+    const previaAntiga = resposta.filePreview;
     if (mode === "preview") {
       const preview = URL.createObjectURL(file);
       update({ filePath: "preview", fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: true });
-      if (inputRef.current) inputRef.current.value = "";
+      limparInputs();
       return;
     }
     setUploading(true);
+    setProgresso(0);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
+      const prep = await prepararImagem(file);
+      const ext = prep.tipo === "image/jpeg" ? "jpg" : prep.nome.split(".").pop()?.toLowerCase() || "jpg";
       const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("agente-uploads")
-        .upload(path, file, file.type ? { upsert: false, contentType: file.type } : { upsert: false });
-      if (error) throw error;
-      const preview = URL.createObjectURL(file);
-      update({ filePath: path, fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: !validarImagensIa });
+      const caminhoAntigo = resposta.filePath;
+      await enviarArquivo({ path, blob: prep.blob, contentType: prep.tipo, onProgress: setProgresso });
+      const preview = URL.createObjectURL(prep.blob);
+      if (previaAntiga?.startsWith("blob:")) URL.revokeObjectURL(previaAntiga);
+      update({ filePath: path, fileName: prep.nome, filePreview: preview, ia: undefined, iaConfirmada: !validarImagensIa });
+      void descartarArquivo(caminhoAntigo);
       setUploading(false);
 
-      if (!validarImagensIa) return;
+      if (!validarImagensIa || caminhoPendente(path)) return;
 
       setAnalisando(true);
       try {
-        const base64 = await fileToBase64(file);
+        const base64 = await fileToBase64(prep.blob);
         const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(casoId);
         const ia = (await validarFn({
           data: {
@@ -830,27 +896,28 @@ function CampoFoto({
             ...(ehUuid ? { casoId } : {}),
             perguntaId: pergunta.id,
             imagemBase64: base64,
-            mime: file.type || "image/jpeg",
+            mime: prep.tipo || "image/jpeg",
           },
         })) as IaResultado;
-
-
         update({ ia, iaConfirmada: ia.status === "aprovada" });
       } catch (iaErr) {
         // Falha da IA não bloqueia o envio: marca como confirmada pelo usuário e exibe aviso.
         update({ iaConfirmada: true });
-        setErr(
-          (iaErr instanceof Error ? iaErr.message : "Falha ao analisar a foto.") +
-            " A foto foi mantida e você pode avançar.",
-        );
+        setErr(traduzirErroRede(iaErr, "Falha ao analisar a foto.") + " A foto foi mantida e você pode avançar.");
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Erro ao processar foto.");
+      setErr(traduzirErroRede(e, "Erro ao processar a foto."));
     } finally {
       setUploading(false);
       setAnalisando(false);
-      if (inputRef.current) inputRef.current.value = "";
+      setProgresso(0);
+      limparInputs();
     }
+  };
+
+  const aoEscolher = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void enviar(f);
   };
 
   const ia = resposta.ia;
@@ -863,31 +930,24 @@ function CampoFoto({
       ? { color: "bg-destructive/15 text-destructive border-destructive/30", icon: <X className="h-4 w-4" />, label: "Foto não atende" }
       : null;
 
+  const ocupado = uploading || analisando;
+
   return (
     <div className="space-y-3">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])}
-      />
+      {/* Câmera (capture) e galeria (sem capture): prints e fotos já tiradas só entram pela galeria */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={aoEscolher} />
+      <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={aoEscolher} />
 
-      {!resposta.filePath ? (
-        <Button onClick={() => inputRef.current?.click()} className="h-12 w-full" disabled={uploading}>
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Camera className="h-4 w-4" /> Tirar / enviar foto</>}
-        </Button>
-      ) : (
+      {resposta.filePath && (
         <>
           {urlFoto ? (
-            <img src={urlFoto} alt="Foto enviada" className="w-full rounded-md border border-border object-cover" />
+            <img src={urlFoto} alt="Foto enviada" className="max-h-80 w-full rounded-md border border-border bg-muted/30 object-contain" />
           ) : (
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              Foto enviada e salva.
+              {pendente ? "Foto guardada no aparelho." : "Foto enviada e salva."}
             </div>
           )}
-
+          {pendente && <AvisoPendente texto="Sem conexão: a foto será enviada automaticamente quando o sinal voltar. Você já pode continuar." />}
           {analisando && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Analisando imagem com IA…
@@ -905,10 +965,7 @@ function CampoFoto({
                 </ul>
               )}
               {ia?.status === "parcial" && !resposta.iaConfirmada && (
-                <button
-                  onClick={() => update({ iaConfirmada: true })}
-                  className="mt-2 text-xs font-semibold underline"
-                >
+                <button onClick={() => update({ iaConfirmada: true })} className="mt-2 min-h-11 text-xs font-semibold underline">
                   Avançar mesmo assim
                 </button>
               )}
@@ -919,14 +976,33 @@ function CampoFoto({
               Modo preview — IA não é executada.
             </div>
           )}
-          <Button variant="outline" onClick={() => inputRef.current?.click()} className="h-10 w-full" disabled={uploading || analisando}>
-            <Camera className="h-4 w-4" /> Reenviar foto
-          </Button>
         </>
       )}
+
+      {uploading && <BarraProgresso pct={progresso} rotulo={progresso === 0 ? "Preparando foto…" : "Enviando foto…"} />}
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" onClick={() => cameraRef.current?.click()} className="h-12" disabled={ocupado}>
+          <Camera className="h-4 w-4" /> {resposta.filePath ? "Refazer" : "Tirar foto"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} className="h-12" disabled={ocupado}>
+          <Images className="h-4 w-4" /> Galeria
+        </Button>
+      </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </div>
   );
+}
+
+const EXT_VIDEO = /\.(mp4|mov|m4v|webm|3gp|3gpp)$/i;
+
+function tipoVideo(file: File): string {
+  if (file.type.startsWith("video/")) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "mov") return "video/quicktime";
+  if (ext === "webm") return "video/webm";
+  if (ext === "3gp" || ext === "3gpp") return "video/3gpp";
+  return "video/mp4";
 }
 
 function CampoVideo({
@@ -942,60 +1018,93 @@ function CampoVideo({
   update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galeriaRef = useRef<HTMLInputElement>(null);
   const urlVideo = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
   const [uploading, setUploading] = useState(false);
+  const [progresso, setProgresso] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
+  const fila = useFilaUploads();
+  const pendente = !!resposta.filePath && fila.pendentes.includes(resposta.filePath);
+  const progressoFila = pendente && fila.enviando === resposta.filePath ? fila.progresso : 0;
+
+  const limpar = () => {
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galeriaRef.current) galeriaRef.current.value = "";
+  };
 
   const enviar = async (file: File) => {
     setErro(null);
     if (!file.size) return setErro("O vídeo selecionado está vazio.");
-    if (file.size > 100 * 1024 * 1024) return setErro("O vídeo deve ter no máximo 100 MB.");
-    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) {
-      return setErro("Formato não aceito. Use MP4, WebM ou MOV.");
+    if (file.size > LIMITE_VIDEO_BYTES) {
+      return setErro(
+        `O vídeo tem ${(file.size / 1024 / 1024).toFixed(0)} MB e o limite é ${LIMITE_VIDEO_BYTES / 1024 / 1024} MB. Grave um trecho mais curto ou reduza a qualidade do vídeo nas configurações da câmera.`,
+      );
     }
+    if (!file.type.startsWith("video/") && !EXT_VIDEO.test(file.name)) {
+      return setErro("Formato não aceito. Use MP4, MOV, WebM ou 3GP.");
+    }
+    const tipo = tipoVideo(file);
+    const previaAntiga = resposta.filePreview;
     const preview = URL.createObjectURL(file);
     if (mode === "preview") {
       update({ filePath: "preview", fileName: file.name, filePreview: preview });
+      limpar();
       return;
     }
     setUploading(true);
+    setProgresso(0);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
       const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("agente-uploads")
-        .upload(path, file, { upsert: false, contentType: file.type });
-      if (error) throw error;
+      const caminhoAntigo = resposta.filePath;
+      await enviarArquivo({ path, blob: file, contentType: tipo, onProgress: setProgresso });
+      if (previaAntiga?.startsWith("blob:")) URL.revokeObjectURL(previaAntiga);
       update({ filePath: path, fileName: file.name, filePreview: preview });
+      void descartarArquivo(caminhoAntigo);
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao enviar vídeo.");
+      URL.revokeObjectURL(preview);
+      setErro(traduzirErroRede(error, "Erro ao enviar vídeo."));
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+      setProgresso(0);
+      limpar();
     }
+  };
+
+  const aoEscolher = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void enviar(f);
   };
 
   return (
     <div className="space-y-3">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/mp4,video/webm,video/quicktime"
-        capture="environment"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void enviar(file);
-        }}
-      />
+      <input ref={cameraRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={aoEscolher} />
+      <input ref={galeriaRef} type="file" accept="video/*" className="hidden" onChange={aoEscolher} />
       {urlVideo && (
-        <video controls preload="metadata" src={urlVideo} className="w-full rounded-md border border-border" />
+        <video controls playsInline preload="metadata" src={urlVideo} className="w-full rounded-md border border-border" />
       )}
-      <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="h-12 w-full">
-        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-        {resposta.filePath ? "Substituir vídeo" : "Gravar / anexar vídeo"}
-      </Button>
+      {resposta.filePath && !urlVideo && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {pendente ? "Vídeo guardado no aparelho." : "Vídeo enviado e salvo."}
+        </div>
+      )}
+      {pendente && (
+        <>
+          <AvisoPendente texto="Sem conexão: o vídeo será enviado automaticamente quando o sinal voltar. Mantenha o aplicativo aberto." />
+          {fila.enviando === resposta.filePath && <BarraProgresso pct={progressoFila} rotulo="Enviando vídeo…" />}
+        </>
+      )}
+      {uploading && <BarraProgresso pct={progresso} rotulo="Enviando vídeo… não feche a tela" />}
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" onClick={() => cameraRef.current?.click()} disabled={uploading} className="h-12">
+          <Video className="h-4 w-4" /> {resposta.filePath ? "Regravar" : "Gravar vídeo"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} disabled={uploading} className="h-12">
+          <Images className="h-4 w-4" /> Galeria
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">Limite de {LIMITE_VIDEO_BYTES / 1024 / 1024} MB por vídeo.</p>
       {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
   );
@@ -1015,28 +1124,14 @@ function CampoAudio({
   mode: RendererMode;
 }) {
   const [modo, setModo] = useState<"gravar" | "texto">(resposta.transcription && !resposta.audioPath ? "texto" : "gravar");
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [transcrevendo, setTranscrevendo] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const transcreverFn = useServerFn(transcreverAudio);
+  const fila = useFilaUploads();
+  const pendente = !!resposta.audioPath && fila.pendentes.includes(resposta.audioPath);
 
-  useEffect(() => {
-    if (recording) timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [recording]);
-
-  const enviarBlob = async (blob: Blob, ext: string) => {
+  const processar = async (blob: Blob, info: { mime: string; ext: string }) => {
     if (mode === "preview") {
       update({ audioPath: "preview", transcription: "(modo preview — sem transcrição)", transcriptionConfirmed: true });
       return;
@@ -1044,57 +1139,37 @@ function CampoAudio({
     setUploading(true);
     setErr(null);
     try {
-      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("agente-uploads").upload(path, blob, { upsert: false });
-      if (error) throw error;
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${info.ext}`;
+      await enviarArquivo({ path, blob, contentType: info.mime.split(";")[0] || "audio/webm" });
       update({ audioPath: path, transcription: "", transcriptionConfirmed: false });
-      setUploading(false);
-
-      setTranscrevendo(true);
-      const base64 = await fileToBase64(blob);
-      try {
-        const r = (await transcreverFn({
-          data: { token, audioBase64: base64, mime: blob.type || `audio/${ext}` },
-        })) as { transcricao: string };
-        update({ transcription: r.transcricao });
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Falha na transcrição. Você pode digitar manualmente.");
-      }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Erro ao enviar áudio.");
-    } finally {
+      setErr(traduzirErroRede(e, "Erro ao enviar áudio."));
       setUploading(false);
+      return;
+    }
+    setUploading(false);
+
+    setTranscrevendo(true);
+    try {
+      // Converte para WAV 16 kHz: funciona igual no Safari (mp4) e no Chrome (webm) e é bem menor.
+      const wav = await blobToWav16k(blob);
+      const base64 = await blobToBase64(wav);
+      const r = (await transcreverFn({ data: { token, audioBase64: base64, mime: "audio/wav" } })) as { transcricao: string };
+      update({ transcription: r.transcricao });
+    } catch (e) {
+      setErr(
+        ehErroDeRede(e)
+          ? "Sem conexão para transcrever. O áudio ficou guardado; digite a descrição abaixo."
+          : traduzirErroRede(e, "Falha na transcrição. Você pode digitar manualmente."),
+      );
+    } finally {
       setTranscrevendo(false);
     }
   };
 
-  const start = async () => {
-    setErr(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        await enviarBlob(blob, "webm");
-      };
-      recorderRef.current = rec;
-      setSeconds(0);
-      rec.start();
-      setRecording(true);
-    } catch {
-      setErr("Permissão de microfone negada ou indisponível.");
-    }
-  };
-
-  const stop = () => {
-    recorderRef.current?.stop();
-    setRecording(false);
-  };
-
-  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  const gravador = useGravador({ onGravado: processar });
+  const { recording, mmss, start, stop } = gravador;
+  const restante = MAX_SEGUNDOS_GRAVACAO - gravador.seconds;
 
   return (
     <div className="space-y-3">
@@ -1102,7 +1177,7 @@ function CampoAudio({
         <button
           type="button"
           onClick={() => setModo("gravar")}
-          className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
+          className={`min-h-11 flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
             modo === "gravar" ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
           }`}
         >
@@ -1111,7 +1186,7 @@ function CampoAudio({
         <button
           type="button"
           onClick={() => setModo("texto")}
-          className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
+          className={`min-h-11 flex-1 rounded-md border px-3 py-2 text-xs font-medium ${
             modo === "texto" ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
           }`}
         >
@@ -1126,20 +1201,24 @@ function CampoAudio({
               <Mic className="h-4 w-4" /> Iniciar gravação
             </Button>
           )}
+          {uploading && <BarraProgresso pct={0} rotulo="Salvando áudio…" />}
           {recording && (
             <div className="rounded-md border-2 border-destructive/30 bg-destructive/5 p-4 text-center">
               <div className="mx-auto flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-destructive/20 text-destructive">
                 <Mic className="h-6 w-6" />
               </div>
               <p className="mt-2 font-mono text-xl font-semibold">{mmss}</p>
-              <p className="text-xs text-muted-foreground">Gravando…</p>
-              <Button onClick={stop} variant="destructive" className="mt-3 h-10 w-full">
+              <p className="text-xs text-muted-foreground">
+                Gravando… {restante <= 30 ? `encerra em ${restante}s` : "máx. 5 min"}
+              </p>
+              <Button onClick={stop} variant="destructive" className="mt-3 h-12 w-full">
                 <Square className="h-4 w-4" /> Parar
               </Button>
             </div>
           )}
           {resposta.audioPath && !recording && (
             <>
+              {pendente && <AvisoPendente texto="Sem conexão: o áudio será enviado automaticamente quando o sinal voltar." />}
               {transcrevendo && (
                 <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Transcrevendo com IA…
@@ -1151,18 +1230,18 @@ function CampoAudio({
                 value={resposta.transcription ?? ""}
                 onChange={(e) => update({ transcription: e.target.value, transcriptionConfirmed: false })}
               />
-              <label className="flex items-start gap-2 text-sm">
+              <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
                   type="checkbox"
                   checked={!!resposta.transcriptionConfirmed}
                   onChange={(e) => update({ transcriptionConfirmed: e.target.checked })}
-                  className="mt-0.5 h-4 w-4"
+                  className="h-5 w-5 shrink-0"
                 />
                 <span>Confirmo que a transcrição está correta.</span>
               </label>
               <button
                 onClick={() => update({ audioPath: undefined, transcription: "", transcriptionConfirmed: false })}
-                className="text-xs font-medium text-primary hover:underline"
+                className="min-h-11 text-xs font-medium text-primary hover:underline"
               >
                 Regravar
               </button>
@@ -1179,7 +1258,7 @@ function CampoAudio({
           />
         </>
       )}
-      {err && <p className="text-xs text-destructive">{err}</p>}
+      {(err || gravador.erro) && <p className="text-xs text-destructive">{err || gravador.erro}</p>}
     </div>
   );
 }

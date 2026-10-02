@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 
 import { transcreverAudio } from "@/lib/agent-ai.functions";
+import { traduzirErroRede } from "@/lib/midia-upload";
 
-async function blobToBase64(blob: Blob): Promise<string> {
+export const MAX_SEGUNDOS_GRAVACAO = 5 * 60;
+
+export async function blobToBase64(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
   let bin = "";
   const bytes = new Uint8Array(buf);
@@ -41,10 +44,25 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
-async function blobToWav(blob: Blob): Promise<Blob> {
+/** Reamostra por interpolação linear (fala em 16 kHz basta para transcrição). */
+function reamostrar(mono: Float32Array, de: number, para: number): Float32Array {
+  if (de <= para) return mono;
+  const razao = de / para;
+  const saida = new Float32Array(Math.floor(mono.length / razao));
+  for (let i = 0; i < saida.length; i++) {
+    const pos = i * razao;
+    const i0 = Math.floor(pos);
+    const i1 = Math.min(i0 + 1, mono.length - 1);
+    const frac = pos - i0;
+    saida[i] = mono[i0] * (1 - frac) + mono[i1] * frac;
+  }
+  return saida;
+}
+
+/** Decodifica qualquer áudio gravado (webm/mp4/ogg) e devolve WAV mono 16 kHz (~1,9 MB/min). */
+export async function blobToWav16k(blob: Blob): Promise<Blob> {
   const arrayBuf = await blob.arrayBuffer();
-  const AC: typeof AudioContext =
-    (window.AudioContext || (window as any).webkitAudioContext);
+  const AC: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
   const ctx = new AC();
   try {
     const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
@@ -55,14 +73,137 @@ async function blobToWav(blob: Blob): Promise<Blob> {
       const data = audioBuf.getChannelData(c);
       for (let i = 0; i < len; i++) mono[i] += data[i] / ch;
     }
-    return encodeWav(mono, audioBuf.sampleRate);
+    return encodeWav(reamostrar(mono, audioBuf.sampleRate, 16000), Math.min(audioBuf.sampleRate, 16000));
   } finally {
     ctx.close().catch(() => {});
   }
 }
 
+/** Escolhe o formato que o navegador realmente grava (Safari/iOS usa mp4, Chrome usa webm). */
+export function escolherMimeGravacao(): { mime: string; ext: string } {
+  const candidatos: [string, string][] = [
+    ["audio/webm;codecs=opus", "webm"],
+    ["audio/webm", "webm"],
+    ["audio/mp4", "m4a"],
+    ["audio/ogg;codecs=opus", "ogg"],
+  ];
+  if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported) {
+    for (const [mime, ext] of candidatos) if (MediaRecorder.isTypeSupported(mime)) return { mime, ext };
+  }
+  return { mime: "", ext: "webm" };
+}
+
+function mensagemMicrofone(e: unknown): string {
+  const nome = (e as { name?: string })?.name ?? "";
+  if (nome === "NotAllowedError" || nome === "SecurityError")
+    return "Permissão do microfone negada. Libere o microfone nas configurações do navegador.";
+  if (nome === "NotFoundError") return "Nenhum microfone encontrado neste aparelho.";
+  if (nome === "NotReadableError") return "O microfone está em uso por outro aplicativo.";
+  if (typeof MediaRecorder === "undefined") return "Este navegador não suporta gravação de áudio.";
+  return "Não foi possível acessar o microfone.";
+}
+
 /**
- * Hook reutilizável para gravar voz e obter transcrição via Lovable AI.
+ * Gravador de áudio de baixo nível: libera o microfone ao parar, ao atingir o
+ * limite de duração e quando o componente é desmontado.
+ */
+export function useGravador({
+  onGravado,
+  maxSegundos = MAX_SEGUNDOS_GRAVACAO,
+}: {
+  onGravado: (blob: Blob, info: { mime: string; ext: string }) => void | Promise<void>;
+  maxSegundos?: number;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [erro, setErro] = useState<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const descartarRef = useRef(false);
+  const onGravadoRef = useRef(onGravado);
+  onGravadoRef.current = onGravado;
+
+  const liberar = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  const stop = useCallback(() => {
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") rec.stop();
+    setRecording(false);
+  }, []);
+
+  useEffect(() => {
+    if (!recording) return;
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [recording]);
+
+  useEffect(() => {
+    if (recording && seconds >= maxSegundos) stop();
+  }, [recording, seconds, maxSegundos, stop]);
+
+  // Sair da tela gravando descarta a gravação e solta o microfone.
+  useEffect(
+    () => () => {
+      descartarRef.current = true;
+      const rec = recorderRef.current;
+      if (rec && rec.state !== "inactive") rec.stop();
+      liberar();
+    },
+    [liberar],
+  );
+
+  const start = useCallback(async () => {
+    setErro(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      streamRef.current = stream;
+      const { mime, ext } = escolherMimeGravacao();
+      const rec = new MediaRecorder(stream, {
+        ...(mime ? { mimeType: mime } : {}),
+        audioBitsPerSecond: 32000,
+      });
+      chunksRef.current = [];
+      descartarRef.current = false;
+      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+      rec.onerror = () => {
+        setErro("A gravação foi interrompida. Tente novamente.");
+        setRecording(false);
+        liberar();
+      };
+      rec.onstop = () => {
+        liberar();
+        if (descartarRef.current) return;
+        const tipo = rec.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: tipo });
+        if (blob.size === 0) {
+          setErro("Nenhum áudio foi captado. Tente novamente.");
+          return;
+        }
+        void onGravadoRef.current(blob, { mime: tipo, ext: tipo.includes("mp4") ? "m4a" : tipo.includes("ogg") ? "ogg" : ext });
+      };
+      recorderRef.current = rec;
+      setSeconds(0);
+      rec.start(1000);
+      setRecording(true);
+    } catch (e) {
+      liberar();
+      setErro(mensagemMicrofone(e));
+    }
+  }, [liberar]);
+
+  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+
+  return { recording, seconds, mmss, erro, setErro, start, stop };
+}
+
+/**
+ * Hook reutilizável para gravar voz e obter transcrição.
  * onTranscricao recebe o texto final transcrito.
  */
 export function useGravacaoVoz({
@@ -72,66 +213,38 @@ export function useGravacaoVoz({
   token: string;
   onTranscricao: (texto: string) => void;
 }) {
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
   const [transcrevendo, setTranscrevendo] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const [erroTrans, setErroTrans] = useState<string | null>(null);
   const transcreverFn = useServerFn(transcreverAudio);
 
-  useEffect(() => {
-    if (recording) {
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [recording]);
+  const gravador = useGravador({
+    onGravado: async (raw) => {
+      setTranscrevendo(true);
+      setErroTrans(null);
+      try {
+        const wav = await blobToWav16k(raw);
+        const base64 = await blobToBase64(wav);
+        const r = (await transcreverFn({
+          data: { token, audioBase64: base64, mime: "audio/wav" },
+        })) as { transcricao: string };
+        onTranscricao((r.transcricao || "").trim());
+      } catch (e) {
+        setErroTrans(traduzirErroRede(e, "Falha na transcrição. Você pode digitar o texto."));
+      } finally {
+        setTranscrevendo(false);
+      }
+    },
+  });
 
-  const start = async () => {
-    setErro(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const raw = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-        setTranscrevendo(true);
-        try {
-          const wav = await blobToWav(raw);
-          const base64 = await blobToBase64(wav);
-          const r = (await transcreverFn({
-            data: { token, audioBase64: base64, mime: "audio/wav" },
-          })) as { transcricao: string };
-          onTranscricao((r.transcricao || "").trim());
-        } catch (e) {
-          setErro(e instanceof Error ? e.message : "Falha na transcrição.");
-        } finally {
-          setTranscrevendo(false);
-        }
-      };
-      recorderRef.current = rec;
-      setSeconds(0);
-      rec.start();
-      setRecording(true);
-    } catch {
-      setErro("Permissão de microfone negada ou indisponível.");
-    }
+  return {
+    recording: gravador.recording,
+    transcrevendo,
+    erro: gravador.erro ?? erroTrans,
+    start: () => {
+      setErroTrans(null);
+      return gravador.start();
+    },
+    stop: gravador.stop,
+    mmss: gravador.mmss,
   };
-
-  const stop = () => {
-    recorderRef.current?.stop();
-    setRecording(false);
-  };
-
-  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-
-  return { recording, transcrevendo, erro, start, stop, mmss };
 }

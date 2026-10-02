@@ -659,7 +659,7 @@ export const urlsArquivosVistoria = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => UrlsInput.parse(input))
   .handler(async ({ data }): Promise<Record<string, string>> => {
     const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
-    const paths = data.paths.filter((p) => p.startsWith(`casos/${casoId}/`) || !p.includes(".."));
+    const paths = data.paths.filter((p) => p.startsWith(`casos/${casoId}/`) && !p.includes(".."));
     if (!paths.length) return {};
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: signed } = await supabaseAdmin.storage

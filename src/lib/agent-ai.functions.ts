@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
@@ -19,6 +20,18 @@ async function validarToken(token: string): Promise<string> {
   return data.caso_id;
 }
 
+/**
+ * Chamadas sem link público ("app"/"preview"/casoId) precisam de sessão
+ * autenticada — caso contrário qualquer pessoa consumiria a chave da OpenAI.
+ */
+async function exigirSessao(): Promise<void> {
+  const auth = getRequest()?.headers.get("authorization") ?? "";
+  const jwt = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!jwt) throw new Error("Sessão expirada. Entre novamente.");
+  const { data, error } = await supabaseAdmin.auth.getUser(jwt);
+  if (error || !data.user) throw new Error("Sessão expirada. Entre novamente.");
+}
+
 function getProvider() {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY ausente.");
@@ -29,7 +42,7 @@ const ValidarFotoInput = z.object({
   token: z.string().min(1),
   casoId: z.string().uuid().optional(),
   perguntaId: z.string().uuid(),
-  imagemBase64: z.string().min(1),
+  imagemBase64: z.string().min(1).max(14_000_000),
   mime: z.string().min(1),
 });
 
@@ -45,8 +58,9 @@ export const validarFoto = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // "preview" (editor) e "app" (sessão autenticada, identificada por casoId)
     // não usam link público; nesses casos não há token a validar.
-    const semLink = data.token === "preview" || data.token === "app" || !!data.casoId;
-    if (!semLink) {
+    if (data.token === "preview" || data.token === "app") {
+      await exigirSessao();
+    } else {
       await validarToken(data.token);
     }
 
@@ -107,14 +121,17 @@ export const validarFoto = createServerFn({ method: "POST" })
 
 const TranscreverInput = z.object({
   token: z.string().min(1),
-  audioBase64: z.string().min(1),
+  // ~25 MB de áudio (limite do Whisper) em base64
+  audioBase64: z.string().min(1).max(34_000_000),
   mime: z.string().min(1),
 });
 
 export const transcreverAudio = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => TranscreverInput.parse(input))
   .handler(async ({ data }) => {
-    if (data.token !== "preview" && data.token !== "app") {
+    if (data.token === "preview" || data.token === "app") {
+      await exigirSessao();
+    } else {
       await validarToken(data.token);
     }
 

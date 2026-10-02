@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ClipboardList, LogOut, Moon, Sun, User } from "lucide-react";
+import { ArrowLeft, ClipboardList, LogOut, Moon, Sun, User } from "lucide-react";
 
 import { NotificacoesBell } from "@/components/NotificacoesBell";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,8 @@ export function AgentMobileLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nomeEmpresa = config?.nome_empresa || "Ionics";
   const displayName = auth.profile?.nome || auth.email || "Agente";
+  // Preenchendo um mapeamento: a barra inferior própria do checklist ocupa o rodapé.
+  const emVistoria = pathname.startsWith("/app/vistoria/");
 
   useEffect(() => {
     if (auth.status === "unauthenticated") navigate({ to: "/" });
@@ -34,12 +36,21 @@ export function AgentMobileLayout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <header
         className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card px-4"
         style={{ paddingTop: "max(env(safe-area-inset-top), 0.5rem)", paddingBottom: "0.5rem" }}
       >
         <div className="flex min-w-0 items-center gap-2">
+          {emVistoria && (
+            <Link
+              to="/app/minhas-vistorias"
+              aria-label="Voltar para meus mapeamentos"
+              className="-ml-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          )}
           {config?.logo_url ? (
             <img src={config.logo_url} alt={nomeEmpresa} className="h-7 w-auto object-contain" />
           ) : (
@@ -56,14 +67,14 @@ export function AgentMobileLayout() {
           <NotificacoesBell />
           <button
             onClick={toggleTheme}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground hover:bg-muted"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground hover:bg-muted"
             aria-label="Alternar tema"
           >
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
           <button
             onClick={handleLogout}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground hover:bg-muted"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground hover:bg-muted"
             aria-label="Sair"
           >
             <LogOut className="h-5 w-5" />
@@ -73,11 +84,16 @@ export function AgentMobileLayout() {
 
       <main
         className="flex-1 px-3 py-4"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+        style={{
+          paddingBottom: emVistoria
+            ? "calc(env(safe-area-inset-bottom) + 0.5rem)"
+            : "calc(env(safe-area-inset-bottom) + 5.5rem)",
+        }}
       >
         <Outlet />
       </main>
 
+      {!emVistoria && (
       <nav
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -90,7 +106,7 @@ export function AgentMobileLayout() {
               <Link
                 key={t.to}
                 to={t.to}
-                className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
+                className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -101,6 +117,7 @@ export function AgentMobileLayout() {
           })}
         </div>
       </nav>
+      )}
     </div>
   );
 }

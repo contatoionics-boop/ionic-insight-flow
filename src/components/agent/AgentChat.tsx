@@ -8,6 +8,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui-bits";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { supabase } from "@/integrations/supabase/client";
+import { descartarArquivo, enviarArquivo, prepararImagem, traduzirErroRede } from "@/lib/midia-upload";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { BlocoResposta } from "@/components/agent/BlocoResposta";
@@ -222,12 +223,16 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
     if (file.size > 25 * 1024 * 1024) return alert("A foto deve ter no máximo 25 MB.");
     setUploadingFoto(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const prep = await prepararImagem(file);
+      const ext = prep.tipo === "image/jpeg" ? "jpg" : prep.nome.split(".").pop()?.toLowerCase() || "jpg";
       const path = `casos/${estado.casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("agente-uploads")
-        .upload(path, file, file.type ? { upsert: false, contentType: file.type } : { upsert: false });
-      if (error) throw error;
+      const resultado = await enviarArquivo({ path, blob: prep.blob, contentType: prep.tipo });
+      if (resultado === "enfileirado") {
+        // No chat a mensagem referencia o arquivo na hora: sem sinal, é melhor repetir depois.
+        await descartarArquivo(path);
+        alert("Sem conexão para enviar a foto. Tente novamente quando o sinal voltar ou use o modo checklist, que guarda tudo no aparelho.");
+        return;
+      }
 
       // Para perguntas de foto, acumulamos no buffer e mostramos os botões
       // de resposta rápida — não enviamos ao agente ainda.
@@ -237,13 +242,13 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
       }
 
       // Outros tipos (raro): comportamento antigo de envio imediato
-      const fotoText = `[ANEXO_FOTO arquivo_path=${path} mime=${file.type}] Anexei uma foto para a pergunta atual.`;
+      const fotoText = `[ANEXO_FOTO arquivo_path=${path} mime=${prep.tipo}] Anexei uma foto para a pergunta atual.`;
       void salvarMensagem({
         data: { token, casoId, role: "user", parts: [{ type: "text", text: fotoText }] },
       }).catch(() => undefined);
       await sendMessage({ text: fotoText });
     } catch (e: any) {
-      alert("Falha ao enviar foto: " + (e?.message ?? e));
+      alert("Falha ao enviar foto: " + traduzirErroRede(e, "Tente novamente."));
     } finally {
       setUploadingFoto(false);
     }

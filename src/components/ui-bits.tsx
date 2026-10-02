@@ -94,8 +94,8 @@ export function Button({
     outline: "border border-border bg-card text-foreground hover:bg-muted",
   };
   const sizes: Record<string, string> = {
-    sm: "px-2.5 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
+    sm: "min-h-9 px-2.5 py-1.5 text-xs",
+    md: "min-h-11 px-4 py-2 text-sm sm:min-h-10",
   };
   return (
     <button
@@ -111,7 +111,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
+      className={`flex h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-base text-foreground shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground sm:h-10 sm:text-sm focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
     />
   );
 }
@@ -120,7 +120,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ""}`}
+      className={`flex h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-base text-foreground shadow-sm outline-none transition-[box-shadow,border-color] sm:h-10 sm:text-sm focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ""}`}
     />
   );
 }
@@ -129,7 +129,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...props}
-      className={`flex min-h-[80px] w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
+      className={`flex min-h-[80px] w-full rounded-md border border-input bg-card px-3 py-2 text-base text-foreground sm:text-sm shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20 ${props.className ?? ""}`}
     />
   );
 }
