@@ -135,7 +135,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     tipo: "paragraph",
     texto:
       "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
-      "Itens sinalizados como [CONFIRMAR: ...] dependem de validação antes da emissão definitiva do documento.",
+      "Itens sinalizados como pendentes de confirmação dependem de validação antes da emissão definitiva do documento.",
   });
 
   // ---------- Observações técnicas relevantes (após a introdução) ----------

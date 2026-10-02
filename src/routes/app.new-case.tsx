@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
-import { analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
+import { analisarEscopoManual, analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { AlertTriangle } from "lucide-react";
@@ -58,6 +58,8 @@ type AgendamentoDraft = {
   propostaNome: string | null;
   propostaTamanho: number | null;
   escopoPrevia: EscopoProposta | null;
+  escopoModo: "pdf" | "manual";
+  escopoManualTexto: string;
 };
 
 function formatEndereco(u?: EnderecoBase | null) {
@@ -81,6 +83,7 @@ function NewCasePage() {
   const agendar = useServerFn(agendarMapeamento);
   const registrar = useServerFn(registrarProposta);
   const analisarPrevia = useServerFn(analisarPropostaPrevia);
+  const analisarManual = useServerFn(analisarEscopoManual);
   const [proposta, setProposta] = useState<File | null>(null);
   const [propostaPathPrevia, setPropostaPathPrevia] = useState<string | null>(null);
   const [propostaNome, setPropostaNome] = useState<string | null>(null);
@@ -88,6 +91,10 @@ function NewCasePage() {
   const [escopoPrevia, setEscopoPrevia] = useState<EscopoProposta | null>(null);
   const [analisando, setAnalisando] = useState(false);
   const [erroPrevia, setErroPrevia] = useState<string | null>(null);
+  const [escopoModo, setEscopoModo] = useState<"pdf" | "manual">("pdf");
+  const [escopoManualTexto, setEscopoManualTexto] = useState("");
+  const [analisandoManual, setAnalisandoManual] = useState(false);
+  const [erroManual, setErroManual] = useState<string | null>(null);
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
@@ -140,6 +147,8 @@ function NewCasePage() {
         setPropostaNome(draft.propostaNome ?? null);
         setPropostaTamanho(draft.propostaTamanho ?? null);
         setEscopoPrevia(draft.escopoPrevia ? normalizarEscopo(draft.escopoPrevia) : null);
+        setEscopoModo(draft.escopoModo ?? "pdf");
+        setEscopoManualTexto(draft.escopoManualTexto ?? "");
       }
     } catch {
       window.localStorage.removeItem(draftKey);
@@ -154,6 +163,7 @@ function NewCasePage() {
       empresaId, matrizId, unidadeId, formIds, agentId, agenteNomeManual,
       tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
       propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
+      escopoModo, escopoManualTexto,
     };
     try {
       window.localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -162,7 +172,8 @@ function NewCasePage() {
     }
   }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, agentId,
     agenteNomeManual, tipoSolicitacao, modalidade, nivel, data, hora, endereco,
-    observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia]);
+    observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
+    escopoModo, escopoManualTexto]);
 
   useEffect(() => {
     (async () => {
@@ -314,7 +325,7 @@ function NewCasePage() {
 
       if (draftKey) window.localStorage.removeItem(draftKey);
 
-      if (propostaPathPrevia && propostaNome && res?.casos?.length) {
+      if (escopoModo === "pdf" && propostaPathPrevia && propostaNome && res?.casos?.length) {
         try {
           const casos = res.casos as { id: string }[];
           for (const c of casos) {
@@ -324,6 +335,7 @@ function NewCasePage() {
             await registrar({
               data: {
                 casoId: c.id,
+                origem: "pdf",
                 arquivoNome: propostaNome,
                 arquivoPath: path,
                 tamanhoBytes: propostaTamanho ?? 0,
@@ -335,6 +347,26 @@ function NewCasePage() {
         } catch (errProposta: any) {
           setError(
             `Mapeamento agendado, mas a proposta não pôde ser processada: ${errProposta?.message ?? "erro desconhecido"}. Anexe-a novamente na tela de revisão.`,
+          );
+          setWorking(false);
+          return;
+        }
+      } else if (escopoModo === "manual" && escopoManualTexto.trim() && res?.casos?.length) {
+        try {
+          const casos = res.casos as { id: string }[];
+          for (const c of casos) {
+            await registrar({
+              data: {
+                casoId: c.id,
+                origem: "manual",
+                textoManual: escopoManualTexto.trim(),
+                escopo: escopoPrevia ? (escopoPrevia as any) : null,
+              },
+            });
+          }
+        } catch (errProposta: any) {
+          setError(
+            `Mapeamento agendado, mas o escopo manual não pôde ser registrado: ${errProposta?.message ?? "erro desconhecido"}. Informe-o novamente na tela de revisão.`,
           );
           setWorking(false);
           return;
@@ -370,6 +402,38 @@ function NewCasePage() {
       );
     } finally {
       setAnalisando(false);
+    }
+  }
+
+  async function analisarEscopoDoTexto() {
+    if (!escopoManualTexto.trim()) return;
+    setAnalisandoManual(true);
+    setErroManual(null);
+    try {
+      const r = await analisarManual({ data: { texto: escopoManualTexto.trim() } });
+      setEscopoPrevia(normalizarEscopo(r.escopo));
+    } catch (e: any) {
+      setErroManual(
+        `Não foi possível interpretar o escopo agora (${e?.message ?? "erro"}). O agendamento pode seguir; o escopo poderá ser revisado na tela de revisão.`,
+      );
+    } finally {
+      setAnalisandoManual(false);
+    }
+  }
+
+  function onChangeEscopoModo(modo: "pdf" | "manual") {
+    setEscopoModo(modo);
+    setEscopoPrevia(null);
+    setErroPrevia(null);
+    setErroManual(null);
+    if (modo === "manual" && propostaPathPrevia) {
+      void supabase.storage.from("propostas").remove([propostaPathPrevia]);
+      setProposta(null);
+      setPropostaPathPrevia(null);
+      setPropostaNome(null);
+      setPropostaTamanho(null);
+    } else if (modo === "pdf") {
+      setEscopoManualTexto("");
     }
   }
 
@@ -561,42 +625,94 @@ function NewCasePage() {
               />
             </div>
             <div className="md:col-span-2">
-              <Label>Proposta comercial (PDF)</Label>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  if (f && f.size > 25 * 1024 * 1024) {
-                    setError("A proposta deve ter no máximo 25 MB.");
-                    e.target.value = "";
-                    return;
-                  }
-                  setProposta(f);
-                  setPropostaNome(f?.name ?? null);
-                  setPropostaTamanho(f?.size ?? null);
-                  if (propostaPathPrevia) {
-                    void supabase.storage.from("propostas").remove([propostaPathPrevia]);
-                  }
-                  setPropostaPathPrevia(null);
-                  setEscopoPrevia(null);
-                  setErroPrevia(null);
-                  if (f) void analisarProposta(f);
-                }}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Opcional. Envie uma única vez; o escopo vendido será lido e comparado com o mapeamento.
-              </p>
-              {!proposta && propostaPathPrevia && propostaNome && (
-                <p className="mt-2 text-xs text-success">Proposta recuperada: {propostaNome}</p>
+              <Label>Escopo comercial</Label>
+              <div className="mb-2 inline-flex rounded-md border border-border bg-card p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => onChangeEscopoModo("pdf")}
+                  className={`rounded px-3 py-1.5 font-medium transition-colors ${
+                    escopoModo === "pdf" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Já tenho a proposta (PDF)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeEscopoModo("manual")}
+                  className={`rounded px-3 py-1.5 font-medium transition-colors ${
+                    escopoModo === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Ainda não há proposta
+                </button>
+              </div>
+
+              {escopoModo === "pdf" ? (
+                <>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (f && f.size > 25 * 1024 * 1024) {
+                        setError("A proposta deve ter no máximo 25 MB.");
+                        e.target.value = "";
+                        return;
+                      }
+                      setProposta(f);
+                      setPropostaNome(f?.name ?? null);
+                      setPropostaTamanho(f?.size ?? null);
+                      if (propostaPathPrevia) {
+                        void supabase.storage.from("propostas").remove([propostaPathPrevia]);
+                      }
+                      setPropostaPathPrevia(null);
+                      setEscopoPrevia(null);
+                      setErroPrevia(null);
+                      if (f) void analisarProposta(f);
+                    }}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Opcional. Envie uma única vez; o escopo vendido será lido e comparado com o mapeamento.
+                  </p>
+                  {!proposta && propostaPathPrevia && propostaNome && (
+                    <p className="mt-2 text-xs text-success">Proposta recuperada: {propostaNome}</p>
+                  )}
+                  {analisando && (
+                    <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
+                  )}
+                  {erroPrevia && (
+                    <p className="mt-2 text-xs text-destructive">{erroPrevia}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <textarea
+                    value={escopoManualTexto}
+                    onChange={(e) => setEscopoManualTexto(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="Descreva o escopo da visita: solução, nível de automação, pista/comboio, quantidade de bicos, produtos de parceiros envolvidos, comunicação prevista, observações relevantes..."
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!escopoManualTexto.trim() || analisandoManual}
+                      onClick={() => void analisarEscopoDoTexto()}
+                    >
+                      {analisandoManual ? "Interpretando…" : "Interpretar escopo com IA"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Para visitas solicitadas antes de existir proposta comercial. Você pode anexar o PDF depois, na tela de revisão.
+                    </p>
+                  </div>
+                  {erroManual && (
+                    <p className="mt-2 text-xs text-destructive">{erroManual}</p>
+                  )}
+                </>
               )}
-              {analisando && (
-                <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
-              )}
-              {erroPrevia && (
-                <p className="mt-2 text-xs text-destructive">{erroPrevia}</p>
-              )}
+
               {escopoPrevia && (
                 <div className="mt-3">
                   <EscopoIdentificado escopo={escopoPrevia} onChange={setEscopoPrevia} />

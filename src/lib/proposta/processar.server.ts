@@ -3,11 +3,11 @@ import { compararPropostaCampo } from "@/lib/proposta/comparar";
 import { normalizarEscopo, type ResultadoComparacao } from "@/lib/proposta/tipos";
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 
-/** Extrai o escopo do PDF já anexado e persiste o resultado. */
+/** Extrai o escopo do PDF (ou reinterpreta o texto manual) já anexado e persiste o resultado. */
 export async function processarProposta(supabase: any, propostaId: string, userId?: string | null) {
   const { data: row, error } = await supabase
     .from("propostas_comerciais")
-    .select("id, caso_id, arquivo_path, escopo")
+    .select("id, caso_id, arquivo_path, escopo, origem, texto_manual")
     .eq("id", propostaId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -19,18 +19,27 @@ export async function processarProposta(supabase: any, propostaId: string, userI
     .eq("id", propostaId);
 
   try {
-    const { data: file, error: dErr } = await supabase.storage
-      .from("propostas")
-      .download(row.arquivo_path);
-    if (dErr || !file) throw new Error(dErr?.message ?? "Não foi possível ler o arquivo.");
-
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const { extrairTextoPdf, extrairEscopoProposta } = await import("@/lib/proposta/extrair.server");
-    const texto = await extrairTextoPdf(bytes);
-    if (!texto || texto.length < 40) {
-      throw new Error(
-        "Não foi possível ler texto do PDF (provavelmente é um documento escaneado). Preencha o escopo manualmente.",
-      );
+
+    let texto: string;
+    if (row.origem === "manual") {
+      texto = (row.texto_manual ?? "").trim();
+      if (!texto) {
+        throw new Error("Não há texto de escopo manual para reinterpretar.");
+      }
+    } else {
+      const { data: file, error: dErr } = await supabase.storage
+        .from("propostas")
+        .download(row.arquivo_path);
+      if (dErr || !file) throw new Error(dErr?.message ?? "Não foi possível ler o arquivo.");
+
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      texto = await extrairTextoPdf(bytes);
+      if (!texto || texto.length < 40) {
+        throw new Error(
+          "Não foi possível ler texto do PDF (provavelmente é um documento escaneado). Preencha o escopo manualmente.",
+        );
+      }
     }
 
     const extraido = await extrairEscopoProposta(texto);

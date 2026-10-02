@@ -32,6 +32,7 @@ import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
+import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -57,6 +58,9 @@ type Pergunta = {
   tipo: string;
   ordem: number;
   instrucao_agente: string | null;
+  condicional_pergunta_id: string | null;
+  condicional_operador: string | null;
+  condicional_valor: string | null;
 };
 
 type Secao = { id: string; titulo: string; ordem: number };
@@ -135,7 +139,9 @@ function ReviewCasePage() {
         if (secList.length) {
           const { data: ps } = await supabase
             .from("perguntas")
-            .select("id, secao_id, texto, tipo, ordem, instrucao_agente")
+            .select(
+              "id, secao_id, texto, tipo, ordem, instrucao_agente, condicional_pergunta_id, condicional_operador, condicional_valor",
+            )
             .in(
               "secao_id",
               secList.map((s) => s.id),
@@ -216,9 +222,20 @@ function ReviewCasePage() {
     return m;
   }, [opcoes]);
 
+  // Perguntas com condicional não satisfeita nunca foram exibidas ao agente
+  // em campo (mesma regra de `vistoria-checklist.ts`) — contá-las como "não
+  // respondidas" aqui causaria uma divergência falsa com o app do agente.
+  const perguntasVisiveis = useMemo(() => {
+    const estado: Record<string, { text?: string; transcription?: string }> = {};
+    for (const [pid, r] of Object.entries(respostas)) {
+      estado[pid] = { text: r.valor_texto ?? undefined, transcription: r.transcricao ?? undefined };
+    }
+    return perguntas.filter((p) => avaliarCondicional(p, estado as never));
+  }, [perguntas, respostas]);
+
   const statsRespostas = useMemo(() => {
     let ok = 0;
-    for (const p of perguntas) {
+    for (const p of perguntasVisiveis) {
       const r = respostas[p.id];
       if (!r) continue;
       const temArquivo = arquivosDe(r).length > 0;
@@ -230,18 +247,18 @@ function ReviewCasePage() {
         ok++;
       }
     }
-    return { total: perguntas.length, ok };
-  }, [perguntas, respostas]);
+    return { total: perguntasVisiveis.length, ok };
+  }, [perguntasVisiveis, respostas]);
 
   const perguntasPorSecao = useMemo(() => {
     const m = new Map<string, Pergunta[]>();
-    for (const p of perguntas) {
+    for (const p of perguntasVisiveis) {
       const arr = m.get(p.secao_id) ?? [];
       arr.push(p);
       m.set(p.secao_id, arr);
     }
     return m;
-  }, [perguntas]);
+  }, [perguntasVisiveis]);
 
   const updateResposta = (
     perguntaId: string,
@@ -352,18 +369,29 @@ function ReviewCasePage() {
     if (!caseData) return;
     setSavingAll(true);
     try {
+      const perguntaPorId = new Map(perguntas.map((p) => [p.id, p]));
       const updates = Object.keys(dirty).filter((k) => dirty[k]);
-      for (const pid of updates) {
-        const r = respostas[pid];
-        if (!r) continue;
-        await supabase
-          .from("respostas_agente")
-          .update({
+      const linhas = updates
+        .map((pid) => {
+          const r = respostas[pid];
+          const p = perguntaPorId.get(pid);
+          if (!r || !p) return null;
+          return {
+            caso_id: caseData.id,
+            pergunta_id: pid,
+            tipo: p.tipo,
             valor_texto: r.valor_texto,
             transcricao: r.transcricao,
-          })
-          .eq("caso_id", caseData.id)
-          .eq("pergunta_id", pid);
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+      if (linhas.length) {
+        // upsert: perguntas sem resposta do agente ainda não têm linha em
+        // respostas_agente — um simples UPDATE não as criaria.
+        const { error } = await supabase
+          .from("respostas_agente")
+          .upsert(linhas as any, { onConflict: "caso_id,pergunta_id" });
+        if (error) throw new Error(error.message);
       }
       setDirty({});
       setSavedAt(Date.now());

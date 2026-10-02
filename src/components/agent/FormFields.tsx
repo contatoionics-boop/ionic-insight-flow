@@ -798,6 +798,8 @@ function CampoFoto({
 
   const enviar = async (file: File) => {
     setErr(null);
+    if (!file.size) return setErr("A foto selecionada está vazia. Tente novamente.");
+    if (file.size > 25 * 1024 * 1024) return setErr("A foto deve ter no máximo 25 MB.");
     if (mode === "preview") {
       const preview = URL.createObjectURL(file);
       update({ filePath: "preview", fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: true });
@@ -808,7 +810,9 @@ function CampoFoto({
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("agente-uploads").upload(path, file, { upsert: false });
+      const { error } = await supabase.storage
+        .from("agente-uploads")
+        .upload(path, file, file.type ? { upsert: false, contentType: file.type } : { upsert: false });
       if (error) throw error;
       const preview = URL.createObjectURL(file);
       update({ filePath: path, fileName: file.name, filePreview: preview, ia: undefined, iaConfirmada: !validarImagensIa });

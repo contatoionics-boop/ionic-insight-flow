@@ -218,13 +218,15 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
 
   const onFotoSelecionada = async (file: File) => {
     if (!estado) return;
+    if (!file.size) return alert("A foto selecionada está vazia. Tente novamente.");
+    if (file.size > 25 * 1024 * 1024) return alert("A foto deve ter no máximo 25 MB.");
     setUploadingFoto(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `casos/${estado.casoId}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("agente-uploads")
-        .upload(path, file, { upsert: false, contentType: file.type });
+        .upload(path, file, file.type ? { upsert: false, contentType: file.type } : { upsert: false });
       if (error) throw error;
 
       // Para perguntas de foto, acumulamos no buffer e mostramos os botões

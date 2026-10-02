@@ -278,20 +278,27 @@ export const reagendarAposRecusa = createServerFn({ method: "POST" })
     const { data: novoAgentePerfil } = await supabaseAdmin
       .from("profiles").select("nome").eq("id", data.agenteId).maybeSingle();
 
-    // Verifica conflito para o novo agente/data
+    // Verifica conflito de horário para o novo agente/data (mesmo agente pode ter
+    // vários agendamentos no mesmo dia, desde que os horários não se sobreponham)
     const ini = new Date(data.agendadoEm);
+    const fim = new Date(ini.getTime() + data.duracaoMin * 60_000);
     const diaIni = new Date(ini); diaIni.setHours(0, 0, 0, 0);
     const diaFim = new Date(ini); diaFim.setHours(23, 59, 59, 999);
-    const { data: conflitos } = await supabaseAdmin
+    const { data: candidatos } = await supabaseAdmin
       .from("agendamentos")
-      .select("id")
+      .select("id, agendado_em, duracao_min, aceite_status")
       .eq("agente_id", data.agenteId)
       .neq("id", agendamentoId)
       .gte("agendado_em", diaIni.toISOString())
-      .lte("agendado_em", diaFim.toISOString())
-      .limit(1);
-    if ((conflitos ?? []).length > 0) {
-      throw new Error("Este agente já tem outro agendamento no mesmo dia. Escolha outra data ou outro agente.");
+      .lte("agendado_em", diaFim.toISOString());
+    const conflito = (candidatos ?? []).some((item: any) => {
+      if (item.aceite_status === "recusado" || item.aceite_status === "recusado_pelo_agente") return false;
+      const itemInicio = new Date(item.agendado_em);
+      const itemFim = new Date(itemInicio.getTime() + (item.duracao_min ?? 60) * 60_000);
+      return ini < itemFim && fim > itemInicio;
+    });
+    if (conflito) {
+      throw new Error("Este agente já tem outro agendamento no mesmo horário. Escolha outro horário ou outro agente.");
     }
 
     // Atualiza agendamento

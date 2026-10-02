@@ -52,7 +52,7 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
       setProposta(r.proposta);
       setComparacao(r.comparacao);
       setEdits({});
-      if (r.proposta) {
+      if (r.proposta?.arquivo_path) {
         const s = await assinar({ data: { path: r.proposta.arquivo_path } });
         setPdfUrl(s.url);
       } else setPdfUrl(null);
@@ -152,7 +152,9 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold">{proposta.arquivo_nome}</h3>
+            <h3 className="text-sm font-semibold">
+              {proposta.origem === "manual" ? "Escopo informado manualmente" : proposta.arquivo_nome}
+            </h3>
             <p className="text-xs text-primary">{resumoEscopo(escopo)}</p>
             <p className="text-xs text-muted-foreground">
               Status da leitura:{" "}
@@ -175,7 +177,7 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
               onClick={() => acao("reextrair", () => reextrair({ data: { propostaId: proposta.id } }), "Escopo relido.")}
             >
               {busy === "reextrair" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Reler PDF
+              {proposta.origem === "manual" ? "Reinterpretar texto" : "Reler PDF"}
             </Button>
             <Button
               variant="outline"
@@ -194,6 +196,13 @@ export function PropostaPanel({ casoId }: { casoId: string }) {
             </Button>
           </div>
         </div>
+
+        {proposta.origem === "manual" && proposta.texto_manual && (
+          <details className="mb-3 rounded-md border border-border p-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer font-medium text-foreground">Ver texto original do analista</summary>
+            <p className="mt-2 whitespace-pre-wrap">{proposta.texto_manual}</p>
+          </details>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {CHAVES.map((chave) => {

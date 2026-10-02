@@ -6,30 +6,48 @@ import { normalizarEscopo } from "@/lib/proposta/tipos";
 
 const CasoInput = z.object({ casoId: z.string().uuid() });
 
-const RegistrarInput = z.object({
-  casoId: z.string().uuid(),
-  arquivoNome: z.string().min(1).max(300),
-  arquivoPath: z.string().min(1).max(500),
-  tamanhoBytes: z.number().int().nonnegative().optional().nullable(),
-  /** escopo já analisado/corrigido no agendamento — evita reextrair */
-  escopo: z.record(z.string(), z.any()).optional().nullable(),
-});
+const RegistrarInput = z
+  .object({
+    casoId: z.string().uuid(),
+    origem: z.enum(["pdf", "manual"]).default("pdf"),
+    arquivoNome: z.string().min(1).max(300).optional().nullable(),
+    arquivoPath: z.string().min(1).max(500).optional().nullable(),
+    tamanhoBytes: z.number().int().nonnegative().optional().nullable(),
+    /** texto livre do analista, quando origem é "manual" */
+    textoManual: z.string().min(1).max(20000).optional().nullable(),
+    /** escopo já analisado/corrigido no agendamento — evita reextrair */
+    escopo: z.record(z.string(), z.any()).optional().nullable(),
+  })
+  .refine((v) => v.origem !== "pdf" || (!!v.arquivoNome && !!v.arquivoPath), {
+    message: "arquivoNome e arquivoPath são obrigatórios para propostas em PDF.",
+  })
+  .refine((v) => v.origem !== "manual" || !!v.textoManual?.trim(), {
+    message: "textoManual é obrigatório para escopo informado manualmente.",
+  });
 
 function normalizarProposta(row: any): PropostaResumo {
   return {
     id: row.id,
     caso_id: row.caso_id,
-    arquivo_nome: row.arquivo_nome,
-    arquivo_path: row.arquivo_path,
+    arquivo_nome: row.arquivo_nome ?? null,
+    arquivo_path: row.arquivo_path ?? null,
     tamanho_bytes: row.tamanho_bytes ?? null,
     status: row.status,
     erro_mensagem: row.erro_mensagem ?? null,
     escopo: normalizarEscopo(row.escopo),
     criado_em: row.criado_em,
+    origem: row.origem ?? "pdf",
+    texto_manual: row.texto_manual ?? null,
   };
 }
 
-/** Registra a proposta já enviada ao storage e dispara a extração do escopo. */
+/**
+ * Registra a proposta e dispara a extração do escopo. Cobre dois casos:
+ * - origem "pdf": arquivo já enviado ao storage, extração lê o PDF.
+ * - origem "manual": sem arquivo — o analista descreveu o escopo em texto
+ *   livre (visita solicitada antes de existir proposta comercial) e a mesma
+ *   IA de extração estrutura os campos a partir desse texto.
+ */
 export const registrarProposta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => RegistrarInput.parse(i))
@@ -39,9 +57,11 @@ export const registrarProposta = createServerFn({ method: "POST" })
       .from("propostas_comerciais")
       .insert({
         caso_id: data.casoId,
-        arquivo_nome: data.arquivoNome,
-        arquivo_path: data.arquivoPath,
+        origem: data.origem,
+        arquivo_nome: data.arquivoNome ?? null,
+        arquivo_path: data.arquivoPath ?? null,
         tamanho_bytes: data.tamanhoBytes ?? null,
+        texto_manual: data.textoManual ?? null,
         status: "processando",
         criado_por: userId,
       } as any)
@@ -54,7 +74,10 @@ export const registrarProposta = createServerFn({ method: "POST" })
       casoId: data.casoId,
       tipo: "proposta_anexada" as any,
       atorId: userId,
-      metadata: { arquivo: data.arquivoNome },
+      metadata:
+        data.origem === "manual"
+          ? { origem: "manual" }
+          : { arquivo: data.arquivoNome },
     });
 
     if (data.escopo && Object.keys(data.escopo).length) {
@@ -211,5 +234,19 @@ export const analisarPropostaPrevia = createServerFn({ method: "POST" })
       );
     }
     const escopo = await extrairEscopoProposta(texto);
+    return { escopo };
+  });
+
+/**
+ * Pré-análise do escopo descrito em texto livre pelo analista, para casos em
+ * que ainda não existe proposta comercial (visita solicitada antes da
+ * proposta). Usa a mesma IA de extração da proposta em PDF.
+ */
+export const analisarEscopoManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ texto: z.string().min(10).max(20000) }).parse(i))
+  .handler(async ({ data }) => {
+    const { extrairEscopoProposta } = await import("@/lib/proposta/extrair.server");
+    const escopo = await extrairEscopoProposta(data.texto);
     return { escopo };
   });

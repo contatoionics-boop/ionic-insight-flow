@@ -216,17 +216,22 @@ export type ResultadoComparacao = {
 };
 
 export type StatusProposta = "pendente" | "processando" | "pronto" | "erro";
+export type OrigemProposta = "pdf" | "manual";
 
 export type PropostaResumo = {
   id: string;
   caso_id: string;
-  arquivo_nome: string;
-  arquivo_path: string;
+  /** null quando `origem` é "manual" (sem PDF anexado) */
+  arquivo_nome: string | null;
+  arquivo_path: string | null;
   tamanho_bytes: number | null;
   status: StatusProposta;
   erro_mensagem: string | null;
   escopo: EscopoProposta;
   criado_em: string;
+  origem: OrigemProposta;
+  /** texto livre digitado pelo analista quando `origem` é "manual" */
+  texto_manual: string | null;
 };
 
 /**
