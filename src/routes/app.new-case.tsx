@@ -10,6 +10,9 @@ import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
 import { analisarEscopoManual, analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
+import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
+import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
+import { arvoreVazia, type ArvoreEscopo } from "@/lib/escopo/tipos";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -95,6 +98,27 @@ function NewCasePage() {
   const [escopoManualTexto, setEscopoManualTexto] = useState("");
   const [analisandoManual, setAnalisandoManual] = useState(false);
   const [erroManual, setErroManual] = useState<string | null>(null);
+  const salvarEstrutura = useServerFn(salvarEscopoEstrutura);
+  const [estrutura, setEstrutura] = useState<ArvoreEscopo>(arvoreVazia());
+
+  /** Sugere a árvore a partir das quantidades do escopo identificado (editável depois). */
+  function sugerirEstrutura() {
+    const e = escopoPrevia;
+    const num = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
+    const postos = Math.max(1, num(e?.qtd_postos?.valor));
+    const bombas = Math.max(1, num(e?.qtd_bombas?.valor));
+    const bicosTotal = num(e?.qtd_bicos?.valor);
+    const bicosPorBomba = bicosTotal ? Math.max(1, Math.round(bicosTotal / bombas / postos)) : 1;
+    const bombasPorPosto = Math.max(1, Math.ceil(bombas / postos));
+    setEstrutura({
+      postos: Array.from({ length: postos }, () => ({
+        ilhas: [{ bombas: Array.from({ length: bombasPorPosto }, () => ({ bicos: bicosPorBomba })) }],
+      })),
+      comboios: num(e?.qtd_comboios?.valor) || (e?.tem_comboio?.valor ? 1 : 0),
+      frota: { ativo: false, itens: [] },
+      config: {},
+    });
+  }
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [matrizes, setMatrizes] = useState<Matriz[]>([]);
@@ -367,6 +391,22 @@ function NewCasePage() {
         } catch (errProposta: any) {
           setError(
             `Mapeamento agendado, mas o escopo manual não pôde ser registrado: ${errProposta?.message ?? "erro desconhecido"}. Informe-o novamente na tela de revisão.`,
+          );
+          setWorking(false);
+          return;
+        }
+      }
+
+      const temEstrutura =
+        estrutura.postos.length > 0 || estrutura.comboios > 0 || estrutura.frota.ativo;
+      if (temEstrutura && res?.casos?.length) {
+        try {
+          await salvarEstrutura({
+            data: { casoIds: (res.casos as { id: string }[]).map((c) => c.id), arvore: estrutura },
+          });
+        } catch (errEstrutura: any) {
+          setError(
+            `Mapeamento agendado, mas a estrutura do escopo não pôde ser salva: ${errEstrutura?.message ?? "erro desconhecido"}. Ela poderá ser definida depois no caso.`,
           );
           setWorking(false);
           return;
@@ -719,6 +759,23 @@ function NewCasePage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <Label>Estrutura física do escopo</Label>
+                <p className="text-xs text-muted-foreground">
+                  Postos, ilhas, bombas, bicos, comboios e frota/DIV. Define o que o agente vai mapear. Opcional.
+                </p>
+              </div>
+              {escopoPrevia && (
+                <Button type="button" variant="outline" onClick={sugerirEstrutura}>
+                  Sugerir a partir do escopo identificado
+                </Button>
+              )}
+            </div>
+            <EstruturaEscopo value={estrutura} onChange={setEstrutura} disabled={working} />
           </div>
 
           <div className="flex items-center justify-end gap-3">

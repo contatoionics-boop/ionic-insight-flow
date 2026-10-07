@@ -101,10 +101,20 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const { data: respostas } = await userSupa
       .from("respostas_agente")
       .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_aprovado")
-      .eq("caso_id", caso.id);
+      .eq("caso_id", caso.id)
+      .order("entidade_key" as any, { ascending: true });
+    // Com Escopo estruturado uma pergunta pode ter várias respostas (uma por instância):
+    // o texto usa a primeira (geral primeiro) e as fotos juntam todas as instâncias.
     const respostasMap = new Map<string, any>();
-    for (const r of respostas ?? []) {
-      respostasMap.set(r.pergunta_id, r);
+    for (const r of (respostas ?? []) as any[]) {
+      const atual = respostasMap.get(r.pergunta_id);
+      if (!atual) {
+        respostasMap.set(r.pergunta_id, { ...r });
+        continue;
+      }
+      const lista = (x: any): string[] =>
+        Array.isArray(x?.arquivos_paths) && x.arquivos_paths.length ? x.arquivos_paths : x?.arquivo_path ? [x.arquivo_path] : [];
+      atual.arquivos_paths = Array.from(new Set([...lista(atual), ...lista(r)]));
     }
 
     // 8) Baixar fotos do bucket privado (signed URLs)

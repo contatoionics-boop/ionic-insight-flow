@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
+import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
+import { carregarEstruturaDoCaso } from "@/lib/escopo/gerar.server";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
 
@@ -34,6 +36,11 @@ export type AgentPergunta = {
   bloco_linha: string | null;
   bloco_coluna: string | null;
   chave_laudo: string | null;
+  /** Instância do Escopo (pergunta repetida por posto/ilha/bomba/bico/comboio). */
+  base_id?: string;
+  entidade_id?: string | null;
+  entidade_rotulo?: string | null;
+  entidade_tipo?: string | null;
 };
 
 export type AgentResposta = {
@@ -291,6 +298,18 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     chave_laudo: p.chave_laudo ?? null,
   })).sort((a, b) => a.secao_ordem - b.secao_ordem || a.ordem - b.ordem);
 
+  // Repetição estrutural pelo Escopo (tolerante: sem a migration, segue o fluxo legado).
+  const aplicaA = new Map<string, string>();
+  if (pIds.length) {
+    const { data: aplic, error: aplicErr } = await (supabaseAdmin as any)
+      .from("perguntas")
+      .select("id, entidade_tipo")
+      .in("id", pIds);
+    if (!aplicErr) for (const r of aplic ?? []) aplicaA.set(r.id, r.entidade_tipo ?? "geral");
+  }
+  const estrutura = await carregarEstruturaDoCaso(casoId);
+  const perguntasFinal = expandirPerguntas(perguntas, aplicaA, estrutura.entidades, !!estrutura.versaoId);
+
   const blocos: AgentBloco[] = (blocosRaw ?? []).map((b: any) => ({
     id: b.id,
     secao_id: b.secao_id,
@@ -300,13 +319,23 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     ordem: Number(b.ordem) || 0,
   }));
 
-  const { data: respostas } = await supabaseAdmin
-    .from("respostas_agente")
-    .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_motivo")
-    .eq("caso_id", casoId);
+  let respostas: any[] | null = null;
+  {
+    const r1 = await (supabaseAdmin as any)
+      .from("respostas_agente")
+      .select("pergunta_id, entidade_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_motivo")
+      .eq("caso_id", casoId);
+    if (r1.error) {
+      const r2 = await supabaseAdmin
+        .from("respostas_agente")
+        .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_motivo")
+        .eq("caso_id", casoId);
+      respostas = r2.data as any[] | null;
+    } else respostas = r1.data;
+  }
   const state: Record<string, AgentResposta> = {};
   for (const r of respostas ?? []) {
-    state[r.pergunta_id] = {
+    state[idInstancia(r.pergunta_id, r.entidade_id)] = {
       valor_texto: r.valor_texto ?? null,
       arquivo_path: r.arquivo_path ?? null,
       arquivos_paths: (r as any).arquivos_paths ?? [],
@@ -361,7 +390,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     casoId,
     clienteNome,
     formularioNome: formulario?.nome ?? "",
-    perguntas,
+    perguntas: perguntasFinal,
     blocos,
     secoes: (secoes ?? []).map((s: any) => ({
       id: s.id,
@@ -756,6 +785,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     return {
       pergunta_id: p.id,
       secao: p.secao_titulo,
+      ...(p.entidade_rotulo ? { aplica_se_a: p.entidade_rotulo } : {}),
       texto: p.texto,
       tipo: p.tipo,
       obrigatoria: p.obrigatoria,
@@ -952,7 +982,8 @@ export async function execSalvarResposta(
     .upsert(
       {
         caso_id: casoId,
-        pergunta_id: input.pergunta_id,
+        pergunta_id: p.base_id ?? p.id,
+        ...(p.entidade_id ? { entidade_id: p.entidade_id } : {}),
         tipo: p.tipo as any,
         valor_texto,
         arquivo_path,
@@ -960,7 +991,7 @@ export async function execSalvarResposta(
         transcricao,
         ia_motivo,
       },
-      { onConflict: "caso_id,pergunta_id" },
+      { onConflict: "caso_id,pergunta_id,entidade_key" },
     );
   if (error) return { ok: false, motivo: error.message };
 

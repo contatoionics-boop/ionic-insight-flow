@@ -14,6 +14,16 @@ type Props = {
   destaque?: string | null;
 };
 
+/** Agrupa por instância do Escopo (null = pergunta geral), mantendo a ordem. */
+function agruparPorEntidade(ps: ChecklistPerguntaDTO[]) {
+  const grupos = new Map<string | null, ChecklistPerguntaDTO[]>();
+  for (const p of ps) {
+    const k = p.entidadeRotulo ?? null;
+    grupos.set(k, [...(grupos.get(k) ?? []), p]);
+  }
+  return [...grupos.entries()].sort((a, b) => (a[0] === null ? -1 : b[0] === null ? 1 : 0));
+}
+
 export function EtapaPerguntas({
   etapa,
   visiveis,
@@ -62,9 +72,18 @@ export function EtapaPerguntas({
 
   return (
     <div className="space-y-4">
-      {soltas.length > 0 && <div className="space-y-3">{soltas.map(renderCampo)}</div>}
+      {agruparPorEntidade(soltas).map(([rotulo, ps]) => (
+        <div key={rotulo ?? "geral"} className="space-y-3">
+          {rotulo && (
+            <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">{rotulo}</p>
+          )}
+          {ps.map(renderCampo)}
+        </div>
+      ))}
 
-      {blocos.map(({ bloco, perguntas }) => {
+      {blocos.flatMap(({ bloco, perguntas: todas }) =>
+        agruparPorEntidade(todas).map(([rotuloEnt, perguntas]) => ({ bloco, perguntas, rotuloEnt })),
+      ).map(({ bloco, perguntas, rotuloEnt }) => {
         const linhas =
           bloco.layout === "matriz"
             ? [
@@ -79,8 +98,9 @@ export function EtapaPerguntas({
             : null;
 
         return (
-          <section key={bloco.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <section key={`${bloco.id}:${rotuloEnt ?? ""}`} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <header className="mb-3">
+              {rotuloEnt && <p className="mb-1 text-xs font-semibold text-primary">{rotuloEnt}</p>}
               <h3 className="text-base font-semibold text-foreground">{bloco.titulo}</h3>
               {bloco.descricao && (
                 <p className="mt-1 text-sm text-muted-foreground">{bloco.descricao}</p>

@@ -182,13 +182,15 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
     }
 
     const agora = Date.now();
+    const comEscopo = await (await import("@/lib/escopo/progresso.server")).progressoCasosComEscopo(casoIds);
     return list.map((c) => {
       const perguntas = c.formulario_id ? perguntasPorForm.get(c.formulario_id) ?? [] : [];
       const state = statePorCaso.get(c.id) ?? {};
       const visiveis = perguntas.filter((p) => avaliarCondicional(p, state as any));
       const obrig = visiveis.filter((p) => p.obrigatoria);
       const respSet = respPorCaso.get(c.id) ?? new Set<string>();
-      const respondidas = obrig.filter((p) => respSet.has(p.id)).length;
+      const ov = comEscopo.get(c.id);
+      const respondidas = ov ? ov.respondidasObrigatorias : obrig.filter((p) => respSet.has(p.id)).length;
       const atrasado =
         !!c.data_execucao &&
         !c.data_entrega_agente &&
@@ -216,7 +218,7 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
         data_aceite: c.agendamento?.data_aceite ?? null,
         motivo_recusa_agente: c.agendamento?.motivo_recusa ?? null,
         respondidas_obrigatorias: respondidas,
-        total_obrigatorias: obrig.length,
+        total_obrigatorias: ov ? ov.totalObrigatorias : obrig.length,
         atrasado,
       };
     });

@@ -230,6 +230,7 @@ export type Database = {
           codigo: string
           criado_em: string
           criado_por: string | null
+          escopo_versao_id: string | null
           data_aprovacao_pablo: string | null
           data_entrega_agente: string | null
           data_execucao: string | null
@@ -259,6 +260,7 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          escopo_versao_id?: string | null
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
@@ -288,6 +290,7 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
+          escopo_versao_id?: string | null
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
@@ -977,6 +980,7 @@ export type Database = {
           bloco_id: string | null
           bloco_linha: string | null
           chave_laudo: string | null
+          entidade_tipo: string
           condicional_operador: string | null
           condicional_pergunta_id: string | null
           condicional_valor: string | null
@@ -995,6 +999,7 @@ export type Database = {
           bloco_id?: string | null
           bloco_linha?: string | null
           chave_laudo?: string | null
+          entidade_tipo?: string
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
@@ -1013,6 +1018,7 @@ export type Database = {
           bloco_id?: string | null
           bloco_linha?: string | null
           chave_laudo?: string | null
+          entidade_tipo?: string
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
@@ -1166,6 +1172,8 @@ export type Database = {
           arquivos_paths: string[]
           caso_id: string
           criado_em: string
+          entidade_id: string | null
+          entidade_key: string
           ia_aprovado: boolean | null
           ia_motivo: string | null
           id: string
@@ -1179,6 +1187,7 @@ export type Database = {
           arquivos_paths?: string[]
           caso_id: string
           criado_em?: string
+          entidade_id?: string | null
           ia_aprovado?: boolean | null
           ia_motivo?: string | null
           id?: string
@@ -1192,6 +1201,7 @@ export type Database = {
           arquivos_paths?: string[]
           caso_id?: string
           criado_em?: string
+          entidade_id?: string | null
           ia_aprovado?: boolean | null
           ia_motivo?: string | null
           id?: string

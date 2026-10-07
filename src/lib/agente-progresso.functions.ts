@@ -89,7 +89,10 @@ export const listarProgressoMeusCasos = createServerFn({ method: "GET" })
       statePorCaso.set(row.caso_id, st);
     }
 
+    const comEscopo = await (await import("@/lib/escopo/progresso.server")).progressoCasosComEscopo(casoIds);
     return list.map((c) => {
+      const ov = comEscopo.get(c.id);
+      if (ov) return { casoId: c.id, ...ov };
       const perguntas = c.formulario_id ? perguntasPorForm.get(c.formulario_id) ?? [] : [];
       const state = statePorCaso.get(c.id) ?? {};
       const visiveis = perguntas.filter((p) => avaliarCondicional(p as any, state as any));

@@ -16,7 +16,9 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
   const { data: respostas } = await supabase
     .from("respostas_agente")
     .select("valor_texto, transcricao, tipo, pergunta:perguntas(texto, chave_laudo, tipo)")
-    .eq("caso_id", casoId);
+    .eq("caso_id", casoId)
+    // respostas gerais primeiro (entidade_key nulo): o laudo continua singular e determinístico
+    .order("entidade_key" as any, { ascending: true });
 
   const { data: materiais } = await supabase
     .from("catalogo_materiais")

@@ -33,6 +33,9 @@ import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
+import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
+import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -61,6 +64,10 @@ type Pergunta = {
   condicional_pergunta_id: string | null;
   condicional_operador: string | null;
   condicional_valor: string | null;
+  /** Instância do Escopo (pergunta repetida por posto/ilha/bomba/bico/comboio). */
+  base_id?: string;
+  entidade_id?: string | null;
+  entidade_rotulo?: string | null;
 };
 
 type Secao = { id: string; titulo: string; ordem: number };
@@ -111,6 +118,7 @@ function ReviewCasePage() {
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const gerarLaudoPdf = useServerFn(gerarPdfLaudo);
+  const carregarEstruturaFn = useServerFn(carregarEscopoEstrutura);
   const aprovarFn = useServerFn(aprovarMapeamento);
   const recusarFn = useServerFn(solicitarCorrecao);
 
@@ -147,7 +155,26 @@ function ReviewCasePage() {
               secList.map((s) => s.id),
             )
             .order("ordem");
-          const pList = (ps ?? []) as Pergunta[];
+          const pBase = (ps ?? []) as Pergunta[];
+          // Repetição estrutural pelo Escopo (sem estrutura, segue o fluxo legado).
+          const aplicaA = new Map<string, string>();
+          const { data: aplic, error: aplicErr } = await (supabase as any)
+            .from("perguntas")
+            .select("id, entidade_tipo")
+            .in("id", pBase.map((p) => p.id));
+          if (!aplicErr) for (const r of aplic ?? []) aplicaA.set(r.id, r.entidade_tipo ?? "geral");
+          let estrutura: Awaited<ReturnType<typeof carregarEstruturaFn>> | null = null;
+          try {
+            estrutura = await carregarEstruturaFn({ data: { casoId: id } });
+          } catch {
+            estrutura = null;
+          }
+          const pList = expandirPerguntas(
+            pBase,
+            aplicaA,
+            (estrutura?.entidades ?? []) as EntidadeEscopo[],
+            !!estrutura?.versaoId,
+          ) as Pergunta[];
           setPerguntas(pList);
 
           if (pList.length) {
@@ -156,7 +183,7 @@ function ReviewCasePage() {
               .select("id, pergunta_id, texto, ordem")
               .in(
                 "pergunta_id",
-                pList.map((p) => p.id),
+                pBase.map((p) => p.id),
               )
               .order("ordem");
             setOpcoes((ops ?? []) as Opcao[]);
@@ -164,14 +191,24 @@ function ReviewCasePage() {
         }
       }
 
-      const { data: rs } = await supabase
-        .from("respostas_agente")
-        .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
-        .eq("caso_id", id);
+      let rs: any[] | null = null;
+      {
+        const r1 = await (supabase as any)
+          .from("respostas_agente")
+          .select("pergunta_id, entidade_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
+          .eq("caso_id", id);
+        if (r1.error) {
+          const r2 = await supabase
+            .from("respostas_agente")
+            .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao")
+            .eq("caso_id", id);
+          rs = r2.data as any[] | null;
+        } else rs = r1.data;
+      }
       const map: Record<string, Resposta> = {};
       const paths: string[] = [];
-      for (const r of (rs ?? []) as Resposta[]) {
-        map[r.pergunta_id] = r;
+      for (const r of (rs ?? []) as (Resposta & { entidade_id?: string | null })[]) {
+        map[idInstancia(r.pergunta_id, r.entidade_id)] = r;
         const list = Array.isArray(r.arquivos_paths) && r.arquivos_paths.length
           ? r.arquivos_paths
           : r.arquivo_path ? [r.arquivo_path] : [];
@@ -219,8 +256,12 @@ function ReviewCasePage() {
       arr.push(o);
       m.set(o.pergunta_id, arr);
     }
+    // Instâncias do Escopo reutilizam as opções da pergunta-template.
+    for (const p of perguntas) {
+      if (p.base_id && !m.has(p.id)) m.set(p.id, m.get(p.base_id) ?? []);
+    }
     return m;
-  }, [opcoes]);
+  }, [opcoes, perguntas]);
 
   // Perguntas com condicional não satisfeita nunca foram exibidas ao agente
   // em campo (mesma regra de `vistoria-checklist.ts`) — contá-las como "não
@@ -290,16 +331,19 @@ function ReviewCasePage() {
       arquivos_paths: lista,
       arquivo_path: lista[0] ?? null,
     };
-    const { data: upd } = await supabase
+    const { perguntaId: pidBase, entidadeId } = decodificarIdInstancia(perguntaId);
+    let q = (supabase as any)
       .from("respostas_agente")
       .update(patch)
       .eq("caso_id", caseData.id)
-      .eq("pergunta_id", perguntaId)
-      .select("pergunta_id");
+      .eq("pergunta_id", pidBase);
+    q = entidadeId ? q.eq("entidade_id", entidadeId) : q.is("entidade_id", null);
+    const { data: upd } = await q.select("pergunta_id");
     if (!upd || upd.length === 0) {
-      await supabase.from("respostas_agente").insert({
+      await (supabase as any).from("respostas_agente").insert({
         caso_id: caseData.id,
-        pergunta_id: perguntaId,
+        pergunta_id: pidBase,
+        ...(entidadeId ? { entidade_id: entidadeId } : {}),
         tipo: tipo as never,
         ...patch,
       });
@@ -376,9 +420,11 @@ function ReviewCasePage() {
           const r = respostas[pid];
           const p = perguntaPorId.get(pid);
           if (!r || !p) return null;
+          const { perguntaId: pidBase, entidadeId } = decodificarIdInstancia(pid);
           return {
             caso_id: caseData.id,
-            pergunta_id: pid,
+            pergunta_id: pidBase,
+            ...(entidadeId ? { entidade_id: entidadeId } : {}),
             tipo: p.tipo,
             valor_texto: r.valor_texto,
             transcricao: r.transcricao,
@@ -390,7 +436,7 @@ function ReviewCasePage() {
         // respostas_agente — um simples UPDATE não as criaria.
         const { error } = await supabase
           .from("respostas_agente")
-          .upsert(linhas as any, { onConflict: "caso_id,pergunta_id" });
+          .upsert(linhas as any, { onConflict: "caso_id,pergunta_id,entidade_key" });
         if (error) throw new Error(error.message);
       }
       setDirty({});
@@ -806,6 +852,9 @@ function ReviewCasePage() {
                   const r = respostas[p.id];
                   return (
                     <div key={p.id} className="rounded-md border border-border p-3">
+                      {p.entidade_rotulo && (
+                        <div className="mb-1 text-xs font-semibold text-primary">{p.entidade_rotulo}</div>
+                      )}
                       <div className="text-sm font-medium text-foreground">
                         {p.texto}
                       </div>

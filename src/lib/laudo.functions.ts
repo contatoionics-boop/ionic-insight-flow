@@ -443,16 +443,17 @@ export const listarFotosLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => CasoInput.parse(i))
   .handler(async ({ data, context }) => {
-    const { data: respostas, error } = await context.supabase
+    const { data: respostas, error } = await (context.supabase as any)
       .from("respostas_agente")
-      .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto)")
+      .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto), entidade:escopo_entidades(rotulo)")
       .eq("caso_id", data.casoId)
       .in("tipo", ["foto", "video"]);
     if (error) throw new Error(error.message);
 
     const itens: { path: string; legenda: string }[] = [];
     for (const r of respostas ?? []) {
-      const legenda = (r as any).pergunta?.texto ?? "Registro fotográfico";
+      const base = (r as any).pergunta?.texto ?? "Registro fotográfico";
+      const legenda = (r as any).entidade?.rotulo ? `${base} — ${(r as any).entidade.rotulo}` : base;
       const paths = [
         ...(((r as any).arquivos_paths ?? []) as string[]),
         ...((r as any).arquivo_path ? [(r as any).arquivo_path as string] : []),

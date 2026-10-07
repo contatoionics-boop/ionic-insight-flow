@@ -1,4 +1,5 @@
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
+import { APLICA_A_OPCOES } from "@/lib/escopo/tipos";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -84,6 +85,8 @@ type Pergunta = {
   ordem: number;
   contexto_ia: string | null;
   chave_laudo?: string | null;
+  /** Aplica-se a: geral (uma vez) ou entidade do Escopo em que a pergunta se repete. */
+  entidade_tipo?: string | null;
   condicional_pergunta_id: string | null;
   condicional_operador: string | null;
   condicional_valor: string | null;
@@ -138,7 +141,7 @@ function FormBuilderPage() {
     if (list.length) {
       const { data: ps } = await supabase
         .from("perguntas")
-        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
+        .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo, entidade_tipo")
         .in("secao_id", list.map((s) => s.id))
         .order("ordem");
       setPerguntas((ps ?? []) as Pergunta[]);
@@ -232,7 +235,7 @@ function FormBuilderPage() {
         obrigatoria: true,
         ordem,
       })
-      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo")
+      .select("id, secao_id, texto, tipo, obrigatoria, ordem, contexto_ia, chave_laudo, entidade_tipo")
       .single();
     if (data) {
       setPerguntas((p) => [...p, data as Pergunta]);
@@ -642,6 +645,7 @@ function PropertiesPanel({
   const [obrigatoria, setObrigatoria] = useState(pergunta.obrigatoria);
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
   const [chaveLaudo, setChaveLaudo] = useState(pergunta.chave_laudo ?? "");
+  const [aplicaA, setAplicaA] = useState(pergunta.entidade_tipo ?? "geral");
   const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
   const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
   const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
@@ -739,6 +743,7 @@ function PropertiesPanel({
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
         chave_laudo: chaveLaudo || null,
+        entidade_tipo: aplicaA,
         condicional_pergunta_id,
         condicional_operador,
         condicional_valor,
@@ -787,6 +792,7 @@ function PropertiesPanel({
       obrigatoria,
       contexto_ia: mostraContexto ? contextoIa || null : null,
       chave_laudo: chaveLaudo || null,
+      entidade_tipo: aplicaA,
       condicional_pergunta_id,
       condicional_operador,
       condicional_valor,
@@ -833,6 +839,20 @@ function PropertiesPanel({
             className="h-4 w-4"
           />
         </label>
+
+        <div>
+          <Label>Aplica-se a</Label>
+          <Select value={aplicaA} onChange={(e) => setAplicaA(e.target.value)}>
+            {APLICA_A_OPCOES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Geral aparece uma vez. Posto, ilha, bomba, bico, comboio ou frota repetem a pergunta para cada item da estrutura do escopo, com respostas independentes.
+          </p>
+        </div>
 
         <div>
           <Label>Chave do laudo</Label>

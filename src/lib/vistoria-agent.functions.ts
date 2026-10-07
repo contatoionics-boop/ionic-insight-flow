@@ -343,7 +343,7 @@ const SalvarBlocoInput = z.object({
   respostas: z
     .array(
       z.object({
-        perguntaId: z.string().uuid(),
+        perguntaId: z.string().min(1).max(100),
         valorTexto: z.string().optional(),
         transcricao: z.string().optional(),
         arquivosPaths: z.array(z.string()).optional(),
@@ -416,7 +416,7 @@ const ConfirmarCadastroInput = z.object({
   token: z.string().min(1).optional(),
   casoId: z.string().uuid().optional(),
   correcoes: z
-    .array(z.object({ perguntaId: z.string().uuid(), valor: z.string() }))
+    .array(z.object({ perguntaId: z.string().min(1).max(100), valor: z.string() }))
     .default([]),
 });
 
@@ -490,6 +490,10 @@ export type ChecklistPerguntaDTO = {
   blocoId: string | null;
   bloco_linha: string | null;
   bloco_coluna: string | null;
+  /** Instância do Escopo (ex.: "Posto 01 › Ilha 01 › Bomba 02"). */
+  entidadeId: string | null;
+  entidadeRotulo: string | null;
+  entidadeTipo: string | null;
   resposta: ChecklistRespostaDTO | null;
 };
 
@@ -554,6 +558,9 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
             blocoId: p.bloco_id,
             bloco_linha: p.bloco_linha,
             bloco_coluna: p.bloco_coluna,
+            entidadeId: p.entidade_id ?? null,
+            entidadeRotulo: p.entidade_rotulo ?? null,
+            entidadeTipo: p.entidade_tipo ?? null,
             resposta: r
               ? {
                   texto: r.valor_texto,
@@ -590,7 +597,7 @@ const SalvarEtapaInput = z.object({
   respostas: z
     .array(
       z.object({
-        perguntaId: z.string().uuid(),
+        perguntaId: z.string().min(1).max(100),
         valorTexto: z.string().optional(),
         transcricao: z.string().optional(),
         arquivosPaths: z.array(z.string()).optional(),

@@ -137,7 +137,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
             description:
               "Salva a resposta do vistoriador para uma pergunta específica. Use SEMPRE antes de avançar. Para batch, chame múltiplas vezes. Para fotos múltiplas no mesmo item, passe arquivos_paths com a lista.",
             inputSchema: z.object({
-              pergunta_id: z.string().uuid(),
+              pergunta_id: z.string().min(1).max(100),
               valor_texto: z.string().optional(),
               opcao_id: z.string().uuid().optional(),
               arquivo_path: z.string().optional(),
@@ -150,7 +150,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
             description:
               "Valida uma foto anexada pelo vistoriador contra o contexto esperado. Use quando o usuário anexar [ANEXO_FOTO].",
             inputSchema: z.object({
-              pergunta_id: z.string().uuid(),
+              pergunta_id: z.string().min(1).max(100),
               arquivo_path: z.string(),
             }),
             execute: async (input) => execValidarFoto(ctx, input),
