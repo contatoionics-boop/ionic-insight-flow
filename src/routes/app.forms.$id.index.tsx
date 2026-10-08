@@ -315,26 +315,42 @@ function FormBuilderPage() {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
+            title="Organize os campos em blocos (cartão, matriz ou grade de fotos), do jeito que o agente verá no celular"
+            onClick={() => setBlocosOpen(true)}
+          >
+            <Layers className="h-4 w-4" /> Agrupar campos em blocos
+          </Button>
+          <Button
+            variant="outline"
+            title="Nome, descrição, empresa, código, revisão e responsáveis do documento"
+            onClick={openInfo}
+          >
+            <Pencil className="h-4 w-4" /> Dados do formulário
+          </Button>
+          <Button
+            variant="outline"
+            title="Preencha o formulário aqui mesmo, como o agente faria. Nada é salvo."
             onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id } })}
           >
-            <Eye className="h-4 w-4" /> Visualizar no app
+            <Eye className="h-4 w-4" /> Testar preenchimento
           </Button>
           <a
             href={`/preview/forms/${id}`}
             target="_blank"
             rel="noopener noreferrer"
+            title="Abre o teste de preenchimento em tela cheia, em outra aba. Nada é salvo."
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-muted"
           >
-            <ExternalLink className="h-4 w-4" /> Preview em nova aba
+            <ExternalLink className="h-4 w-4" /> Testar em nova aba
           </a>
-          <Button variant="outline" onClick={() => setBlocosOpen(true)}>
-            <Layers className="h-4 w-4" /> Blocos
-          </Button>
-          <Button variant="outline" onClick={openInfo}>
-            <Pencil className="h-4 w-4" /> Editar info
-          </Button>
         </div>
       </div>
+
+      <p className="-mt-3 mb-5 text-xs text-muted-foreground">
+        Clique em um campo para editá-lo. <strong>Blocos</strong> agrupam campos na tela do agente;{" "}
+        <strong>Dados do formulário</strong> muda nome, código e revisão; <strong>Testar</strong> mostra como o agente
+        preencherá, sem salvar nada.
+      </p>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         {/* Estrutura */}

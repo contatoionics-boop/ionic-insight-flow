@@ -132,7 +132,7 @@ export function AppLayout() {
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen bg-background">
         <aside
-          className={`fixed inset-y-0 left-0 z-40 flex transform flex-col bg-sidebar text-sidebar-foreground transition-[width,transform] duration-200 ease-in-out md:relative md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-40 flex transform flex-col bg-sidebar text-sidebar-foreground transition-[width,transform] duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:self-start md:translate-x-0 ${
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           } ${collapsed ? "w-16" : "w-64"}`}
         >
@@ -286,6 +286,15 @@ export function AppLayout() {
                 title={theme === "dark" ? "Tema claro" : "Tema escuro"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                aria-label="Sair"
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Sair</span>
               </button>
             </div>
           </header>

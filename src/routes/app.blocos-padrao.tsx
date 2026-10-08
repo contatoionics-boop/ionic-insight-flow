@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Card, Button, Input, Textarea, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
+import { NumericInput } from "@/components/ui/numeric-input";
 import {
   excluirBlocoPadrao,
   listarBlocosPadrao,
@@ -222,10 +223,10 @@ function BlocosPadraoPage() {
             </div>
             <div>
               <label className="text-xs font-medium">Ordem</label>
-              <Input
-                type="number"
+              <NumericInput
+                min={0}
                 value={String(form.ordem)}
-                onChange={(e) => setForm({ ...form, ordem: Number(e.currentTarget.value) })}
+                onValueChange={(v) => setForm({ ...form, ordem: Number(v) })}
               />
             </div>
           </div>

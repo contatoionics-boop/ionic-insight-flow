@@ -36,6 +36,7 @@ import {
   REVISAO_FIXA,
 } from "@/lib/laudo/meta";
 import type { BlocoLaudo, LaudoConteudo, TipoBloco } from "@/lib/laudo/tipos";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 const NOVOS: { tipo: TipoBloco; rotulo: string; nivel?: 1 | 2 | 3 | 4 }[] = [
   { tipo: "paragraph", rotulo: "Texto" },
@@ -850,24 +851,24 @@ function MenuAdicionar({
               <div className="flex items-center gap-2 text-[11px]">
                 <label className="flex items-center gap-1">
                   Colunas
-                  <input
-                    type="number"
+                  <NumericInput
+                    size="sm"
                     min={1}
                     max={8}
                     value={colunas}
-                    onChange={(e) => setColunas(Number(e.target.value))}
-                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                    onValueChange={(v) => setColunas(Number(v) || 1)}
+                    className="w-28"
                   />
                 </label>
                 <label className="flex items-center gap-1">
                   Linhas
-                  <input
-                    type="number"
+                  <NumericInput
+                    size="sm"
                     min={1}
                     max={30}
                     value={linhas}
-                    onChange={(e) => setLinhas(Number(e.target.value))}
-                    className="h-7 w-14 rounded border border-border bg-background px-1"
+                    onValueChange={(v) => setLinhas(Number(v) || 1)}
+                    className="w-28"
                   />
                 </label>
               </div>

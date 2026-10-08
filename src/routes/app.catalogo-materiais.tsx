@@ -11,6 +11,7 @@ import {
   salvarMaterial,
 } from "@/lib/catalogo-materiais.functions";
 import type { MaterialCatalogo } from "@/lib/laudo/regras";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 export const Route = createFileRoute("/app/catalogo-materiais")({
   component: CatalogoMateriaisPage,
@@ -287,20 +288,18 @@ function CatalogoMateriaisPage() {
           </div>
           <div>
             <label className="text-xs font-medium">Quantidade padrão</label>
-            <Input
-              type="number"
+            <NumericInput
+              min={0}
               value={form.quantidade_padrao}
-              onChange={(e) =>
-                setForm({ ...form, quantidade_padrao: Number(e.currentTarget.value) })
-              }
+              onValueChange={(v) => setForm({ ...form, quantidade_padrao: Number(v) })}
             />
           </div>
           <div>
             <label className="text-xs font-medium">Ordem</label>
-            <Input
-              type="number"
+            <NumericInput
+              min={0}
               value={form.ordem}
-              onChange={(e) => setForm({ ...form, ordem: Number(e.currentTarget.value) })}
+              onValueChange={(v) => setForm({ ...form, ordem: Number(v) })}
             />
           </div>
           <div>

@@ -209,79 +209,139 @@ function FormsPage() {
   const duplicarForm = async (f: Form) => {
     const novoNome = prompt("Nome do novo formulário:", `${f.nome} (cópia)`);
     if (!novoNome) return;
+    let novoId: string | null = null;
     try {
+      // Cópia fiel: dados do documento, seções, blocos de layout, perguntas com
+      // todas as colunas (chave do laudo, "aplica-se a", condicionais) e opções.
+      const { data: orig, error: eo } = await supabase
+        .from("formularios")
+        .select("*")
+        .eq("id", f.id)
+        .single();
+      if (eo || !orig) throw eo ?? new Error("Formulário de origem não encontrado");
+      const o = orig as any;
+
       const { data: novo, error: e1 } = await supabase
         .from("formularios")
         .insert({
           nome: novoNome,
-          descricao: f.descricao,
+          descricao: o.descricao,
           empresa_id: null,
           criado_por: userId,
-        })
+          ativo: o.ativo,
+          codigo: o.codigo,
+          revisao: o.revisao,
+          data_revisao: o.data_revisao,
+          elaborado_por: o.elaborado_por,
+          aprovado_por: o.aprovado_por,
+          validar_imagens_ia: o.validar_imagens_ia,
+        } as any)
         .select("id")
         .single();
       if (e1 || !novo) throw e1 ?? new Error("Falha ao criar formulário");
+      novoId = novo.id;
 
-      const { data: secs } = await supabase
+      const { data: secs, error: es } = await supabase
         .from("secoes")
-        .select("id, titulo, descricao, ordem")
+        .select("*")
         .eq("formulario_id", f.id)
         .order("ordem");
+      if (es) throw es;
       const secaoIdMap = new Map<string, string>();
-      for (const s of secs ?? []) {
-        const { data: ns } = await supabase
+      for (const s of (secs ?? []) as any[]) {
+        const { data: ns, error } = await supabase
           .from("secoes")
           .insert({ formulario_id: novo.id, titulo: s.titulo, descricao: s.descricao, ordem: s.ordem })
           .select("id")
           .single();
-        if (ns) secaoIdMap.set(s.id, ns.id);
+        if (error || !ns) throw error ?? new Error("Falha ao copiar seção");
+        secaoIdMap.set(s.id, ns.id);
       }
 
       if (secaoIdMap.size) {
-        const { data: ps } = await supabase
-          .from("perguntas")
-          .select("id, secao_id, texto, tipo, obrigatoria, ordem, instrucao_agente, contexto_ia")
-          .in("secao_id", Array.from(secaoIdMap.keys()));
-        const perguntaIdMap = new Map<string, string>();
-        for (const p of ps ?? []) {
-          const novaSecaoId = secaoIdMap.get(p.secao_id);
-          if (!novaSecaoId) continue;
-          const { data: np } = await supabase
-            .from("perguntas")
+        const secaoIdsOrig = Array.from(secaoIdMap.keys());
+
+        const { data: blocos, error: eb } = await supabase
+          .from("pergunta_blocos")
+          .select("*")
+          .in("secao_id", secaoIdsOrig);
+        if (eb) throw eb;
+        const blocoIdMap = new Map<string, string>();
+        for (const b of (blocos ?? []) as any[]) {
+          const { data: nb, error } = await supabase
+            .from("pergunta_blocos")
             .insert({
-              secao_id: novaSecaoId,
-              texto: p.texto,
-              tipo: p.tipo,
-              obrigatoria: p.obrigatoria,
-              ordem: p.ordem,
-              instrucao_agente: p.instrucao_agente,
-              contexto_ia: p.contexto_ia,
+              secao_id: secaoIdMap.get(b.secao_id)!,
+              titulo: b.titulo,
+              descricao: b.descricao,
+              layout: b.layout,
+              ordem: b.ordem,
             })
             .select("id")
             .single();
-          if (np) perguntaIdMap.set(p.id, np.id);
+          if (error || !nb) throw error ?? new Error("Falha ao copiar bloco");
+          blocoIdMap.set(b.id, nb.id);
+        }
+
+        const { data: ps, error: ep } = await supabase
+          .from("perguntas")
+          .select("*")
+          .in("secao_id", secaoIdsOrig);
+        if (ep) throw ep;
+        const perguntaIdMap = new Map<string, string>();
+        for (const p of (ps ?? []) as any[]) {
+          // Colunas de identidade/relacionamento são refeitas; o restante é copiado como está.
+          const { id: _id, criado_em: _c, secao_id, bloco_id, condicional_pergunta_id: _cond, ...resto } = p;
+          const { data: np, error } = await supabase
+            .from("perguntas")
+            .insert({
+              ...resto,
+              secao_id: secaoIdMap.get(secao_id)!,
+              bloco_id: bloco_id ? blocoIdMap.get(bloco_id) ?? null : null,
+              condicional_pergunta_id: null,
+            } as any)
+            .select("id")
+            .single();
+          if (error || !np) throw error ?? new Error("Falha ao copiar pergunta");
+          perguntaIdMap.set(p.id, np.id);
+        }
+
+        // Condicionais só podem ser ligadas depois que todas as perguntas existem.
+        for (const p of (ps ?? []) as any[]) {
+          if (!p.condicional_pergunta_id) continue;
+          const alvo = perguntaIdMap.get(p.condicional_pergunta_id);
+          if (!alvo) continue;
+          const { error } = await supabase
+            .from("perguntas")
+            .update({ condicional_pergunta_id: alvo })
+            .eq("id", perguntaIdMap.get(p.id)!);
+          if (error) throw error;
         }
 
         if (perguntaIdMap.size) {
-          const { data: ops } = await supabase
+          const { data: ops, error: eop } = await supabase
             .from("opcoes_pergunta")
             .select("pergunta_id, texto, ordem")
             .in("pergunta_id", Array.from(perguntaIdMap.keys()));
+          if (eop) throw eop;
           const opsParaInserir = (ops ?? [])
-            .map((o) => ({
-              pergunta_id: perguntaIdMap.get(o.pergunta_id)!,
-              texto: o.texto,
-              ordem: o.ordem,
+            .map((op) => ({
+              pergunta_id: perguntaIdMap.get(op.pergunta_id)!,
+              texto: op.texto,
+              ordem: op.ordem,
             }))
-            .filter((o) => o.pergunta_id);
+            .filter((op) => op.pergunta_id);
           if (opsParaInserir.length) {
-            await supabase.from("opcoes_pergunta").insert(opsParaInserir);
+            const { error } = await supabase.from("opcoes_pergunta").insert(opsParaInserir);
+            if (error) throw error;
           }
         }
       }
 
       await refreshForms();
     } catch (err: any) {
+      // Não deixa uma cópia pela metade: remove o formulário novo (seções e perguntas caem em cascata).
+      if (novoId) await supabase.from("formularios").delete().eq("id", novoId);
       setError(err?.message ?? "Erro ao duplicar formulário.");
     }
   };
@@ -301,16 +361,16 @@ function FormsPage() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={() => goEditar(f.id)}>
+          <Pencil className="mr-2 h-4 w-4" /> Editar formulário
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => goView(f.id)}>
-          <Eye className="mr-2 h-4 w-4" /> Visualizar
+          <Eye className="mr-2 h-4 w-4" /> Testar preenchimento
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href={`/preview/forms/${f.id}`} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="mr-2 h-4 w-4" /> Tela cheia
+            <ExternalLink className="mr-2 h-4 w-4" /> Testar em tela cheia
           </a>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => goEditar(f.id)}>
-          <Pencil className="mr-2 h-4 w-4" /> Editar estrutura
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openEditForm(f)}>
           <Pencil className="mr-2 h-4 w-4" /> Editar info
@@ -472,7 +532,7 @@ function FormsPage() {
           {filtered.map((f) => (
             <div
               key={f.id}
-              onClick={() => goView(f.id)}
+              onClick={() => goEditar(f.id)}
               className="group relative cursor-pointer rounded-lg border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
             >
               <div className="absolute right-3 top-3">
@@ -500,7 +560,7 @@ function FormsPage() {
             {filtered.map((f) => (
               <li
                 key={f.id}
-                onClick={() => goView(f.id)}
+                onClick={() => goEditar(f.id)}
                 className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
               >
                 <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -542,7 +602,7 @@ function FormsPage() {
                 {filtered.map((f, i) => (
                   <tr
                     key={f.id}
-                    onClick={() => goView(f.id)}
+                    onClick={() => goEditar(f.id)}
                     className="cursor-pointer border-t border-border odd:bg-card even:bg-muted/20 hover:bg-muted/40"
                   >
                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>

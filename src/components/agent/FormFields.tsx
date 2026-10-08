@@ -41,6 +41,7 @@ import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
 import { urlsArquivosVistoria } from "@/lib/vistoria-agent.functions";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 /**
  * Depois de recarregar a página o objectURL local some; buscamos uma URL
@@ -298,13 +299,11 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "numero" && (
-        <input
-          type="number"
-          inputMode="decimal"
-          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base"
+        <NumericInput
+          size="lg"
           placeholder="0"
           value={resposta.text ?? ""}
-          onChange={(e) => update({ text: e.target.value })}
+          onValueChange={(v) => update({ text: v })}
         />
       )}
 

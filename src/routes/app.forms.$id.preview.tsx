@@ -117,7 +117,7 @@ function FormPreviewPage() {
           </p>
         </Card>
         <Button variant="outline" onClick={() => navigate({ to: "/app/forms/$id", params: { id } })}>
-          <ArrowLeft className="h-4 w-4" /> Voltar
+          <ArrowLeft className="h-4 w-4" /> Voltar para edição
         </Button>
       </div>
     );
@@ -127,7 +127,7 @@ function FormPreviewPage() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" onClick={() => navigate({ to: "/app/forms/$id", params: { id } })}>
-          <ArrowLeft className="h-4 w-4" /> Voltar ao builder
+          <ArrowLeft className="h-4 w-4" /> Voltar para edição
         </Button>
         <a
           href={`/preview/forms/${id}`}
@@ -138,6 +138,9 @@ function FormPreviewPage() {
           <ExternalLink className="h-4 w-4" /> Abrir em tela cheia
         </a>
       </div>
+      <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        Modo de teste: veja como o agente preencherá este formulário. Nada do que você responder aqui é salvo.
+      </p>
       <div className="overflow-hidden rounded-lg border border-border bg-white">
         <FormRunner
           ctx={ctx}

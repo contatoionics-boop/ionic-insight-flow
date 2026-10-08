@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import {
   LIMITES,
@@ -140,7 +141,7 @@ export function EstruturaEscopo({
             {value.frota.ativo && (
               <div className="mt-3 space-y-2">
                 {value.frota.itens.length > 0 && (
-                  <div className="grid grid-cols-[1fr_90px_1fr_36px] gap-2 text-xs text-muted-foreground">
+                  <div className="grid grid-cols-[1fr_140px_1fr_36px] gap-2 text-xs text-muted-foreground">
                     <span>Modelo do veículo</span>
                     <span>Qtd.</span>
                     <span>Informação adicional</span>
@@ -148,19 +149,18 @@ export function EstruturaEscopo({
                   </div>
                 )}
                 {value.frota.itens.map((it, k) => (
-                  <div key={k} className="grid grid-cols-[1fr_90px_1fr_36px] gap-2">
+                  <div key={k} className="grid grid-cols-[1fr_140px_1fr_36px] gap-2">
                     <Input
                       value={it.modelo}
                       disabled={disabled}
                       placeholder="Ex.: Scania R450"
                       onChange={(e) => atualizarFrota(k, { modelo: e.target.value })}
                     />
-                    <Input
-                      type="number"
+                    <NumericInput
                       min={1}
                       value={it.quantidade}
                       disabled={disabled}
-                      onChange={(e) => atualizarFrota(k, { quantidade: Number(e.target.value) || 1 })}
+                      onValueChange={(v) => atualizarFrota(k, { quantidade: Number(v) || 1 })}
                     />
                     <Input
                       value={it.info ?? ""}
@@ -312,15 +312,14 @@ function QuantidadeField({
   return (
     <label className={inline ? "flex items-center gap-2 text-sm" : "flex items-center justify-between gap-3 text-sm"}>
       <span className="font-medium">{label}</span>
-      <Input
-        type="number"
+      <NumericInput
         inputMode="numeric"
         min={0}
         max={max}
         value={value}
         disabled={disabled}
-        className="w-24"
-        onChange={(e) => onChange(Math.max(0, Math.min(max, Math.floor(Number(e.target.value) || 0))))}
+        className="w-36"
+        onValueChange={(v) => onChange(Math.max(0, Math.min(max, Math.floor(Number(v) || 0))))}
       />
     </label>
   );
