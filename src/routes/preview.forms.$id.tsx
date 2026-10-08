@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { BicoLoading } from "@/components/ui/bico-loading";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 import { Button, Card } from "@/components/ui-bits";
 import { FormRunner, type FormRunnerCtx, type FormRunnerSecao } from "@/components/agent/FormRunner";
@@ -100,11 +101,7 @@ function FullscreenPreviewPage() {
   }, [id, auth.status]);
 
   if (auth.status === "loading" || loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+    return <BicoLoading tela />;
   }
 
   if (error || !ctx) {

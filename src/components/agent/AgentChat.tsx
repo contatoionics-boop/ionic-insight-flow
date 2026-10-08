@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BicoLoading } from "@/components/ui/bico-loading";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useServerFn } from "@tanstack/react-start";
@@ -325,11 +326,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   }
 
   if (!estado || historico === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+    return <BicoLoading tela />;
   }
 
   if (finalizado) {

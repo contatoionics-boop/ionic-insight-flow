@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import { BicoLoading } from "@/components/ui/bico-loading";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
@@ -101,11 +102,7 @@ export function AppLayout() {
   }, [pathname]);
 
   if (auth.status !== "authenticated" || !auth.role) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Carregando...
-      </div>
-    );
+    return <BicoLoading tela />;
   }
 
   if (auth.role === "agente_tecnico") {

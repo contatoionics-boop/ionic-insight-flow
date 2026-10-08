@@ -130,6 +130,18 @@
   }
 }
 
+/* BicoLoading: rotação no eixo X (flip vertical), volta completa e contínua. */
+@keyframes bico-flip {
+  from { transform: perspective(360px) rotateX(0deg); }
+  to   { transform: perspective(360px) rotateX(360deg); }
+}
+.bico-flip {
+  animation: bico-flip 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bico-flip { animation: none; }
+}
+
 @keyframes typing-bounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
   30% { transform: translateY(-4px); opacity: 1; }

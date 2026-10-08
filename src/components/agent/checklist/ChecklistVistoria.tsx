@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui-bits";
-import { LumaSpin } from "@/components/ui/luma-spin";
+import { BicoLoading } from "@/components/ui/bico-loading";
 import {
   aoUploadConcluir,
   caminhoPendente,
@@ -270,9 +270,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
 
   if (!dados || !resumo) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <LumaSpin />
-      </div>
+      <BicoLoading />
     );
   }
 
