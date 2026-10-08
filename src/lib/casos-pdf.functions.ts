@@ -32,6 +32,15 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const { buildMapeamentoPdf } = await import("@/lib/pdf-mapeamento.server");
     const userSupa = context.supabase;
 
+    // Somente o analista gera este PDF (super_admin, admin ou especialista).
+    const { data: papeis, error: papelErr } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .in("role", ["super_admin", "admin", "especialista"]);
+    if (papelErr) throw new Error(papelErr.message);
+    if (!papeis?.length) throw new Error("Sem permissão para gerar este PDF.");
+
     // 1) Caso + relações
     const { data: caso, error: cErr } = await (userSupa as any)
       .from("casos")

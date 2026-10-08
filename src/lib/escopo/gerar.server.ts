@@ -69,23 +69,57 @@ async function listarEntidades(dono: Dono): Promise<EntidadeRow[]> {
   const { data, error } = await filtrarDono(
     db
       .from("escopo_entidades")
-      .select("id, tipo, parent_id, ordem, rotulo, ativo, criada_na_versao_id, desativada_na_versao_id"),
+      .select("id, tipo, parent_id, ordem, rotulo, dados, ativo, criada_na_versao_id, desativada_na_versao_id"),
     dono,
   ).order("ordem", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as EntidadeRow[];
 }
 
-/** Entidades que existiam na versão informada (histórico preservado). */
+type EventoAtividade = { versao_id: string; entidade_id: string; acao: string };
+
+async function listarEventos(versoes: VersaoRow[]): Promise<EventoAtividade[]> {
+  if (!versoes.length) return [];
+  const { data, error } = await db
+    .from("escopo_alteracoes")
+    .select("versao_id, entidade_id, acao")
+    .in("versao_id", versoes.map((v) => v.id));
+  if (error) throw new Error(error.message);
+  return (data ?? []) as EventoAtividade[];
+}
+
+/**
+ * Entidades que existiam na versão informada. O histórico é reconstruído pelo log
+ * (adicionada / desativada / reativada) e não pelas colunas da entidade, que só
+ * refletem o estado atual: reativar uma entidade numa versão nova não pode mudar
+ * o que as versões antigas enxergam.
+ */
 export function entidadesNaVersao(
   entidades: EntidadeRow[],
   versoes: VersaoRow[],
   versaoId: string,
+  eventos: EventoAtividade[] = [],
 ): EntidadeRow[] {
   const numero = new Map(versoes.map((v) => [v.id, v.numero]));
   const alvo = numero.get(versaoId);
   if (alvo == null) return [];
+  const porEntidade = new Map<string, { n: number; acao: string }[]>();
+  for (const ev of eventos) {
+    if (!["adicionada", "desativada", "reativada"].includes(ev.acao)) continue;
+    const n = numero.get(ev.versao_id);
+    if (n == null || n > alvo) continue;
+    const arr = porEntidade.get(ev.entidade_id) ?? [];
+    arr.push({ n, acao: ev.acao });
+    porEntidade.set(ev.entidade_id, arr);
+  }
   return entidades.filter((e) => {
+    const ev = porEntidade.get(e.id);
+    if (ev?.length) {
+      ev.sort((x, y) => x.n - y.n);
+      const ultimo = ev[ev.length - 1].acao;
+      return ultimo === "adicionada" || ultimo === "reativada";
+    }
+    // sem log (dados antigos): regra pelas colunas da entidade
     const criada = e.criada_na_versao_id ? numero.get(e.criada_na_versao_id) ?? 0 : 0;
     const desat = e.desativada_na_versao_id ? numero.get(e.desativada_na_versao_id) : undefined;
     return criada <= alvo && (desat == null || desat > alvo);
@@ -120,7 +154,7 @@ export async function carregarEstruturaDoCaso(casoId: string): Promise<Estrutura
     numero: null,
     versaoAtualId: null,
     entidades: [],
-    arvore: normalizarArvore({ postos: [], comboios: 0, frota: { ativo: false, itens: [] }, config: {} }),
+    arvore: normalizarArvore({ postos: [], comboios: 0, tanques: [], sondas: [], frota: { ativo: false, itens: [] }, config: {} }),
   };
   try {
     const { data: caso } = await db
@@ -144,7 +178,8 @@ export async function carregarEstruturaDoCaso(casoId: string): Promise<Estrutura
     const versaoId: string = caso?.escopo_versao_id ?? atual.id;
     const versao = versoes.find((v) => v.id === versaoId) ?? atual;
     const todas = await listarEntidades(dono);
-    const ativas = entidadesNaVersao(todas, versoes, versao.id);
+    const eventos = await listarEventos(versoes);
+    const ativas = entidadesNaVersao(todas, versoes, versao.id, eventos);
     const frota = await carregarFrota(versao.id);
     return {
       versaoId: versao.id,
@@ -198,7 +233,8 @@ export async function aplicarArvore(opts: {
   const versoes = await listarVersoes(dono);
   const atual = versoes[versoes.length - 1] ?? null;
   const todas = await listarEntidades(dono);
-  const ativas = atual ? entidadesNaVersao(todas, versoes, atual.id) : [];
+  const eventos = await listarEventos(versoes);
+  const ativas = atual ? entidadesNaVersao(todas, versoes, atual.id, eventos) : [];
   const frotaAtual = atual ? await carregarFrota(atual.id) : [];
 
   const desejadas = entidadesDesejadas(arvore);
@@ -221,6 +257,11 @@ export async function aplicarArvore(opts: {
     return ex && !ativasIds.has(ex.id);
   });
   const aDesativar = ativas.filter((e) => !desejadasChaves.has(chaveDe(e)));
+  // Identificação (nome) alterada em entidade que continua existindo: mesmo UUID, novo rótulo.
+  const aRenomear = desejadas.flatMap((d) => {
+    const ex = existentePorChave.get(d.chave);
+    return ex && ex.rotulo !== d.rotulo ? [{ d, ex }] : [];
+  });
 
   // Remover algo respondido exige confirmação (as respostas nunca são apagadas).
   if (aDesativar.length && !opts.confirmarRemocao) {
@@ -246,7 +287,7 @@ export async function aplicarArvore(opts: {
   const configMudou = !iguais(configNova, (atual?.config ?? {}) as any);
   const frotaMudou = !iguais(arvore.frota.itens, frotaAtual);
   const mudou =
-    !atual || aCriar.length || aReativar.length || aDesativar.length || configMudou || frotaMudou;
+    !atual || aCriar.length || aReativar.length || aDesativar.length || aRenomear.length || configMudou || frotaMudou;
 
   if (!mudou && atual) {
     await vincularCasos(opts.casoIds, atual.id);
@@ -294,6 +335,7 @@ export async function aplicarArvore(opts: {
         parent_id: d.paiChave ? idPorChave.get(d.paiChave) ?? null : null,
         ordem: d.ordem,
         rotulo: d.rotulo,
+        dados: d.nome ? { nome: d.nome } : {},
         criada_na_versao_id: versaoId,
       })
       .select("id")
@@ -310,6 +352,20 @@ export async function aplicarArvore(opts: {
       .update({ ativo: true, desativada_na_versao_id: null })
       .eq("id", ex.id);
     log.push({ versao_id: versaoId, entidade_id: ex.id, acao: "reativada", antes: { ativo: false } });
+  }
+
+  for (const { d, ex } of aRenomear) {
+    await db
+      .from("escopo_entidades")
+      .update({ rotulo: d.rotulo, dados: d.nome ? { nome: d.nome } : {} })
+      .eq("id", ex.id);
+    log.push({
+      versao_id: versaoId,
+      entidade_id: ex.id,
+      acao: "alterada",
+      antes: { rotulo: ex.rotulo },
+      depois: { rotulo: d.rotulo },
+    });
   }
 
   for (const e of aDesativar) {

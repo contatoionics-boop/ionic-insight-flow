@@ -115,6 +115,8 @@ function NewCasePage() {
         ilhas: [{ bombas: Array.from({ length: bombasPorPosto }, () => ({ bicos: bicosPorBomba })) }],
       })),
       comboios: num(e?.qtd_comboios?.valor) || (e?.tem_comboio?.valor ? 1 : 0),
+      tanques: [],
+      sondas: [],
       frota: { ativo: false, itens: [] },
       config: {},
     });
@@ -398,7 +400,11 @@ function NewCasePage() {
       }
 
       const temEstrutura =
-        estrutura.postos.length > 0 || estrutura.comboios > 0 || estrutura.frota.ativo;
+        estrutura.postos.length > 0 ||
+        estrutura.comboios > 0 ||
+        estrutura.tanques.length > 0 ||
+        estrutura.sondas.length > 0 ||
+        estrutura.frota.ativo;
       if (temEstrutura && res?.casos?.length) {
         try {
           await salvarEstrutura({
@@ -766,7 +772,7 @@ function NewCasePage() {
               <div>
                 <Label>Estrutura física do escopo</Label>
                 <p className="text-xs text-muted-foreground">
-                  Postos, ilhas, bombas, bicos, comboios e frota/DIV. Define o que o agente vai mapear. Opcional.
+                  Postos, ilhas, bombas, bicos, tanques, sondas, comboios e frota/DIV. Cada grupo é opcional e independente. Define o que o agente vai mapear.
                 </p>
               </div>
               {escopoPrevia && (

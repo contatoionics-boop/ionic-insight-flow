@@ -7,9 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import {
   LIMITES,
   pad2,
+  rotuloEntidade,
   resumoArvore,
   type ArvoreEscopo,
   type IlhaArvore,
+  type ItemEscopo,
   type PostoArvore,
 } from "@/lib/escopo/tipos";
 
@@ -128,6 +130,24 @@ export function EstruturaEscopo({
             />
           </section>
 
+          {/* Tanques e Sondas: opcionais e independentes da pista */}
+          <ColecaoNomeada
+            titulo="tanque"
+            tituloPlural="Tanques"
+            itens={value.tanques}
+            max={LIMITES.tanques}
+            disabled={disabled}
+            onChange={(tanques) => set({ tanques })}
+          />
+          <ColecaoNomeada
+            titulo="sonda"
+            tituloPlural="Sondas"
+            itens={value.sondas}
+            max={LIMITES.sondas}
+            disabled={disabled}
+            onChange={(sondas) => set({ sondas })}
+          />
+
           {/* Frota / DIV */}
           <section className="rounded-md border border-border p-3">
             <div className="flex items-center justify-between gap-3">
@@ -204,7 +224,8 @@ export function EstruturaEscopo({
           <p className="mb-2 font-medium text-foreground">Resumo da estrutura</p>
           <p className="mb-2 text-muted-foreground">
             {resumo.postos} posto(s) · {resumo.ilhas} ilha(s) · {resumo.bombas} bomba(s) · {resumo.bicos} bico(s)
-            · {resumo.comboios} comboio(s){resumo.frota ? " · frota/DIV" : ""}
+            · {resumo.tanques} tanque(s) · {resumo.sondas} sonda(s) · {resumo.comboios} comboio(s)
+            {resumo.frota ? " · frota/DIV" : ""}
           </p>
           <ul className="space-y-0.5 font-mono">
             {value.postos.map((p, pi) => (
@@ -226,6 +247,26 @@ export function EstruturaEscopo({
                 </ul>
               </li>
             ))}
+            {value.tanques.length > 0 && (
+              <li>
+                Tanques
+                <ul className="ml-3 border-l border-border pl-2">
+                  {value.tanques.map((t, i) => (
+                    <li key={i}>{rotuloEntidade("tanque", i + 1, t.nome)}</li>
+                  ))}
+                </ul>
+              </li>
+            )}
+            {value.sondas.length > 0 && (
+              <li>
+                Sondas
+                <ul className="ml-3 border-l border-border pl-2">
+                  {value.sondas.map((t, i) => (
+                    <li key={i}>{rotuloEntidade("sonda", i + 1, t.nome)}</li>
+                  ))}
+                </ul>
+              </li>
+            )}
             {value.comboios > 0 && (
               <li>
                 Comboios
@@ -251,6 +292,58 @@ export function EstruturaEscopo({
       },
     });
   }
+}
+
+/**
+ * Coleção independente (tanques, sondas): quantidade + identificação opcional de
+ * cada item. Reduzir a quantidade remove do último para o primeiro, o que preserva
+ * a identidade (e as respostas) dos itens que continuam.
+ */
+function ColecaoNomeada({
+  titulo,
+  tituloPlural,
+  itens,
+  max,
+  onChange,
+  disabled,
+}: {
+  titulo: "tanque" | "sonda";
+  tituloPlural: string;
+  itens: ItemEscopo[];
+  max: number;
+  onChange: (itens: ItemEscopo[]) => void;
+  disabled?: boolean;
+}) {
+  const redimensionar = (n: number) => {
+    const alvo = Math.max(0, Math.min(max, n));
+    onChange(alvo <= itens.length ? itens.slice(0, alvo) : [...itens, ...Array.from({ length: alvo - itens.length }, () => ({}))]);
+  };
+  return (
+    <section className="rounded-md border border-border p-3">
+      <QuantidadeField
+        label={`Quantidade de ${tituloPlural.toLowerCase()}`}
+        value={itens.length}
+        max={max}
+        disabled={disabled}
+        onChange={redimensionar}
+      />
+      {itens.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {itens.map((it, i) => (
+            <div key={i} className="grid grid-cols-[110px_1fr] items-center gap-2">
+              <span className="text-sm">{rotuloEntidade(titulo, i + 1)}</span>
+              <Input
+                value={it.nome ?? ""}
+                disabled={disabled}
+                placeholder="Identificação (opcional). Ex.: Diesel S10"
+                onChange={(e) => onChange(itens.map((x, k) => (k === i ? { nome: e.target.value } : x)))}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function IlhaEditor({

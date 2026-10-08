@@ -16,6 +16,8 @@ const ArvoreSchema = z.object({
     )
     .max(50),
   comboios: z.number().int().min(0).max(100),
+  tanques: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
+  sondas: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
   frota: z.object({
     ativo: z.boolean(),
     itens: z

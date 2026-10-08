@@ -17,13 +17,15 @@ export type NoArvore<P> = {
 };
 
 export type GrupoArvore<P> = {
-  chave: "pista" | "comboios" | "frota" | "outros";
+  chave: "pista" | "tanques" | "sondas" | "comboios" | "frota" | "outros";
   titulo: string;
   nos: NoArvore<P>[];
 };
 
 const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
   pista: "Pista",
+  tanques: "Tanques",
+  sondas: "Sondas",
   comboios: "Comboios",
   frota: "Frota / DIV",
   outros: "Outros",
@@ -31,6 +33,8 @@ const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
 
 function grupoDoTipo(tipo: TipoEntidade): GrupoArvore<unknown>["chave"] {
   if (tipo === "posto" || tipo === "ilha" || tipo === "bomba" || tipo === "bico") return "pista";
+  if (tipo === "tanque") return "tanques";
+  if (tipo === "sonda") return "sondas";
   if (tipo === "comboio") return "comboios";
   if (tipo === "frota") return "frota";
   return "outros";
@@ -146,6 +150,6 @@ export function montarArvore<P>(
     g.nos.push(no);
     grupos.set(chave, g);
   }
-  const ordem: GrupoArvore<P>["chave"][] = ["pista", "comboios", "frota", "outros"];
+  const ordem: GrupoArvore<P>["chave"][] = ["pista", "tanques", "sondas", "comboios", "frota", "outros"];
   return { gerais, grupos: ordem.map((k) => grupos.get(k)).filter((g): g is GrupoArvore<P> => !!g) };
 }

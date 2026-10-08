@@ -62,6 +62,9 @@ export type IlhaArvore = { bombas: BombaArvore[] };
 export type PostoArvore = { ilhas: IlhaArvore[] };
 export type FrotaItemArvore = { modelo: string; quantidade: number; info?: string };
 
+/** Item de uma coleção independente (tanques, sondas). `nome` é a identificação opcional. */
+export type ItemEscopo = { nome?: string };
+
 export type ConfigEscopo = {
   solucao?: string | null;
   comunicacao?: "wifi" | "4g" | "ambos" | null;
@@ -70,6 +73,9 @@ export type ConfigEscopo = {
 export type ArvoreEscopo = {
   postos: PostoArvore[];
   comboios: number;
+  /** Opcionais e independentes da pista: podem existir sozinhos ou combinados. */
+  tanques: ItemEscopo[];
+  sondas: ItemEscopo[];
   frota: { ativo: boolean; itens: FrotaItemArvore[] };
   config: ConfigEscopo;
 };
@@ -77,11 +83,13 @@ export type ArvoreEscopo = {
 export const arvoreVazia = (): ArvoreEscopo => ({
   postos: [],
   comboios: 0,
+  tanques: [],
+  sondas: [],
   frota: { ativo: false, itens: [] },
   config: {},
 });
 
-export const LIMITES = { postos: 20, ilhas: 30, bombas: 30, bicos: 12, comboios: 50 } as const;
+export const LIMITES = { postos: 20, ilhas: 30, bombas: 30, bicos: 12, comboios: 50, tanques: 50, sondas: 50 } as const;
 
 export function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -98,8 +106,10 @@ export const ROTULO_TIPO: Record<TipoEntidade, string> = {
   tanque: "Tanque",
 };
 
-export function rotuloEntidade(tipo: TipoEntidade, ordem: number) {
-  return tipo === "frota" ? ROTULO_TIPO.frota : `${ROTULO_TIPO[tipo]} ${pad2(ordem)}`;
+export function rotuloEntidade(tipo: TipoEntidade, ordem: number, nome?: string | null) {
+  const base = tipo === "frota" ? ROTULO_TIPO.frota : `${ROTULO_TIPO[tipo]} ${pad2(ordem)}`;
+  const n = nome?.trim();
+  return n ? `${base} — ${n}` : base;
 }
 
 export type EntidadeEscopo = {
@@ -109,6 +119,8 @@ export type EntidadeEscopo = {
   ordem: number;
   rotulo: string;
   ativo?: boolean;
+  /** Dados livres da entidade (ex.: nome/identificação de tanque e sonda). */
+  dados?: { nome?: string } | null;
 };
 
 /** Reconstrói a árvore editável a partir das entidades ativas (lista plana). */
@@ -126,9 +138,13 @@ export function arvoreDeEntidades(
       bombas: filhos(i.id, "bomba").map((b) => ({ bicos: filhos(b.id, "bico").length })),
     })),
   }));
+  const itens = (tipo: TipoEntidade): ItemEscopo[] =>
+    filhos(null, tipo).map((e) => (e.dados?.nome ? { nome: e.dados.nome } : {}));
   return {
     postos,
     comboios: filhos(null, "comboio").length,
+    tanques: itens("tanque"),
+    sondas: itens("sonda"),
     frota: { ativo: entidades.some((e) => e.tipo === "frota"), itens: frotaItens },
     config,
   };
@@ -146,6 +162,8 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
       })),
     })),
     comboios: n(a.comboios, LIMITES.comboios),
+    tanques: (a.tanques ?? []).slice(0, LIMITES.tanques).map((t) => ({ nome: t.nome?.trim() || undefined })),
+    sondas: (a.sondas ?? []).slice(0, LIMITES.sondas).map((t) => ({ nome: t.nome?.trim() || undefined })),
     frota: {
       ativo: !!a.frota?.ativo,
       itens: (a.frota?.itens ?? [])
@@ -171,7 +189,16 @@ export function resumoArvore(a: ArvoreEscopo) {
       for (const b of i.bombas) bicos += b.bicos;
     }
   }
-  return { postos: a.postos.length, ilhas, bombas, bicos, comboios: a.comboios, frota: a.frota.ativo };
+  return {
+    postos: a.postos.length,
+    ilhas,
+    bombas,
+    bicos,
+    comboios: a.comboios,
+    tanques: (a.tanques ?? []).length,
+    sondas: (a.sondas ?? []).length,
+    frota: a.frota.ativo,
+  };
 }
 
 /** Item "desejado" (nível plano) gerado a partir da árvore, com caminho por índices. */
@@ -181,14 +208,15 @@ export type EntidadeDesejada = {
   paiChave: string | null;
   ordem: number;
   rotulo: string;
+  nome?: string;
 };
 
 /** Achata a árvore em entidades desejadas (ordem de criação: pais antes dos filhos). */
 export function entidadesDesejadas(a: ArvoreEscopo): EntidadeDesejada[] {
   const out: EntidadeDesejada[] = [];
-  const add = (tipo: TipoEntidade, paiChave: string | null, ordem: number) => {
+  const add = (tipo: TipoEntidade, paiChave: string | null, ordem: number, nome?: string) => {
     const chave = `${paiChave ? paiChave + "/" : ""}${tipo}:${ordem}`;
-    out.push({ chave, tipo, paiChave, ordem, rotulo: rotuloEntidade(tipo, ordem) });
+    out.push({ chave, tipo, paiChave, ordem, rotulo: rotuloEntidade(tipo, ordem, nome), nome: nome?.trim() || undefined });
     return chave;
   };
   a.postos.forEach((p, pi) => {
@@ -202,6 +230,8 @@ export function entidadesDesejadas(a: ArvoreEscopo): EntidadeDesejada[] {
     });
   });
   for (let c = 1; c <= a.comboios; c++) add("comboio", null, c);
+  (a.tanques ?? []).forEach((t, i) => add("tanque", null, i + 1, t.nome));
+  (a.sondas ?? []).forEach((t, i) => add("sonda", null, i + 1, t.nome));
   if (a.frota.ativo) add("frota", null, 1);
   return out;
 }
