@@ -75,7 +75,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     const { data: perguntas } = secIds.length
       ? await userSupa
           .from("perguntas")
-          .select("id, secao_id, texto, tipo, ordem, instrucao_agente, condicional_pergunta_id, condicional_operador, condicional_valor")
+          .select("id, secao_id, texto, tipo, ordem, instrucao_agente, condicional_pergunta_id, condicional_operador, condicional_valor, entidade_tipo")
           .in("secao_id", secIds)
           .order("ordem")
       : { data: [] as any[] };
@@ -97,29 +97,39 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       opcoesPorPergunta.set(o.pergunta_id, arr);
     }
 
-    // 7) Respostas
+    // 7) Respostas — uma por pergunta e entidade (id virtual pergunta::entidade)
+    const { idInstancia, expandirPerguntas, chaveOrdemEntidades } = await import("@/lib/escopo/expandir");
     const { data: respostas } = await userSupa
       .from("respostas_agente")
-      .select("pergunta_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_aprovado")
-      .eq("caso_id", caso.id)
-      .order("entidade_key" as any, { ascending: true });
-    // Com Escopo estruturado uma pergunta pode ter várias respostas (uma por instância):
-    // o texto usa a primeira (geral primeiro) e as fotos juntam todas as instâncias.
+      .select("pergunta_id, entidade_id, valor_texto, arquivo_path, arquivos_paths, transcricao, ia_aprovado")
+      .eq("caso_id", caso.id);
     const respostasMap = new Map<string, any>();
     for (const r of (respostas ?? []) as any[]) {
-      const atual = respostasMap.get(r.pergunta_id);
-      if (!atual) {
-        respostasMap.set(r.pergunta_id, { ...r });
-        continue;
-      }
-      const lista = (x: any): string[] =>
-        Array.isArray(x?.arquivos_paths) && x.arquivos_paths.length ? x.arquivos_paths : x?.arquivo_path ? [x.arquivo_path] : [];
-      atual.arquivos_paths = Array.from(new Set([...lista(atual), ...lista(r)]));
+      respostasMap.set(idInstancia(r.pergunta_id, r.entidade_id), r);
     }
+
+    // 7b) Repetição por entidade do Escopo (casos sem estrutura seguem como antes)
+    const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
+    const estrutura = await carregarEstruturaDoCaso(caso.id);
+    const aplicaA = new Map<string, string>(
+      (perguntas ?? []).map((p: any) => [p.id as string, (p.entidade_tipo ?? "geral") as string]),
+    );
+    const chavesEntidade = chaveOrdemEntidades(estrutura.entidades);
+    // Gerais primeiro; depois as entidades em ordem (posto › ilha › bomba › bico), e a ordem da pergunta.
+    const perguntasExp = expandirPerguntas(
+      (perguntas ?? []) as any[],
+      aplicaA,
+      estrutura.entidades,
+      !!estrutura.versaoId,
+    ).sort((x: any, y: any) => {
+      const kx = x.entidade_id ? "1" + (chavesEntidade.get(x.entidade_id) ?? "") : "0";
+      const ky = y.entidade_id ? "1" + (chavesEntidade.get(y.entidade_id) ?? "") : "0";
+      return kx === ky ? x.ordem - y.ordem : kx < ky ? -1 : 1;
+    });
 
     // 8) Baixar fotos do bucket privado (signed URLs)
     const arquivoPaths: string[] = [];
-    for (const p of perguntas ?? []) {
+    for (const p of perguntasExp) {
       if (p.tipo === "foto") {
         const r = respostasMap.get(p.id);
         const paths: string[] = Array.isArray(r?.arquivos_paths) && r.arquivos_paths.length
@@ -183,7 +193,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
       titulo: s.titulo,
       ordem: s.ordem,
       descricao: s.descricao,
-      perguntas: (perguntas ?? [])
+      perguntas: perguntasExp
         .filter((p: any) => p.secao_id === s.id)
         .filter(condicionalSatisfeita)
         .map((p: any) => ({
@@ -192,7 +202,9 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
           tipo: p.tipo,
           ordem: p.ordem,
           instrucao_agente: p.instrucao_agente,
-          opcoes: opcoesPorPergunta.get(p.id),
+          opcoes: opcoesPorPergunta.get((p as any).base_id ?? p.id),
+          // a fonte padrão do PDF não tem o caractere ›
+          entidade: ((p as any).entidade_rotulo as string | undefined)?.replace(/›/g, ">") ?? null,
         })),
     }));
 

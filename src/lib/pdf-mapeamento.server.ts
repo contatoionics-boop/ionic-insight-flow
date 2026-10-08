@@ -25,6 +25,8 @@ export type PdfPergunta = {
   ordem: number;
   instrucao_agente: string | null;
   opcoes?: { id: string; texto: string }[];
+  /** Rótulo da entidade do Escopo (ex.: "Posto 01 › Ilha 01 › Bomba 01"); vazio = pergunta geral. */
+  entidade?: string | null;
 };
 
 export type PdfSecao = {
@@ -920,8 +922,9 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
       ctx.y -= 4;
     }
 
-    const perguntas = [...sec.perguntas].sort((a, b) => a.ordem - b.ordem);
-    type Grupo = { tipo: "campos" | "fotos" | "audio"; items: PdfPergunta[] };
+    // A ordem recebida já traz as gerais primeiro e as entidades em sequência (posto › ilha › bomba › bico).
+    const perguntas = [...sec.perguntas];
+    type Grupo = { tipo: "campos" | "fotos" | "audio"; items: PdfPergunta[]; entidade: string | null };
     const grupos: Grupo[] = [];
     for (const p of perguntas) {
       const cat: Grupo["tipo"] =
@@ -929,13 +932,20 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
       if (!FIELD_TYPES.has(p.tipo) && cat === "campos") {
         // tipo desconhecido — trata como campo
       }
+      const ent = p.entidade ?? null;
       const last = grupos[grupos.length - 1];
-      if (last && last.tipo === cat) last.items.push(p);
-      else grupos.push({ tipo: cat, items: [p] });
+      if (last && last.tipo === cat && last.entidade === ent) last.items.push(p);
+      else grupos.push({ tipo: cat, items: [p], entidade: ent });
     }
 
     let subIdx = 1;
+    let entidadeAtual: string | null = null;
     for (const g of grupos) {
+      // Título da entidade (uma vez por entidade) para não misturar bombas/bicos.
+      if (g.entidade && g.entidade !== entidadeAtual && g.tipo !== "fotos") {
+        drawSubTitle(ctx, `${secIdx}.${subIdx++}`, g.entidade);
+      }
+      entidadeAtual = g.entidade;
       if (g.tipo === "campos") {
         drawCamposTable(
           ctx,
@@ -947,7 +957,11 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
           })),
         );
       } else if (g.tipo === "fotos") {
-        drawSubTitle(ctx, `${secIdx}.${subIdx++}`, "Registro fotográfico");
+        drawSubTitle(
+          ctx,
+          `${secIdx}.${subIdx++}`,
+          g.entidade ? `Registro fotográfico — ${g.entidade}` : "Registro fotográfico",
+        );
         const nested = await Promise.all(
           g.items.map(async (p) => {
             const r = input.respostas.get(p.id);

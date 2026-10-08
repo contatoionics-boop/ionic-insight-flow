@@ -29,8 +29,11 @@ import { FalaMultiCampo } from "@/components/agent/checklist/FalaMultiCampo";
 import {
   estadoInicial,
   resumirVistoria,
+  respondida,
   rotuloStatus,
 } from "@/lib/vistoria-checklist";
+import { contarPorEntidade } from "@/lib/escopo/arvore-perguntas";
+import type { EntidadeEscopo, TipoEntidade } from "@/lib/escopo/tipos";
 import {
   finalizarVistoriaChat,
   getChecklistVistoria,
@@ -132,6 +135,31 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   const resumo = useMemo(
     () => (dados ? resumirVistoria(dados, state) : null),
     [dados, state],
+  );
+
+  // Estrutura do Escopo e progresso por entidade (considera o formulário inteiro).
+  const entidades = useMemo<EntidadeEscopo[]>(
+    () =>
+      (dados?.entidades ?? []).map((e) => ({
+        id: e.id,
+        tipo: e.tipo as TipoEntidade,
+        parent_id: e.parentId,
+        ordem: e.ordem,
+        rotulo: e.rotulo,
+      })),
+    [dados],
+  );
+  const contagemEntidades = useMemo(
+    () =>
+      resumo
+        ? contarPorEntidade(
+            entidades,
+            resumo.etapas.flatMap((e) => e.visiveis),
+            (p) => p.entidadeId,
+            (p) => respondida(p, state[p.id]),
+          )
+        : new Map(),
+    [entidades, resumo, state],
   );
 
   const persistir = useCallback(async () => {
@@ -455,6 +483,8 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
                 casoId={dados.casoId}
                 token={token ?? "app"}
                 destaque={destaque}
+                entidades={entidades}
+                contagem={contagemEntidades}
               />
 
               {avisoEtapa && (

@@ -34,6 +34,8 @@ export const APLICA_A_OPCOES: { value: AplicaA; label: string }[] = [
   { value: "comboio", label: "Comboio" },
   { value: "frota", label: "Frota" },
   { value: "div", label: "DIV" },
+  { value: "sonda", label: "Sonda" },
+  { value: "tanque", label: "Tanque" },
 ];
 
 /** Tipo de entidade do Escopo em que cada aplicabilidade se repete. */

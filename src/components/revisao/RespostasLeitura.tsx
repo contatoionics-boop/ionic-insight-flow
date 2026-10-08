@@ -11,6 +11,9 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
+import { contarPorEntidade, montarArvore } from "@/lib/escopo/arvore-perguntas";
+import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type LeituraSecao = { id: string; titulo: string; ordem: number };
 export type LeituraPergunta = {
@@ -20,6 +23,8 @@ export type LeituraPergunta = {
   tipo: string;
   ordem: number;
   instrucao_agente: string | null;
+  /** Instância do Escopo (posto/ilha/bomba/bico/comboio/frota) a que a pergunta pertence. */
+  entidade_id?: string | null;
 };
 export type LeituraResposta = {
   pergunta_id: string;
@@ -283,7 +288,9 @@ export function RespostasLeitura({
   urls,
   agente,
   data,
+  entidades = [],
 }: {
+  entidades?: EntidadeEscopo[];
   secoes: LeituraSecao[];
   perguntasPorSecao: Map<string, LeituraPergunta[]>;
   respostas: Record<string, LeituraResposta>;
@@ -308,6 +315,17 @@ export function RespostasLeitura({
     }
     return { total, ok, porSecao };
   }, [secoes, perguntasPorSecao, respostas]);
+
+  const contagem = useMemo(
+    () =>
+      contarPorEntidade(
+        entidades,
+        secoes.flatMap((s) => perguntasPorSecao.get(s.id) ?? []),
+        (p) => p.entidade_id,
+        (p) => respondida(p, respostas[p.id]),
+      ),
+    [entidades, secoes, perguntasPorSecao, respostas],
+  );
 
   const irPara = (id: string) => {
     setSumarioAberto(false);
@@ -400,6 +418,41 @@ export function RespostasLeitura({
           {secoes.map((s, si) => {
             const ps = perguntasPorSecao.get(s.id) ?? [];
             const st = stats.porSecao.get(s.id);
+            const arvore = montarArvore(entidades, ps, (p) => p.entidade_id, contagem);
+            const artigo = (p: LeituraPergunta, pi: number) => {
+              const r = respostas[p.id];
+              return (
+                <article
+                  key={p.id}
+                  className={`rounded-lg border border-border bg-background/40 px-4 py-3 ${
+                    larga(p, r) ? "lg:col-span-2" : ""
+                  }`}
+                >
+                  <div className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                      {si + 1}.{pi + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.texto}</h4>
+                      {p.instrucao_agente && (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/80">{p.instrucao_agente}</p>
+                      )}
+                      <Resposta
+                        p={p}
+                        r={r}
+                        urls={urls}
+                        onAbrirImagem={(url, legenda) => setLightbox({ url, legenda })}
+                      />
+                    </div>
+                  </div>
+                </article>
+              );
+            };
+            const grade = (xs: LeituraPergunta[]) => (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {xs.map((p) => artigo(p, ps.indexOf(p)))}
+              </div>
+            );
             return (
               <section
                 key={s.id}
@@ -418,43 +471,12 @@ export function RespostasLeitura({
                   </Badge>
                 </header>
 
-                <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
+                <div className="space-y-4 p-4">
                   {ps.length === 0 && (
                     <p className="text-sm text-muted-foreground">Sem perguntas nesta seção.</p>
                   )}
-                  {ps.map((p, pi) => {
-                    const r = respostas[p.id];
-                    return (
-                      <article
-                        key={p.id}
-                        className={`rounded-lg border border-border bg-background/40 px-4 py-3 ${
-                          larga(p, r) ? "lg:col-span-2" : ""
-                        }`}
-                      >
-                        <div className="flex gap-2">
-                          <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                            {si + 1}.{pi + 1}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {p.texto}
-                            </h4>
-                            {p.instrucao_agente && (
-                              <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                                {p.instrucao_agente}
-                              </p>
-                            )}
-                            <Resposta
-                              p={p}
-                              r={r}
-                              urls={urls}
-                              onAbrirImagem={(url, legenda) => setLightbox({ url, legenda })}
-                            />
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                  {arvore.gerais.length > 0 && grade(arvore.gerais)}
+                  <ArvorePerguntas grupos={arvore.grupos} renderPerguntas={grade} />
                 </div>
               </section>
             );

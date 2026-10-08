@@ -1,6 +1,10 @@
 import { useMemo } from "react";
+import { AlertTriangle } from "lucide-react";
 
 import { PerguntaBloco, type Resposta } from "@/components/agent/FormFields";
+import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
+import { montarArvore, type Contagem } from "@/lib/escopo/arvore-perguntas";
+import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 import { toPerguntaUI } from "@/lib/vistoria-checklist";
 import type { ChecklistEtapaDTO, ChecklistPerguntaDTO } from "@/lib/vistoria-agent.functions";
 
@@ -12,17 +16,10 @@ type Props = {
   casoId: string;
   token: string;
   destaque?: string | null;
+  /** Estrutura do Escopo e progresso por entidade (formulário inteiro). */
+  entidades?: EntidadeEscopo[];
+  contagem?: Map<string, Contagem>;
 };
-
-/** Agrupa por instância do Escopo (null = pergunta geral), mantendo a ordem. */
-function agruparPorEntidade(ps: ChecklistPerguntaDTO[]) {
-  const grupos = new Map<string | null, ChecklistPerguntaDTO[]>();
-  for (const p of ps) {
-    const k = p.entidadeRotulo ?? null;
-    grupos.set(k, [...(grupos.get(k) ?? []), p]);
-  }
-  return [...grupos.entries()].sort((a, b) => (a[0] === null ? -1 : b[0] === null ? 1 : 0));
-}
 
 export function EtapaPerguntas({
   etapa,
@@ -32,6 +29,8 @@ export function EtapaPerguntas({
   casoId,
   token,
   destaque,
+  entidades = [],
+  contagem = new Map(),
 }: Props) {
   const perguntasUI = useMemo(
     () => visiveis.map((p) => toPerguntaUI(p, etapa.id)),
@@ -52,6 +51,11 @@ export function EtapaPerguntas({
         id={`pergunta-${p.id}`}
         className={destaque === p.id ? "rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}
       >
+        {p.condicaoAviso && (
+          <p className="mb-1 flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {p.condicaoAviso}
+          </p>
+        )}
         <PerguntaBloco
           pergunta={ui}
           casoId={casoId}
@@ -65,64 +69,70 @@ export function EtapaPerguntas({
     );
   };
 
-  const soltas = visiveis.filter((p) => !p.blocoId);
-  const blocos = etapa.blocos
-    .map((b) => ({ bloco: b, perguntas: visiveis.filter((p) => p.blocoId === b.id) }))
-    .filter((b) => b.perguntas.length > 0);
+  /** Perguntas soltas e blocos (cartão, matriz, fotos) de um conjunto de perguntas. */
+  const renderGrupo = (todas: ChecklistPerguntaDTO[]) => {
+    const soltas = todas.filter((p) => !p.blocoId);
+    const blocos = etapa.blocos
+      .map((b) => ({ bloco: b, perguntas: todas.filter((p) => p.blocoId === b.id) }))
+      .filter((b) => b.perguntas.length > 0);
+
+    return (
+      <div className="space-y-4">
+        {soltas.length > 0 && <div className="space-y-3">{soltas.map(renderCampo)}</div>}
+
+        {blocos.map(({ bloco, perguntas }) => {
+          const linhas =
+            bloco.layout === "matriz"
+              ? [
+                  ...perguntas
+                    .reduce((map, p) => {
+                      const chave = p.bloco_linha ?? "—";
+                      map.set(chave, [...(map.get(chave) ?? []), p]);
+                      return map;
+                    }, new Map<string, ChecklistPerguntaDTO[]>())
+                    .entries(),
+                ]
+              : null;
+
+          return (
+            <section key={bloco.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <header className="mb-3">
+                <h3 className="text-base font-semibold text-foreground">{bloco.titulo}</h3>
+                {bloco.descricao && (
+                  <p className="mt-1 text-sm text-muted-foreground">{bloco.descricao}</p>
+                )}
+              </header>
+              {linhas ? (
+                <div className="space-y-5">
+                  {linhas.map(([linha, ps]) => (
+                    <div key={linha}>
+                      <p className="mb-2 text-sm font-semibold text-foreground">{linha}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">{ps.map(renderCampo)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : bloco.layout === "fotos" ? (
+                <div className="grid gap-3 sm:grid-cols-2">{perguntas.map(renderCampo)}</div>
+              ) : (
+                <div className="space-y-3">{perguntas.map(renderCampo)}</div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Gerais no topo; depois a árvore de entidades (posto › ilha › bomba › bico, comboios, frota).
+  const { gerais, grupos } = useMemo(
+    () => montarArvore(entidades, visiveis, (p) => p.entidadeId, contagem),
+    [entidades, visiveis, contagem],
+  );
 
   return (
-    <div className="space-y-4">
-      {agruparPorEntidade(soltas).map(([rotulo, ps]) => (
-        <div key={rotulo ?? "geral"} className="space-y-3">
-          {rotulo && (
-            <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">{rotulo}</p>
-          )}
-          {ps.map(renderCampo)}
-        </div>
-      ))}
-
-      {blocos.flatMap(({ bloco, perguntas: todas }) =>
-        agruparPorEntidade(todas).map(([rotuloEnt, perguntas]) => ({ bloco, perguntas, rotuloEnt })),
-      ).map(({ bloco, perguntas, rotuloEnt }) => {
-        const linhas =
-          bloco.layout === "matriz"
-            ? [
-                ...perguntas
-                  .reduce((map, p) => {
-                    const chave = p.bloco_linha ?? "—";
-                    map.set(chave, [...(map.get(chave) ?? []), p]);
-                    return map;
-                  }, new Map<string, ChecklistPerguntaDTO[]>())
-                  .entries(),
-              ]
-            : null;
-
-        return (
-          <section key={`${bloco.id}:${rotuloEnt ?? ""}`} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <header className="mb-3">
-              {rotuloEnt && <p className="mb-1 text-xs font-semibold text-primary">{rotuloEnt}</p>}
-              <h3 className="text-base font-semibold text-foreground">{bloco.titulo}</h3>
-              {bloco.descricao && (
-                <p className="mt-1 text-sm text-muted-foreground">{bloco.descricao}</p>
-              )}
-            </header>
-            {linhas ? (
-              <div className="space-y-5">
-                {linhas.map(([linha, ps]) => (
-                  <div key={linha}>
-                    <p className="mb-2 text-sm font-semibold text-foreground">{linha}</p>
-                    <div className="grid gap-3 sm:grid-cols-2">{ps.map(renderCampo)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : bloco.layout === "fotos" ? (
-              <div className="grid gap-3 sm:grid-cols-2">{perguntas.map(renderCampo)}</div>
-            ) : (
-              <div className="space-y-3">{perguntas.map(renderCampo)}</div>
-            )}
-          </section>
-        );
-      })}
+    <div className="space-y-6">
+      {gerais.length > 0 && renderGrupo(gerais)}
+      <ArvorePerguntas grupos={grupos} renderPerguntas={renderGrupo} />
     </div>
   );
 }

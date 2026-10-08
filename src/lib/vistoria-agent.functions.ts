@@ -494,6 +494,8 @@ export type ChecklistPerguntaDTO = {
   entidadeId: string | null;
   entidadeRotulo: string | null;
   entidadeTipo: string | null;
+  /** Condição que não pôde ser resolvida pela hierarquia (a pergunta aparece sem condição). */
+  condicaoAviso: string | null;
   resposta: ChecklistRespostaDTO | null;
 };
 
@@ -511,6 +513,8 @@ export type ChecklistVistoriaDTO = {
   formularioNome: string;
   iniciado: boolean;
   resumoCadastro: { label: string; valor: string }[];
+  /** Hierarquia do Escopo (para montar a árvore posto › ilha › bomba › bico). */
+  entidades: { id: string; tipo: string; parentId: string | null; ordem: number; rotulo: string }[];
   etapas: ChecklistEtapaDTO[];
 };
 
@@ -561,6 +565,7 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
             entidadeId: p.entidade_id ?? null,
             entidadeRotulo: p.entidade_rotulo ?? null,
             entidadeTipo: p.entidade_tipo ?? null,
+            condicaoAviso: p.condicao_aviso ?? null,
             resposta: r
               ? {
                   texto: r.valor_texto,
@@ -587,6 +592,13 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       formularioNome: ctxAtual.formularioNome,
       iniciado,
       resumoCadastro: ctxAtual.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
+      entidades: ctxAtual.entidades.map((e) => ({
+        id: e.id,
+        tipo: e.tipo,
+        parentId: e.parent_id,
+        ordem: e.ordem,
+        rotulo: e.rotulo,
+      })),
       etapas,
     };
   });

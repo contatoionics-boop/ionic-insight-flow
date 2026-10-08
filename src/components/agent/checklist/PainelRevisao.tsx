@@ -47,7 +47,10 @@ export function PainelRevisao({ resumo, onIrPara, compacto = false }: Props) {
                   className="w-full rounded-md px-2 py-1 text-left text-sm text-foreground hover:bg-muted"
                 >
                   <span className="block truncate">{pergunta.texto}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{etapa}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {pergunta.entidadeRotulo ? `${pergunta.entidadeRotulo} · ` : ""}
+                    {etapa}
+                  </span>
                 </button>
               </li>
             ))}
@@ -78,7 +81,10 @@ export function PainelRevisao({ resumo, onIrPara, compacto = false }: Props) {
                     className="w-full rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted"
                   >
                     <span className="block truncate">{pergunta.texto}</span>
-                    <span className="block truncate text-xs">{etapa}</span>
+                    <span className="block truncate text-xs">
+                      {pergunta.entidadeRotulo ? `${pergunta.entidadeRotulo} · ` : ""}
+                      {etapa}
+                    </span>
                   </button>
                 </li>
               ))}

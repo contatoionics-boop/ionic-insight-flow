@@ -866,7 +866,7 @@ function PropertiesPanel({
             ))}
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">
-            Geral aparece uma vez. Posto, ilha, bomba, bico, comboio ou frota repetem a pergunta para cada item da estrutura do escopo, com respostas independentes.
+            Geral aparece uma vez. Posto, ilha, bomba, bico, comboio ou frota repetem a pergunta para cada item da estrutura do escopo, com respostas independentes. Sonda e Tanque ainda não são criados no editor do escopo: perguntas marcadas assim não aparecem em mapeamentos que têm estrutura.
           </p>
         </div>
 

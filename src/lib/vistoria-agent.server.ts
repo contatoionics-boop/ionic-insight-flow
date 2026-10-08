@@ -5,6 +5,7 @@ import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso } from "@/lib/escopo/gerar.server";
+import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
 
@@ -41,6 +42,7 @@ export type AgentPergunta = {
   entidade_id?: string | null;
   entidade_rotulo?: string | null;
   entidade_tipo?: string | null;
+  condicao_aviso?: string | null;
 };
 
 export type AgentResposta = {
@@ -77,6 +79,8 @@ export type AgentContext = {
   secoes: AgentSecao[];
   state: Record<string, AgentResposta>;
   cadastro: CadastroFato[];
+  /** Estrutura do Escopo (postos, ilhas, bombas, bicos, comboios, frota) usada pelo caso. */
+  entidades: EntidadeEscopo[];
   /** chave_laudo → valor extraído da proposta comercial. */
   proposta?: Record<string, string>;
 };
@@ -399,6 +403,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     })),
     state,
     cadastro,
+    entidades: estrutura.entidades,
     proposta,
   };
 

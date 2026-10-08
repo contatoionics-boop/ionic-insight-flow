@@ -36,6 +36,8 @@ import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
 import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import type { EntidadeEscopo } from "@/lib/escopo/tipos";
+import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
+import { contarPorEntidade, montarArvore } from "@/lib/escopo/arvore-perguntas";
 
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -68,6 +70,7 @@ type Pergunta = {
   base_id?: string;
   entidade_id?: string | null;
   entidade_rotulo?: string | null;
+  condicao_aviso?: string | null;
 };
 
 type Secao = { id: string; titulo: string; ordem: number };
@@ -103,6 +106,7 @@ function ReviewCasePage() {
   const [caseData, setCaseData] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
   const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
+  const [entidades, setEntidades] = useState<EntidadeEscopo[]>([]);
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({});
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
@@ -176,6 +180,7 @@ function ReviewCasePage() {
             !!estrutura?.versaoId,
           ) as Pergunta[];
           setPerguntas(pList);
+          setEntidades((estrutura?.entidades ?? []) as EntidadeEscopo[]);
 
           if (pList.length) {
             const { data: ops } = await supabase
@@ -300,6 +305,21 @@ function ReviewCasePage() {
     }
     return m;
   }, [perguntasVisiveis]);
+
+  // Progresso por entidade ("Bomba 02 — 3 de 7 respondidas"), considerando o formulário inteiro.
+  const contagemEntidades = useMemo(
+    () =>
+      contarPorEntidade(
+        entidades,
+        perguntasVisiveis,
+        (p) => p.entidade_id,
+        (p) => {
+          const r = respostas[p.id];
+          return !!r && (arquivosDe(r).length > 0 || !!r.valor_texto?.trim() || !!r.transcricao?.trim());
+        },
+      ),
+    [entidades, perguntasVisiveis, respostas],
+  );
 
   const updateResposta = (
     perguntaId: string,
@@ -558,6 +578,242 @@ function ReviewCasePage() {
       return;
     }
     await salvarTudo();
+  };
+
+  const renderPerguntaEdicao = (p: Pergunta) => {
+    const r = respostas[p.id];
+    return (
+                    <div key={p.id} className="rounded-md border border-border p-3">
+                      {p.condicao_aviso && (
+                        <p className="mb-2 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
+                          {p.condicao_aviso}
+                        </p>
+                      )}
+                      <div className="text-sm font-medium text-foreground">
+                        {p.texto}
+                      </div>
+                      {p.instrucao_agente && (
+                        <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+                          {p.instrucao_agente}
+                        </p>
+                      )}
+
+                      {p.tipo === "texto" && (
+                        <div className="mt-2 space-y-2">
+                          <Textarea
+                            rows={3}
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
+                      )}
+
+                      {p.tipo === "selecao_unica" && (
+                        <div className="mt-2 space-y-2">
+                          <select
+                            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                          >
+                            <option value="">— Sem resposta —</option>
+                            {(opcoesPorPergunta.get(p.id) ?? []).map((o) => (
+                              <option key={o.id} value={o.texto}>
+                                {o.texto}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {p.tipo === "audio" && (
+                        <div className="mt-2 space-y-2">
+                          {r?.arquivo_path && fotoUrls[r.arquivo_path] && (
+                            <audio controls src={fotoUrls[r.arquivo_path]} className="w-full" />
+                          )}
+                          <div className="text-xs text-muted-foreground">Transcrição</div>
+                          <Textarea
+                            rows={4}
+                            value={r?.transcricao ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { transcricao: e.target.value })
+                            }
+                            placeholder="Sem transcrição"
+                          />
+                          <MicButton
+                            currentValue={r?.transcricao ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { transcricao: t })}
+                          />
+                        </div>
+                      )}
+
+                      {p.tipo === "foto" && (() => {
+                        const fotoList: string[] = arquivosDe(r);
+                        const busy = !!uploading[p.id];
+                        return (
+                          <div className="mt-2 grid gap-3 md:grid-cols-[220px_1fr]">
+                            <div className="space-y-2">
+                              {fotoList.length === 0 ? (
+                                <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
+                                  <ImageOff className="h-8 w-8" />
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {fotoList.map((pth, i) => (
+                                    <div key={pth + i} className="group relative overflow-hidden rounded-md border border-border bg-muted">
+                                      {fotoUrls[pth] ? (
+                                        <button
+                                          type="button"
+                                          title="Ampliar imagem"
+                                          onClick={() => abrirImagem(fotoUrls[pth], `${p.texto} — imagem ${i + 1}`)}
+                                          className="block w-full cursor-zoom-in"
+                                        >
+                                          <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
+                                        </button>
+                                      ) : (
+                                        <div className="flex h-24 items-center justify-center text-muted-foreground">
+                                          <ImageOff className="h-5 w-5" />
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => removerArquivo(p.id, p.tipo, pth)}
+                                        title="Remover imagem"
+                                        className="absolute right-1 top-1 rounded-md bg-destructive/90 p-1 text-destructive-foreground opacity-90 hover:opacity-100 disabled:opacity-50"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {fotoList.length > 1 && (
+                                <p className="text-center text-[11px] text-muted-foreground">{fotoList.length} fotos</p>
+                              )}
+                              <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted">
+                                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                {busy ? "Enviando..." : "Adicionar imagens"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  disabled={busy}
+                                  onChange={(e) => {
+                                    void adicionarArquivos(p.id, p.tipo, e.target.files);
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              {fotoList.length > 0 && (
+                                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-foreground hover:bg-muted">
+                                  <RefreshCw className="h-3.5 w-3.5" /> Substituir todas
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    disabled={busy}
+                                    onChange={(e) => {
+                                      void adicionarArquivos(p.id, p.tipo, e.target.files, true);
+                                      e.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">Legenda / observação</div>
+                              <Textarea
+                                rows={4}
+                                value={r?.valor_texto ?? ""}
+                                onChange={(e) => updateResposta(p.id, { valor_texto: e.target.value })}
+                                placeholder="Sem legenda"
+                              />
+                              <MicButton
+                                currentValue={r?.valor_texto ?? ""}
+                                onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {p.tipo === "video" && (
+                        <div className="mt-2 space-y-2">
+                          {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
+                            <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="w-full max-w-2xl rounded-md border border-border" />
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem vídeo anexado.</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+                              {uploading[p.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                              {r?.arquivo_path ? "Substituir vídeo" : "Anexar vídeo"}
+                              <input
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                disabled={!!uploading[p.id]}
+                                onChange={(e) => {
+                                  void adicionarArquivos(p.id, p.tipo, e.target.files, true);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                            {r?.arquivo_path && (
+                              <Button
+                                variant="outline"
+                                onClick={() => removerArquivo(p.id, p.tipo, r.arquivo_path!)}
+                                disabled={!!uploading[p.id]}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remover
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+
+                      {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
+                        <div className="mt-2 space-y-2">
+                          <Input
+                            value={r?.valor_texto ?? ""}
+                            onChange={(e) =>
+                              updateResposta(p.id, { valor_texto: e.target.value })
+                            }
+                            placeholder="Sem resposta"
+                          />
+                          <MicButton
+                            currentValue={r?.valor_texto ?? ""}
+                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
+                          />
+                        </div>
+                      )}
+                    </div>
+    );
+  };
+
+  // Gerais no topo; depois a árvore de entidades (posto › ilha › bomba › bico, comboios, frota).
+  const renderComArvore = (ps: Pergunta[]) => {
+    const { gerais, grupos } = montarArvore(entidades, ps, (p) => p.entidade_id, contagemEntidades);
+    const lista = (xs: Pergunta[]) => <div className="space-y-5">{xs.map(renderPerguntaEdicao)}</div>;
+    return (
+      <div className="space-y-6">
+        {gerais.length > 0 && lista(gerais)}
+        <ArvorePerguntas grupos={grupos} renderPerguntas={lista} />
+      </div>
+    );
   };
 
   const podePdf = tab === "documento" ? !estadoDoc?.motivoPdf : true;
@@ -821,6 +1077,7 @@ function ReviewCasePage() {
         <RespostasLeitura
           secoes={secoes}
           perguntasPorSecao={perguntasPorSecao}
+          entidades={entidades}
           respostas={respostas}
           urls={fotoUrls}
           agente={caseData.agente?.nome ?? null}
@@ -848,227 +1105,7 @@ function ReviewCasePage() {
                 <p className="text-sm text-muted-foreground">Sem perguntas nesta seção.</p>
               )}
               <div className="space-y-5">
-                {ps.map((p) => {
-                  const r = respostas[p.id];
-                  return (
-                    <div key={p.id} className="rounded-md border border-border p-3">
-                      {p.entidade_rotulo && (
-                        <div className="mb-1 text-xs font-semibold text-primary">{p.entidade_rotulo}</div>
-                      )}
-                      <div className="text-sm font-medium text-foreground">
-                        {p.texto}
-                      </div>
-                      {p.instrucao_agente && (
-                        <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
-                          {p.instrucao_agente}
-                        </p>
-                      )}
-
-                      {p.tipo === "texto" && (
-                        <div className="mt-2 space-y-2">
-                          <Textarea
-                            rows={3}
-                            value={r?.valor_texto ?? ""}
-                            onChange={(e) =>
-                              updateResposta(p.id, { valor_texto: e.target.value })
-                            }
-                            placeholder="Sem resposta"
-                          />
-                          <MicButton
-                            currentValue={r?.valor_texto ?? ""}
-                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
-                          />
-                        </div>
-                      )}
-
-                      {p.tipo === "selecao_unica" && (
-                        <div className="mt-2 space-y-2">
-                          <select
-                            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
-                            value={r?.valor_texto ?? ""}
-                            onChange={(e) =>
-                              updateResposta(p.id, { valor_texto: e.target.value })
-                            }
-                          >
-                            <option value="">— Sem resposta —</option>
-                            {(opcoesPorPergunta.get(p.id) ?? []).map((o) => (
-                              <option key={o.id} value={o.texto}>
-                                {o.texto}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      {p.tipo === "audio" && (
-                        <div className="mt-2 space-y-2">
-                          {r?.arquivo_path && fotoUrls[r.arquivo_path] && (
-                            <audio controls src={fotoUrls[r.arquivo_path]} className="w-full" />
-                          )}
-                          <div className="text-xs text-muted-foreground">Transcrição</div>
-                          <Textarea
-                            rows={4}
-                            value={r?.transcricao ?? ""}
-                            onChange={(e) =>
-                              updateResposta(p.id, { transcricao: e.target.value })
-                            }
-                            placeholder="Sem transcrição"
-                          />
-                          <MicButton
-                            currentValue={r?.transcricao ?? ""}
-                            onTranscricao={(t) => updateResposta(p.id, { transcricao: t })}
-                          />
-                        </div>
-                      )}
-
-                      {p.tipo === "foto" && (() => {
-                        const fotoList: string[] = arquivosDe(r);
-                        const busy = !!uploading[p.id];
-                        return (
-                          <div className="mt-2 grid gap-3 md:grid-cols-[220px_1fr]">
-                            <div className="space-y-2">
-                              {fotoList.length === 0 ? (
-                                <div className="flex h-44 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground">
-                                  <ImageOff className="h-8 w-8" />
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  {fotoList.map((pth, i) => (
-                                    <div key={pth + i} className="group relative overflow-hidden rounded-md border border-border bg-muted">
-                                      {fotoUrls[pth] ? (
-                                        <button
-                                          type="button"
-                                          title="Ampliar imagem"
-                                          onClick={() => abrirImagem(fotoUrls[pth], `${p.texto} — imagem ${i + 1}`)}
-                                          className="block w-full cursor-zoom-in"
-                                        >
-                                          <img src={fotoUrls[pth]} alt={`${p.texto} ${i + 1}`} className="h-24 w-full object-cover" />
-                                        </button>
-                                      ) : (
-                                        <div className="flex h-24 items-center justify-center text-muted-foreground">
-                                          <ImageOff className="h-5 w-5" />
-                                        </div>
-                                      )}
-                                      <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => removerArquivo(p.id, p.tipo, pth)}
-                                        title="Remover imagem"
-                                        className="absolute right-1 top-1 rounded-md bg-destructive/90 p-1 text-destructive-foreground opacity-90 hover:opacity-100 disabled:opacity-50"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {fotoList.length > 1 && (
-                                <p className="text-center text-[11px] text-muted-foreground">{fotoList.length} fotos</p>
-                              )}
-                              <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted">
-                                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                                {busy ? "Enviando..." : "Adicionar imagens"}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  multiple
-                                  className="hidden"
-                                  disabled={busy}
-                                  onChange={(e) => {
-                                    void adicionarArquivos(p.id, p.tipo, e.target.files);
-                                    e.target.value = "";
-                                  }}
-                                />
-                              </label>
-                              {fotoList.length > 0 && (
-                                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-foreground hover:bg-muted">
-                                  <RefreshCw className="h-3.5 w-3.5" /> Substituir todas
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    className="hidden"
-                                    disabled={busy}
-                                    onChange={(e) => {
-                                      void adicionarArquivos(p.id, p.tipo, e.target.files, true);
-                                      e.target.value = "";
-                                    }}
-                                  />
-                                </label>
-                              )}
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="text-xs text-muted-foreground">Legenda / observação</div>
-                              <Textarea
-                                rows={4}
-                                value={r?.valor_texto ?? ""}
-                                onChange={(e) => updateResposta(p.id, { valor_texto: e.target.value })}
-                                placeholder="Sem legenda"
-                              />
-                              <MicButton
-                                currentValue={r?.valor_texto ?? ""}
-                                onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {p.tipo === "video" && (
-                        <div className="mt-2 space-y-2">
-                          {r?.arquivo_path && fotoUrls[r.arquivo_path] ? (
-                            <video controls preload="metadata" src={fotoUrls[r.arquivo_path]} className="w-full max-w-2xl rounded-md border border-border" />
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Sem vídeo anexado.</p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-                              {uploading[p.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                              {r?.arquivo_path ? "Substituir vídeo" : "Anexar vídeo"}
-                              <input
-                                type="file"
-                                accept="video/*"
-                                className="hidden"
-                                disabled={!!uploading[p.id]}
-                                onChange={(e) => {
-                                  void adicionarArquivos(p.id, p.tipo, e.target.files, true);
-                                  e.target.value = "";
-                                }}
-                              />
-                            </label>
-                            {r?.arquivo_path && (
-                              <Button
-                                variant="outline"
-                                onClick={() => removerArquivo(p.id, p.tipo, r.arquivo_path!)}
-                                disabled={!!uploading[p.id]}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" /> Remover
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-
-                      {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
-                        <div className="mt-2 space-y-2">
-                          <Input
-                            value={r?.valor_texto ?? ""}
-                            onChange={(e) =>
-                              updateResposta(p.id, { valor_texto: e.target.value })
-                            }
-                            placeholder="Sem resposta"
-                          />
-                          <MicButton
-                            currentValue={r?.valor_texto ?? ""}
-                            onTranscricao={(t) => updateResposta(p.id, { valor_texto: t })}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {renderComArvore(ps)}
               </div>
             </Card>
           );
