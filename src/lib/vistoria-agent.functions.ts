@@ -515,6 +515,8 @@ export type ChecklistVistoriaDTO = {
   resumoCadastro: { label: string; valor: string }[];
   /** Hierarquia do Escopo (para montar a árvore posto › ilha › bomba › bico). */
   entidades: { id: string; tipo: string; parentId: string | null; ordem: number; rotulo: string }[];
+  /** Orientações escritas por quem agendou (observações do agendamento). */
+  orientacoes: string | null;
   etapas: ChecklistEtapaDTO[];
 };
 
@@ -592,6 +594,7 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       formularioNome: ctxAtual.formularioNome,
       iniciado,
       resumoCadastro: ctxAtual.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
+      orientacoes: ctxAtual.cadastro.find((f) => f.label === "Observações do agendamento")?.valor ?? null,
       entidades: ctxAtual.entidades.map((e) => ({
         id: e.id,
         tipo: e.tipo,

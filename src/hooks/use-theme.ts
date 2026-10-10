@@ -1,35 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-export type Theme = "light" | "dark";
+// O sistema usa apenas o tema claro. O hook continua existindo para garantir que
+// nenhuma preferência antiga (localStorage "ionics-theme" ou tema do sistema)
+// reative o modo escuro.
 const STORAGE_KEY = "ionics-theme";
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-export function applyTheme(theme: Theme) {
-  if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
-}
-
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => getInitialTheme());
-
   useEffect(() => {
-    applyTheme(theme);
+    document.documentElement.classList.remove("dark");
     try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
+      window.localStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore
     }
-  }, [theme]);
-
-  return {
-    theme,
-    setTheme,
-    toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
-  };
+  }, []);
 }

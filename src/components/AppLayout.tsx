@@ -11,9 +11,7 @@ import {
   History,
   LogOut,
   Menu,
-  Moon,
   Settings,
-  Sun,
   CalendarDays,
   ClipboardList,
   Bot,
@@ -75,7 +73,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { config } = useConfiguracoesEmpresa();
-  const { theme, toggle: toggleTheme } = useTheme();
+  useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -276,14 +274,6 @@ export function AppLayout() {
             </div>
             <div className="flex items-center gap-2">
               <NotificacoesBell />
-              <button
-                onClick={toggleTheme}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-muted"
-                aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
-                title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
               <button
                 onClick={handleLogout}
                 className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"

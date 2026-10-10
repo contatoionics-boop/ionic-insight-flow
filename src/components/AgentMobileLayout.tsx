@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, ClipboardList, LogOut, Moon, Sun, User } from "lucide-react";
+import { ArrowLeft, ClipboardList, LogOut, User } from "lucide-react";
 
 import { NotificacoesBell } from "@/components/NotificacoesBell";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,7 +19,7 @@ export function AgentMobileLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { config } = useConfiguracoesEmpresa();
-  const { theme, toggle: toggleTheme } = useTheme();
+  useTheme();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nomeEmpresa = config?.nome_empresa || "Ionics";
   const displayName = auth.profile?.nome || auth.email || "Agente";
@@ -65,13 +65,6 @@ export function AgentMobileLayout() {
         </div>
         <div className="flex items-center gap-1">
           <NotificacoesBell />
-          <button
-            onClick={toggleTheme}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground hover:bg-muted"
-            aria-label="Alternar tema"
-          >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </button>
           <button
             onClick={handleLogout}
             className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground hover:bg-muted"

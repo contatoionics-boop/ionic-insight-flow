@@ -837,6 +837,23 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     ? ctx.cadastro.map((c) => `- ${c.label}: ${c.valor}`).join("\n")
     : "- (nenhum dado de cadastro disponível)";
 
+  const contagemTipo = (t: string) => ctx.entidades.filter((e) => e.tipo === t).length;
+  const estruturaPartes = [
+    ["posto", "posto(s)"],
+    ["ilha", "ilha(s)"],
+    ["bomba", "bomba(s)"],
+    ["bico", "bico(s)"],
+    ["tanque", "tanque(s)"],
+    ["sonda", "sonda(s)"],
+    ["comboio", "comboio(s)"],
+  ]
+    .map(([t, r]) => (contagemTipo(t) ? `${contagemTipo(t)} ${r}` : null))
+    .filter(Boolean);
+  if (contagemTipo("frota")) estruturaPartes.push("Frota/DIV");
+  const estruturaBloco = estruturaPartes.length
+    ? `Estrutura do escopo definida no agendamento: ${estruturaPartes.join(", ")}. Mapeie apenas o que consta nela.`
+    : null;
+
   return [
     `# ESTADO OFICIAL (fonte da verdade — recalculado pelo servidor neste turno)`,
     `- Obrigatórias respondidas: ${pend.respondidasObrigatorias}/${pend.totalObrigatorias}`,
@@ -866,6 +883,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `## Dados já cadastrados no mapeamento (NÃO pergunte sobre eles)`,
     `Os dados abaixo já foram informados no cadastro deste mapeamento e você já os conhece. **Não pergunte novamente.** Se uma pergunta do formulário pedir um desses dados, pule-a salvando diretamente com \`salvar_resposta\` usando o valor já conhecido, e siga para a próxima pendente. Se o usuário pedir para revisar, responda diretamente com o valor abaixo.`,
     cadastroBloco,
+    ...(estruturaBloco ? [``, estruturaBloco] : []),
     ``,
     `## Regras de conversa`,
     `- Idioma: português do Brasil. Tom: formal técnico ("Por favor, informe…", "Poderia confirmar…").`,

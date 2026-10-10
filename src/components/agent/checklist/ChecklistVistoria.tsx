@@ -32,6 +32,7 @@ import {
   respondida,
   rotuloStatus,
 } from "@/lib/vistoria-checklist";
+import { ResumoEscopo } from "@/components/escopo/ResumoEscopo";
 import { contarPorEntidade } from "@/lib/escopo/arvore-perguntas";
 import type { EntidadeEscopo, TipoEntidade } from "@/lib/escopo/tipos";
 import {
@@ -47,6 +48,51 @@ type Props = {
   onFinalized?: () => void;
   onTrocarModo?: () => void;
 };
+
+/** Escopo definido no agendamento + orientações, recolhível (estado lembrado por caso). */
+function CartaoEscopo({
+  casoId,
+  entidades,
+  orientacoes,
+}: {
+  casoId: string;
+  entidades: ChecklistVistoriaDTO["entidades"];
+  orientacoes: string | null;
+}) {
+  const chave = `escopo-card:${casoId}`;
+  const [aberto, setAberto] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(chave) === "fechado") setAberto(false);
+    } catch {
+      /* sem armazenamento: segue aberto */
+    }
+  }, [chave]);
+  const alternar = () => {
+    setAberto((v) => {
+      try {
+        localStorage.setItem(chave, v ? "fechado" : "aberto");
+      } catch {
+        /* ignorado */
+      }
+      return !v;
+    });
+  };
+  return (
+    <section className="mt-3 rounded-xl border border-border bg-card p-3">
+      <button
+        type="button"
+        onClick={alternar}
+        aria-expanded={aberto}
+        className="flex w-full items-center justify-between gap-2 text-left text-sm font-medium text-foreground"
+      >
+        <span>Escopo e orientações</span>
+        <span className="text-xs font-normal text-primary">{aberto ? "Recolher" : "Ver"}</span>
+      </button>
+      {aberto && <ResumoEscopo className="mt-2" entidades={entidades} orientacoes={orientacoes} />}
+    </section>
+  );
+}
 
 export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: Props) {
   const carregar = useServerFn(getChecklistVistoria);
@@ -363,6 +409,14 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           </Button>
         </div>
       </header>
+
+      {(dados.entidades.length > 0 || dados.orientacoes?.trim()) && (
+        <CartaoEscopo
+          casoId={dados.casoId}
+          entidades={dados.entidades}
+          orientacoes={dados.orientacoes}
+        />
+      )}
 
       <div className="mt-3 rounded-xl border border-border bg-card p-3">
         <div className="flex items-center justify-between gap-3 text-sm">

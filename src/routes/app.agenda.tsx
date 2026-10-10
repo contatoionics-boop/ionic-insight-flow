@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { ResumoEscopoCaso } from "@/components/escopo/ResumoEscopoCaso";
 import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
 import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
@@ -347,7 +348,7 @@ function AgendaPage() {
 
       {sel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSel(null)}>
-          <Card className="w-full max-w-md" >
+          <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto" >
             <div onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-muted-foreground">{sel.codigo}</span>
@@ -379,9 +380,7 @@ function AgendaPage() {
                 )}
                 {sel.endereco_vistoria && <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {sel.endereco_vistoria}</p>}
               </div>
-              {sel.observacoes_agendamento && (
-                <p className="mt-2 rounded bg-muted/40 p-2 text-xs italic">{sel.observacoes_agendamento}</p>
-              )}
+              <ResumoEscopoCaso className="mt-3" casoId={sel.id} orientacoes={sel.observacoes_agendamento} />
               <div className="mt-4 flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSel(null)}>Fechar</Button>
                 {sel.status !== "cancelado" && sel.status !== "aprovado" && sel.status !== "concluido" && (
@@ -424,11 +423,11 @@ function AgendaPage() {
                 <Input value={edEndereco} onChange={(e) => setEdEndereco(e.target.value)} />
               </div>
               <div>
-                <Label>Observações</Label>
+                <Label>Orientações para o agente</Label>
                 <textarea
                   value={edObs}
                   onChange={(e) => setEdObs(e.target.value)}
-                  rows={3}
+                  rows={5}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>

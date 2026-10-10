@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { ResumoEscopoCaso } from "@/components/escopo/ResumoEscopoCaso";
 import { ArrowLeft, CalendarDays, MapPin, FileText, User, Building2, CheckCircle2, XCircle, ExternalLink, UserPlus } from "lucide-react";
 import { PageHeader, Card, Badge, Button, Label, Select } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
@@ -335,11 +336,7 @@ function VistoriaDetalhesPage() {
             {erroAtribuicao && <p className="mt-2 text-xs text-destructive">{erroAtribuicao}</p>}
           </div>
         )}
-        {caso.observacoes_agendamento && (
-          <p className="mt-3 rounded-md bg-muted/50 p-3 text-xs italic text-muted-foreground">
-            {caso.observacoes_agendamento}
-          </p>
-        )}
+        <ResumoEscopoCaso className="mt-3" casoId={caso.id} orientacoes={caso.observacoes_agendamento} />
 
         <div className="mt-5">
           <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">

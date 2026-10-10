@@ -1,10 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Card, PageHeader, Button } from "@/components/ui-bits";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
 import { roleLabels } from "@/lib/auth";
-import { LogOut, Moon, Sun } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export const Route = createFileRoute("/app/agente-perfil")({
   component: PerfilPage,
@@ -13,7 +12,6 @@ export const Route = createFileRoute("/app/agente-perfil")({
 function PerfilPage() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const { theme, toggle } = useTheme();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -39,19 +37,6 @@ function PerfilPage() {
             )}
           </div>
         </div>
-      </Card>
-
-      <Card>
-        <button
-          onClick={toggle}
-          className="flex w-full items-center justify-between py-2 text-left text-sm font-medium text-foreground"
-        >
-          <span className="flex items-center gap-2">
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            Tema {theme === "dark" ? "claro" : "escuro"}
-          </span>
-          <span className="text-xs text-muted-foreground">Tocar para alternar</span>
-        </button>
       </Card>
 
       <Button variant="destructive" className="w-full" onClick={handleLogout}>

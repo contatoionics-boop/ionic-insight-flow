@@ -12,6 +12,7 @@ import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
+import { montarOrientacoes } from "@/lib/escopo/orientacoes";
 import { arvoreVazia, type ArvoreEscopo } from "@/lib/escopo/tipos";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -141,6 +142,21 @@ function NewCasePage() {
   const [hora, setHora] = useState("09:00");
   const [endereco, setEndereco] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
+  /** Rascunho das orientações; se já houver texto digitado, pede confirmação antes de acrescentar. */
+  function gerarOrientacoes() {
+    const rascunho = montarOrientacoes(escopoPrevia, estrutura, escopoModo === "manual" ? escopoManualTexto : "");
+    if (!rascunho) {
+      setError("Defina a estrutura ou o escopo antes de gerar o resumo.");
+      return;
+    }
+    if (observacoes.trim()) {
+      if (!window.confirm("Já existe texto nas orientações. Acrescentar o resumo ao final?")) return;
+      setObservacoes(`${observacoes.trim()}\n\n${rascunho}`);
+    } else {
+      setObservacoes(rascunho);
+    }
+  }
 
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -597,79 +613,7 @@ function NewCasePage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <Label>Formulário obrigatório ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
-              <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
-                {forms.length === 0 ? (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
-                ) : (
-                  forms.map((f) => (
-                    <label
-                      key={f.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formIds.includes(f.id)}
-                        onChange={() => toggleForm(f.id)}
-                        disabled={forms.length === 1}
-                        aria-label={`Selecionar formulário ${f.nome}`}
-                        className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
-                      />
-                      <span className="text-foreground">{f.nome}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {forms.length === 1
-                  ? "O único formulário ativo já foi selecionado automaticamente."
-                  : "Selecione ao menos um formulário. Cada opção gera um mapeamento independente."}
-              </p>
-            </div>
-            <div>
-              <Label required>Responsável pelo mapeamento</Label>
-              <Select
-                value={agentId}
-                onChange={(e) => setAgentId(e.target.value)}
-                required
-                className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
-              >
-                <option value="">
-                  Selecione um agente técnico ou especialista
-                </option>
-                {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">Todo mapeamento precisa nascer atribuído a um responsável cadastrado.</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
-                <Label>Data</Label>
-                <div className={conflito ? "rounded-md border border-destructive ring-1 ring-destructive" : undefined}>
-                  <DatePicker value={data} onChange={setData} />
-                </div>
-              </div>
-              <div>
-                <Label>Hora</Label>
-                <Input type="time" value={hora} onChange={(e) => setHora(e.target.value)} required />
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <Label>Endereço do mapeamento</Label>
-              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade ou matriz" />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Observações para o agente técnico</Label>
-              <textarea
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Instruções, ponto de referência, contato no local..."
-              />
-            </div>
+          <div className="grid gap-4">
             <div className="md:col-span-2">
               <Label>Escopo comercial</Label>
               <div className="mb-2 inline-flex rounded-md border border-border bg-card p-0.5 text-xs">
@@ -782,6 +726,89 @@ function NewCasePage() {
               )}
             </div>
             <EstruturaEscopo value={estrutura} onChange={setEstrutura} disabled={working} />
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Orientações para o agente</Label>
+              <Button type="button" variant="outline" onClick={gerarOrientacoes}>
+                Gerar resumo a partir do escopo
+              </Button>
+            </div>
+            <textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              rows={5}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Resumo do que é esperado no local, prioridades, ponto de referência, contato, cuidados..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Aparece para o agente no checklist e na agenda, com ou sem proposta. O botão monta um rascunho que você pode editar.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Formulário obrigatório ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
+              <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
+                {forms.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
+                ) : (
+                  forms.map((f) => (
+                    <label
+                      key={f.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formIds.includes(f.id)}
+                        onChange={() => toggleForm(f.id)}
+                        disabled={forms.length === 1}
+                        aria-label={`Selecionar formulário ${f.nome}`}
+                        className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
+                      />
+                      <span className="text-foreground">{f.nome}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {forms.length === 1
+                  ? "O único formulário ativo já foi selecionado automaticamente."
+                  : "Selecione ao menos um formulário. Cada opção gera um mapeamento independente."}
+              </p>
+            </div>
+            <div>
+              <Label required>Responsável pelo mapeamento</Label>
+              <Select
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                required
+                className={conflito ? "border-destructive ring-1 ring-destructive" : undefined}
+              >
+                <option value="">
+                  Selecione um agente técnico ou especialista
+                </option>
+                {agents.map((a) => <option key={a.id} value={a.id}>{a.nome || "(sem nome)"}</option>)}
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">Todo mapeamento precisa nascer atribuído a um responsável cadastrado.</p>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Endereço do mapeamento</Label>
+              <Input value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Auto-preenchido pela unidade ou matriz" />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2">
+                <Label>Data</Label>
+                <div className={conflito ? "rounded-md border border-destructive ring-1 ring-destructive" : undefined}>
+                  <DatePicker value={data} onChange={setData} />
+                </div>
+              </div>
+              <div>
+                <Label>Hora</Label>
+                <Input type="time" value={hora} onChange={(e) => setHora(e.target.value)} required />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3">
