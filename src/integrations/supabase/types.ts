@@ -230,13 +230,13 @@ export type Database = {
           codigo: string
           criado_em: string
           criado_por: string | null
-          escopo_versao_id: string | null
           data_aprovacao_pablo: string | null
           data_entrega_agente: string | null
           data_execucao: string | null
           divergencias_proposta: Json
           duracao_min: number
           endereco_vistoria: string | null
+          escopo_versao_id: string | null
           formulario_id: string | null
           id: string
           laudo_alertas: Json
@@ -260,13 +260,13 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
-          escopo_versao_id?: string | null
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
           divergencias_proposta?: Json
           duracao_min?: number
           endereco_vistoria?: string | null
+          escopo_versao_id?: string | null
           formulario_id?: string | null
           id?: string
           laudo_alertas?: Json
@@ -290,13 +290,13 @@ export type Database = {
           codigo?: string
           criado_em?: string
           criado_por?: string | null
-          escopo_versao_id?: string | null
           data_aprovacao_pablo?: string | null
           data_entrega_agente?: string | null
           data_execucao?: string | null
           divergencias_proposta?: Json
           duracao_min?: number
           endereco_vistoria?: string | null
+          escopo_versao_id?: string | null
           formulario_id?: string | null
           id?: string
           laudo_alertas?: Json
@@ -331,6 +331,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casos_escopo_versao_id_fkey"
+            columns: ["escopo_versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
             referencedColumns: ["id"]
           },
           {
@@ -524,6 +531,231 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      escopo_alteracoes: {
+        Row: {
+          acao: string
+          antes: Json | null
+          criado_em: string
+          depois: Json | null
+          entidade_id: string | null
+          id: string
+          versao_id: string
+        }
+        Insert: {
+          acao: string
+          antes?: Json | null
+          criado_em?: string
+          depois?: Json | null
+          entidade_id?: string | null
+          id?: string
+          versao_id: string
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          criado_em?: string
+          depois?: Json | null
+          entidade_id?: string | null
+          id?: string
+          versao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escopo_alteracoes_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_alteracoes_versao_id_fkey"
+            columns: ["versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escopo_entidades: {
+        Row: {
+          ativo: boolean
+          caso_origem_id: string | null
+          criada_na_versao_id: string | null
+          criado_em: string
+          dados: Json
+          desativada_na_versao_id: string | null
+          id: string
+          ordem: number
+          parent_id: string | null
+          rotulo: string
+          tipo: string
+          unidade_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          caso_origem_id?: string | null
+          criada_na_versao_id?: string | null
+          criado_em?: string
+          dados?: Json
+          desativada_na_versao_id?: string | null
+          id?: string
+          ordem?: number
+          parent_id?: string | null
+          rotulo: string
+          tipo: string
+          unidade_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          caso_origem_id?: string | null
+          criada_na_versao_id?: string | null
+          criado_em?: string
+          dados?: Json
+          desativada_na_versao_id?: string | null
+          id?: string
+          ordem?: number
+          parent_id?: string | null
+          rotulo?: string
+          tipo?: string
+          unidade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escopo_entidades_caso_origem_id_fkey"
+            columns: ["caso_origem_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_entidades_criada_na_versao_id_fkey"
+            columns: ["criada_na_versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_entidades_desativada_na_versao_id_fkey"
+            columns: ["desativada_na_versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_entidades_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_entidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_entidades_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escopo_frota_itens: {
+        Row: {
+          criado_em: string
+          id: string
+          info: Json
+          modelo_veiculo: string
+          ordem: number
+          quantidade: number
+          versao_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          info?: Json
+          modelo_veiculo: string
+          ordem?: number
+          quantidade?: number
+          versao_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          info?: Json
+          modelo_veiculo?: string
+          ordem?: number
+          quantidade?: number
+          versao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escopo_frota_itens_versao_id_fkey"
+            columns: ["versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escopo_versoes: {
+        Row: {
+          base_versao_id: string | null
+          caso_origem_id: string | null
+          config: Json
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          numero: number
+          tipo: string
+          unidade_id: string | null
+        }
+        Insert: {
+          base_versao_id?: string | null
+          caso_origem_id?: string | null
+          config?: Json
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          tipo?: string
+          unidade_id?: string | null
+        }
+        Update: {
+          base_versao_id?: string | null
+          caso_origem_id?: string | null
+          config?: Json
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          tipo?: string
+          unidade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escopo_versoes_base_versao_id_fkey"
+            columns: ["base_versao_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_versoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_versoes_caso_origem_id_fkey"
+            columns: ["caso_origem_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escopo_versoes_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       formularios: {
         Row: {
@@ -980,12 +1212,12 @@ export type Database = {
           bloco_id: string | null
           bloco_linha: string | null
           chave_laudo: string | null
-          entidade_tipo: string
           condicional_operador: string | null
           condicional_pergunta_id: string | null
           condicional_valor: string | null
           contexto_ia: string | null
           criado_em: string
+          entidade_tipo: string
           id: string
           instrucao_agente: string | null
           obrigatoria: boolean
@@ -999,12 +1231,12 @@ export type Database = {
           bloco_id?: string | null
           bloco_linha?: string | null
           chave_laudo?: string | null
-          entidade_tipo?: string
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
           contexto_ia?: string | null
           criado_em?: string
+          entidade_tipo?: string
           id?: string
           instrucao_agente?: string | null
           obrigatoria?: boolean
@@ -1018,12 +1250,12 @@ export type Database = {
           bloco_id?: string | null
           bloco_linha?: string | null
           chave_laudo?: string | null
-          entidade_tipo?: string
           condicional_operador?: string | null
           condicional_pergunta_id?: string | null
           condicional_valor?: string | null
           contexto_ia?: string | null
           criado_em?: string
+          entidade_tipo?: string
           id?: string
           instrucao_agente?: string | null
           obrigatoria?: boolean
@@ -1115,8 +1347,8 @@ export type Database = {
       }
       propostas_comerciais: {
         Row: {
-          arquivo_nome: string
-          arquivo_path: string
+          arquivo_nome: string | null
+          arquivo_path: string | null
           atualizado_em: string
           caso_id: string
           criado_em: string
@@ -1124,13 +1356,15 @@ export type Database = {
           erro_mensagem: string | null
           escopo: Json
           id: string
+          origem: string
           status: string
           tamanho_bytes: number | null
           texto_extraido: string | null
+          texto_manual: string | null
         }
         Insert: {
-          arquivo_nome: string
-          arquivo_path: string
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
           atualizado_em?: string
           caso_id: string
           criado_em?: string
@@ -1138,13 +1372,15 @@ export type Database = {
           erro_mensagem?: string | null
           escopo?: Json
           id?: string
+          origem?: string
           status?: string
           tamanho_bytes?: number | null
           texto_extraido?: string | null
+          texto_manual?: string | null
         }
         Update: {
-          arquivo_nome?: string
-          arquivo_path?: string
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
           atualizado_em?: string
           caso_id?: string
           criado_em?: string
@@ -1152,9 +1388,11 @@ export type Database = {
           erro_mensagem?: string | null
           escopo?: Json
           id?: string
+          origem?: string
           status?: string
           tamanho_bytes?: number | null
           texto_extraido?: string | null
+          texto_manual?: string | null
         }
         Relationships: [
           {
@@ -1173,7 +1411,7 @@ export type Database = {
           caso_id: string
           criado_em: string
           entidade_id: string | null
-          entidade_key: string
+          entidade_key: string | null
           ia_aprovado: boolean | null
           ia_motivo: string | null
           id: string
@@ -1188,6 +1426,7 @@ export type Database = {
           caso_id: string
           criado_em?: string
           entidade_id?: string | null
+          entidade_key?: string | null
           ia_aprovado?: boolean | null
           ia_motivo?: string | null
           id?: string
@@ -1202,6 +1441,7 @@ export type Database = {
           caso_id?: string
           criado_em?: string
           entidade_id?: string | null
+          entidade_key?: string | null
           ia_aprovado?: boolean | null
           ia_motivo?: string | null
           id?: string
@@ -1216,6 +1456,13 @@ export type Database = {
             columns: ["caso_id"]
             isOneToOne: false
             referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respostas_agente_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_entidades"
             referencedColumns: ["id"]
           },
           {
