@@ -238,17 +238,111 @@ async function notificarUsuarios(
   await supabaseAdmin.from("notificacoes").insert(rows);
 }
 
+/** Apenas gestores (super_admin/admin/especialista) revisam, aprovam ou pedem correção. */
+async function exigirRevisor(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["super_admin", "admin", "especialista"]);
+  if (!roles?.length) throw new Error("Seu perfil não tem permissão para revisar mapeamentos.");
+}
+
+export type DecisaoDivergencia = "aceitar_campo" | "manter_proposta";
+
+export type DecisaoDivergenciaRow = {
+  codigo: string;
+  decisao: DecisaoDivergencia;
+  ator_nome: string | null;
+  ocorrido_em: string;
+};
+
+const KIND_DECISAO = "divergencia_decisao";
+
+/**
+ * Decisões do especialista sobre divergências Proposta × Campo. Só registram a
+ * decisão (quem, quando, o quê) no histórico do mapeamento; não alteram proposta,
+ * respostas nem laudo. Reaproveita o log de eventos (tipo "observacao_adicionada").
+ */
+export const decidirDivergencia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        codigo: z.string().min(1).max(100),
+        titulo: z.string().max(300).optional(),
+        decisao: z.enum(["aceitar_campo", "manter_proposta", "desfazer"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirRevisor(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: caso } = await supabaseAdmin
+      .from("casos")
+      .select("id")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (!caso) throw new Error("Mapeamento não encontrado");
+    const rotulo = data.titulo ? `«${data.titulo}»` : data.codigo;
+    const texto =
+      data.decisao === "aceitar_campo"
+        ? `Divergência ${rotulo}: aceito o que o agente encontrou em campo.`
+        : data.decisao === "manter_proposta"
+          ? `Divergência ${rotulo}: mantida a proposta.`
+          : `Divergência ${rotulo}: decisão desfeita.`;
+    await registrarEvento({
+      casoId: data.casoId,
+      tipo: "observacao_adicionada",
+      atorId: context.userId,
+      metadata: { kind: KIND_DECISAO, codigo: data.codigo, decisao: data.decisao, texto },
+    });
+    return { ok: true };
+  });
+
+/** Decisão vigente (a mais recente, ignorando as desfeitas) de cada divergência do caso. */
+export const listarDecisoesDivergencia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ casoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<DecisaoDivergenciaRow[]> => {
+    await exigirRevisor(context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("mapeamento_eventos")
+      .select("ocorrido_em, ator_nome, metadata")
+      .eq("caso_id", data.casoId)
+      .eq("tipo", "observacao_adicionada")
+      .order("ocorrido_em", { ascending: false });
+    if (error) throw new Error(error.message);
+    const vistos = new Set<string>();
+    const out: DecisaoDivergenciaRow[] = [];
+    for (const r of (rows ?? []) as { ocorrido_em: string; ator_nome: string | null; metadata: any }[]) {
+      const m = r.metadata ?? {};
+      if (m.kind !== KIND_DECISAO || !m.codigo || vistos.has(m.codigo)) continue;
+      vistos.add(m.codigo);
+      if (m.decisao === "aceitar_campo" || m.decisao === "manter_proposta") {
+        out.push({ codigo: m.codigo, decisao: m.decisao, ator_nome: r.ator_nome, ocorrido_em: r.ocorrido_em });
+      }
+    }
+    return out;
+  });
+
 export const aprovarMapeamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ casoId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirRevisor(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: caso, error: e1 } = await supabaseAdmin
       .from("casos")
-      .select("id, codigo, criado_por, agente_id")
+      .select("id, codigo, criado_por, agente_id, status")
       .eq("id", data.casoId)
       .maybeSingle();
     if (e1 || !caso) throw new Error(e1?.message ?? "Mapeamento não encontrado");
+    if (caso.status !== "aguardando_revisao")
+      throw new Error("O mapeamento só pode ser aprovado depois que o agente o entregar.");
 
     const { error } = await supabaseAdmin
       .from("casos")
@@ -274,13 +368,16 @@ export const solicitarCorrecao = createServerFn({ method: "POST" })
     z.object({ casoId: z.string().uuid(), motivo: z.string().min(1).max(2000) }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirRevisor(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: caso, error: e1 } = await supabaseAdmin
       .from("casos")
-      .select("id, codigo, criado_por, agente_id")
+      .select("id, codigo, criado_por, agente_id, status")
       .eq("id", data.casoId)
       .maybeSingle();
     if (e1 || !caso) throw new Error(e1?.message ?? "Mapeamento não encontrado");
+    if (caso.status !== "aguardando_revisao")
+      throw new Error("A correção só pode ser solicitada depois que o agente entregar o mapeamento.");
 
     const { error } = await supabaseAdmin
       .from("casos")

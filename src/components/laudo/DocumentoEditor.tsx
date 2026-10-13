@@ -1196,7 +1196,7 @@ export function DocumentoEditor({
     return (
       <Card className="p-5">
         <p className="text-sm text-muted-foreground">
-          Clique em “Gerar laudo” para montar o documento a partir das respostas.
+          Clique em “Gerar rascunho” para montar o documento a partir das respostas.
         </p>
       </Card>
     );

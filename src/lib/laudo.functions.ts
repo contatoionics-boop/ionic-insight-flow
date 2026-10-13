@@ -351,7 +351,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     const conteudo = caso.laudo_conteudo as unknown as LaudoConteudo | null;
     if (!conteudo?.blocos?.length) {
       throw new Error(
-        "O documento ainda não foi gerado. Clique em “Gerar laudo” para criar o rascunho, revise e salve antes de emitir o PDF.",
+        "O documento ainda não foi gerado. Clique em “Gerar rascunho” para criar o rascunho, revise e salve antes de emitir o PDF.",
       );
     }
 

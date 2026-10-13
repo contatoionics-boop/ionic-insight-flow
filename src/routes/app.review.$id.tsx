@@ -29,6 +29,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
 import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
 import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
+import { ProntidaoRevisao, pendenciasDeRevisao } from "@/components/revisao/ProntidaoRevisao";
+import { ResumoEscopo } from "@/components/escopo/ResumoEscopo";
+import { statusLabels, type CaseStatus } from "@/lib/casos";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
@@ -36,8 +39,6 @@ import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
 import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import type { EntidadeEscopo } from "@/lib/escopo/tipos";
-import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
-import { contarPorEntidade, montarArvore } from "@/lib/escopo/arvore-perguntas";
 
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -49,6 +50,7 @@ type Caso = {
   codigo: string;
   status: string;
   formulario_id: string | null;
+  observacoes_agendamento: string | null;
   unidade: {
     nome: string;
     matriz: { nome: string; empresa: { nome: string } | null } | null;
@@ -97,10 +99,36 @@ function ReviewCasePage() {
   const [estadoDoc, setEstadoDoc] = useState<EstadoDocumento | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfMenu, setPdfMenu] = useState(false);
+  const [maisMenu, setMaisMenu] = useState(false);
+  // Fecha os menus (PDF / Mais) ao clicar fora ou pressionar Esc.
+  useEffect(() => {
+    if (!maisMenu && !pdfMenu) return;
+    const fora = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest("[data-menu]")) {
+        setMaisMenu(false);
+        setPdfMenu(false);
+      }
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMaisMenu(false);
+        setPdfMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", fora);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fora);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [maisMenu, pdfMenu]);
   const [divergencias, setDivergencias] = useState(0);
   const [alertasTecnicos, setAlertasTecnicos] = useState(0);
+  const [diferencasEstrutura, setDiferencasEstrutura] = useState(0);
+  const [divergenciasDecididas, setDivergenciasDecididas] = useState(0);
+  const [abrirDivergencias, setAbrirDivergencias] = useState(0);
+  const [cienteDasPendencias, setCienteDasPendencias] = useState(false);
 
-  const [modoRespostas, setModoRespostas] = useState<"leitura" | "editar">("leitura");
   const { abrir: abrirImagem, elemento: lightboxEdicao } = useImagemLightbox();
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<Caso | null>(null);
@@ -132,7 +160,7 @@ function ReviewCasePage() {
       const { data: c } = await supabase
         .from("casos")
         .select(
-          "id, codigo, status, formulario_id, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)",
+          "id, codigo, status, formulario_id, observacoes_agendamento, unidade:unidades(nome, matriz:matrizes(nome, empresa:empresas(nome))), agente:profiles!agente_id(nome)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -306,20 +334,6 @@ function ReviewCasePage() {
     return m;
   }, [perguntasVisiveis]);
 
-  // Progresso por entidade ("Bomba 02 — 3 de 7 respondidas"), considerando o formulário inteiro.
-  const contagemEntidades = useMemo(
-    () =>
-      contarPorEntidade(
-        entidades,
-        perguntasVisiveis,
-        (p) => p.entidade_id,
-        (p) => {
-          const r = respostas[p.id];
-          return !!r && (arquivosDe(r).length > 0 || !!r.valor_texto?.trim() || !!r.transcricao?.trim());
-        },
-      ),
-    [entidades, perguntasVisiveis, respostas],
-  );
 
   const updateResposta = (
     perguntaId: string,
@@ -804,20 +818,40 @@ function ReviewCasePage() {
     );
   };
 
-  // Gerais no topo; depois a árvore de entidades (posto › ilha › bomba › bico, comboios, frota).
-  const renderComArvore = (ps: Pergunta[]) => {
-    const { gerais, grupos } = montarArvore(entidades, ps, (p) => p.entidade_id, contagemEntidades);
-    const lista = (xs: Pergunta[]) => <div className="space-y-5">{xs.map(renderPerguntaEdicao)}</div>;
-    return (
-      <div className="space-y-6">
-        {gerais.length > 0 && lista(gerais)}
-        <ArvorePerguntas grupos={grupos} renderPerguntas={lista} />
-      </div>
-    );
-  };
 
   const podePdf = tab === "documento" ? !estadoDoc?.motivoPdf : true;
   const motivoPdf = tab === "documento" ? (estadoDoc?.motivoPdf ?? null) : null;
+
+  // Aprovar / solicitar reenvio só depois que o agente entregou.
+  const entregue = caseData.status === "aguardando_revisao";
+  const statusRotulo = statusLabels[caseData.status as CaseStatus] ?? caseData.status.replace(/_/g, " ");
+  const motivoBloqueioAcoes = entregue
+    ? null
+    : `O agente ainda não entregou o mapeamento (status: ${statusRotulo}).`;
+  const prontidao = {
+    entregue,
+    statusRotulo,
+    respondidas: statsRespostas.ok,
+    total: statsRespostas.total,
+    divergencias,
+    divergenciasDecididas,
+    diferencasEstrutura,
+    alertasTecnicos,
+    pontosAConfirmar: estadoDoc ? estadoDoc.pendencias + estadoDoc.alertasPendentes : null,
+  };
+  const pendenciasAprovacao = pendenciasDeRevisao(prontidao);
+  const irParaDivergencias = () => {
+    setTab("conferencia");
+    setAbrirDivergencias((k) => k + 1);
+  };
+  const irParaDocumento = () => setTab("documento");
+  const entidadesResumo = entidades.map((e) => ({
+    id: e.id,
+    tipo: e.tipo,
+    parentId: e.parent_id,
+    ordem: e.ordem,
+    rotulo: e.rotulo,
+  }));
 
   return (
     <div className="pb-4">
@@ -843,42 +877,32 @@ function ReviewCasePage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
-              Status: {caseData.status.replace(/_/g, " ")}
+              Status: {statusRotulo}
             </span>
-            {tab === "documento" && estadoDoc && estadoDoc.pendencias + estadoDoc.alertasPendentes > 0 && (
-              <button
-                type="button"
-                onClick={estadoDoc.abrirPendencias}
-                className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300"
-              >
-                {estadoDoc.pendencias + estadoDoc.alertasPendentes} ponto(s) a confirmar
-              </button>
-            )}
           </div>
         </div>
       </Card>
 
       {/* barra de ações única */}
       <div className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 px-3 py-2 shadow-sm backdrop-blur">
-        <div className="flex flex-1 flex-wrap gap-1">
+        <div className="flex flex-1 gap-1">
           {(
             [
-              ["conferencia", "1. Conferência do mapeamento", "1. Conferência"],
-              ["documento", "2. Documento final", "2. Documento"],
+              ["conferencia", "1. Conferência"],
+              ["documento", "2. Documento"],
             ] as const
-          ).map(([key, label, curto]) => (
+          ).map(([key, label]) => (
             <button
               key={key}
               type="button"
               onClick={() => setTab(key)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 tab === key
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              <span className="hidden sm:inline">{label}</span>
-              <span className="sm:hidden">{curto}</span>
+              {label}
             </button>
           ))}
         </div>
@@ -910,10 +934,13 @@ function ReviewCasePage() {
             Salvar
           </Button>
 
-          <div className="relative">
+          <div className="relative" data-menu>
             <Button
               variant="outline"
-              onClick={() => setPdfMenu((v) => !v)}
+              onClick={() => {
+                setMaisMenu(false);
+                setPdfMenu((v) => !v);
+              }}
               disabled={downloading || !podePdf}
               title={motivoPdf ?? undefined}
             >
@@ -951,16 +978,72 @@ function ReviewCasePage() {
             )}
           </div>
 
-          <Button variant="outline" onClick={() => setReopenOpen(true)}>
-            <AlertCircle className="h-4 w-4" /> Solicitar reenvio
-          </Button>
-          <Button variant="success" onClick={() => setApproveOpen(true)}>
+          <div className="relative" data-menu>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPdfMenu(false);
+                setMaisMenu((v) => !v);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={maisMenu}
+            >
+              Mais
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            {maisMenu && (
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-md border border-border bg-card shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!entregue}
+                  title={motivoBloqueioAcoes ?? undefined}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    setMaisMenu(false);
+                    setReopenOpen(true);
+                  }}
+                >
+                  <AlertCircle className="h-4 w-4" /> Solicitar reenvio ao agente
+                </button>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="success"
+            onClick={() => {
+              setCienteDasPendencias(false);
+              setApproveOpen(true);
+            }}
+            disabled={!entregue}
+            title={motivoBloqueioAcoes ?? undefined}
+          >
             <Check className="h-4 w-4" /> Aprovar
           </Button>
         </div>
+        {motivoBloqueioAcoes ? (
+          <p className="w-full text-xs text-muted-foreground">
+            Aprovar e solicitar reenvio ficam disponíveis após a entrega do agente.
+          </p>
+        ) : null}
         {motivoPdf ? (
-          <p className="w-full text-[11px] text-amber-600 dark:text-amber-400">
+          <p className="w-full text-xs text-amber-700">
             PDF bloqueado: {motivoPdf}
+            {estadoDoc && estadoDoc.pendencias + estadoDoc.alertasPendentes > 0 ? (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={estadoDoc.abrirPendencias}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  Ver pontos a confirmar
+                </button>
+              </>
+            ) : null}
           </p>
         ) : null}
       </div>
@@ -1021,59 +1104,37 @@ function ReviewCasePage() {
 
       {tab === "conferencia" && (
         <div className="space-y-4">
-          {/* chips de resumo da conferência */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-md bg-muted px-2 py-1 font-medium text-foreground">
-              {statsRespostas.ok}/{statsRespostas.total} respondidas
-            </span>
-            {statsRespostas.total - statsRespostas.ok > 0 && (
-              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
-                {statsRespostas.total - statsRespostas.ok} não respondidas
-              </span>
-            )}
-            {divergencias > 0 && (
-              <span className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300">
-                {divergencias} divergência(s)
-              </span>
-            )}
-            {alertasTecnicos > 0 && (
-              <span className="rounded-md bg-destructive/15 px-2 py-1 font-medium text-destructive">
-                {alertasTecnicos} alerta(s) técnico(s)
-              </span>
-            )}
-          </div>
+          <ProntidaoRevisao
+            dados={prontidao}
+            onDivergencias={irParaDivergencias}
+            onDocumento={irParaDocumento}
+          />
+
+          {(entidadesResumo.length > 0 || caseData.observacoes_agendamento?.trim()) && (
+            <Card>
+              <h2 className="mb-2 text-sm font-semibold text-foreground">Escopo definido no agendamento</h2>
+              <ResumoEscopo
+                entidades={entidadesResumo}
+                orientacoes={caseData.observacoes_agendamento}
+              />
+            </Card>
+          )}
 
           <ConferenciaProposta
             casoId={id}
-            onResumo={(r: { divergencias: number }) => setDivergencias(r.divergencias)}
+            entidades={entidades}
+            abrirKey={abrirDivergencias}
+            onResumo={(r) => {
+              setDivergencias(r.divergencias);
+              setDivergenciasDecididas(r.divergenciasDecididas);
+              setDiferencasEstrutura(r.diferencasEstrutura);
+            }}
           />
 
-          <div className="inline-flex rounded-md border border-border bg-card p-0.5">
-            {(
-              [
-                ["leitura", "Leitura"],
-                ["editar", "Editar respostas"],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setModoRespostas(k)}
-                className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-                  modoRespostas === k
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
-
-      {tab === "conferencia" && modoRespostas === "leitura" && (
+      {tab === "conferencia" && (
         <RespostasLeitura
           secoes={secoes}
           perguntasPorSecao={perguntasPorSecao}
@@ -1081,36 +1142,9 @@ function ReviewCasePage() {
           respostas={respostas}
           urls={fotoUrls}
           agente={caseData.agente?.nome ?? null}
+          renderEdicao={(p) => renderPerguntaEdicao(p as Pergunta)}
         />
       )}
-
-
-      <div
-        className="space-y-4"
-        hidden={tab !== "conferencia" || modoRespostas !== "editar"}
-      >
-        {secoes.length === 0 && (
-          <Card>
-            <p className="text-sm text-muted-foreground">
-              Este mapeamento não possui seções/perguntas configuradas no formulário.
-            </p>
-          </Card>
-        )}
-        {secoes.map((s) => {
-          const ps = perguntasPorSecao.get(s.id) ?? [];
-          return (
-            <Card key={s.id}>
-              <h3 className="mb-3 text-lg font-semibold text-foreground">{s.titulo}</h3>
-              {ps.length === 0 && (
-                <p className="text-sm text-muted-foreground">Sem perguntas nesta seção.</p>
-              )}
-              <div className="space-y-5">
-                {renderComArvore(ps)}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
 
       <Modal open={reopenOpen} onClose={() => setReopenOpen(false)} title="Solicitar reenvio">
         <p className="mb-3 text-sm text-muted-foreground">
@@ -1143,11 +1177,29 @@ function ReviewCasePage() {
           Confirma a aprovação do caso <strong>{caseData.codigo}</strong>? Suas alterações serão
           salvas antes da aprovação.
         </p>
+        <div className="mt-3">
+          <ProntidaoRevisao dados={prontidao} compacto />
+        </div>
+        {pendenciasAprovacao.length > 0 && (
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-amber-300/50 bg-amber-500/10 p-2.5 text-sm text-amber-800">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4"
+              checked={cienteDasPendencias}
+              onChange={(e) => setCienteDasPendencias(e.target.checked)}
+            />
+            <span>Estou ciente das pendências acima e quero aprovar mesmo assim.</span>
+          </label>
+        )}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setApproveOpen(false)} disabled={working}>
             Cancelar
           </Button>
-          <Button variant="success" onClick={approve} disabled={working}>
+          <Button
+            variant="success"
+            onClick={approve}
+            disabled={working || (pendenciasAprovacao.length > 0 && !cienteDasPendencias)}
+          >
             Confirmar aprovação
           </Button>
         </div>

@@ -391,20 +391,24 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 pb-32 pt-4 sm:px-5 lg:pb-10">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:flex-wrap sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">
+          <h1 className="break-words text-lg font-bold leading-snug text-foreground sm:text-xl">
             {dados.clienteNome}
           </h1>
-          <p className="truncate text-xs text-muted-foreground">{dados.formularioNome}</p>
+          <p className="mt-0.5 break-words text-xs text-muted-foreground">{dados.formularioNome}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
           {onTrocarModo && (
-            <Button variant="secondary" onClick={onTrocarModo}>
+            <Button variant="secondary" className="w-full sm:w-auto" onClick={onTrocarModo}>
               <MessageSquare className="h-4 w-4" /> Assistente em chat
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setAssistenteAberto(true)}>
+          <Button
+            variant="secondary"
+            className={`w-full sm:w-auto ${onTrocarModo ? "" : "col-span-2"}`}
+            onClick={() => setAssistenteAberto(true)}
+          >
             <Sparkles className="h-4 w-4" /> Ajuda
           </Button>
         </div>

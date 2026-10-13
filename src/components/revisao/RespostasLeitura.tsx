@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui-bits";
 import { ImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import {
+  AlertTriangle,
   Check,
   ChevronDown,
   Copy,
   FileText,
   ImageOff,
   Minus,
+  Pencil,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -289,8 +291,11 @@ export function RespostasLeitura({
   agente,
   data,
   entidades = [],
+  renderEdicao,
 }: {
   entidades?: EntidadeEscopo[];
+  /** Quando informado, cada resposta ganha "Editar" e troca a leitura pelo campo de edição. */
+  renderEdicao?: (p: LeituraPergunta) => ReactNode;
   secoes: LeituraSecao[];
   perguntasPorSecao: Map<string, LeituraPergunta[]>;
   respostas: Record<string, LeituraResposta>;
@@ -300,6 +305,9 @@ export function RespostasLeitura({
 }) {
   const [lightbox, setLightbox] = useState<{ url: string; legenda: string } | null>(null);
   const [sumarioAberto, setSumarioAberto] = useState(false);
+  const [soPendentes, setSoPendentes] = useState(false);
+  const [editando, setEditando] = useState<Record<string, boolean>>({});
+  const alternarEdicao = (id: string) => setEditando((e) => ({ ...e, [id]: !e[id] }));
 
   const stats = useMemo(() => {
     let total = 0;
@@ -345,6 +353,12 @@ export function RespostasLeitura({
           >
             <span className="shrink-0 text-muted-foreground">{i + 1}.</span>
             <span className="min-w-0 flex-1 truncate text-foreground">{s.titulo}</span>
+            {(st?.total ?? 0) > 0 &&
+              ((st?.ok ?? 0) === st?.total ? (
+                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-label="Seção completa" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-label="Seção com pendências" />
+              ))}
             <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
               {st?.ok ?? 0}/{st?.total ?? 0}
             </span>
@@ -366,27 +380,43 @@ export function RespostasLeitura({
 
   return (
     <div className="space-y-3">
-      <Card className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <FileText className="h-4 w-4 shrink-0 text-primary" />
-            Respostas do mapeamento em campo
+            Respostas do agente
           </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {agente ? `Agente: ${agente}` : "Agente não informado"}
             {data ? ` · Preenchido em ${new Date(data).toLocaleString("pt-BR")}` : ""}
           </p>
         </div>
-        <Badge
-          className={
-            stats.ok === stats.total
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-              : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-          }
-        >
-          {stats.ok}/{stats.total} respondidas
-        </Badge>
-      </Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            className={
+              stats.ok === stats.total
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+            }
+          >
+            {stats.ok}/{stats.total} respondidas
+          </Badge>
+          {stats.total - stats.ok > 0 && (
+            <button
+              type="button"
+              aria-pressed={soPendentes}
+              onClick={() => setSoPendentes((v) => !v)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                soPendentes
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground hover:bg-muted"
+              }`}
+            >
+              {soPendentes ? "Mostrar todas" : `Só pendentes (${stats.total - stats.ok})`}
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="lg:hidden">
         <button
@@ -416,11 +446,30 @@ export function RespostasLeitura({
 
         <div className="min-w-0 space-y-6">
           {secoes.map((s, si) => {
-            const ps = perguntasPorSecao.get(s.id) ?? [];
+            const psTodas = perguntasPorSecao.get(s.id) ?? [];
             const st = stats.porSecao.get(s.id);
+            // Numeração sempre pela lista completa; o filtro só esconde o que já está respondido.
+            const ps = soPendentes
+              ? psTodas.filter((p) => !respondida(p, respostas[p.id]) || editando[p.id])
+              : psTodas;
+            if (soPendentes && ps.length === 0) return null;
             const arvore = montarArvore(entidades, ps, (p) => p.entidade_id, contagem);
             const artigo = (p: LeituraPergunta, pi: number) => {
               const r = respostas[p.id];
+              if (renderEdicao && editando[p.id]) {
+                return (
+                  <div key={p.id} className="space-y-2 lg:col-span-2">
+                    {renderEdicao(p)}
+                    <button
+                      type="button"
+                      onClick={() => alternarEdicao(p.id)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Concluir edição
+                    </button>
+                  </div>
+                );
+              }
               return (
                 <article
                   key={p.id}
@@ -433,7 +482,20 @@ export function RespostasLeitura({
                       {si + 1}.{pi + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.texto}</h4>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.texto}</h4>
+                        {renderEdicao && (
+                          <button
+                            type="button"
+                            onClick={() => alternarEdicao(p.id)}
+                            title="Editar esta resposta"
+                            aria-label={`Editar resposta: ${p.texto}`}
+                            className="shrink-0 rounded-md border border-border p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                       {p.instrucao_agente && (
                         <p className="mt-0.5 text-[11px] text-muted-foreground/80">{p.instrucao_agente}</p>
                       )}
@@ -450,7 +512,7 @@ export function RespostasLeitura({
             };
             const grade = (xs: LeituraPergunta[]) => (
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {xs.map((p) => artigo(p, ps.indexOf(p)))}
+                {xs.map((p) => artigo(p, psTodas.indexOf(p)))}
               </div>
             );
             return (
