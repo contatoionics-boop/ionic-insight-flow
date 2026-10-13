@@ -814,22 +814,93 @@ function MenuAdicionar({
   const [tabela, setTabela] = useState(false);
   const [colunas, setColunas] = useState(3);
   const [linhas, setLinhas] = useState(3);
+  const botaoRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+  const LARGURA_MENU = 288;
+
   function fechar() {
     setAberto(false);
     setTabela(false);
   }
+
+  // Posiciona o menu dentro da janela: abre para cima se faltar espaço embaixo,
+  // limita a altura (com rolagem interna) e nunca ultrapassa as bordas laterais.
+  function abrir() {
+    const r = botaoRef.current?.getBoundingClientRect();
+    if (r) {
+      const margem = 8;
+      const abaixo = window.innerHeight - r.bottom - margem;
+      const acima = r.top - margem;
+      const paraCima = abaixo < 320 && acima > abaixo;
+      const left = Math.max(
+        margem,
+        Math.min(r.left + r.width / 2 - LARGURA_MENU / 2, window.innerWidth - LARGURA_MENU - margem),
+      );
+      setPos(
+        paraCima
+          ? { left, bottom: window.innerHeight - r.top + 6, maxHeight: Math.max(200, acima - 6) }
+          : { left, top: r.bottom + 6, maxHeight: Math.max(200, abaixo - 6) },
+      );
+    }
+    setAberto(true);
+  }
+
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => {
+      const alvo = e.target as Node | null;
+      if (alvo && (menuRef.current?.contains(alvo) || botaoRef.current?.contains(alvo))) return;
+      fechar();
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") fechar();
+    };
+    const rolar = (e: Event) => {
+      // rolar a página fecha; rolar dentro do próprio menu não
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      fechar();
+    };
+    document.addEventListener("mousedown", fora);
+    document.addEventListener("keydown", esc);
+    window.addEventListener("scroll", rolar, true);
+    window.addEventListener("resize", fechar);
+    return () => {
+      document.removeEventListener("mousedown", fora);
+      document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", rolar, true);
+      window.removeEventListener("resize", fechar);
+    };
+  }, [aberto]);
+
   return (
-    <div className="relative flex justify-center py-1">
+    <div className="relative flex items-center gap-2 py-1.5">
+      <span className="h-px flex-1 bg-primary/20" aria-hidden />
       <button
+        ref={botaoRef}
         type="button"
-        onClick={() => (aberto ? fechar() : setAberto(true))}
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground opacity-40 transition hover:opacity-100"
-        title="Adicionar bloco"
+        onClick={() => (aberto ? fechar() : abrir())}
+        className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/15"
+        title="Adicionar bloco aqui"
+        aria-haspopup="menu"
+        aria-expanded={aberto}
       >
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className="h-3.5 w-3.5" /> Adicionar bloco
       </button>
-      {aberto && (
-        <div className="absolute top-8 z-20 w-64 rounded-lg border border-border bg-background p-1 shadow-lg">
+      <span className="h-px flex-1 bg-primary/20" aria-hidden />
+      {aberto && pos && (
+        <div
+          ref={menuRef}
+          role="menu"
+          className="fixed z-50 overflow-y-auto overflow-x-hidden rounded-lg border border-border bg-background p-1 shadow-lg"
+          style={{
+            left: pos.left,
+            top: pos.top,
+            bottom: pos.bottom,
+            width: LARGURA_MENU,
+            maxHeight: pos.maxHeight,
+          }}
+        >
           <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             Adicionar bloco
           </p>
@@ -848,8 +919,8 @@ function MenuAdicionar({
           ))}
           {tabela ? (
             <div className="space-y-2 rounded bg-muted/40 p-2">
-              <div className="flex items-center gap-2 text-[11px]">
-                <label className="flex items-center gap-1">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <label className="flex min-w-0 flex-col gap-1">
                   Colunas
                   <NumericInput
                     size="sm"
@@ -857,10 +928,10 @@ function MenuAdicionar({
                     max={8}
                     value={colunas}
                     onValueChange={(v) => setColunas(Number(v) || 1)}
-                    className="w-28"
+                    className="w-full"
                   />
                 </label>
-                <label className="flex items-center gap-1">
+                <label className="flex min-w-0 flex-col gap-1">
                   Linhas
                   <NumericInput
                     size="sm"
@@ -868,7 +939,7 @@ function MenuAdicionar({
                     max={30}
                     value={linhas}
                     onValueChange={(v) => setLinhas(Number(v) || 1)}
-                    className="w-28"
+                    className="w-full"
                   />
                 </label>
               </div>

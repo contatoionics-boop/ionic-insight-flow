@@ -473,6 +473,8 @@ export type ChecklistRespostaDTO = {
   arquivos: string[];
   transcricao: string | null;
   origemCadastro: boolean;
+  /** Dado que veio do cadastro/agendamento (confirmado ou não): mostrado como linha de conferência. */
+  doCadastro: boolean;
 };
 
 export type ChecklistPerguntaDTO = {
@@ -578,6 +580,7 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
                       : [],
                   transcricao: r.transcricao,
                   origemCadastro: !!r.origem_cadastro,
+                  doCadastro: !!r.do_cadastro,
                 }
               : null,
           };

@@ -5,7 +5,6 @@ import type { ProdutoProposta } from "./produtos-proposta";
 
 import {
   alertasDoContexto,
-  materiaisAplicaveis,
   type ContextoRegras,
   type MaterialCatalogo,
 } from "./regras";
@@ -327,7 +326,6 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const grupos = ids.length
     ? ids
     : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
-  const materiais = materiaisAplicaveis(entrada.materiais, ctxRegras);
   // Produtos IONICS vêm EXCLUSIVAMENTE da proposta comercial do caso.
   // Regras técnicas não geram produtos contratados.
   const produtos = entrada.produtosProposta ?? [];
@@ -382,32 +380,17 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       celulas: [p.codigo ?? "—", p.descricao, p.quantidade ?? "—"],
     })),
   });
+  // Materiais de infraestrutura: o sistema NÃO sugere itens do catálogo. A tabela
+  // nasce com o cabeçalho e uma linha em branco (referência de preenchimento)
+  // para o especialista incluir apenas o que realmente se aplica ao caso.
   blocos.push({
     id: bid("t"),
     tipo: "table",
     titulo: "Materiais de infraestrutura",
     colunas: ["Código", "Descrição", "Aplicação", "Un.", "Qtd."],
-    linhas: materiais.length
-      ? materiais.map((m) => ({
-          celulas: [
-            m.codigo,
-            m.descricao,
-            m.aplicacao ?? "—",
-            m.unidade,
-            String(m.quantidade_padrao),
-          ],
-        }))
-      : [
-          {
-            celulas: [
-              "—",
-              `Nenhum material aplicável às regras atuais ${pendencia("materiais", "materiais de infraestrutura")}`,
-              "—",
-              "—",
-              "—",
-            ],
-          },
-        ],
+    origem: "dynamic",
+    editavel: true,
+    linhas: [{ celulas: ["", "", "", "", ""] }],
   });
 
   if (!produtos.length) {

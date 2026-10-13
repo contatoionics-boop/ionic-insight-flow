@@ -52,6 +52,8 @@ export type AgentResposta = {
   transcricao: string | null;
   /** Origem: preenchido automaticamente do cadastro e ainda não confirmado. */
   origem_cadastro?: boolean;
+  /** Veio do cadastro/agendamento (ainda não confirmado ou já confirmado). */
+  do_cadastro?: boolean;
 };
 
 /** Marcadores gravados em respostas_agente.ia_motivo. */
@@ -345,6 +347,9 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
       arquivos_paths: (r as any).arquivos_paths ?? [],
       transcricao: r.transcricao ?? null,
       origem_cadastro: (r as any).ia_motivo === MOTIVO_CADASTRO_PENDENTE,
+      do_cadastro:
+        (r as any).ia_motivo === MOTIVO_CADASTRO_PENDENTE ||
+        (r as any).ia_motivo === MOTIVO_CADASTRO_CONFIRMADO,
     };
   }
 
