@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   Loader2,
   Pencil,
@@ -84,6 +86,8 @@ export function LaudoPanel({
   const [arvore, setArvore] = useState<NoArvore[]>([]);
   const [sumarioAberto, setSumarioAberto] = useState(false);
   const [pendenciasAbertas, setPendenciasAbertas] = useState(false);
+  /** Ponto a confirmar atual na navegação anterior/próximo (-1 = ainda não navegou). */
+  const [pontoAtual, setPontoAtual] = useState(-1);
   const [salvarDoc, setSalvarDoc] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null });
 
   const carregar = useCallback(async () => {
@@ -127,6 +131,22 @@ export function LaudoPanel({
       .map((b) => ({ bloco: b, rotulos: pendenciasDoBloco(b) }))
       .filter((x) => x.rotulos.length > 0);
   }, [conteudo]);
+
+  /** Vai ao ponto a confirmar seguinte/anterior (circular) e rola até o trecho. */
+  const navegarPonto = useCallback(
+    (passo: 1 | -1) => {
+      const n = listaPendencias.length;
+      if (!n) return;
+      const proximo = pontoAtual < 0 ? (passo === 1 ? 0 : n - 1) : (pontoAtual + passo + n) % n;
+      setPontoAtual(proximo);
+      irParaBloco(listaPendencias[proximo].bloco.id);
+    },
+    [listaPendencias, pontoAtual],
+  );
+  // Ao resolver pontos a lista encolhe: mantém o índice dentro do intervalo.
+  useEffect(() => {
+    if (pontoAtual >= listaPendencias.length) setPontoAtual(listaPendencias.length - 1);
+  }, [listaPendencias.length, pontoAtual]);
 
   const motivoPdf = !conteudo
     ? "Gere o rascunho do documento antes de emitir o PDF."
@@ -302,13 +322,40 @@ export function LaudoPanel({
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {totalPendencias > 0 && (
-            <button
-              type="button"
-              onClick={abrirPendencias}
-              className="rounded-md bg-amber-500/15 px-2 py-1 font-medium text-amber-700 dark:text-amber-300"
-            >
-              {totalPendencias} ponto(s) a confirmar
-            </button>
+            <div className="inline-flex items-center overflow-hidden rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300">
+              <button
+                type="button"
+                onClick={abrirPendencias}
+                className="px-2 py-1 font-medium hover:bg-amber-500/20"
+              >
+                {totalPendencias} ponto(s) a confirmar
+              </button>
+              {listaPendencias.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => navegarPonto(-1)}
+                    aria-label="Ponto a confirmar anterior"
+                    title="Anterior"
+                    className="border-l border-amber-500/30 px-1.5 py-1 hover:bg-amber-500/20"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="px-1 tabular-nums" aria-live="polite">
+                    {pontoAtual >= 0 ? `${pontoAtual + 1}/${listaPendencias.length}` : `–/${listaPendencias.length}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navegarPonto(1)}
+                    aria-label="Próximo ponto a confirmar"
+                    title="Próximo"
+                    className="border-l border-amber-500/30 px-1.5 py-1 hover:bg-amber-500/20"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
           )}
           {docSujo && (
             <span className="text-amber-600 dark:text-amber-400">Alterações não salvas</span>
