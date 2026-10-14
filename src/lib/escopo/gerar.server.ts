@@ -130,6 +130,8 @@ export type EstruturaCarregada = {
   versaoId: string | null;
   numero: number | null;
   versaoAtualId: string | null;
+  /** Número da versão em que o caso está (difere de `numero` quando se pediu a mais recente). */
+  numeroDoCaso: number | null;
   entidades: EntidadeEscopo[];
   arvore: ArvoreEscopo;
 };
@@ -147,12 +149,19 @@ async function carregarFrota(versaoId: string): Promise<FrotaItemArvore[]> {
   }));
 }
 
-/** Estrutura usada por um caso (a versão do caso, ou a mais recente da unidade). */
-export async function carregarEstruturaDoCaso(casoId: string): Promise<EstruturaCarregada> {
+/**
+ * Estrutura usada por um caso (a versão do caso, ou a mais recente da unidade).
+ * Com `maisRecente`, devolve a versão mais recente da unidade (base correta para editar).
+ */
+export async function carregarEstruturaDoCaso(
+  casoId: string,
+  opts?: { maisRecente?: boolean },
+): Promise<EstruturaCarregada> {
   const vazio: EstruturaCarregada = {
     versaoId: null,
     numero: null,
     versaoAtualId: null,
+    numeroDoCaso: null,
     entidades: [],
     arvore: normalizarArvore({ postos: [], comboios: [], tanquesLubrificante: [], sondas: [], frota: { ativo: false, itens: [] }, config: {} }),
   };
@@ -176,7 +185,8 @@ export async function carregarEstruturaDoCaso(casoId: string): Promise<Estrutura
     if (!versoes.length) return vazio;
     const atual = versoes[versoes.length - 1];
     const versaoId: string = caso?.escopo_versao_id ?? atual.id;
-    const versao = versoes.find((v) => v.id === versaoId) ?? atual;
+    const versaoDoCaso = versoes.find((v) => v.id === versaoId) ?? atual;
+    const versao = opts?.maisRecente ? atual : versaoDoCaso;
     const todas = await listarEntidades(dono);
     const eventos = await listarEventos(versoes);
     const ativas = entidadesNaVersao(todas, versoes, versao.id, eventos);
@@ -185,6 +195,7 @@ export async function carregarEstruturaDoCaso(casoId: string): Promise<Estrutura
       versaoId: versao.id,
       numero: versao.numero,
       versaoAtualId: atual.id,
+      numeroDoCaso: versaoDoCaso.numero,
       entidades: ativas,
       arvore: arvoreDeEntidades(ativas, frota, (versao.config ?? {}) as any),
     };

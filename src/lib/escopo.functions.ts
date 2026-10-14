@@ -98,7 +98,7 @@ const ArvoreSchema = z.object({
   }),
 });
 
-const CarregarInput = z.object({ casoId: z.string().uuid() });
+const CarregarInput = z.object({ casoId: z.string().uuid(), maisRecente: z.boolean().optional() });
 
 const SalvarInput = z.object({
   casoIds: z.array(z.string().uuid()).min(1).max(20),
@@ -114,10 +114,11 @@ export const carregarEscopoEstrutura = createServerFn({ method: "POST" })
   .inputValidator((i) => CarregarInput.parse(i))
   .handler(async ({ data }) => {
     const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
-    const e = await carregarEstruturaDoCaso(data.casoId);
+    const e = await carregarEstruturaDoCaso(data.casoId, { maisRecente: data.maisRecente });
     return {
       versaoId: e.versaoId,
       numero: e.numero,
+      numeroDoCaso: e.numeroDoCaso,
       versaoAtualId: e.versaoAtualId,
       arvore: e.arvore,
       entidades: e.entidades,

@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ResumoEscopoCaso } from "@/components/escopo/ResumoEscopoCaso";
+import { EditarEstruturaModal, podeEditarEstrutura } from "@/components/escopo/EditarEstruturaModal";
 import { PageHeader, Card, Badge, Button, Select, Label, Input } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
 import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import { listarAgendaAdmin, cancelarVistoria, deletarVistoria, reagendarVistoria } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, Pencil, Trash2, X } from "lucide-react";
+import { CalendarDays, Layers, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, Pencil, Trash2, X } from "lucide-react";
 
 export const Route = createFileRoute("/app/agenda")({
   component: AgendaPage,
@@ -82,6 +83,8 @@ function AgendaPage() {
   const [edError, setEdError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Evento | null>(null);
   const [diaAberto, setDiaAberto] = useState<Date | null>(null);
+  const [editEstrutura, setEditEstrutura] = useState<Evento | null>(null);
+  const [escopoKey, setEscopoKey] = useState(0);
 
   useEffect(() => { carregarAgentes().then((d) => setAgentes((d ?? []) as any)); }, [carregarAgentes]);
 
@@ -380,7 +383,12 @@ function AgendaPage() {
                 )}
                 {sel.endereco_vistoria && <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {sel.endereco_vistoria}</p>}
               </div>
-              <ResumoEscopoCaso className="mt-3" casoId={sel.id} orientacoes={sel.observacoes_agendamento} />
+              <ResumoEscopoCaso
+                className="mt-3"
+                casoId={sel.id}
+                orientacoes={sel.observacoes_agendamento}
+                refreshKey={escopoKey}
+              />
               <div className="mt-4 flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSel(null)}>Fechar</Button>
                 {sel.status !== "cancelado" && sel.status !== "aprovado" && sel.status !== "concluido" && (
@@ -388,6 +396,11 @@ function AgendaPage() {
                     <Button variant="outline" onClick={() => openEdit(sel)}>
                       <Pencil className="mr-1 h-3 w-3" /> Editar
                     </Button>
+                    {podeEditarEstrutura(sel.status) && (
+                      <Button variant="outline" onClick={() => setEditEstrutura(sel)}>
+                        <Layers className="mr-1 h-3 w-3" /> Editar estrutura
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={() => handleCancelar(sel.id)}>Cancelar mapeamento</Button>
                   </>
                 )}
@@ -398,6 +411,15 @@ function AgendaPage() {
             </div>
           </Card>
         </div>
+      )}
+
+      {editEstrutura && (
+        <EditarEstruturaModal
+          casoId={editEstrutura.id}
+          codigo={editEstrutura.codigo}
+          onClose={() => setEditEstrutura(null)}
+          onSalvo={() => setEscopoKey((k) => k + 1)}
+        />
       )}
 
       {editing && (

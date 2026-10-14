@@ -10,7 +10,10 @@ export function ResumoEscopoCaso({
   orientacoes,
   compacto,
   className,
+  refreshKey = 0,
 }: {
+  /** muda para recarregar (ex.: depois de editar a estrutura) */
+  refreshKey?: number;
   casoId: string;
   orientacoes?: string | null;
   compacto?: boolean;
@@ -47,7 +50,7 @@ export function ResumoEscopoCaso({
     return () => {
       vivo = false;
     };
-  }, [casoId, carregar]);
+  }, [casoId, carregar, refreshKey]);
 
   if (falhou) {
     return orientacoes?.trim() ? (
