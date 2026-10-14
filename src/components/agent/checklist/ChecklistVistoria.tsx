@@ -54,10 +54,12 @@ function CartaoEscopo({
   casoId,
   entidades,
   orientacoes,
+  config,
 }: {
   casoId: string;
   entidades: ChecklistVistoriaDTO["entidades"];
   orientacoes: string | null;
+  config?: ChecklistVistoriaDTO["escopoConfig"];
 }) {
   const chave = `escopo-card:${casoId}`;
   const [aberto, setAberto] = useState(true);
@@ -89,7 +91,9 @@ function CartaoEscopo({
         <span>Escopo e orientações</span>
         <span className="text-xs font-normal text-primary">{aberto ? "Recolher" : "Ver"}</span>
       </button>
-      {aberto && <ResumoEscopo className="mt-2" entidades={entidades} orientacoes={orientacoes} />}
+      {aberto && (
+        <ResumoEscopo className="mt-2" entidades={entidades} orientacoes={orientacoes} config={config} />
+      )}
     </section>
   );
 }
@@ -414,11 +418,14 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         </div>
       </header>
 
-      {(dados.entidades.length > 0 || dados.orientacoes?.trim()) && (
+      {(dados.entidades.length > 0 ||
+        dados.orientacoes?.trim() ||
+        Object.keys(dados.escopoConfig ?? {}).length > 0) && (
         <CartaoEscopo
           casoId={dados.casoId}
           entidades={dados.entidades}
           orientacoes={dados.orientacoes}
+          config={dados.escopoConfig}
         />
       )}
 

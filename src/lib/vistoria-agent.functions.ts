@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { ConfigEscopo } from "@/lib/escopo/tipos";
 
 const EstadoInput = z.object({
   token: z.string().min(1).optional(),
@@ -519,6 +520,8 @@ export type ChecklistVistoriaDTO = {
   entidades: { id: string; tipo: string; parentId: string | null; ordem: number; rotulo: string }[];
   /** Orientações escritas por quem agendou (observações do agendamento). */
   orientacoes: string | null;
+  /** Solução, RFID, TX e outros dispositivos definidos no escopo. */
+  escopoConfig: ConfigEscopo;
   etapas: ChecklistEtapaDTO[];
 };
 
@@ -598,6 +601,7 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       iniciado,
       resumoCadastro: ctxAtual.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
       orientacoes: ctxAtual.cadastro.find((f) => f.label === "Observações do agendamento")?.valor ?? null,
+      escopoConfig: ctxAtual.escopoConfig ?? {},
       entidades: ctxAtual.entidades.map((e) => ({
         id: e.id,
         tipo: e.tipo,

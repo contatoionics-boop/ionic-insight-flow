@@ -24,7 +24,7 @@ export type GrupoArvore<P> = {
 
 const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
   pista: "Pista",
-  tanques: "Tanques",
+  tanques: "Tanques com lubrificante",
   sondas: "Sondas",
   comboios: "Comboios",
   frota: "Frota / DIV",
@@ -33,7 +33,7 @@ const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
 
 function grupoDoTipo(tipo: TipoEntidade): GrupoArvore<unknown>["chave"] {
   if (tipo === "posto" || tipo === "ilha" || tipo === "bomba" || tipo === "bico") return "pista";
-  if (tipo === "tanque") return "tanques";
+  if (tipo === "tanque_lubrificante") return "tanques";
   if (tipo === "sonda") return "sondas";
   if (tipo === "comboio") return "comboios";
   if (tipo === "frota") return "frota";

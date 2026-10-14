@@ -164,7 +164,21 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const analiseSalva = (caso.laudo_analise ?? {}) as { descartados?: string[] };
   const descartados = analiseSalva.descartados ?? [];
   const { produtosDaProposta } = await import("@/lib/laudo/produtos-proposta");
-  const produtosProposta = produtosDaProposta(escopoProposta);
+  let produtosProposta = produtosDaProposta(escopoProposta);
+  // Equipamentos vendidos informados no agendamento têm prioridade sobre a leitura automática da proposta.
+  try {
+    const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
+    const equip = (await carregarEstruturaDoCaso(casoId)).arvore.config?.equipamentos ?? [];
+    if (equip.length) {
+      produtosProposta = equip.map((e) => ({
+        codigo: e.codigo ?? null,
+        descricao: e.descricao,
+        quantidade: String(e.quantidade),
+      }));
+    }
+  } catch {
+    // escopo estruturado indisponível: mantém os itens da proposta
+  }
 
   const { blocos, achados } = montarBlocosEAnalise({
     achadosDescartados: descartados,

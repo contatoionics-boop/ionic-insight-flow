@@ -38,7 +38,7 @@ import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
 import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
-import type { EntidadeEscopo } from "@/lib/escopo/tipos";
+import type { ConfigEscopo, EntidadeEscopo } from "@/lib/escopo/tipos";
 
 
 export const Route = createFileRoute("/app/review/$id")({
@@ -135,6 +135,7 @@ function ReviewCasePage() {
   const [secoes, setSecoes] = useState<Secao[]>([]);
   const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
   const [entidades, setEntidades] = useState<EntidadeEscopo[]>([]);
+  const [configEscopo, setConfigEscopo] = useState<ConfigEscopo>({});
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({});
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
@@ -209,6 +210,7 @@ function ReviewCasePage() {
           ) as Pergunta[];
           setPerguntas(pList);
           setEntidades((estrutura?.entidades ?? []) as EntidadeEscopo[]);
+          setConfigEscopo((estrutura?.arvore?.config ?? {}) as ConfigEscopo);
 
           if (pList.length) {
             const { data: ops } = await supabase
@@ -1110,12 +1112,15 @@ function ReviewCasePage() {
             onDocumento={irParaDocumento}
           />
 
-          {(entidadesResumo.length > 0 || caseData.observacoes_agendamento?.trim()) && (
+          {(entidadesResumo.length > 0 ||
+            caseData.observacoes_agendamento?.trim() ||
+            Object.keys(configEscopo).length > 0) && (
             <Card>
               <h2 className="mb-2 text-sm font-semibold text-foreground">Escopo definido no agendamento</h2>
               <ResumoEscopo
                 entidades={entidadesResumo}
                 orientacoes={caseData.observacoes_agendamento}
+                config={configEscopo}
               />
             </Card>
           )}

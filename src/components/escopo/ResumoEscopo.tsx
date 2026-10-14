@@ -6,13 +6,18 @@ import {
   Cylinder,
   Droplet,
   Fuel,
+  CreditCard,
+  Droplets,
   Gauge,
   LayoutGrid,
   Layers,
+  Package,
+  Radio,
+  Server,
   Truck,
   type LucideIcon,
 } from "lucide-react";
-import type { TipoEntidade } from "@/lib/escopo/tipos";
+import { rotuloSolucao, type ConfigEscopo, type TipoEntidade } from "@/lib/escopo/tipos";
 
 export type EntidadeResumo = {
   id: string;
@@ -28,17 +33,18 @@ const VISUAL: Record<string, { icone: LucideIcon; cor: string; um: string; vario
   ilha: { icone: LayoutGrid, cor: "text-violet-500 bg-violet-500/10 border-violet-500/30", um: "ilha", varios: "ilhas" },
   bomba: { icone: Fuel, cor: "text-emerald-500 bg-emerald-500/10 border-emerald-500/30", um: "bomba", varios: "bombas" },
   bico: { icone: Droplet, cor: "text-cyan-500 bg-cyan-500/10 border-cyan-500/30", um: "bico", varios: "bicos" },
-  tanque: { icone: Cylinder, cor: "text-amber-500 bg-amber-500/10 border-amber-500/30", um: "tanque", varios: "tanques" },
+  tanque: { icone: Cylinder, cor: "text-amber-500 bg-amber-500/10 border-amber-500/30", um: "tanque de comboio", varios: "tanques de comboio" },
+  tanque_lubrificante: { icone: Droplets, cor: "text-lime-600 bg-lime-500/10 border-lime-500/30", um: "tanque c/ lubrificante", varios: "tanques c/ lubrificante" },
   sonda: { icone: Gauge, cor: "text-rose-500 bg-rose-500/10 border-rose-500/30", um: "sonda", varios: "sondas" },
   comboio: { icone: Truck, cor: "text-orange-500 bg-orange-500/10 border-orange-500/30", um: "comboio", varios: "comboios" },
   frota: { icone: Car, cor: "text-indigo-500 bg-indigo-500/10 border-indigo-500/30", um: "Frota / DIV", varios: "Frota / DIV" },
 };
 
-const ORDEM_CHIPS = ["posto", "ilha", "bomba", "bico", "tanque", "sonda", "comboio", "frota"];
+const ORDEM_CHIPS = ["posto", "ilha", "bomba", "bico", "tanque_lubrificante", "sonda", "comboio", "tanque", "frota"];
 
 const RAIZES: { tipo: string; titulo: string }[] = [
   { tipo: "posto", titulo: "Pista" },
-  { tipo: "tanque", titulo: "Tanques" },
+  { tipo: "tanque_lubrificante", titulo: "Tanques com lubrificante" },
   { tipo: "sonda", titulo: "Sondas" },
   { tipo: "comboio", titulo: "Comboios" },
   { tipo: "frota", titulo: "Frota / DIV" },
@@ -51,7 +57,8 @@ export function contagensEscopo(entidades: EntidadeResumo[]) {
     ilhas: c("ilha"),
     bombas: c("bomba"),
     bicos: c("bico"),
-    tanques: c("tanque"),
+    tanques: c("tanque_lubrificante"),
+    tanquesComboio: c("tanque"),
     sondas: c("sonda"),
     comboios: c("comboio"),
     frota: c("frota") > 0,
@@ -118,16 +125,53 @@ function Ramo({
  * Leitura do Escopo definido no agendamento (estrutura física + orientações).
  * Somente leitura: não conhece o motor nem o banco.
  */
+/** Solução, RFID, TX e outros dispositivos da config do escopo, como cartões com ícone. */
+function cartoesConfig(config?: ConfigEscopo | null) {
+  const out: { chave: string; icone: LucideIcon; cor: string; titulo: string; detalhe?: string }[] = [];
+  if (!config) return out;
+  const sol = rotuloSolucao(config.solucao ?? null);
+  if (sol)
+    out.push({ chave: "solucao", icone: Server, cor: "text-slate-600 bg-slate-500/10 border-slate-500/30", titulo: sol, detalhe: "Solução" });
+  if (config.rfid?.ativo)
+    out.push({
+      chave: "rfid",
+      icone: CreditCard,
+      cor: "text-teal-600 bg-teal-500/10 border-teal-500/30",
+      titulo: "Cartão RFID",
+      detalhe: config.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia}`).join(", ") || undefined,
+    });
+  if (config.tx?.ativo)
+    out.push({
+      chave: "tx",
+      icone: Radio,
+      cor: "text-fuchsia-600 bg-fuchsia-500/10 border-fuchsia-500/30",
+      titulo: "TX",
+      detalhe: config.tx.itens.map((i) => `${i.quantidade}× ${i.modelo}`).join(", ") || undefined,
+    });
+  for (const [i, o] of (config.outros ?? []).entries())
+    out.push({
+      chave: `outro-${i}`,
+      icone: Package,
+      cor: "text-stone-600 bg-stone-500/10 border-stone-500/30",
+      titulo: o.nome,
+      detalhe: [o.modelo, `${o.quantidade}×`].filter(Boolean).join(" · "),
+    });
+  return out;
+}
+
 export function ResumoEscopo({
   entidades,
   versao,
   orientacoes,
+  config,
   compacto = false,
   className = "",
 }: {
   entidades: EntidadeResumo[];
   versao?: number | null;
   orientacoes?: string | null;
+  /** Solução, RFID, TX e outros dispositivos da versão do escopo. */
+  config?: ConfigEscopo | null;
   /** Só chips + orientações (sem a árvore). */
   compacto?: boolean;
   className?: string;
@@ -143,6 +187,7 @@ export function ResumoEscopo({
   }, [entidades]);
   const texto = orientacoes?.trim();
   const raizes = filhos.get(null) ?? [];
+  const cartoes = useMemo(() => cartoesConfig(config), [config]);
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -151,8 +196,44 @@ export function ResumoEscopo({
           <Layers className="h-3.5 w-3.5 text-primary" />
           Estrutura do escopo{versao ? ` · V${versao}` : ""}
         </div>
+        {cartoes.length > 0 && (
+          <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {cartoes.map((c) => {
+              const I = c.icone;
+              return (
+                <div key={c.chave} className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${c.cor}`}>
+                  <I className="h-5 w-5 shrink-0" aria-hidden />
+                  <div className="min-w-0 leading-tight">
+                    <span className="block truncate text-xs font-semibold text-foreground">{c.titulo}</span>
+                    {c.detalhe && <span className="block truncate text-[11px] text-muted-foreground">{c.detalhe}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {(config?.equipamentos?.length ?? 0) > 0 && (
+          <details className="mt-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs" open={!compacto}>
+            <summary className="cursor-pointer select-none font-medium text-foreground">
+              Equipamentos vendidos ({config!.equipamentos!.length})
+            </summary>
+            <ul className="mt-1.5 space-y-0.5">
+              {config!.equipamentos!.map((e, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="shrink-0 font-semibold tabular-nums text-foreground">{e.quantidade}×</span>
+                  <span className="min-w-0 break-words text-foreground">
+                    {e.descricao}
+                    {e.codigo ? <span className="ml-1 text-muted-foreground">({e.codigo})</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         {chips.length === 0 ? (
-          <p className="mt-1 text-xs text-muted-foreground">Sem estrutura definida para este mapeamento.</p>
+          cartoes.length === 0 && !(config?.equipamentos?.length) ? (
+            <p className="mt-1 text-xs text-muted-foreground">Sem estrutura definida para este mapeamento.</p>
+          ) : null
         ) : (
           <>
             <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">

@@ -154,7 +154,7 @@ export async function carregarEstruturaDoCaso(casoId: string): Promise<Estrutura
     numero: null,
     versaoAtualId: null,
     entidades: [],
-    arvore: normalizarArvore({ postos: [], comboios: 0, tanques: [], sondas: [], frota: { ativo: false, itens: [] }, config: {} }),
+    arvore: normalizarArvore({ postos: [], comboios: [], tanquesLubrificante: [], sondas: [], frota: { ativo: false, itens: [] }, config: {} }),
   };
   try {
     const { data: caso } = await db
@@ -210,8 +210,20 @@ export type ResultadoAplicar =
       comRespostas: { id: string; rotulo: string; tipo: TipoEntidade; respostas: number }[];
     };
 
+/** Comparação profunda que ignora a ordem das chaves (jsonb do banco as reordena). */
 function iguais<T>(a: T, b: T) {
-  return JSON.stringify(a) === JSON.stringify(b);
+  const estavel = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(estavel)
+      : v && typeof v === "object"
+        ? Object.fromEntries(
+            Object.entries(v as Record<string, unknown>)
+              .filter(([, x]) => x !== undefined)
+              .sort(([k1], [k2]) => (k1 < k2 ? -1 : k1 > k2 ? 1 : 0))
+              .map(([k, x]) => [k, estavel(x)]),
+          )
+        : v;
+  return JSON.stringify(estavel(a)) === JSON.stringify(estavel(b));
 }
 
 /**

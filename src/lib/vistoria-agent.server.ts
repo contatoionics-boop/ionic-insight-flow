@@ -5,7 +5,7 @@ import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso } from "@/lib/escopo/gerar.server";
-import type { EntidadeEscopo } from "@/lib/escopo/tipos";
+import { rotuloSolucao, type ConfigEscopo, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
 
@@ -83,6 +83,8 @@ export type AgentContext = {
   cadastro: CadastroFato[];
   /** Estrutura do Escopo (postos, ilhas, bombas, bicos, comboios, frota) usada pelo caso. */
   entidades: EntidadeEscopo[];
+  /** Solução, RFID, TX e outros dispositivos da versão do escopo. */
+  escopoConfig: ConfigEscopo;
   /** chave_laudo → valor extraído da proposta comercial. */
   proposta?: Record<string, string>;
 };
@@ -409,6 +411,7 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     state,
     cadastro,
     entidades: estrutura.entidades,
+    escopoConfig: (estrutura.arvore?.config ?? {}) as ConfigEscopo,
     proposta,
   };
 
@@ -848,16 +851,30 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     ["ilha", "ilha(s)"],
     ["bomba", "bomba(s)"],
     ["bico", "bico(s)"],
-    ["tanque", "tanque(s)"],
+    ["tanque_lubrificante", "tanque(s) com lubrificante"],
+    ["tanque", "tanque(s) de comboio"],
     ["sonda", "sonda(s)"],
     ["comboio", "comboio(s)"],
   ]
     .map(([t, r]) => (contagemTipo(t) ? `${contagemTipo(t)} ${r}` : null))
     .filter(Boolean);
   if (contagemTipo("frota")) estruturaPartes.push("Frota/DIV");
-  const estruturaBloco = estruturaPartes.length
-    ? `Estrutura do escopo definida no agendamento: ${estruturaPartes.join(", ")}. Mapeie apenas o que consta nela.`
-    : null;
+  const cfg = ctx.escopoConfig ?? {};
+  const extrasConfig = [
+    rotuloSolucao(cfg.solucao ?? null) ? `solução ${rotuloSolucao(cfg.solucao ?? null)}` : null,
+    cfg.rfid?.ativo
+      ? `cartão RFID (${cfg.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia}`).join(", ") || "sem detalhe"})`
+      : null,
+    cfg.equipamentos?.length
+      ? `equipamentos vendidos (${cfg.equipamentos.map((e) => `${e.quantidade}× ${e.descricao}`).join("; ")})`
+      : null,
+    cfg.tx?.ativo ? `TX (${cfg.tx.itens.map((i) => `${i.quantidade}× ${i.modelo}`).join(", ") || "sem detalhe"})` : null,
+    ...(cfg.outros ?? []).map((o) => `${o.quantidade}× ${o.nome}`),
+  ].filter(Boolean);
+  const estruturaBloco =
+    estruturaPartes.length || extrasConfig.length
+      ? `Escopo definido no agendamento: ${[...estruturaPartes, ...extrasConfig].join(", ")}. Mapeie apenas o que consta nele.`
+      : null;
 
   return [
     `# ESTADO OFICIAL (fonte da verdade — recalculado pelo servidor neste turno)`,

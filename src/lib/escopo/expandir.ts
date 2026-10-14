@@ -20,7 +20,7 @@ export function decodificarIdInstancia(id: string): { perguntaId: string; entida
 export function chaveOrdemEntidades(entidades: EntidadeEscopo[]): Map<string, string> {
   const porId = new Map(entidades.map((e) => [e.id, e]));
   // O tipo entra na chave da raiz: posto 1, tanque 1 e sonda 1 não podem empatar.
-  const RANK: Record<string, number> = { posto: 0, ilha: 0, bomba: 0, bico: 0, tanque: 1, sonda: 2, comboio: 3, frota: 4 };
+  const RANK: Record<string, number> = { posto: 0, ilha: 0, bomba: 0, bico: 0, tanque: 1, tanque_lubrificante: 1, sonda: 2, comboio: 3, frota: 4 };
   const chave = (e: EntidadeEscopo): string => {
     const pai = e.parent_id ? porId.get(e.parent_id) : undefined;
     const seg = String(e.ordem).padStart(4, "0");

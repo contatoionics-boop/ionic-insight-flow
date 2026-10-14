@@ -15,8 +15,21 @@ const ArvoreSchema = z.object({
       }),
     )
     .max(50),
-  comboios: z.number().int().min(0).max(100),
-  tanques: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
+  // Aceita também o formato antigo (número de comboios): o motor normaliza.
+  comboios: z.union([
+    z.number().int().min(0).max(100),
+    z
+      .array(
+        z.object({
+          tanques: z.number().int().min(0).max(50),
+          bicos: z.number().int().min(0).max(50),
+        }),
+      )
+      .max(100),
+  ]),
+  tanquesLubrificante: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).optional(),
+  /** formato antigo (tanques da raiz) */
+  tanques: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).optional(),
   sondas: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
   frota: z.object({
     ativo: z.boolean(),
@@ -33,6 +46,55 @@ const ArvoreSchema = z.object({
   config: z.object({
     solucao: z.string().max(100).nullable().optional(),
     comunicacao: z.enum(["wifi", "4g", "ambos"]).nullable().optional(),
+    rfid: z
+      .object({
+        ativo: z.boolean(),
+        itens: z
+          .array(
+            z.object({
+              tecnologia: z.string().max(200),
+              quantidade: z.number().int().min(1).max(100000),
+              info: z.string().max(500).optional(),
+            }),
+          )
+          .max(50),
+      })
+      .optional(),
+    tx: z
+      .object({
+        ativo: z.boolean(),
+        itens: z
+          .array(
+            z.object({
+              modelo: z.string().max(200),
+              quantidade: z.number().int().min(1).max(100000),
+              info: z.string().max(500).optional(),
+            }),
+          )
+          .max(50),
+      })
+      .optional(),
+    outros: z
+      .array(
+        z.object({
+          nome: z.string().max(200),
+          modelo: z.string().max(200).optional(),
+          quantidade: z.number().int().min(1).max(100000),
+          info: z.string().max(500).optional(),
+        }),
+      )
+      .max(50)
+      .optional(),
+    equipamentos: z
+      .array(
+        z.object({
+          codigo: z.string().max(100).optional(),
+          descricao: z.string().max(300),
+          quantidade: z.number().int().min(1).max(100000),
+        }),
+      )
+      .max(200)
+      .optional(),
   }),
 });
 
@@ -81,7 +143,7 @@ export const salvarEscopoEstrutura = createServerFn({ method: "POST" })
     const { aplicarArvore } = await import("@/lib/escopo/gerar.server");
     return aplicarArvore({
       casoIds: data.casoIds,
-      arvore: data.arvore as ArvoreEscopo,
+      arvore: data.arvore as unknown as ArvoreEscopo,
       userId,
       tipo: data.tipo,
       descricao: data.descricao ?? null,

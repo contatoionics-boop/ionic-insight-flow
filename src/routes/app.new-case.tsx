@@ -13,7 +13,7 @@ import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
 import { montarOrientacoes } from "@/lib/escopo/orientacoes";
-import { arvoreVazia, type ArvoreEscopo } from "@/lib/escopo/tipos";
+import { arvoreVazia, configTemDados, normalizarArvore, type ArvoreEscopo } from "@/lib/escopo/tipos";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -64,6 +64,8 @@ type AgendamentoDraft = {
   escopoPrevia: EscopoProposta | null;
   escopoModo: "pdf" | "manual";
   escopoManualTexto: string;
+  /** Estrutura física do escopo (postos, comboios, tanques, RFID, TX...). */
+  estrutura: ArvoreEscopo;
 };
 
 function formatEndereco(u?: EnderecoBase | null) {
@@ -115,11 +117,14 @@ function NewCasePage() {
       postos: Array.from({ length: postos }, () => ({
         ilhas: [{ bombas: Array.from({ length: bombasPorPosto }, () => ({ bicos: bicosPorBomba })) }],
       })),
-      comboios: num(e?.qtd_comboios?.valor) || (e?.tem_comboio?.valor ? 1 : 0),
-      tanques: [],
+      comboios: Array.from(
+        { length: num(e?.qtd_comboios?.valor) || (e?.tem_comboio?.valor ? 1 : 0) },
+        () => ({ tanques: 0, bicos: 0 }),
+      ),
+      tanquesLubrificante: [],
       sondas: [],
       frota: { ativo: false, itens: [] },
-      config: {},
+      config: estrutura.config ?? {},
     });
   }
 
@@ -191,6 +196,7 @@ function NewCasePage() {
         setEscopoPrevia(draft.escopoPrevia ? normalizarEscopo(draft.escopoPrevia) : null);
         setEscopoModo(draft.escopoModo ?? "pdf");
         setEscopoManualTexto(draft.escopoManualTexto ?? "");
+        setEstrutura(draft.estrutura ? normalizarArvore(draft.estrutura) : arvoreVazia());
       }
     } catch {
       window.localStorage.removeItem(draftKey);
@@ -205,7 +211,7 @@ function NewCasePage() {
       empresaId, matrizId, unidadeId, formIds, agentId, agenteNomeManual,
       tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
       propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
-      escopoModo, escopoManualTexto,
+      escopoModo, escopoManualTexto, estrutura,
     };
     try {
       window.localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -215,7 +221,7 @@ function NewCasePage() {
   }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, agentId,
     agenteNomeManual, tipoSolicitacao, modalidade, nivel, data, hora, endereco,
     observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
-    escopoModo, escopoManualTexto]);
+    escopoModo, escopoManualTexto, estrutura]);
 
   useEffect(() => {
     (async () => {
@@ -417,10 +423,11 @@ function NewCasePage() {
 
       const temEstrutura =
         estrutura.postos.length > 0 ||
-        estrutura.comboios > 0 ||
-        estrutura.tanques.length > 0 ||
+        estrutura.comboios.length > 0 ||
+        estrutura.tanquesLubrificante.length > 0 ||
         estrutura.sondas.length > 0 ||
-        estrutura.frota.ativo;
+        estrutura.frota.ativo ||
+        configTemDados(estrutura.config);
       if (temEstrutura && res?.casos?.length) {
         try {
           await salvarEstrutura({
@@ -725,7 +732,12 @@ function NewCasePage() {
                 </Button>
               )}
             </div>
-            <EstruturaEscopo value={estrutura} onChange={setEstrutura} disabled={working} />
+            <EstruturaEscopo
+              value={estrutura}
+              onChange={setEstrutura}
+              disabled={working}
+              itensDaProposta={escopoPrevia?.itens_previstos?.valor ?? []}
+            />
           </div>
 
           <div className="space-y-1">
