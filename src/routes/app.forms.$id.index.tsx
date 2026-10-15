@@ -1,5 +1,5 @@
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
-import { APLICA_A_OPCOES } from "@/lib/escopo/tipos";
+import { APLICA_A_OPCOES, SUGERIR_QUANDO_OPCOES } from "@/lib/escopo/tipos";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Modal, Select } from "@/components/ui-bits";
 import { BlocosModal } from "@/components/forms/BlocosModal";
+import { AcoesEmLoteModal } from "@/components/forms/AcoesEmLoteModal";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/forms/$id/")({
@@ -106,6 +107,7 @@ function FormBuilderPage() {
 
   // Info modal
   const [infoOpen, setInfoOpen] = useState(false);
+  const [loteOpen, setLoteOpen] = useState(false);
   const [blocosOpen, setBlocosOpen] = useState(false);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [iNome, setINome] = useState("");
@@ -117,6 +119,8 @@ function FormBuilderPage() {
   const [iElaborado, setIElaborado] = useState("");
   const [iAprovado, setIAprovado] = useState("");
   const [iValidarIa, setIValidarIa] = useState(true);
+  const [iSugerir, setISugerir] = useState<string[]>([]);
+  const [sugerirErro, setSugerirErro] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -174,6 +178,16 @@ function FormBuilderPage() {
     setIElaborado(form.elaborado_por ?? "");
     setIAprovado(form.aprovado_por ?? "");
     setIValidarIa(form.validar_imagens_ia ?? true);
+    setSugerirErro(null);
+    // Coluna criada pela migration 20261014180000: se ainda não existir, o campo fica vazio.
+    (supabase as any)
+      .from("formularios")
+      .select("sugerir_quando")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data, error }: { data: { sugerir_quando?: string[] } | null; error: unknown }) =>
+        setISugerir(!error && Array.isArray(data?.sugerir_quando) ? (data!.sugerir_quando as string[]) : []),
+      );
     setInfoOpen(true);
   };
   const saveInfo = async (e: React.FormEvent) => {
@@ -192,6 +206,16 @@ function FormBuilderPage() {
         validar_imagens_ia: iValidarIa,
       })
       .eq("id", id);
+    const { error: sugErr } = await (supabase as any)
+      .from("formularios")
+      .update({ sugerir_quando: iSugerir })
+      .eq("id", id);
+    if (sugErr && iSugerir.length > 0) {
+      setSugerirErro(
+        "Não foi possível salvar a sugestão pelo escopo (a migration 20261014180000_formularios_sugerir_quando.sql já foi rodada?).",
+      );
+      return;
+    }
     setInfoOpen(false);
     load();
   };
@@ -322,6 +346,13 @@ function FormBuilderPage() {
           </Button>
           <Button
             variant="outline"
+            title="Marque de uma vez 'Aplica-se a' (bomba, bico, comboio...) e condições para várias perguntas de uma seção"
+            onClick={() => setLoteOpen(true)}
+          >
+            <Layers className="h-4 w-4" /> Aplicar em lote
+          </Button>
+          <Button
+            variant="outline"
             title="Nome, descrição, empresa, código, revisão e responsáveis do documento"
             onClick={openInfo}
           >
@@ -409,6 +440,16 @@ function FormBuilderPage() {
         </div>
       </div>
 
+      <AcoesEmLoteModal
+        open={loteOpen}
+        onClose={() => setLoteOpen(false)}
+        secoes={secoes}
+        perguntas={perguntas}
+        onAplicado={(ids, patch) =>
+          setPerguntas((arr) => arr.map((p) => (ids.includes(p.id) ? ({ ...p, ...patch } as Pergunta) : p)))
+        }
+      />
+
       <Modal open={infoOpen} onClose={() => setInfoOpen(false)} title="Editar informações">
         <form onSubmit={saveInfo} className="space-y-4">
           <div><Label>Nome</Label><Input required value={iNome} onChange={(e) => setINome(e.target.value)} /></div>
@@ -439,6 +480,29 @@ function FormBuilderPage() {
             </label>
           </div>
 
+
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <p className="text-sm font-medium text-foreground">Sugerir no agendamento quando o escopo tiver</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Ao agendar, se o escopo tiver algum destes itens, este formulário é sugerido com a quantidade do escopo.
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {SUGERIR_QUANDO_OPCOES.map((o) => (
+                <label key={o.value} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={iSugerir.includes(o.value)}
+                    onChange={(e) =>
+                      setISugerir((cur) => (e.target.checked ? [...cur, o.value] : cur.filter((x) => x !== o.value)))
+                    }
+                  />
+                  {o.label}
+                </label>
+              ))}
+            </div>
+            {sugerirErro && <p className="mt-2 text-xs text-destructive">{sugerirErro}</p>}
+          </div>
 
           <div className="border-t border-border pt-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

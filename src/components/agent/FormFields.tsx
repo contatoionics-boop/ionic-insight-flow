@@ -1,3 +1,4 @@
+import { CameraCaptura, cameraDoAppDisponivel } from "@/components/agent/CameraCaptura";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -262,11 +263,13 @@ export function PerguntaBloco({
   const renderEspecial = pergunta.tipo === "texto" && (campo === "estado" || campo === "cidade");
 
   return (
-    <Card>
+    <Card className="!rounded-xl !p-4">
       <div className="mb-2 flex items-start justify-between gap-2">
         <h3 className="text-base font-semibold text-foreground">
           {pergunta.texto}
-          {pergunta.obrigatoria && <span className="ml-1 text-destructive">*</span>}
+          {!pergunta.obrigatoria && (
+            <span className="ml-1 text-xs font-normal text-muted-foreground">(opcional)</span>
+          )}
         </h3>
       </div>
       {pergunta.instrucao_agente && (
@@ -315,16 +318,17 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "toggle" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={pergunta.texto}>
           {(["sim", "nao"] as const).map((v) => (
             <button
               key={v}
               type="button"
+              aria-pressed={resposta.text === v}
               onClick={() => update({ text: v })}
-              className={`h-12 rounded-md border text-sm font-semibold transition ${
+              className={`min-h-11 min-w-20 rounded-full border px-5 text-sm font-medium transition ${
                 resposta.text === v
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground hover:bg-muted"
+                  : "border-foreground/40 bg-background text-foreground hover:bg-muted"
               }`}
             >
               {v === "sim" ? "Sim" : "Não"}
@@ -334,16 +338,19 @@ export function PerguntaBloco({
       )}
 
       {pergunta.tipo === "selecao_unica" && (
-        <div className="space-y-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={pergunta.texto}>
           {(pergunta.opcoes ?? []).map((o) => (
             <button
               key={o.id}
               type="button"
+              aria-pressed={resposta.text === o.texto}
               onClick={() => update({ text: o.texto })}
-              className={`block min-h-12 w-full rounded-md border px-4 py-3 text-left text-base transition ${
+              className={`min-h-11 border px-4 py-2 text-sm font-medium transition ${
+                o.texto.length > 32 ? "w-full rounded-lg text-left" : "rounded-full"
+              } ${
                 resposta.text === o.texto
-                  ? "border-primary bg-primary/5 text-foreground"
-                  : "border-border bg-background hover:bg-muted"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-foreground/40 bg-background text-foreground hover:bg-muted"
               }`}
             >
               {o.texto}
@@ -415,6 +422,12 @@ export function PerguntaBloco({
 
       {pergunta.tipo === "cnpj" && (
         <CampoCnpj resposta={resposta} update={update} token={token} siblings={siblings} />
+      )}
+
+      {pergunta.obrigatoria && isComplete(pergunta, resposta, mode, { validarImagensIa }) && (
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+          <Check className="h-3 w-3" aria-hidden /> Respondido
+        </span>
       )}
     </Card>
   );
@@ -847,8 +860,19 @@ function CampoFoto({
   const [err, setErr] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galeriaRef = useRef<HTMLInputElement>(null);
+  const [cameraAppAberta, setCameraAppAberta] = useState(false);
+  /** A câmera do app falhou: oferece a câmera nativa do aparelho (precisa de um toque do usuário). */
+  const [oferecerNativa, setOferecerNativa] = useState(false);
   const validarFn = useServerFn(validarFoto);
   const urlFoto = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
+
+  /** Câmera do app (prévia ao vivo) quando disponível; senão, a câmera nativa do navegador. */
+  const abrirCamera = () => {
+    setErr(null);
+    setOferecerNativa(false);
+    if (cameraDoAppDisponivel()) setCameraAppAberta(true);
+    else cameraRef.current?.click();
+  };
   const fila = useFilaUploads();
   const pendente = !!resposta.filePath && fila.pendentes.includes(resposta.filePath);
 
@@ -936,6 +960,21 @@ function CampoFoto({
       {/* Câmera (capture) e galeria (sem capture): prints e fotos já tiradas só entram pela galeria */}
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={aoEscolher} />
       <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={aoEscolher} />
+      {cameraAppAberta && (
+        <CameraCaptura
+          onFechar={() => setCameraAppAberta(false)}
+          onCapturar={(arquivo) => {
+            setCameraAppAberta(false);
+            void enviar(arquivo);
+          }}
+          onErro={(motivo) => {
+            // Não conseguiu abrir a câmera do app: tenta a câmera nativa e avisa o motivo.
+            setCameraAppAberta(false);
+            setErr(motivo);
+            setOferecerNativa(true);
+          }}
+        />
+      )}
 
       {resposta.filePath && (
         <>
@@ -981,7 +1020,7 @@ function CampoFoto({
       {uploading && <BarraProgresso pct={progresso} rotulo={progresso === 0 ? "Preparando foto…" : "Enviando foto…"} />}
 
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" onClick={() => cameraRef.current?.click()} className="h-12" disabled={ocupado}>
+        <Button type="button" onClick={abrirCamera} className="h-12" disabled={ocupado}>
           <Camera className="h-4 w-4" /> {resposta.filePath ? "Refazer" : "Tirar foto"}
         </Button>
         <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} className="h-12" disabled={ocupado}>
@@ -989,6 +1028,20 @@ function CampoFoto({
         </Button>
       </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
+      {oferecerNativa && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full"
+          onClick={() => {
+            setOferecerNativa(false);
+            setErr(null);
+            cameraRef.current?.click();
+          }}
+        >
+          <Camera className="h-4 w-4" /> Tentar a câmera do aparelho
+        </Button>
+      )}
     </div>
   );
 }

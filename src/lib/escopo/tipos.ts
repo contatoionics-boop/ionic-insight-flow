@@ -78,6 +78,27 @@ export const SOLUCOES_ESCOPO: { value: SolucaoEscopo; label: string }[] = [
   { value: "on_premise", label: "On-premise" },
 ];
 
+/** Itens do escopo que podem fazer um formulário ser sugerido no agendamento. */
+export const SUGERIR_QUANDO_OPCOES = [
+  { value: "pista", label: "Pista (posto)" },
+  { value: "comboio", label: "Comboio" },
+  { value: "tanque_lubrificante", label: "Tanque com lubrificante" },
+  { value: "sonda", label: "Sonda" },
+  { value: "frota", label: "Frota / DIV" },
+] as const;
+export type ChaveSugestao = (typeof SUGERIR_QUANDO_OPCOES)[number]["value"];
+
+/** Quantidade de cada item do escopo (base para sugerir formulários e quantidades). */
+export function quantidadesDoEscopo(a: ArvoreEscopo): Record<ChaveSugestao, number> {
+  return {
+    pista: a.postos.length,
+    comboio: a.comboios.length,
+    tanque_lubrificante: (a.tanquesLubrificante ?? []).length,
+    sonda: (a.sondas ?? []).length,
+    frota: a.frota?.ativo ? 1 : 0,
+  };
+}
+
 /** Tecnologias de cartão RFID oferecidas na lista (além de "Outra", texto livre). */
 export const TECNOLOGIAS_RFID = ["Mifare", "Milexes"] as const;
 

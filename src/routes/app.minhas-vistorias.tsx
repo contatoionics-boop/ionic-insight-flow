@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { PageHeader, Card, Badge, Button, Modal } from "@/components/ui-bits";
-import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
+import { Modal } from "@/components/ui-bits";
+import type { CaseStatus } from "@/lib/casos";
 import { listarMinhasVistorias } from "@/lib/casos.functions";
 import {
   listarProgressoMeusCasos,
@@ -15,18 +15,15 @@ import {
   recusarAgendamentoAgente,
   type AceiteAgendamento,
 } from "@/lib/agendamentos.functions";
-import { CalendarDays, Eye, ListChecks, MapPin, Play, Lock, CheckCircle2, XCircle, BellRing } from "lucide-react";
+import {
+  ArrowRight,
+  BellRing,
+  CalendarDays,
+  CheckCircle2,
+  MapPin,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
-
-type ProgressoCtx = {
-  progressoMap: Map<string, ProgressoCaso>;
-  onVerRespostas: (casoId: string) => void;
-};
-const ProgressoContext = createContext<ProgressoCtx>({
-  progressoMap: new Map(),
-  onVerRespostas: () => {},
-});
-
 
 export const Route = createFileRoute("/app/minhas-vistorias")({
   head: () => ({
@@ -55,17 +52,6 @@ type Vistoria = {
   formulario: { nome: string } | null;
 };
 
-type Grupo = {
-  agendamentoId: string;
-  cliente: string;
-  unidade: string | null;
-  agendadoEm: string | null;
-  endereco: string | null;
-  observacoes: string | null;
-  casos: Vistoria[];
-  status: "concluido" | "em_andamento" | "agendado";
-};
-
 function fmtData(iso: string | null) {
   if (!iso) return "Sem data";
   return new Date(iso).toLocaleString("pt-BR", {
@@ -77,54 +63,44 @@ function fmtData(iso: string | null) {
   });
 }
 
-const PENDENTES: CaseStatus[] = ["agendado", "em_andamento", "rascunho"];
 const FINALIZADOS: CaseStatus[] = ["aguardando_revisao", "aprovado", "concluido"];
 
-function agrupar(rows: Vistoria[]): Grupo[] {
-  const map = new Map<string, Grupo>();
-  for (const r of rows) {
-    const key = r.agendamento_id;
-    if (!map.has(key)) {
-      map.set(key, {
-        agendamentoId: key,
-        cliente: r.unidade?.matriz?.empresa?.nome ?? "—",
-        unidade: r.unidade?.nome ?? null,
-        agendadoEm: r.agendado_em,
-        endereco: r.endereco_vistoria,
-        observacoes: r.observacoes_agendamento,
-        casos: [],
-        status: "agendado",
-      });
-    }
-    map.get(key)!.casos.push(r);
-  }
-  for (const g of map.values()) {
-    if (g.casos.every((c) => FINALIZADOS.includes(c.status))) g.status = "concluido";
-    else if (g.casos.some((c) => c.status === "em_andamento")) g.status = "em_andamento";
-    else g.status = "agendado";
-  }
-  return [...map.values()];
-}
+/** Ordem em campo: o que está em andamento primeiro, depois os aceitos (por data) e por fim os entregues. */
+const ORDEM: Partial<Record<CaseStatus, number>> = {
+  em_andamento: 0,
+  agendado: 1,
+  rascunho: 1,
+  aguardando_revisao: 2,
+  aprovado: 3,
+  concluido: 3,
+};
+
+const BADGE: Partial<Record<CaseStatus, { cls: string; rotulo: string; aceito?: boolean }>> = {
+  agendado: { cls: "bg-emerald-100 text-emerald-800", rotulo: "Aceito", aceito: true },
+  rascunho: { cls: "bg-emerald-100 text-emerald-800", rotulo: "Aceito", aceito: true },
+  em_andamento: { cls: "bg-blue-100 text-blue-800", rotulo: "Em andamento" },
+  aguardando_revisao: { cls: "bg-muted text-muted-foreground", rotulo: "Entregue para revisão" },
+  aprovado: { cls: "bg-emerald-100 text-emerald-800", rotulo: "Aprovado" },
+  concluido: { cls: "bg-emerald-100 text-emerald-800", rotulo: "Concluído" },
+};
 
 function MinhasVistoriasPage() {
   const load = useServerFn(listarMinhasVistorias);
   const loadAgendamentos = useServerFn(listarAgendamentosDoAgente);
   const confirmar = useServerFn(confirmarAgendamentoAgente);
   const recusar = useServerFn(recusarAgendamentoAgente);
+  const loadProgresso = useServerFn(listarProgressoMeusCasos);
+
   const [rows, setRows] = useState<Vistoria[]>([]);
   const [agendamentos, setAgendamentos] = useState<AceiteAgendamento[]>([]);
+  const [progresso, setProgresso] = useState<ProgressoCaso[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"lista" | "agenda">("lista");
   const [recusando, setRecusando] = useState<AceiteAgendamento | null>(null);
   const [motivo, setMotivo] = useState("");
   const [working, setWorking] = useState(false);
-  const loadProgresso = useServerFn(listarProgressoMeusCasos);
-  const [progresso, setProgresso] = useState<ProgressoCaso[]>([]);
   const [resumoCasoId, setResumoCasoId] = useState<string | null>(null);
-  const progressoMap = useMemo(
-    () => new Map(progresso.map((p) => [p.casoId, p])),
-    [progresso],
-  );
+
+  const progressoMap = useMemo(() => new Map(progresso.map((p) => [p.casoId, p])), [progresso]);
 
   const reload = async () => {
     const [d, ags, prog] = await Promise.all([load(), loadAgendamentos(), loadProgresso()]);
@@ -134,8 +110,10 @@ function MinhasVistoriasPage() {
     setLoading(false);
   };
 
-
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pendentesAceite = agendamentos.filter((a) => a.aceite_status === "aguardando_aceite");
 
@@ -147,288 +125,272 @@ function MinhasVistoriasPage() {
       await reload();
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível confirmar.");
-    } finally { setWorking(false); }
+    } finally {
+      setWorking(false);
+    }
   };
 
   const handleRecusar = async () => {
-    if (!recusando || motivo.trim().length < 3) return;
+    if (!recusando || motivo.trim().length < 5) return;
     setWorking(true);
     try {
       await recusar({ data: { agendamentoId: recusando.id, motivo: motivo.trim() } });
-      toast.success("Agendamento recusado. Ian foi notificado para reagendar.");
-      setRecusando(null); setMotivo("");
+      toast.success("Recusa enviada com o motivo.");
+      setRecusando(null);
+      setMotivo("");
       await reload();
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível recusar o agendamento.");
-    } finally { setWorking(false); }
+    } finally {
+      setWorking(false);
+    }
   };
 
-  const grupos = useMemo(() => agrupar(rows), [rows]);
-  const pendentes = grupos.filter((g) => g.status !== "concluido");
-  const concluidos = grupos.filter((g) => g.status === "concluido");
+  const emCampo = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const d = (ORDEM[a.status] ?? 1) - (ORDEM[b.status] ?? 1);
+        if (d) return d;
+        return new Date(a.agendado_em ?? 0).getTime() - new Date(b.agendado_em ?? 0).getTime();
+      }),
+    [rows],
+  );
 
-  const agora = Date.now();
-  const futuras = pendentes
-    .filter((g) => g.agendadoEm && new Date(g.agendadoEm).getTime() >= agora - 60 * 60_000)
-    .sort((a, b) => new Date(a.agendadoEm!).getTime() - new Date(b.agendadoEm!).getTime());
-
-  const porDia = useMemo(() => {
-    const map = new Map<string, Grupo[]>();
-    for (const g of futuras) {
-      if (!g.agendadoEm) continue;
-      const d = new Date(g.agendadoEm);
-      const key = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-      const arr = map.get(key) ?? [];
-      arr.push(g);
-      map.set(key, arr);
-    }
-    return [...map.entries()];
-  }, [futuras]);
+  /** Em um mesmo agendamento, termine o formulário em andamento antes de iniciar o próximo. */
+  const emAndamentoPorAgendamento = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) if (r.status === "em_andamento") m.set(r.agendamento_id, r.id);
+    return m;
+  }, [rows]);
 
   return (
-    <ProgressoContext.Provider value={{ progressoMap, onVerRespostas: setResumoCasoId }}>
-    <div>
+    <div className="space-y-4">
       <ResumoRespostasModal
         casoId={resumoCasoId}
         open={!!resumoCasoId}
         onClose={() => setResumoCasoId(null)}
       />
 
-      <PageHeader
-        title="Meus mapeamentos"
-        description="Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo."
-      />
-
-      {pendentesAceite.length > 0 && (
-        <div className="mb-4 space-y-2">
-          {pendentesAceite.map((ag) => (
-            <Card key={ag.id} className="border-warning/40 bg-warning/5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <BellRing className="h-4 w-4 text-warning-foreground" />
-                    Novo agendamento — confirmar?
-                  </div>
-                  <p className="mt-1 text-sm">
-                    <strong>{ag.cliente_nome ?? "Cliente"}</strong>
-                    {ag.unidade_nome ? <span className="text-muted-foreground"> · {ag.unidade_nome}</span> : null}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    <CalendarDays className="mr-1 inline h-3 w-3" />
-                    {new Date(ag.agendado_em).toLocaleString("pt-BR")}
-                  </p>
-                  {ag.endereco_vistoria && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      <MapPin className="mr-1 inline h-3 w-3" />{ag.endereco_vistoria}
-                    </p>
-                  )}
-                  {ag.observacoes_agendamento && (
-                    <p className="mt-1 text-xs italic text-muted-foreground">{ag.observacoes_agendamento}</p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { setRecusando(ag); setMotivo(""); }} disabled={working}>
-                    <XCircle className="mr-1 h-4 w-4" /> Recusar / Reagendar
-                  </Button>
-                  <Button onClick={() => handleConfirmar(ag)} disabled={working}>
-                    <CheckCircle2 className="mr-1 h-4 w-4" /> Confirmar agendamento
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Modal open={!!recusando} onClose={() => setRecusando(null)} title="Recusar / Solicitar reagendamento">
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Informe o motivo da recusa. Ian receberá uma notificação e poderá reagendar.
-          </p>
-          <textarea
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder="Ex: estarei em outro agendamento já confirmado nesse dia."
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setRecusando(null)} disabled={working}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRecusar} disabled={working || motivo.trim().length < 3}>
-              Recusar agendamento
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-
-      <div className="mb-4 inline-flex rounded-md border border-border bg-card p-1">
-        <button
-          onClick={() => setTab("lista")}
-          className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium ${
-            tab === "lista" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-          }`}
-        >
-          <ListChecks className="h-4 w-4" /> Lista
-        </button>
-        <button
-          onClick={() => setTab("agenda")}
-          className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium ${
-            tab === "agenda" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-          }`}
-        >
-          <CalendarDays className="h-4 w-4" /> Agenda
-        </button>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold leading-tight text-foreground">Meus mapeamentos</h1>
+        <p className="text-sm text-muted-foreground">
+          Cada agendamento pode ter vários formulários. Conclua um antes de iniciar o próximo.
+        </p>
       </div>
 
       {loading ? (
-        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
-      ) : tab === "lista" ? (
-        <div className="space-y-6">
-          <Section
-            title="Em andamento"
-            items={pendentes.filter((g) => g.status === "em_andamento")}
-            empty="Nenhum mapeamento em andamento."
-          />
-          <Section
-            title="Não iniciados"
-            items={pendentes.filter((g) => g.status !== "em_andamento")}
-            empty="Nenhum mapeamento pendente."
-          />
-          <Section title="Concluídos" items={concluidos} empty="Nenhum agendamento concluído." />
-
-        </div>
+        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Carregando…</div>
       ) : (
-        <div className="space-y-4">
-          {porDia.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Nenhum mapeamento futuro agendado.</p></Card>
-          ) : (
-            porDia.map(([dia, items]) => (
-              <div key={dia}>
-                <h3 className="mb-2 text-sm font-semibold capitalize text-foreground">{dia}</h3>
-                <div className="space-y-2">
-                  {items.map((g) => <AgendamentoCard key={g.agendamentoId} g={g} />)}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-    </ProgressoContext.Provider>
-  );
-
-}
-
-function Section({ title, items, empty }: { title: string; items: Grupo[]; empty: string }) {
-  return (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold text-foreground">
-        {title} <span className="text-muted-foreground">({items.length})</span>
-      </h3>
-      {items.length === 0 ? (
-        <Card><p className="text-sm text-muted-foreground">{empty}</p></Card>
-      ) : (
-        <div className="space-y-2">
-          {items.map((g) => <AgendamentoCard key={g.agendamentoId} g={g} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AgendamentoCard({ g }: { g: Grupo }) {
-  const { progressoMap, onVerRespostas } = useContext(ProgressoContext);
-  const emAndamento = g.casos.find((c) => c.status === "em_andamento");
-
-  return (
-    <Card>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-base font-semibold text-foreground">
-            {g.cliente}
-            {g.unidade && (
-              <span className="ml-1 text-sm font-normal text-muted-foreground">· {g.unidade}</span>
-            )}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays className="h-3.5 w-3.5" /> {fmtData(g.agendadoEm)}
-            </span>
-            {g.endereco && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" /> {g.endereco}
-              </span>
-            )}
-          </div>
-          {g.observacoes && (
-            <p className="mt-2 text-xs italic text-muted-foreground">{g.observacoes}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2 border-t border-border pt-3">
-        {g.casos.map((c) => {
-          const finalizado = FINALIZADOS.includes(c.status);
-          const prog = progressoMap.get(c.id);
-          const iniciado = c.status === "em_andamento" || (prog?.respondidas ?? 0) > 0;
-          const isCurrent = c.status === "em_andamento";
-          const podeIniciar = !finalizado && (!emAndamento || isCurrent);
-          const pct =
-            prog && prog.total > 0 ? Math.round((prog.respondidas / prog.total) * 100) : 0;
-          return (
-            <div
-              key={c.id}
-              className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-[11px] text-muted-foreground">{c.codigo}</span>
-                  <Badge className={statusTones[c.status]}>{statusLabels[c.status]}</Badge>
-                  {!finalizado && !iniciado && (
-                    <Badge className="bg-muted text-muted-foreground">Não iniciado</Badge>
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm font-medium text-foreground">
-                  {c.formulario?.nome ?? "—"}
-                </p>
-                {prog && prog.total > 0 && (
-                  <div className="mt-1.5 max-w-xs">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {prog.respondidas}/{prog.total} respondidas ({pct}%)
-                    </p>
+        <>
+          {pendentesAceite.length > 0 && (
+            <section className="space-y-3">
+              <Rotulo>Aguardando sua confirmação</Rotulo>
+              {pendentesAceite.map((ag) => (
+                <article
+                  key={ag.id}
+                  className="flex flex-col gap-2 rounded-xl border border-[#f3e0bc] bg-[#f8f5f1] p-4"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <BellRing className="h-4 w-4 shrink-0" aria-hidden /> Novo agendamento — confirmar?
                   </div>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {(iniciado || finalizado) && (
-                  <Button variant="outline" onClick={() => onVerRespostas(c.id)}>
-                    <Eye className="mr-1 h-4 w-4" />
-                    Ver respostas
-                  </Button>
-                )}
-                {podeIniciar ? (
-                  <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }}>
-                    <Button>
-                      <Play className="mr-1 h-4 w-4" />
-                      {iniciado ? "Continuar" : "Iniciar"}
-                    </Button>
-                  </Link>
-                ) : !finalizado ? (
-                  <Button disabled title="Termine o formulário em andamento antes">
-                    <Lock className="mr-1 h-4 w-4" />
-                    Bloqueado
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  <div className="font-semibold text-foreground">
+                    {ag.cliente_nome ?? "Cliente"}
+                    {ag.unidade_nome ? <span className="font-normal text-muted-foreground"> · {ag.unidade_nome}</span> : null}
+                  </div>
+                  <Meta icone={<CalendarDays className="h-3.5 w-3.5" />}>
+                    {new Date(ag.agendado_em).toLocaleString("pt-BR")}
+                  </Meta>
+                  {ag.endereco_vistoria && <Meta icone={<MapPin className="h-3.5 w-3.5" />}>{ag.endereco_vistoria}</Meta>}
+                  {ag.observacoes_agendamento && (
+                    <p className="whitespace-pre-line break-words text-xs italic leading-[17px] text-muted-foreground">
+                      {ag.observacoes_agendamento}
+                    </p>
+                  )}
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    <Botao
+                      variante="contorno"
+                      onClick={() => {
+                        setRecusando(ag);
+                        setMotivo("");
+                      }}
+                      disabled={working}
+                    >
+                      <XCircle className="h-4 w-4" aria-hidden /> Recusar / Reagendar
+                    </Botao>
+                    <Botao variante="primario" onClick={() => handleConfirmar(ag)} disabled={working}>
+                      <CheckCircle2 className="h-4 w-4" aria-hidden /> Confirmar agendamento
+                    </Botao>
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
 
-    </Card>
+          <section className="space-y-3">
+            <Rotulo>Em campo</Rotulo>
+            {emCampo.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <b>Nenhum mapeamento por aqui.</b>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Quando o IAM agendar uma vistoria para você, ela aparece nesta lista.
+                </p>
+              </div>
+            ) : (
+              emCampo.map((c) => {
+                const finalizado = FINALIZADOS.includes(c.status);
+                const prog = progressoMap.get(c.id);
+                const iniciado = c.status === "em_andamento" || (prog?.respondidas ?? 0) > 0;
+                const outroEmAndamento = emAndamentoPorAgendamento.get(c.agendamento_id);
+                const bloqueado = !finalizado && !!outroEmAndamento && outroEmAndamento !== c.id;
+                const pct = prog && prog.total > 0 ? Math.round((prog.respondidas / prog.total) * 100) : 0;
+                const cliente = c.unidade?.matriz?.empresa?.nome ?? "—";
+                const badge = BADGE[c.status];
+                return (
+                  <article key={c.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs uppercase leading-4 text-muted-foreground">
+                          <span className="font-mono">{c.codigo}</span> · {c.formulario?.nome ?? "—"}
+                        </div>
+                        <div className="break-words font-semibold text-foreground">
+                          {cliente}
+                          {c.unidade?.nome && cliente === "IONICS" ? (
+                            <span className="font-normal text-muted-foreground"> · {c.unidade.nome}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      {badge && (
+                        <span
+                          className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}
+                        >
+                          {badge.aceito ? <CheckCircle2 className="h-3 w-3" aria-hidden /> : null}
+                          {badge.rotulo}
+                        </span>
+                      )}
+                    </div>
+                    <Meta icone={<CalendarDays className="h-3.5 w-3.5" />}>{fmtData(c.agendado_em)}</Meta>
+
+                    {prog && prog.total > 0 && (iniciado || finalizado) && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-xs text-foreground">
+                          {prog.respondidas} de {prog.total} itens · {pct}%
+                        </span>
+                        <div
+                          className="h-2 overflow-hidden rounded-full bg-primary/15"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={pct}
+                          aria-label="Progresso do mapeamento"
+                        >
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={`mt-1 grid gap-3 ${iniciado || finalizado ? "grid-cols-2" : "grid-cols-1"}`}>
+                      {(iniciado || finalizado) && (
+                        <Botao variante="contorno" onClick={() => setResumoCasoId(c.id)}>
+                          Ver respostas
+                        </Botao>
+                      )}
+                      {finalizado ? (
+                        <Botao variante="primario" disabled>
+                          Em revisão
+                        </Botao>
+                      ) : bloqueado ? (
+                        <Botao variante="primario" disabled>
+                          Iniciar <ArrowRight className="h-4 w-4" aria-hidden />
+                        </Botao>
+                      ) : (
+                        <Link to="/app/vistoria/$casoId" params={{ casoId: c.id }} className="contents">
+                          <Botao variante="primario">
+                            {iniciado ? "Continuar" : "Iniciar"} <ArrowRight className="h-4 w-4" aria-hidden />
+                          </Botao>
+                        </Link>
+                      )}
+                    </div>
+                    {bloqueado && (
+                      <p className="text-xs leading-4 text-muted-foreground">
+                        Conclua o mapeamento em andamento antes de iniciar este.
+                      </p>
+                    )}
+                  </article>
+                );
+              })
+            )}
+          </section>
+        </>
+      )}
+
+      {/* folha inferior para a recusa (motivo obrigatório) */}
+      <Modal open={!!recusando} onClose={() => setRecusando(null)} title="Recusar / Reagendar">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Explique o motivo para o IAM ou Especialista reagendar. A justificativa é obrigatória.
+          </p>
+          <label htmlFor="motivo-recusa" className="font-semibold">
+            Motivo
+          </label>
+          <textarea
+            id="motivo-recusa"
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            rows={4}
+            className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            placeholder="Ex.: estarei em outro cliente nesse horário"
+          />
+          <p className="text-xs text-muted-foreground" role="status">
+            {motivo.trim().length >= 5 ? "Pronto para enviar." : "Escreva pelo menos 5 caracteres."}
+          </p>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <Botao variante="contorno" onClick={() => setRecusando(null)} disabled={working}>
+              Cancelar
+            </Botao>
+            <Botao variante="primario" onClick={handleRecusar} disabled={working || motivo.trim().length < 5}>
+              Enviar recusa
+            </Botao>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/** Rótulo de seção (caixa alta, discreto), como no desenho do agente. */
+function Rotulo({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mt-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h2>
+  );
+}
+
+function Meta({ icone, children }: { icone: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 text-xs leading-4 text-muted-foreground">
+      <span className="mt-px shrink-0">{icone}</span>
+      <span className="min-w-0 break-words">{children}</span>
+    </div>
+  );
+}
+
+/** Botão de 44 px (alvo de toque confortável). */
+function Botao({
+  variante,
+  children,
+  ...props
+}: {
+  variante: "primario" | "contorno";
+  children: React.ReactNode;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const base =
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 text-center text-sm font-semibold transition-colors disabled:cursor-not-allowed";
+  const cor =
+    variante === "primario"
+      ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+      : "border-border bg-card text-foreground hover:bg-muted disabled:text-muted-foreground";
+  return (
+    <button type="button" {...props} className={`${base} ${cor}`}>
+      {children}
+    </button>
   );
 }

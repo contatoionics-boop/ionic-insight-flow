@@ -13,7 +13,15 @@ import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
 import { montarOrientacoes } from "@/lib/escopo/orientacoes";
-import { arvoreVazia, configTemDados, normalizarArvore, type ArvoreEscopo } from "@/lib/escopo/tipos";
+import {
+  SUGERIR_QUANDO_OPCOES,
+  arvoreVazia,
+  configTemDados,
+  normalizarArvore,
+  quantidadesDoEscopo,
+  type ArvoreEscopo,
+} from "@/lib/escopo/tipos";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -49,6 +57,8 @@ type AgendamentoDraft = {
   matrizId: string;
   unidadeId: string;
   formIds: string[];
+  /** quantidade de mapeamentos por formulário (padrão 1) */
+  formQtd?: Record<string, number>;
   agentId: string;
   agenteNomeManual: string;
   tipoSolicitacao: "instalacao" | "upgrade";
@@ -138,6 +148,9 @@ function NewCasePage() {
   const [matrizId, setMatrizId] = useState("");
   const [unidadeId, setUnidadeId] = useState("");
   const [formIds, setFormIds] = useState<string[]>([]);
+  const [formQtd, setFormQtd] = useState<Record<string, number>>({});
+  /** Por formulário: itens do escopo que o sugerem e se já repete perguntas por entidade. */
+  const [formMeta, setFormMeta] = useState<Record<string, { sugerirQuando: string[]; repetePorEntidade: boolean }>>({});
   const [agentId, setAgentId] = useState("");
   const [agenteNomeManual, setAgenteNomeManual] = useState("");
   const [tipoSolicitacao, setTipoSolicitacao] = useState<"instalacao" | "upgrade">("instalacao");
@@ -181,6 +194,7 @@ function NewCasePage() {
         setMatrizId(draft.matrizId ?? "");
         setUnidadeId(draft.unidadeId ?? "");
         setFormIds(Array.isArray(draft.formIds) ? draft.formIds : []);
+        setFormQtd(draft.formQtd && typeof draft.formQtd === "object" ? draft.formQtd : {});
         setAgentId(draft.agentId ?? "");
         setAgenteNomeManual(draft.agenteNomeManual ?? "");
         setTipoSolicitacao(draft.tipoSolicitacao ?? "instalacao");
@@ -208,7 +222,7 @@ function NewCasePage() {
   useEffect(() => {
     if (!draftReady || !draftKey) return;
     const draft: AgendamentoDraft = {
-      empresaId, matrizId, unidadeId, formIds, agentId, agenteNomeManual,
+      empresaId, matrizId, unidadeId, formIds, formQtd, agentId, agenteNomeManual,
       tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
       propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
       escopoModo, escopoManualTexto, estrutura,
@@ -218,7 +232,7 @@ function NewCasePage() {
     } catch {
       // O preenchimento continua funcionando mesmo se o armazenamento local estiver indisponível.
     }
-  }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, agentId,
+  }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, formQtd, agentId,
     agenteNomeManual, tipoSolicitacao, modalidade, nivel, data, hora, endereco,
     observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
     escopoModo, escopoManualTexto, estrutura]);
@@ -243,6 +257,23 @@ function NewCasePage() {
       setUnidades(((u.data ?? []) as unknown) as Unidade[]);
       const formulariosAtivos = (f.data ?? []) as Form[];
       setForms(formulariosAtivos);
+      // Sugestão pelo escopo e repetição por entidade (colunas/valores novos: falha silenciosa se ausentes).
+      try {
+        const meta: Record<string, { sugerirQuando: string[]; repetePorEntidade: boolean }> = {};
+        const { data: sug, error: sugErr } = await (supabase as any).from("formularios").select("id, sugerir_quando");
+        if (!sugErr) for (const r of sug ?? []) meta[r.id] = { sugerirQuando: r.sugerir_quando ?? [], repetePorEntidade: false };
+        const { data: marc } = await (supabase as any)
+          .from("perguntas")
+          .select("id, secoes!inner(formulario_id)")
+          .neq("entidade_tipo", "geral");
+        for (const r of marc ?? []) {
+          const fid = r.secoes?.formulario_id;
+          if (fid) meta[fid] = { sugerirQuando: meta[fid]?.sugerirQuando ?? [], repetePorEntidade: true };
+        }
+        setFormMeta(meta);
+      } catch {
+        /* sem sugestões */
+      }
       if (formulariosAtivos.length === 1) {
         setFormIds((atuais) => atuais.length > 0 ? atuais : [formulariosAtivos[0].id]);
       }
@@ -358,7 +389,7 @@ function NewCasePage() {
         data: {
           unidadeId: unidadeId || null,
           matrizId: matrizId || null,
-          formIds,
+          formIds: formIdsExpandidos,
           agenteId: agentId,
           agenteNomeManual: null,
           tipoSolicitacao,
@@ -508,6 +539,33 @@ function NewCasePage() {
 
   const toggleForm = (id: string) => {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  };
+  const qtdDoForm = (id: string) => Math.max(1, Math.min(20, Math.floor(formQtd[id] ?? 1)));
+  /** Lista final enviada ao servidor: cada formulário repetido pela sua quantidade. */
+  const formIdsExpandidos = formIds.flatMap((id) => Array.from({ length: qtdDoForm(id) }, () => id));
+
+  // Formulários sugeridos pelo escopo (ainda não escolhidos). Se o formulário não repete
+  // perguntas por entidade, a quantidade sugerida é a do escopo (ex.: 2 comboios = 2 mapeamentos).
+  const sugestoesDoEscopo = useMemo(() => {
+    const q = quantidadesDoEscopo(estrutura);
+    const out: { form: Form; motivos: string[]; qtd: number }[] = [];
+    for (const f of forms) {
+      const quando = formMeta[f.id]?.sugerirQuando ?? [];
+      const ativos = SUGERIR_QUANDO_OPCOES.filter((o) => quando.includes(o.value) && q[o.value] > 0);
+      if (!ativos.length || formIds.includes(f.id)) continue;
+      const base = Math.max(...ativos.map((o) => q[o.value]));
+      out.push({
+        form: f,
+        motivos: ativos.map((o) => `${q[o.value]} ${o.label.toLowerCase()}`),
+        qtd: formMeta[f.id]?.repetePorEntidade ? 1 : Math.min(20, base),
+      });
+    }
+    return out;
+  }, [forms, formMeta, estrutura, formIds]);
+
+  const adicionarSugestao = (id: string, qtd: number) => {
+    setFormIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+    setFormQtd((cur) => ({ ...cur, [id]: qtd }));
   };
 
   const empresaSel = empresas.find((x) => x.id === empresaId);
@@ -761,7 +819,27 @@ function NewCasePage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <Label>Formulário obrigatório ({formIds.length} selecionado{formIds.length === 1 ? "" : "s"})</Label>
+              <Label>
+                Formulário obrigatório ({formIdsExpandidos.length} mapeamento{formIdsExpandidos.length === 1 ? "" : "s"})
+              </Label>
+              {sugestoesDoEscopo.length > 0 && (
+                <div className="mt-1 space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-2.5">
+                  <p className="text-xs font-medium text-foreground">Sugerido pelo escopo</p>
+                  {sugestoesDoEscopo.map((s) => (
+                    <div key={s.form.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="min-w-0 text-foreground">
+                        {s.form.nome}
+                        <span className="ml-1 text-muted-foreground">
+                          ({s.motivos.join(", ")} no escopo: {s.qtd}x)
+                        </span>
+                      </span>
+                      <Button type="button" variant="outline" onClick={() => adicionarSugestao(s.form.id, s.qtd)}>
+                        Adicionar {s.qtd}x
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
                 {forms.length === 0 ? (
                   <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
@@ -779,7 +857,25 @@ function NewCasePage() {
                         aria-label={`Selecionar formulário ${f.nome}`}
                         className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                       />
-                      <span className="text-foreground">{f.nome}</span>
+                      <span className="min-w-0 flex-1 text-foreground">{f.nome}</span>
+                      {formIds.includes(f.id) && (
+                        <span
+                          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          Qtd.
+                          <NumericInput
+                            min={1}
+                            max={20}
+                            value={qtdDoForm(f.id)}
+                            className="w-28"
+                            aria-label={`Quantidade de mapeamentos de ${f.nome}`}
+                            onValueChange={(v) =>
+                              setFormQtd((cur) => ({ ...cur, [f.id]: Math.max(1, Math.min(20, Math.floor(Number(v) || 1))) }))
+                            }
+                          />
+                        </span>
+                      )}
                     </label>
                   ))
                 )}
@@ -787,7 +883,7 @@ function NewCasePage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {forms.length === 1
                   ? "O único formulário ativo já foi selecionado automaticamente."
-                  : "Selecione ao menos um formulário. Cada opção gera um mapeamento independente."}
+                  : "Selecione ao menos um formulário. Cada mapeamento é independente; use Qtd. para criar o mesmo formulário mais de uma vez (ex.: um por comboio)."}
               </p>
             </div>
             <div>

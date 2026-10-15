@@ -244,17 +244,22 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     }
     setSalvando(true);
     try {
-      const res = await salvar({
-        data: {
-          ...(token ? { token } : {}),
-          ...(casoId ? { casoId } : {}),
-          respostas,
-        },
-      });
+      // O servidor aceita até 120 respostas por chamada: envia em lotes menores.
+      const motivos: string[] = [];
+      for (let i = 0; i < respostas.length; i += 100) {
+        const res = await salvar({
+          data: {
+            ...(token ? { token } : {}),
+            ...(casoId ? { casoId } : {}),
+            respostas: respostas.slice(i, i + 100),
+          },
+        });
+        if (!res.ok) motivos.push(...res.erros.map((e) => e.motivo));
+      }
       sujosRef.current.clear();
       setSalvoEm(new Date());
-      if (!res.ok && res.erros.length) {
-        setErro(res.erros.map((e) => e.motivo).join(" · "));
+      if (motivos.length) {
+        setErro(motivos.join(" · "));
         return false;
       }
       setErro(null);
@@ -397,20 +402,20 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     <div className="mx-auto w-full max-w-6xl px-3 pb-32 pt-4 sm:px-5 lg:pb-10">
       <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="break-words text-lg font-bold leading-snug text-foreground sm:text-xl">
+          <h1 className="break-words text-xl font-bold uppercase leading-tight text-foreground">
             {dados.clienteNome}
           </h1>
-          <p className="mt-0.5 break-words text-xs text-muted-foreground">{dados.formularioNome}</p>
+          <p className="mt-1 break-words text-xs uppercase text-muted-foreground">{dados.formularioNome}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
           {onTrocarModo && (
-            <Button variant="secondary" className="w-full sm:w-auto" onClick={onTrocarModo}>
+            <Button variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onTrocarModo}>
               <MessageSquare className="h-4 w-4" /> Assistente em chat
             </Button>
           )}
           <Button
             variant="secondary"
-            className={`w-full sm:w-auto ${onTrocarModo ? "" : "col-span-2"}`}
+            className={`min-h-11 w-full sm:w-auto ${onTrocarModo ? "" : "col-span-2"}`}
             onClick={() => setAssistenteAberto(true)}
           >
             <Sparkles className="h-4 w-4" /> Ajuda
@@ -515,14 +520,20 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             </section>
           ) : (
             <section className="space-y-4">
-              <div className="flex items-center gap-2">
-                <IconeStatus status={etapaResumo.status} />
+              <div className="flex items-start gap-3">
+                <IconeStatus status={etapaResumo.status} className="mt-0.5 h-5 w-5" />
                 <div className="min-w-0">
-                  <h2 className="truncate text-base font-semibold text-foreground">
+                  <h2 className="text-base font-semibold leading-snug text-foreground">
                     Etapa {etapaAtual + 1} de {resumo.etapas.length} · {etapaResumo.etapa.titulo}
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    {etapaResumo.respondidas}/{etapaResumo.visiveis.length} itens ·{" "}
+                    {(() => {
+                      const obrig = etapaResumo.visiveis.filter((p) => p.obrigatoria).length;
+                      const feitas = obrig - etapaResumo.faltandoObrigatorias.length;
+                      return obrig > 0
+                        ? `${feitas}/${obrig} itens obrigatórios · `
+                        : `${etapaResumo.respondidas}/${etapaResumo.visiveis.length} itens · `;
+                    })()}
                     {rotuloStatus[etapaResumo.status]}
                   </p>
                 </div>
@@ -574,12 +585,28 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <Button
               variant="secondary"
+              className="min-h-11"
               onClick={() => void irPara(Math.max(0, etapaAtual - 1))}
               disabled={etapaAtual === 0}
             >
               <ArrowLeft className="h-4 w-4" /> Anterior
             </Button>
-            <Button variant="primary" onClick={avancar}>
+            {ultima && !resumo.podeFinalizar && (
+              <button
+                type="button"
+                className="flex-1 py-2 text-center text-xs font-semibold text-primary underline"
+                onClick={() => {
+                  const i = resumo.etapas.findIndex((e) => e.faltandoObrigatorias.length > 0);
+                  if (i >= 0) void irPara(i, resumo.etapas[i].faltandoObrigatorias[0]?.id);
+                }}
+              >
+                {(() => {
+                  const n = resumo.etapas.reduce((a, e) => a + e.faltandoObrigatorias.length, 0);
+                  return `${n} ${n === 1 ? "pendência" : "pendências"} · ir para a primeira`;
+                })()}
+              </button>
+            )}
+            <Button variant="primary" className="min-h-11" onClick={avancar}>
               {ultima ? "Revisar" : "Próximo"} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

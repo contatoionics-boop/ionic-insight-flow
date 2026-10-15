@@ -158,6 +158,29 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   }
   camadas.push(variaveisComplementaresCadastro(caso));
 
+  // Descrição do escopo informada no agendamento: preenche o "objeto do escopo"
+  // quando a proposta não trouxe; sem descrição, o trecho segue como pendência.
+  try {
+    const { data: manuais } = await supabase
+      .from("propostas_comerciais")
+      .select("texto_manual")
+      .eq("caso_id", casoId)
+      .eq("origem", "manual")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+    const descricao = String(manuais?.[0]?.texto_manual ?? "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[.\s]+$/, "");
+    if (descricao) {
+      camadas.push({
+        objeto_escopo: { chave: "objeto_escopo", valor: descricao, origem: "cadastro", confianca: 1 },
+      });
+    }
+  } catch {
+    // sem descrição manual: mantém o ponto a confirmar
+  }
+
   const variaveis = await extrairVariaveis(respostas, manuais, camadas);
 
   const meta = metaDoCasoLaudo(caso);
