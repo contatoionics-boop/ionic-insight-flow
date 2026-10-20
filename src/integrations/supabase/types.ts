@@ -771,6 +771,7 @@ export type Database = {
           id: string
           nome: string
           revisao: string | null
+          sugerir_quando: string[]
           validar_imagens_ia: boolean
         }
         Insert: {
@@ -786,6 +787,7 @@ export type Database = {
           id?: string
           nome: string
           revisao?: string | null
+          sugerir_quando?: string[]
           validar_imagens_ia?: boolean
         }
         Update: {
@@ -801,6 +803,7 @@ export type Database = {
           id?: string
           nome?: string
           revisao?: string | null
+          sugerir_quando?: string[]
           validar_imagens_ia?: boolean
         }
         Relationships: [
