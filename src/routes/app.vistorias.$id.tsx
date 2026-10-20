@@ -28,7 +28,7 @@ export const Route = createFileRoute("/app/vistorias/$id")({
     ],
   }),
   errorComponent: ({ error }) => (
-    <div className="p-6 text-sm text-destructive">Erro ao carregar mapeamento: {error.message}</div>
+    <div className="p-6 text-sm text-destructive">Erro ao carregar mapeamento: {(error as Error).message}</div>
   ),
   notFoundComponent: () => (
     <div className="p-6 text-sm text-muted-foreground">Mapeamento não encontrado.</div>
