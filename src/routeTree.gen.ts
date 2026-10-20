@@ -9,48 +9,48 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppUsersRouteImport } from './routes/app.users'
-import { Route as AppTrackingRouteImport } from './routes/app.tracking'
-import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
-import { Route as AppPromptsRouteImport } from './routes/app.prompts'
-import { Route as AppOutputsRouteImport } from './routes/app.outputs'
-import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
-import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
-import { Route as AppHistoryRouteImport } from './routes/app.history'
-import { Route as AppFormsAssistantRouteImport } from './routes/app.forms-assistant'
-import { Route as AppFormsRouteImport } from './routes/app.forms'
-import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
-import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
-import { Route as AppClientsRouteImport } from './routes/app.clients'
-import { Route as AppCatalogoMateriaisRouteImport } from './routes/app.catalogo-materiais'
-import { Route as AppCasesRouteImport } from './routes/app.cases'
-import { Route as AppBlocosPadraoRouteImport } from './routes/app.blocos-padrao'
-import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
-import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
-import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
-import { Route as AppAgendaRouteImport } from './routes/app.agenda'
-import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
-import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
-import { Route as ApiAgenteIaRouteImport } from './routes/api/agente-ia'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AgentTokenRouteImport } from './routes/agent.$token'
-import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
-import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
-import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
-import { Route as AppVistoriasIdRouteImport } from './routes/app.vistorias.$id'
-import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
-import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
-import { Route as AppClientsEmpresaIdRouteImport } from './routes/app.clients.$empresaId'
+import { Route as ApiAgenteIaRouteImport } from './routes/api/agente-ia'
+import { Route as ApiFormsAssistantRouteImport } from './routes/api/forms-assistant'
+import { Route as ApiVistoriaChatRouteImport } from './routes/api/vistoria-chat'
+import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as AppAgenteIaRouteImport } from './routes/app.agente-ia'
+import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
+import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
+import { Route as AppBlocosPadraoRouteImport } from './routes/app.blocos-padrao'
+import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AppCatalogoMateriaisRouteImport } from './routes/app.catalogo-materiais'
+import { Route as AppClientsRouteImport } from './routes/app.clients'
+import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
+import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppFormsRouteImport } from './routes/app.forms'
+import { Route as AppFormsAssistantRouteImport } from './routes/app.forms-assistant'
+import { Route as AppHistoryRouteImport } from './routes/app.history'
+import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
+import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
+import { Route as AppOutputsRouteImport } from './routes/app.outputs'
+import { Route as AppPromptsRouteImport } from './routes/app.prompts'
+import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
+import { Route as AppTrackingRouteImport } from './routes/app.tracking'
+import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppAgendamentoIdRouteImport } from './routes/app.agendamento.$id'
+import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
+import { Route as AppClientsEmpresaIdRouteImport } from './routes/app.clients.$empresaId'
+import { Route as AppFormsIndexRouteImport } from './routes/app.forms.index'
+import { Route as AppReviewIdRouteImport } from './routes/app.review.$id'
+import { Route as AppVistoriaCasoIdRouteImport } from './routes/app.vistoria.$casoId'
+import { Route as AppVistoriasIdRouteImport } from './routes/app.vistorias.$id'
+import { Route as PreviewFormsIdRouteImport } from './routes/preview.forms.$id'
+import { Route as ApiPublicHooksCheckAtrasosRouteImport } from './routes/api/public/hooks/check-atrasos'
 import { Route as AppFormsIdIndexRouteImport } from './routes/app.forms.$id.index'
 import { Route as AppFormsIdPreviewRouteImport } from './routes/app.forms.$id.preview'
-import { Route as ApiPublicHooksCheckAtrasosRouteImport } from './routes/api/public/hooks/check-atrasos'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -58,124 +58,9 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppUsersRoute = AppUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTrackingRoute = AppTrackingRouteImport.update({
-  id: '/tracking',
-  path: '/tracking',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReviewQueueRoute = AppReviewQueueRouteImport.update({
-  id: '/review-queue',
-  path: '/review-queue',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPromptsRoute = AppPromptsRouteImport.update({
-  id: '/prompts',
-  path: '/prompts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOutputsRoute = AppOutputsRouteImport.update({
-  id: '/outputs',
-  path: '/outputs',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNewCaseRoute = AppNewCaseRouteImport.update({
-  id: '/new-case',
-  path: '/new-case',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMinhasVistoriasRoute = AppMinhasVistoriasRouteImport.update({
-  id: '/minhas-vistorias',
-  path: '/minhas-vistorias',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHistoryRoute = AppHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFormsAssistantRoute = AppFormsAssistantRouteImport.update({
-  id: '/forms-assistant',
-  path: '/forms-assistant',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFormsRoute = AppFormsRouteImport.update({
-  id: '/forms',
-  path: '/forms',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppClientsRoute = AppClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCatalogoMateriaisRoute = AppCatalogoMateriaisRouteImport.update({
-  id: '/catalogo-materiais',
-  path: '/catalogo-materiais',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCasesRoute = AppCasesRouteImport.update({
-  id: '/cases',
-  path: '/cases',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBlocosPadraoRoute = AppBlocosPadraoRouteImport.update({
-  id: '/blocos-padrao',
-  path: '/blocos-padrao',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
-  id: '/base-conhecimento',
-  path: '/base-conhecimento',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAgentePerfilRoute = AppAgentePerfilRouteImport.update({
-  id: '/agente-perfil',
-  path: '/agente-perfil',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAgenteIaRoute = AppAgenteIaRouteImport.update({
-  id: '/agente-ia',
-  path: '/agente-ia',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAgendaRoute = AppAgendaRouteImport.update({
-  id: '/agenda',
-  path: '/agenda',
-  getParentRoute: () => AppRoute,
-} as any)
-const ApiVistoriaChatRoute = ApiVistoriaChatRouteImport.update({
-  id: '/api/vistoria-chat',
-  path: '/api/vistoria-chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
-  id: '/api/forms-assistant',
-  path: '/api/forms-assistant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAgenteIaRoute = ApiAgenteIaRouteImport.update({
-  id: '/api/agente-ia',
-  path: '/api/agente-ia',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentTokenRoute = AgentTokenRouteImport.update({
@@ -183,24 +68,144 @@ const AgentTokenRoute = AgentTokenRouteImport.update({
   path: '/agent/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppFormsRoute,
+const ApiAgenteIaRoute = ApiAgenteIaRouteImport.update({
+  id: '/api/agente-ia',
+  path: '/api/agente-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFormsAssistantRoute = ApiFormsAssistantRouteImport.update({
+  id: '/api/forms-assistant',
+  path: '/api/forms-assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVistoriaChatRoute = ApiVistoriaChatRouteImport.update({
+  id: '/api/vistoria-chat',
+  path: '/api/vistoria-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAgendaRoute = AppAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgenteIaRoute = AppAgenteIaRouteImport.update({
+  id: '/agente-ia',
+  path: '/agente-ia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgentePerfilRoute = AppAgentePerfilRouteImport.update({
+  id: '/agente-perfil',
+  path: '/agente-perfil',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBaseConhecimentoRoute = AppBaseConhecimentoRouteImport.update({
+  id: '/base-conhecimento',
+  path: '/base-conhecimento',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBlocosPadraoRoute = AppBlocosPadraoRouteImport.update({
+  id: '/blocos-padrao',
+  path: '/blocos-padrao',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogoMateriaisRoute = AppCatalogoMateriaisRouteImport.update({
+  id: '/catalogo-materiais',
+  path: '/catalogo-materiais',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientsRoute = AppClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsRoute = AppFormsRouteImport.update({
+  id: '/forms',
+  path: '/forms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFormsAssistantRoute = AppFormsAssistantRouteImport.update({
+  id: '/forms-assistant',
+  path: '/forms-assistant',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMinhasVistoriasRoute = AppMinhasVistoriasRouteImport.update({
+  id: '/minhas-vistorias',
+  path: '/minhas-vistorias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNewCaseRoute = AppNewCaseRouteImport.update({
+  id: '/new-case',
+  path: '/new-case',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOutputsRoute = AppOutputsRouteImport.update({
+  id: '/outputs',
+  path: '/outputs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPromptsRoute = AppPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReviewQueueRoute = AppReviewQueueRouteImport.update({
+  id: '/review-queue',
+  path: '/review-queue',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrackingRoute = AppTrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgendamentoIdRoute = AppAgendamentoIdRouteImport.update({
+  id: '/agendamento/$id',
+  path: '/agendamento/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppClientsRoute,
 } as any)
-const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
-  id: '/preview/forms/$id',
-  path: '/preview/forms/$id',
-  getParentRoute: () => rootRouteImport,
+const AppClientsEmpresaIdRoute = AppClientsEmpresaIdRouteImport.update({
+  id: '/$empresaId',
+  path: '/$empresaId',
+  getParentRoute: () => AppClientsRoute,
 } as any)
-const AppVistoriasIdRoute = AppVistoriasIdRouteImport.update({
-  id: '/vistorias/$id',
-  path: '/vistorias/$id',
+const AppFormsIndexRoute = AppFormsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppFormsRoute,
+} as any)
+const AppReviewIdRoute = AppReviewIdRouteImport.update({
+  id: '/review/$id',
+  path: '/review/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppVistoriaCasoIdRoute = AppVistoriaCasoIdRouteImport.update({
@@ -208,21 +213,22 @@ const AppVistoriaCasoIdRoute = AppVistoriaCasoIdRouteImport.update({
   path: '/vistoria/$casoId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReviewIdRoute = AppReviewIdRouteImport.update({
-  id: '/review/$id',
-  path: '/review/$id',
+const AppVistoriasIdRoute = AppVistoriasIdRouteImport.update({
+  id: '/vistorias/$id',
+  path: '/vistorias/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const AppClientsEmpresaIdRoute = AppClientsEmpresaIdRouteImport.update({
-  id: '/$empresaId',
-  path: '/$empresaId',
-  getParentRoute: () => AppClientsRoute,
+const PreviewFormsIdRoute = PreviewFormsIdRouteImport.update({
+  id: '/preview/forms/$id',
+  path: '/preview/forms/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAgendamentoIdRoute = AppAgendamentoIdRouteImport.update({
-  id: '/agendamento/$id',
-  path: '/agendamento/$id',
-  getParentRoute: () => AppRoute,
-} as any)
+const ApiPublicHooksCheckAtrasosRoute =
+  ApiPublicHooksCheckAtrasosRouteImport.update({
+    id: '/api/public/hooks/check-atrasos',
+    path: '/api/public/hooks/check-atrasos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppFormsIdIndexRoute = AppFormsIdIndexRouteImport.update({
   id: '/$id/',
   path: '/$id/',
@@ -233,12 +239,6 @@ const AppFormsIdPreviewRoute = AppFormsIdPreviewRouteImport.update({
   path: '/$id/preview',
   getParentRoute: () => AppFormsRoute,
 } as any)
-const ApiPublicHooksCheckAtrasosRoute =
-  ApiPublicHooksCheckAtrasosRouteImport.update({
-    id: '/api/public/hooks/check-atrasos',
-    path: '/api/public/hooks/check-atrasos',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -494,11 +494,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -508,172 +508,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/users': {
-      id: '/app/users'
-      path: '/users'
-      fullPath: '/app/users'
-      preLoaderRoute: typeof AppUsersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/tracking': {
-      id: '/app/tracking'
-      path: '/tracking'
-      fullPath: '/app/tracking'
-      preLoaderRoute: typeof AppTrackingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/review-queue': {
-      id: '/app/review-queue'
-      path: '/review-queue'
-      fullPath: '/app/review-queue'
-      preLoaderRoute: typeof AppReviewQueueRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/prompts': {
-      id: '/app/prompts'
-      path: '/prompts'
-      fullPath: '/app/prompts'
-      preLoaderRoute: typeof AppPromptsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/outputs': {
-      id: '/app/outputs'
-      path: '/outputs'
-      fullPath: '/app/outputs'
-      preLoaderRoute: typeof AppOutputsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/new-case': {
-      id: '/app/new-case'
-      path: '/new-case'
-      fullPath: '/app/new-case'
-      preLoaderRoute: typeof AppNewCaseRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/minhas-vistorias': {
-      id: '/app/minhas-vistorias'
-      path: '/minhas-vistorias'
-      fullPath: '/app/minhas-vistorias'
-      preLoaderRoute: typeof AppMinhasVistoriasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/history': {
-      id: '/app/history'
-      path: '/history'
-      fullPath: '/app/history'
-      preLoaderRoute: typeof AppHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/forms-assistant': {
-      id: '/app/forms-assistant'
-      path: '/forms-assistant'
-      fullPath: '/app/forms-assistant'
-      preLoaderRoute: typeof AppFormsAssistantRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/forms': {
-      id: '/app/forms'
-      path: '/forms'
-      fullPath: '/app/forms'
-      preLoaderRoute: typeof AppFormsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/dashboard': {
-      id: '/app/dashboard'
-      path: '/dashboard'
-      fullPath: '/app/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/configuracoes': {
-      id: '/app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/app/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/clients': {
-      id: '/app/clients'
-      path: '/clients'
-      fullPath: '/app/clients'
-      preLoaderRoute: typeof AppClientsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/catalogo-materiais': {
-      id: '/app/catalogo-materiais'
-      path: '/catalogo-materiais'
-      fullPath: '/app/catalogo-materiais'
-      preLoaderRoute: typeof AppCatalogoMateriaisRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/cases': {
-      id: '/app/cases'
-      path: '/cases'
-      fullPath: '/app/cases'
-      preLoaderRoute: typeof AppCasesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/blocos-padrao': {
-      id: '/app/blocos-padrao'
-      path: '/blocos-padrao'
-      fullPath: '/app/blocos-padrao'
-      preLoaderRoute: typeof AppBlocosPadraoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/base-conhecimento': {
-      id: '/app/base-conhecimento'
-      path: '/base-conhecimento'
-      fullPath: '/app/base-conhecimento'
-      preLoaderRoute: typeof AppBaseConhecimentoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/agente-perfil': {
-      id: '/app/agente-perfil'
-      path: '/agente-perfil'
-      fullPath: '/app/agente-perfil'
-      preLoaderRoute: typeof AppAgentePerfilRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/agente-ia': {
-      id: '/app/agente-ia'
-      path: '/agente-ia'
-      fullPath: '/app/agente-ia'
-      preLoaderRoute: typeof AppAgenteIaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/agenda': {
-      id: '/app/agenda'
-      path: '/agenda'
-      fullPath: '/app/agenda'
-      preLoaderRoute: typeof AppAgendaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/api/vistoria-chat': {
-      id: '/api/vistoria-chat'
-      path: '/api/vistoria-chat'
-      fullPath: '/api/vistoria-chat'
-      preLoaderRoute: typeof ApiVistoriaChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/forms-assistant': {
-      id: '/api/forms-assistant'
-      path: '/api/forms-assistant'
-      fullPath: '/api/forms-assistant'
-      preLoaderRoute: typeof ApiFormsAssistantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/agente-ia': {
-      id: '/api/agente-ia'
-      path: '/api/agente-ia'
-      fullPath: '/api/agente-ia'
-      preLoaderRoute: typeof ApiAgenteIaRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent/$token': {
@@ -683,12 +522,173 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgentTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/forms/': {
-      id: '/app/forms/'
-      path: '/'
-      fullPath: '/app/forms/'
-      preLoaderRoute: typeof AppFormsIndexRouteImport
-      parentRoute: typeof AppFormsRoute
+    '/api/agente-ia': {
+      id: '/api/agente-ia'
+      path: '/api/agente-ia'
+      fullPath: '/api/agente-ia'
+      preLoaderRoute: typeof ApiAgenteIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/forms-assistant': {
+      id: '/api/forms-assistant'
+      path: '/api/forms-assistant'
+      fullPath: '/api/forms-assistant'
+      preLoaderRoute: typeof ApiFormsAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vistoria-chat': {
+      id: '/api/vistoria-chat'
+      path: '/api/vistoria-chat'
+      fullPath: '/api/vistoria-chat'
+      preLoaderRoute: typeof ApiVistoriaChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/agenda': {
+      id: '/app/agenda'
+      path: '/agenda'
+      fullPath: '/app/agenda'
+      preLoaderRoute: typeof AppAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/agente-ia': {
+      id: '/app/agente-ia'
+      path: '/agente-ia'
+      fullPath: '/app/agente-ia'
+      preLoaderRoute: typeof AppAgenteIaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/agente-perfil': {
+      id: '/app/agente-perfil'
+      path: '/agente-perfil'
+      fullPath: '/app/agente-perfil'
+      preLoaderRoute: typeof AppAgentePerfilRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/base-conhecimento': {
+      id: '/app/base-conhecimento'
+      path: '/base-conhecimento'
+      fullPath: '/app/base-conhecimento'
+      preLoaderRoute: typeof AppBaseConhecimentoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/blocos-padrao': {
+      id: '/app/blocos-padrao'
+      path: '/blocos-padrao'
+      fullPath: '/app/blocos-padrao'
+      preLoaderRoute: typeof AppBlocosPadraoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/cases': {
+      id: '/app/cases'
+      path: '/cases'
+      fullPath: '/app/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/catalogo-materiais': {
+      id: '/app/catalogo-materiais'
+      path: '/catalogo-materiais'
+      fullPath: '/app/catalogo-materiais'
+      preLoaderRoute: typeof AppCatalogoMateriaisRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/clients': {
+      id: '/app/clients'
+      path: '/clients'
+      fullPath: '/app/clients'
+      preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/configuracoes': {
+      id: '/app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/dashboard': {
+      id: '/app/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/forms': {
+      id: '/app/forms'
+      path: '/forms'
+      fullPath: '/app/forms'
+      preLoaderRoute: typeof AppFormsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/forms-assistant': {
+      id: '/app/forms-assistant'
+      path: '/forms-assistant'
+      fullPath: '/app/forms-assistant'
+      preLoaderRoute: typeof AppFormsAssistantRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/history': {
+      id: '/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/minhas-vistorias': {
+      id: '/app/minhas-vistorias'
+      path: '/minhas-vistorias'
+      fullPath: '/app/minhas-vistorias'
+      preLoaderRoute: typeof AppMinhasVistoriasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/new-case': {
+      id: '/app/new-case'
+      path: '/new-case'
+      fullPath: '/app/new-case'
+      preLoaderRoute: typeof AppNewCaseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/outputs': {
+      id: '/app/outputs'
+      path: '/outputs'
+      fullPath: '/app/outputs'
+      preLoaderRoute: typeof AppOutputsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prompts': {
+      id: '/app/prompts'
+      path: '/prompts'
+      fullPath: '/app/prompts'
+      preLoaderRoute: typeof AppPromptsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/review-queue': {
+      id: '/app/review-queue'
+      path: '/review-queue'
+      fullPath: '/app/review-queue'
+      preLoaderRoute: typeof AppReviewQueueRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tracking': {
+      id: '/app/tracking'
+      path: '/tracking'
+      fullPath: '/app/tracking'
+      preLoaderRoute: typeof AppTrackingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/users': {
+      id: '/app/users'
+      path: '/users'
+      fullPath: '/app/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/agendamento/$id': {
+      id: '/app/agendamento/$id'
+      path: '/agendamento/$id'
+      fullPath: '/app/agendamento/$id'
+      preLoaderRoute: typeof AppAgendamentoIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/clients/': {
       id: '/app/clients/'
@@ -697,18 +697,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsIndexRouteImport
       parentRoute: typeof AppClientsRoute
     }
-    '/preview/forms/$id': {
-      id: '/preview/forms/$id'
-      path: '/preview/forms/$id'
-      fullPath: '/preview/forms/$id'
-      preLoaderRoute: typeof PreviewFormsIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/app/clients/$empresaId': {
+      id: '/app/clients/$empresaId'
+      path: '/$empresaId'
+      fullPath: '/app/clients/$empresaId'
+      preLoaderRoute: typeof AppClientsEmpresaIdRouteImport
+      parentRoute: typeof AppClientsRoute
     }
-    '/app/vistorias/$id': {
-      id: '/app/vistorias/$id'
-      path: '/vistorias/$id'
-      fullPath: '/app/vistorias/$id'
-      preLoaderRoute: typeof AppVistoriasIdRouteImport
+    '/app/forms/': {
+      id: '/app/forms/'
+      path: '/'
+      fullPath: '/app/forms/'
+      preLoaderRoute: typeof AppFormsIndexRouteImport
+      parentRoute: typeof AppFormsRoute
+    }
+    '/app/review/$id': {
+      id: '/app/review/$id'
+      path: '/review/$id'
+      fullPath: '/app/review/$id'
+      preLoaderRoute: typeof AppReviewIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/vistoria/$casoId': {
@@ -718,26 +725,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVistoriaCasoIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/review/$id': {
-      id: '/app/review/$id'
-      path: '/review/$id'
-      fullPath: '/app/review/$id'
-      preLoaderRoute: typeof AppReviewIdRouteImport
+    '/app/vistorias/$id': {
+      id: '/app/vistorias/$id'
+      path: '/vistorias/$id'
+      fullPath: '/app/vistorias/$id'
+      preLoaderRoute: typeof AppVistoriasIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/clients/$empresaId': {
-      id: '/app/clients/$empresaId'
-      path: '/$empresaId'
-      fullPath: '/app/clients/$empresaId'
-      preLoaderRoute: typeof AppClientsEmpresaIdRouteImport
-      parentRoute: typeof AppClientsRoute
+    '/preview/forms/$id': {
+      id: '/preview/forms/$id'
+      path: '/preview/forms/$id'
+      fullPath: '/preview/forms/$id'
+      preLoaderRoute: typeof PreviewFormsIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/app/agendamento/$id': {
-      id: '/app/agendamento/$id'
-      path: '/agendamento/$id'
-      fullPath: '/app/agendamento/$id'
-      preLoaderRoute: typeof AppAgendamentoIdRouteImport
-      parentRoute: typeof AppRoute
+    '/api/public/hooks/check-atrasos': {
+      id: '/api/public/hooks/check-atrasos'
+      path: '/api/public/hooks/check-atrasos'
+      fullPath: '/api/public/hooks/check-atrasos'
+      preLoaderRoute: typeof ApiPublicHooksCheckAtrasosRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/forms/$id/': {
       id: '/app/forms/$id/'
@@ -752,13 +759,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/forms/$id/preview'
       preLoaderRoute: typeof AppFormsIdPreviewRouteImport
       parentRoute: typeof AppFormsRoute
-    }
-    '/api/public/hooks/check-atrasos': {
-      id: '/api/public/hooks/check-atrasos'
-      path: '/api/public/hooks/check-atrasos'
-      fullPath: '/api/public/hooks/check-atrasos'
-      preLoaderRoute: typeof ApiPublicHooksCheckAtrasosRouteImport
-      parentRoute: typeof rootRouteImport
     }
   }
 }
