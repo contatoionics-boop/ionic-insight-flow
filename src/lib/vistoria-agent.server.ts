@@ -5,7 +5,7 @@ import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso } from "@/lib/escopo/gerar.server";
-import { rotuloSolucao, type ConfigEscopo, type EntidadeEscopo } from "@/lib/escopo/tipos";
+import { resumoRfid, rotuloSolucao, type ConfigEscopo, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
 
@@ -863,7 +863,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
   const extrasConfig = [
     rotuloSolucao(cfg.solucao ?? null) ? `solução ${rotuloSolucao(cfg.solucao ?? null)}` : null,
     cfg.rfid?.ativo
-      ? `cartão RFID (${cfg.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia}`).join(", ") || "sem detalhe"})`
+      ? `cartão RFID (${resumoRfid(cfg.rfid.itens) || "sem detalhe"})`
       : null,
     cfg.equipamentos?.length
       ? `equipamentos vendidos (${cfg.equipamentos.map((e) => `${e.quantidade}× ${e.descricao}`).join("; ")})`

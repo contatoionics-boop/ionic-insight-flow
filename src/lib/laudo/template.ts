@@ -161,7 +161,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
 
   // Solução contratada: define se a seção 2.1 (TI/banco de dados/ERP, exclusiva
-  // do SAAF) entra no documento. SSG Frota NÃO possui esses requisitos e o
+  // do SAAF) entra no documento. SSGFROTA NÃO possui esses requisitos e o
   // sistema jamais assume SAAF por omissão.
   const solucao = solucaoContratada(vars);
 
@@ -258,7 +258,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       tipo: "observacao",
       titulo: "OBSERVAÇÃO TÉCNICA",
       texto:
-        `Requisitos de TI e banco de dados não incluídos: ${pendencia("nome_solucao", "solução contratada (SAAF ou SSG Frota)")}. ` +
+        `Requisitos de TI e banco de dados não incluídos: ${pendencia("nome_solucao", "solução contratada (SAAF ou SSGFROTA)")}. ` +
         "A seção 2.1 é aplicável apenas à solução SAAF e deve ser confirmada pelo especialista.",
       origem: "dynamic",
       editavel: true,

@@ -290,7 +290,7 @@ export function formatarValorEscopo(chave: keyof EscopoProposta, valor: unknown)
   return String(valor);
 }
 
-/** Frase curta do escopo, ex.: "SSG Frota · Nível 2 · Pista · 1 bico · sem Comboio · Wi-Fi". */
+/** Frase curta do escopo, ex.: "SSGFROTA · Nível 2 · Pista · 1 bico · sem Comboio · Wi-Fi". */
 export function resumoEscopo(escopo: EscopoProposta): string {
   const partes: string[] = [];
   const v = <T,>(k: keyof EscopoProposta) => (escopo[k]?.valor ?? null) as T | null;

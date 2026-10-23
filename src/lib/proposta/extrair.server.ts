@@ -141,7 +141,7 @@ export async function extrairEscopoProposta(texto: string): Promise<EscopoPropos
         "específico daquele cliente. Responda SOMENTE com JSON válido no formato " +
         '{"chave":{"valor":..., "confianca":0.0, "trecho":"..."}}. ' +
         "Chaves: nome_cliente, cnpj, unidade, cidade_uf, cep, endereco, contato, responsavel_proposta, " +
-        "numero_proposta, data_proposta, nome_solucao (ex.: SAAF, SSG Frota), fase_automacao (1-4), " +
+        "numero_proposta, data_proposta, nome_solucao (ex.: SAAF, SSGFROTA), fase_automacao (1-4), " +
         "nivel_automacao (1-3), tem_pista (boolean), qtd_postos, qtd_bombas, tipo_bomba_previsto " +
         "(mecânica|elétrica|submersa), qtd_bicos, qtd_pistas, modalidade_nldiv, tipo_acao " +
         "('instalacao'|'upgrade'), objeto_escopo, tipo_objeto, ids_objetos (lista), terminal, rfid, " +

@@ -74,7 +74,7 @@ export type ItemEscopo = { nome?: string };
 /** Solução contratada escolhida no agendamento. */
 export type SolucaoEscopo = "ssg_frota" | "on_premise";
 export const SOLUCOES_ESCOPO: { value: SolucaoEscopo; label: string }[] = [
-  { value: "ssg_frota", label: "SSG Frota" },
+  { value: "ssg_frota", label: "SSGFROTA" },
   { value: "on_premise", label: "On-premise" },
 ];
 
@@ -99,10 +99,23 @@ export function quantidadesDoEscopo(a: ArvoreEscopo): Record<ChaveSugestao, numb
   };
 }
 
-/** Tecnologias de cartão RFID oferecidas na lista (além de "Outra", texto livre). */
-export const TECNOLOGIAS_RFID = ["Mifare", "Milexes"] as const;
-
+/** Cartão RFID: hoje só a quantidade. `tecnologia` fica vazia (versões antigas podem ter Mifare etc.). */
 export type ItemRfid = { tecnologia: string; quantidade: number; info?: string };
+
+/** Total de cartões RFID (soma dos itens). */
+export function totalRfid(itens: ItemRfid[] | null | undefined): number {
+  return (itens ?? []).reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+}
+
+/** "10 cartões" ou, em versões antigas com tecnologia, "20× Mifare, 5× Milexes". */
+export function resumoRfid(itens: ItemRfid[] | null | undefined): string {
+  const lista = itens ?? [];
+  if (!lista.some((i) => i.tecnologia?.trim())) {
+    const n = totalRfid(lista);
+    return n ? `${n} ${n === 1 ? "cartão" : "cartões"}` : "";
+  }
+  return lista.map((i) => `${i.quantidade}× ${i.tecnologia?.trim() || "cartão"}`).join(", ");
+}
 export type ItemTx = { modelo: string; quantidade: number; info?: string };
 export type ItemOutroDispositivo = { nome: string; modelo?: string; quantidade: number; info?: string };
 /** Equipamento vendido (proposta comercial): vira a tabela "Produtos IONICS" do documento. */
@@ -133,9 +146,13 @@ export function normalizarConfig(c: ConfigEscopo | null | undefined): ConfigEsco
     out.rfid = {
       ativo: true,
       itens: (c.rfid.itens ?? [])
-        .filter((i) => txt(i.tecnologia))
+        .filter((i) => txt(i.tecnologia) || Number(i.quantidade) > 0)
         .slice(0, 50)
-        .map((i) => ({ tecnologia: txt(i.tecnologia), quantidade: q(i.quantidade), info: txt(i.info, 500) || undefined })),
+        .map((i) => ({
+          tecnologia: txt(i.tecnologia),
+          quantidade: q(i.quantidade),
+          info: txt(i.info, 500) || undefined,
+        })),
     };
   }
   if (c?.tx?.ativo) {

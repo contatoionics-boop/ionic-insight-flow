@@ -8,10 +8,11 @@ import { parsearItemProposta } from "@/lib/laudo/produtos-proposta";
 import {
   LIMITES,
   SOLUCOES_ESCOPO,
-  TECNOLOGIAS_RFID,
   pad2,
+  resumoRfid,
   rotuloEntidade,
   resumoArvore,
+  totalRfid,
   type ArvoreEscopo,
   type ConfigEscopo,
   type IlhaArvore,
@@ -374,7 +375,7 @@ export function EstruturaEscopo({
             )}
           </section>
 
-          {/* Cartão RFID */}
+          {/* Cartão RFID: só a quantidade */}
           <section className="rounded-md border border-border p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium">Possui cartão RFID</span>
@@ -385,108 +386,25 @@ export function EstruturaEscopo({
                   setConfig({
                     rfid: {
                       ativo,
-                      itens: config.rfid?.itens?.length
-                        ? config.rfid.itens
-                        : ativo
-                          ? [{ tecnologia: TECNOLOGIAS_RFID[0], quantidade: 1 }]
-                          : [],
+                      itens: ativo ? [{ tecnologia: "", quantidade: totalRfid(config.rfid?.itens) || 1 }] : [],
                     },
                   })
                 }
               />
             </div>
             {config.rfid?.ativo && (
-              <div className="mt-3 space-y-2">
-                {config.rfid.itens.length > 0 && (
-                  <div className="hidden gap-2 text-xs text-muted-foreground sm:grid sm:grid-cols-[1fr_140px_1fr_36px]">
-                    <span>Tecnologia</span>
-                    <span>Qtd.</span>
-                    <span>Informação adicional</span>
-                    <span />
-                  </div>
-                )}
-                {config.rfid.itens.map((it, k) => {
-                  const padrao = (TECNOLOGIAS_RFID as readonly string[]).includes(it.tecnologia);
-                  const atualizar = (patch: Partial<typeof it>) =>
-                    setConfig({
-                      rfid: {
-                        ativo: true,
-                        itens: config.rfid!.itens.map((x, i) => (i === k ? { ...x, ...patch } : x)),
-                      },
-                    });
-                  return (
-                    <div key={k} className="flex flex-wrap items-start gap-2 sm:grid sm:grid-cols-[1fr_140px_1fr_36px]">
-                      <div className="space-y-1">
-                        <select
-                          value={padrao ? it.tecnologia : "__outra"}
-                          disabled={disabled}
-                          onChange={(e) => atualizar({ tecnologia: e.target.value === "__outra" ? "" : e.target.value })}
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                        >
-                          {TECNOLOGIAS_RFID.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                          <option value="__outra">Outra</option>
-                        </select>
-                        {!padrao && (
-                          <Input
-                            value={it.tecnologia}
-                            disabled={disabled}
-                            placeholder="Qual tecnologia?"
-                            onChange={(e) => atualizar({ tecnologia: e.target.value })}
-                          />
-                        )}
-                      </div>
-                      <div className="w-full sm:w-auto">
-                        <span className="mb-0.5 block text-[11px] text-muted-foreground sm:hidden">Quantidade</span>
-                        <NumericInput
-                        min={1}
-                        value={it.quantidade}
-                        disabled={disabled}
-                        onValueChange={(v) => atualizar({ quantidade: Number(v) || 1 })}
-                      />
-                      </div>
-                      <Input
-                        value={it.info ?? ""}
-                        placeholder="Informação adicional"
-                        disabled={disabled}
-                        onChange={(e) => atualizar({ info: e.target.value })}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={disabled}
-                        aria-label="Remover linha"
-                        onClick={() =>
-                          setConfig({
-                            rfid: { ativo: true, itens: config.rfid!.itens.filter((_, i) => i !== k) },
-                          })
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={disabled}
-                  onClick={() =>
-                    setConfig({
-                      rfid: {
-                        ativo: true,
-                        itens: [...config.rfid!.itens, { tecnologia: TECNOLOGIAS_RFID[0], quantidade: 1 }],
-                      },
-                    })
-                  }
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Adicionar tecnologia
-                </Button>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-sm text-muted-foreground">Quantidade de cartões</span>
+                <div className="w-32">
+                  <NumericInput
+                    min={1}
+                    value={totalRfid(config.rfid.itens) || 1}
+                    disabled={disabled}
+                    onValueChange={(v) =>
+                      setConfig({ rfid: { ativo: true, itens: [{ tecnologia: "", quantidade: Number(v) || 1 }] } })
+                    }
+                  />
+                </div>
               </div>
             )}
           </section>
@@ -725,7 +643,7 @@ export function EstruturaEscopo({
             {config.rfid?.ativo && (
               <li>
                 RFID —{" "}
-                {config.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia || "?"}`).join(", ") || "sem itens"}
+                {resumoRfid(config.rfid.itens) || "sem itens"}
               </li>
             )}
             {config.tx?.ativo && (

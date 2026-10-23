@@ -249,7 +249,7 @@ export function escopoDeterministico(secoes: SecoesProposta): Parcial {
   // ---- solução ----
   const solTexto = semAcento(tudo).toUpperCase();
   const solucao = /SSG\s*FROTA/.test(solTexto)
-    ? "SSG Frota"
+    ? "SSGFROTA"
     : /\bSAAF\b/.test(solTexto)
       ? "SAAF"
       : null;

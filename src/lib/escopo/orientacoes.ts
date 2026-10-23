@@ -2,7 +2,7 @@
 // agendador já informou. Código puro (client-safe).
 
 import type { EscopoProposta } from "@/lib/proposta/tipos";
-import { resumoArvore, rotuloSolucao, type ArvoreEscopo } from "@/lib/escopo/tipos";
+import { resumoArvore, resumoRfid, rotuloSolucao, type ArvoreEscopo } from "@/lib/escopo/tipos";
 
 const COMUNICACAO: Record<string, string> = { wifi: "Wi-Fi", "4g": "4G", ambos: "Wi-Fi e 4G" };
 
@@ -27,7 +27,7 @@ export function montarOrientacoes(
         .join("; ")}`,
     );
   if (cfg?.rfid?.ativo && cfg.rfid.itens.length)
-    linhas.push(`Cartão RFID: ${cfg.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia}`).join(", ")}`);
+    linhas.push(`Cartão RFID: ${resumoRfid(cfg.rfid.itens)}`);
   if (cfg?.tx?.ativo && cfg.tx.itens.length)
     linhas.push(`TX: ${cfg.tx.itens.map((i) => `${i.quantidade}× ${i.modelo}`).join(", ")}`);
   if (cfg?.outros?.length)

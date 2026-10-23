@@ -21,20 +21,27 @@ export async function progressoCasosComEscopo(casoIds: string[]): Promise<Map<st
       .not("escopo_versao_id", "is", null);
     if (error || !data?.length) return out;
     const { loadAgentContext, calcularPendencias } = await import("@/lib/vistoria-agent.server");
-    for (const row of data as { id: string }[]) {
-      try {
-        const ctx = await loadAgentContext(row.id);
-        const p = calcularPendencias(ctx);
-        out.set(row.id, {
-          respondidas: p.respondidas,
-          total: p.totalVisiveis,
-          respondidasObrigatorias: p.respondidasObrigatorias,
-          totalObrigatorias: p.totalObrigatorias,
-        });
-      } catch {
-        /* mantém o cálculo legado para este caso */
+    // Cada contexto faz várias consultas: processa em paralelo, poucos por vez.
+    const ids = (data as { id: string }[]).map((r) => r.id);
+    let proximo = 0;
+    const trabalhador = async () => {
+      while (proximo < ids.length) {
+        const id = ids[proximo++];
+        try {
+          const ctx = await loadAgentContext(id);
+          const p = calcularPendencias(ctx);
+          out.set(id, {
+            respondidas: p.respondidas,
+            total: p.totalVisiveis,
+            respondidasObrigatorias: p.respondidasObrigatorias,
+            totalObrigatorias: p.totalObrigatorias,
+          });
+        } catch {
+          /* mantém o cálculo legado para este caso */
+        }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, ids.length) }, trabalhador));
   } catch {
     /* migration ainda não aplicada */
   }

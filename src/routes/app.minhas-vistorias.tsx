@@ -103,10 +103,13 @@ function MinhasVistoriasPage() {
   const progressoMap = useMemo(() => new Map(progresso.map((p) => [p.casoId, p])), [progresso]);
 
   const reload = async () => {
-    const [d, ags, prog] = await Promise.all([load(), loadAgendamentos(), loadProgresso()]);
+    // O progresso é o cálculo mais pesado: a lista aparece sem esperar por ele.
+    void loadProgresso()
+      .then((prog) => setProgresso(prog ?? []))
+      .catch(() => {});
+    const [d, ags] = await Promise.all([load(), loadAgendamentos()]);
     setRows((d ?? []) as unknown as Vistoria[]);
     setAgendamentos(ags ?? []);
-    setProgresso(prog ?? []);
     setLoading(false);
   };
 

@@ -14,7 +14,7 @@ Cidade/UF: Campinas de Piraja - BA
 CEP: 41270-005
 Endereço: Estrada de Campinas 63
 Contato: Silvany
-Solução: SSG Frota
+Solução: SSGFROTA
 
 2. AUTOMAÇÃO PARA OS POSTOS FIXOS E COMBOIOS
 2.1 FASE 1 - Nível 1: controle de acesso e apontamento.
@@ -57,7 +57,7 @@ describe("escopo SETEL", () => {
   });
 
   it("lê solução, fase e nível", () => {
-    expect(escopo.nome_solucao.valor).toBe("SSG Frota");
+    expect(escopo.nome_solucao.valor).toBe("SSGFROTA");
     expect(escopo.fase_automacao.valor).toBe(2);
     expect(escopo.nivel_automacao.valor).toBe(2);
   });

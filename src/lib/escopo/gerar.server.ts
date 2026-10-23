@@ -171,6 +171,9 @@ export async function carregarEstruturaDoCaso(
       .select("escopo_versao_id, unidade_id")
       .eq("id", casoId)
       .maybeSingle();
+    // Caso sem versão vinculada não herda o escopo de outro mapeamento da unidade
+    // (só a edição da estrutura parte da versão mais recente).
+    if (!caso?.escopo_versao_id && !opts?.maisRecente) return vazio;
     let dono: Dono = { unidadeId: caso?.unidade_id ?? null, casoOrigemId: casoId };
     if (caso?.escopo_versao_id) {
       // O dono vem da versão apontada (cobre casos sem unidade que compartilham o escopo).

@@ -45,8 +45,8 @@ describe("seção 2.1 — Equipamentos de TI e banco de dados", () => {
     expect(t).toContain("integração com erps");
   });
 
-  it("SSG Frota: omite a seção 2.1 e todo conteúdo de servidor/banco/ERP", () => {
-    const blocos = montar({ nome_solucao: "SSG Frota", nivel_servico: "nivel_1" });
+  it("SSGFROTA: omite a seção 2.1 e todo conteúdo de servidor/banco/ERP", () => {
+    const blocos = montar({ nome_solucao: "SSGFROTA", nivel_servico: "nivel_1" });
     expect(temHeading(blocos, "Equipamentos de TI e banco de dados")).toBe(false);
     const t = texto(blocos);
     expect(t).not.toContain("banco de dados");
@@ -63,9 +63,9 @@ describe("seção 2.1 — Equipamentos de TI e banco de dados", () => {
     expect(texto(blocos)).toContain("[confirmar");
   });
 
-  it("SETEL (SSG Frota, Nível 2, pista sem comboio): sem 2.1 SAAF, com 2.4 e sem 2.4.1", () => {
+  it("SETEL (SSGFROTA, Nível 2, pista sem comboio): sem 2.1 SAAF, com 2.4 e sem 2.4.1", () => {
     const blocos = montar({
-      nome_solucao: "SSG Frota",
+      nome_solucao: "SSGFROTA",
       nivel_servico: "nivel_2",
       objeto_escopo: "01 posto fixo, 01 bomba mecânica com 01 bico",
       tipo_objeto: "pista",

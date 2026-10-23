@@ -69,15 +69,15 @@ export function nomeSolucaoNivel2(vars: VariaveisLaudo): string {
     .replace(/\p{Diacritic}/gu, "")
     .toUpperCase();
   const saaf = /\bSAAF\b/.test(s);
-  const ssg = /\bSSG\b/.test(s);
+  const ssg = /\bSSG(\s*FROTA)?\b/.test(s);
   if (saaf && !ssg) return "SAAF";
-  if (ssg && !saaf) return "SSG Frota";
+  if (ssg && !saaf) return "SSGFROTA";
   if (bruto && !(saaf && ssg)) return bruto;
-  return pendencia("nome_solucao", "solução contratada (SAAF ou SSG Frota)");
+  return pendencia("nome_solucao", "solução contratada (SAAF ou SSGFROTA)");
 }
 
 export type OpcoesNivel2 = {
-  /** nome da solução já resolvido; padrão SAAF/SSG Frota genérico */
+  /** nome da solução já resolvido; padrão SAAF/SSGFROTA genérico */
   solucao?: string;
   /** gerador de id (template usa o sequencial do documento) */
   id?: (prefixo: string) => string;
@@ -127,7 +127,7 @@ export function blocoSecaoVII(
 
 /** 2.4 — Bicos de Abastecimento (texto padrão editável + desenhos padrão). */
 export function blocos24(opcoes: OpcoesNivel2 = {}): BlocoLaudo[] {
-  const solucao = opcoes.solucao || "SAAF / SSG Frota";
+  const solucao = opcoes.solucao || "SAAF / SSGFROTA";
   const p = (chave: string, texto: string): BlocoLaudo =>
     ({ id: criarId(opcoes, "p"), chave, tipo: "paragraph", texto }) as BlocoLaudo;
 

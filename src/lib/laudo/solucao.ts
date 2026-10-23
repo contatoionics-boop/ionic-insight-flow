@@ -1,4 +1,4 @@
-// Detecção determinística da solução contratada (SAAF x SSG Frota).
+// Detecção determinística da solução contratada (SAAF x SSGFROTA).
 // Puro e client-safe. Nunca assume SAAF por omissão: sem evidência retorna null.
 
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
@@ -27,5 +27,5 @@ export function solucaoContratada(vars: VariaveisLaudo): SolucaoContratada | nul
 /** Rótulo de exibição da solução, sem inventar valor quando ausente. */
 export function rotuloSolucao(vars: VariaveisLaudo): string | null {
   const s = solucaoContratada(vars);
-  return s === "saaf" ? "SAAF" : s === "ssg_frota" ? "SSG Frota" : null;
+  return s === "saaf" ? "SAAF" : s === "ssg_frota" ? "SSGFROTA" : null;
 }

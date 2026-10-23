@@ -17,7 +17,7 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
-import { rotuloSolucao, type ConfigEscopo, type TipoEntidade } from "@/lib/escopo/tipos";
+import { resumoRfid, rotuloSolucao, type ConfigEscopo, type TipoEntidade } from "@/lib/escopo/tipos";
 
 export type EntidadeResumo = {
   id: string;
@@ -138,7 +138,7 @@ function cartoesConfig(config?: ConfigEscopo | null) {
       icone: CreditCard,
       cor: "text-teal-600 bg-teal-500/10 border-teal-500/30",
       titulo: "Cartão RFID",
-      detalhe: config.rfid.itens.map((i) => `${i.quantidade}× ${i.tecnologia}`).join(", ") || undefined,
+      detalhe: resumoRfid(config.rfid.itens) || undefined,
     });
   if (config.tx?.ativo)
     out.push({

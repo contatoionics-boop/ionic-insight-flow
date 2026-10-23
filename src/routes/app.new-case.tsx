@@ -461,9 +461,14 @@ function NewCasePage() {
         configTemDados(estrutura.config);
       if (temEstrutura && res?.casos?.length) {
         try {
-          await salvarEstrutura({
-            data: { casoIds: (res.casos as { id: string }[]).map((c) => c.id), arvore: estrutura },
-          });
+          const casoIds = (res.casos as { id: string }[]).map((c) => c.id);
+          let salvo = await salvarEstrutura({ data: { casoIds, arvore: estrutura } });
+          if (salvo.status === "precisa_confirmacao") {
+            // A unidade tem escopo de mapeamentos anteriores com respostas. A estrutura
+            // definida aqui vale para este agendamento; os anteriores mantêm a deles.
+            salvo = await salvarEstrutura({ data: { casoIds, arvore: estrutura, confirmarRemocao: true } });
+          }
+          if (salvo.status !== "ok") throw new Error("A estrutura não foi gravada.");
         } catch (errEstrutura: any) {
           setError(
             `Mapeamento agendado, mas a estrutura do escopo não pôde ser salva: ${errEstrutura?.message ?? "erro desconhecido"}. Ela poderá ser definida depois no caso.`,
