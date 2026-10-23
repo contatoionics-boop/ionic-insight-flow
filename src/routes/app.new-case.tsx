@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Label, Input, Select, Button, Modal } from "@/components/ui-bits";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -22,7 +22,8 @@ import {
   type ArvoreEscopo,
 } from "@/lib/escopo/tipos";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -178,10 +179,54 @@ function NewCasePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  /** Etapa em andamento ("Gravando a estrutura do escopo…"), mostrada no botão e no aviso do topo. */
+  const [progresso, setProgresso] = useState<string | null>(null);
+  /** Códigos dos mapeamentos já criados; depois disso o formulário não pode ser enviado de novo. */
+  const [criados, setCriados] = useState<string[] | null>(null);
   const [conflito, setConflito] = useState<{ agenteNome?: string | null; clienteNome?: string | null; dataConflito?: string | null } | null>(null);
   const verificar = useServerFn(verificarConflitoAgente);
   const [draftReady, setDraftReady] = useState(false);
   const draftKey = userId ? `agendamento-draft:${userId}` : null;
+
+  // O formulário SEMPRE abre zerado. Se houver um agendamento interrompido (rascunho),
+  // apenas oferece retomar; nunca preenche sozinho.
+  const [rascunhoPendente, setRascunhoPendente] = useState<Partial<AgendamentoDraft> | null>(null);
+  const agendadoRef = useRef(false);
+
+  const aplicarRascunho = (draft: Partial<AgendamentoDraft>) => {
+    setEmpresaId(draft.empresaId ?? "");
+    setMatrizId(draft.matrizId ?? "");
+    setUnidadeId(draft.unidadeId ?? "");
+    setFormIds(Array.isArray(draft.formIds) ? draft.formIds : []);
+    setFormQtd(draft.formQtd && typeof draft.formQtd === "object" ? draft.formQtd : {});
+    setAgentId(draft.agentId ?? "");
+    setAgenteNomeManual(draft.agenteNomeManual ?? "");
+    setTipoSolicitacao(draft.tipoSolicitacao ?? "instalacao");
+    setModalidade(draft.modalidade ?? "presencial");
+    setNivel(draft.nivel ?? "nivel_1");
+    setData(draft.data ?? "");
+    setHora(draft.hora ?? "09:00");
+    setEndereco(draft.endereco ?? "");
+    setObservacoes(draft.observacoes ?? "");
+    setPropostaPathPrevia(draft.propostaPathPrevia ?? null);
+    setPropostaNome(draft.propostaNome ?? null);
+    setPropostaTamanho(draft.propostaTamanho ?? null);
+    setEscopoPrevia(draft.escopoPrevia ? normalizarEscopo(draft.escopoPrevia) : null);
+    setEscopoModo(draft.escopoModo ?? "pdf");
+    setEscopoManualTexto(draft.escopoManualTexto ?? "");
+    setEstrutura(draft.estrutura ? normalizarArvore(draft.estrutura) : arvoreVazia());
+  };
+
+  const descartarRascunho = () => {
+    if (draftKey) {
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // ignorado
+      }
+    }
+    setRascunhoPendente(null);
+  };
 
   useEffect(() => {
     if (!draftKey) return;
@@ -190,37 +235,45 @@ function NewCasePage() {
       const raw = window.localStorage.getItem(draftKey);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<AgendamentoDraft>;
-        setEmpresaId(draft.empresaId ?? "");
-        setMatrizId(draft.matrizId ?? "");
-        setUnidadeId(draft.unidadeId ?? "");
-        setFormIds(Array.isArray(draft.formIds) ? draft.formIds : []);
-        setFormQtd(draft.formQtd && typeof draft.formQtd === "object" ? draft.formQtd : {});
-        setAgentId(draft.agentId ?? "");
-        setAgenteNomeManual(draft.agenteNomeManual ?? "");
-        setTipoSolicitacao(draft.tipoSolicitacao ?? "instalacao");
-        setModalidade(draft.modalidade ?? "presencial");
-        setNivel(draft.nivel ?? "nivel_1");
-        setData(draft.data ?? "");
-        setHora(draft.hora ?? "09:00");
-        setEndereco(draft.endereco ?? "");
-        setObservacoes(draft.observacoes ?? "");
-        setPropostaPathPrevia(draft.propostaPathPrevia ?? null);
-        setPropostaNome(draft.propostaNome ?? null);
-        setPropostaTamanho(draft.propostaTamanho ?? null);
-        setEscopoPrevia(draft.escopoPrevia ? normalizarEscopo(draft.escopoPrevia) : null);
-        setEscopoModo(draft.escopoModo ?? "pdf");
-        setEscopoManualTexto(draft.escopoManualTexto ?? "");
-        setEstrutura(draft.estrutura ? normalizarArvore(draft.estrutura) : arvoreVazia());
+        const temConteudo = !!(
+          draft.empresaId ||
+          draft.agentId ||
+          draft.data ||
+          draft.observacoes?.trim() ||
+          draft.estrutura
+        );
+        if (temConteudo) setRascunhoPendente(draft);
+        else window.localStorage.removeItem(draftKey);
       }
     } catch {
-      window.localStorage.removeItem(draftKey);
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // ignorado
+      }
     } finally {
       setDraftReady(true);
     }
   }, [draftKey]);
 
+  const temConteudoNovo = !!(
+    empresaId ||
+    agentId ||
+    data ||
+    observacoes.trim() ||
+    estrutura.postos.length ||
+    estrutura.comboios.length ||
+    estrutura.tanquesLubrificante.length ||
+    estrutura.sondas.length ||
+    estrutura.frota.ativo ||
+    configTemDados(estrutura.config)
+  );
+
   useEffect(() => {
-    if (!draftReady || !draftKey) return;
+    if (!draftReady || !draftKey || agendadoRef.current) return;
+    // Só grava o rascunho de um agendamento que o usuário realmente começou a preencher.
+    if (!temConteudoNovo) return;
+    if (rascunhoPendente) setRascunhoPendente(null); // começou um novo: o rascunho antigo sai de cena
     const draft: AgendamentoDraft = {
       empresaId, matrizId, unidadeId, formIds, formQtd, agentId, agenteNomeManual,
       tipoSolicitacao, modalidade, nivel, data, hora, endereco, observacoes,
@@ -232,7 +285,7 @@ function NewCasePage() {
     } catch {
       // O preenchimento continua funcionando mesmo se o armazenamento local estiver indisponível.
     }
-  }, [draftReady, draftKey, empresaId, matrizId, unidadeId, formIds, formQtd, agentId,
+  }, [draftReady, draftKey, temConteudoNovo, rascunhoPendente, empresaId, matrizId, unidadeId, formIds, formQtd, agentId,
     agenteNomeManual, tipoSolicitacao, modalidade, nivel, data, hora, endereco,
     observacoes, propostaPathPrevia, propostaNome, propostaTamanho, escopoPrevia,
     escopoModo, escopoManualTexto, estrutura]);
@@ -383,6 +436,7 @@ function NewCasePage() {
     }
     setWorking(true);
     setError(null);
+    setProgresso("Criando o agendamento…");
     try {
       const agendadoEm = new Date(`${data}T${hora}:00`).toISOString();
       const res = await agendar({
@@ -402,9 +456,17 @@ function NewCasePage() {
         },
       });
 
+      agendadoRef.current = true;
       if (draftKey) window.localStorage.removeItem(draftKey);
 
+      // Retorno imediato: o agendamento já existe. O resto (proposta/estrutura) é complemento.
+      const codigos = ((res?.casos ?? []) as { id: string; codigo?: string }[]).map((c) => c.codigo ?? "").filter(Boolean);
+      setCriados(codigos);
+      toast.success(codigos.length ? `Agendamento criado: ${codigos.join(", ")}` : "Agendamento criado");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
       if (escopoModo === "pdf" && propostaPathPrevia && propostaNome && res?.casos?.length) {
+        setProgresso("Anexando a proposta comercial…");
         try {
           const casos = res.casos as { id: string }[];
           for (const c of casos) {
@@ -428,9 +490,12 @@ function NewCasePage() {
             `Mapeamento agendado, mas a proposta não pôde ser processada: ${errProposta?.message ?? "erro desconhecido"}. Anexe-a novamente na tela de revisão.`,
           );
           setWorking(false);
+          setProgresso(null);
+          window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
       } else if (escopoModo === "manual" && escopoManualTexto.trim() && res?.casos?.length) {
+        setProgresso("Registrando a descrição do escopo…");
         try {
           const casos = res.casos as { id: string }[];
           for (const c of casos) {
@@ -448,6 +513,8 @@ function NewCasePage() {
             `Mapeamento agendado, mas o escopo manual não pôde ser registrado: ${errProposta?.message ?? "erro desconhecido"}. Informe-o novamente na tela de revisão.`,
           );
           setWorking(false);
+          setProgresso(null);
+          window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
       }
@@ -460,6 +527,7 @@ function NewCasePage() {
         estrutura.frota.ativo ||
         configTemDados(estrutura.config);
       if (temEstrutura && res?.casos?.length) {
+        setProgresso("Gravando a estrutura do escopo…");
         try {
           const casoIds = (res.casos as { id: string }[]).map((c) => c.id);
           let salvo = await salvarEstrutura({ data: { casoIds, arvore: estrutura } });
@@ -474,15 +542,20 @@ function NewCasePage() {
             `Mapeamento agendado, mas a estrutura do escopo não pôde ser salva: ${errEstrutura?.message ?? "erro desconhecido"}. Ela poderá ser definida depois no caso.`,
           );
           setWorking(false);
+          setProgresso(null);
+          window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }
       }
 
+      toast.success("Agendamento concluído.");
       navigate({ to: "/app/agenda" });
     } catch (err: any) {
       setError(err?.message ?? "Erro ao agendar mapeamento.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setWorking(false);
+      setProgresso(null);
     }
   };
 
@@ -589,6 +662,44 @@ function NewCasePage() {
 
       {error && (
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+      )}
+
+      {criados && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-foreground" role="status">
+          <span className="flex items-center gap-2 font-medium">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            Agendamento criado{criados.length ? `: ${criados.join(", ")}` : ""}.
+            {progresso && (
+              <span className="flex items-center gap-1 font-normal text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {progresso}
+              </span>
+            )}
+          </span>
+          <Button type="button" variant="outline" onClick={() => navigate({ to: "/app/agenda" })}>
+            Ir para a agenda
+          </Button>
+        </div>
+      )}
+
+      {rascunhoPendente && !criados && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground">
+          <span>Você tem um agendamento interrompido (rascunho). Este formulário começou em branco.</span>
+          <span className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                aplicarRascunho(rascunhoPendente);
+                setRascunhoPendente(null);
+              }}
+            >
+              Retomar rascunho
+            </Button>
+            <Button type="button" variant="secondary" onClick={descartarRascunho}>
+              Descartar
+            </Button>
+          </span>
+        </div>
       )}
 
       <Card>
@@ -934,8 +1045,16 @@ function NewCasePage() {
             {conflito && (
               <span className="text-xs text-destructive">Conflito detectado — escolha outro agente ou data.</span>
             )}
-            <Button type="submit" disabled={working || !!conflito}>
-              {working ? "Agendando..." : "Agendar mapeamento"}
+            <Button type="submit" disabled={working || !!conflito || !!criados}>
+              {working ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {progresso ?? "Agendando…"}
+                </span>
+              ) : criados ? (
+                "Agendamento criado"
+              ) : (
+                "Agendar mapeamento"
+              )}
             </Button>
           </div>
         </form>
