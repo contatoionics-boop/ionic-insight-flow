@@ -357,7 +357,7 @@ export const atribuirAgenteAgendamento = createServerFn({ method: "POST" })
       agente_id: agenteId,
       agente_nome_manual: agenteNomeManual,
     };
-    patch["aceite_status"] = "pendente";
+    patch["aceite_status"] = "aguardando_aceite";
     patch["aceite_agente"] = null;
     patch["data_aceite"] = null;
     patch["motivo_recusa"] = null;
