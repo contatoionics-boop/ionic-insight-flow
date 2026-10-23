@@ -58,6 +58,21 @@ const execBadgeClass: Record<ExecEstado, string> = {
   aprovado: "bg-emerald-500/15 text-emerald-600",
 };
 
+/**
+ * Mapeamentos do mesmo agendamento e horário (um por formulário) viram um só chip na
+ * grade, para não parecerem duplicados; o painel do dia lista cada formulário.
+ */
+function agruparDia(items: Evento[]): Evento[][] {
+  const grupos = new Map<string, Evento[]>();
+  for (const e of items) {
+    const chave = `${e.agendamento_id ?? e.id}|${e.agendado_em}`;
+    const arr = grupos.get(chave) ?? [];
+    arr.push(e);
+    grupos.set(chave, arr);
+  }
+  return [...grupos.values()];
+}
+
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0, 0, 0, 0); return x; }
 function endOfMonth(d: Date) { const x = new Date(d); x.setMonth(x.getMonth() + 1, 0); x.setHours(23, 59, 59, 999); return x; }
 
@@ -189,6 +204,7 @@ function AgendaPage() {
           {dias.map((d) => {
             const inMonth = d.getMonth() === mes.getMonth();
             const items = eventosPorDia.get(d.toDateString()) ?? [];
+            const grupos = agruparDia(items);
             const ocupadoPorAgente = !!agenteId && items.length > 0;
             const selecionado = !!diaAberto && diaAberto.toDateString() === d.toDateString();
             return (
@@ -204,28 +220,32 @@ function AgendaPage() {
                   )}
                 </div>
                 <div className="mt-1 space-y-0.5">
-                  {items.slice(0, 3).map((e) => {
+                  {grupos.slice(0, 3).map((grupo) => {
+                    const e = grupo[0]!;
                     const est = execEstado(e);
                     return (
                       <button
                         key={e.id}
-                        onClick={(ev) => { ev.stopPropagation(); setSel(e); }}
-                        title={execLabel[est]}
+                        onClick={(ev) => { ev.stopPropagation(); if (grupo.length > 1) setDiaAberto(d); else setSel(e); }}
+                        title={grupo.length > 1 ? `${grupo.length} formulários neste agendamento` : execLabel[est]}
                         className="flex w-full items-center gap-1 truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${execDotClass[est]}`} />
                         <span className="truncate">
                           {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
                         </span>
+                        {grupo.length > 1 && (
+                          <span className="shrink-0 rounded bg-primary/20 px-1 text-[9px] font-semibold">{grupo.length} formulários</span>
+                        )}
                       </button>
                     );
                   })}
-                  {items.length > 3 && (
+                  {grupos.length > 3 && (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); setDiaAberto(d); }}
                       className="w-full rounded px-1 py-0.5 text-left text-[10px] font-medium text-primary hover:bg-primary/10"
                     >
-                      Ver todos (+{items.length - 3})
+                      Ver todos (+{grupos.length - 3})
                     </button>
                   )}
                 </div>
