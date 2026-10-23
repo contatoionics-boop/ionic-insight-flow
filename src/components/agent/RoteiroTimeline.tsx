@@ -17,14 +17,13 @@ const hora = (d: Date | null) =>
 const dataCurta = (d: Date | null) =>
   d ? d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "Sem data";
 
-/** "FR-13-10 | MAPEAMENTO TÉCNICO..." → "FR-13-10 · Mapeamento técnico..." (curto e legível). */
-function nomeCurto(nome: string | undefined | null) {
-  if (!nome) return "Formulário";
+/** "FR-13-10 | MAPEAMENTO TÉCNICO..." → { codigo: "FR-13-10", descricao: "Mapeamento técnico..." }. */
+function nomePartes(nome: string | undefined | null): { codigo: string; descricao: string } {
+  if (!nome) return { codigo: "Formulário", descricao: "" };
   const limpo = nome.replace(/\s*\(por estrutura do escopo\)\s*/i, "").replace(/\s+/g, " ").trim();
   const [codigo, resto] = limpo.split(/\s*[|–-]\s+/, 2);
-  if (!resto) return limpo;
-  const texto = resto.toLowerCase().replace(/^./, (c) => c.toUpperCase());
-  return `${codigo} · ${texto}`;
+  if (!resto) return { codigo: limpo, descricao: "" };
+  return { codigo: codigo!, descricao: resto.toLowerCase().replace(/^./, (c) => c.toUpperCase()) };
 }
 
 const cliente = (c: CasoCard) => c.unidade?.matriz?.empresa?.nome ?? "—";
@@ -59,13 +58,18 @@ function LinhaFormulario({
   unico: boolean;
 }) {
   const pronto = finalizado(caso);
-  const iniciado = caso.status === "em_andamento" || (progresso?.respondidas ?? 0) > 0;
+  // Só conta como iniciado quando o status é "em andamento": os dados que o cadastro já preenche
+  // sozinhos aparecem como respondidos e não significam que o agente começou.
+  const iniciado = caso.status === "em_andamento";
   const pct = progresso && progresso.total > 0 ? Math.round((progresso.respondidas / progresso.total) * 100) : 0;
   return (
     <li className="rounded-lg border border-border bg-background p-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[13px] font-medium leading-snug text-foreground">{nomeCurto(caso.formulario?.nome)}</p>
+          <p className="text-[13px] leading-snug text-muted-foreground">
+            <span className="font-semibold text-foreground">{nomePartes(caso.formulario?.nome).codigo}</span>
+            {nomePartes(caso.formulario?.nome).descricao ? ` · ${nomePartes(caso.formulario?.nome).descricao}` : ""}
+          </p>
           <p className="font-mono text-[10px] text-muted-foreground">{caso.codigo}</p>
         </div>
         {pronto ? (
@@ -147,8 +151,13 @@ function CartaoParada({
           estado === "espera" && "border-border",
         )}
       >
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-base font-bold text-foreground">{hora(parada.quando)}</span>
+        <h3 className="break-words text-base font-bold leading-snug text-foreground">
+          {cliente(primeiro)}
+          {mostrarUnidade ? <span className="font-normal text-muted-foreground"> · {unidade}</span> : null}
+        </h3>
+
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="text-sm font-semibold text-muted-foreground">{hora(parada.quando)}</span>
           {estado === "andamento" && (
             <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">Você está aqui</span>
           )}
@@ -161,11 +170,6 @@ function CartaoParada({
             <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">Atrasada</span>
           )}
         </div>
-
-        <h3 className="mt-1 break-words text-sm font-semibold leading-snug text-foreground">
-          {cliente(primeiro)}
-          {mostrarUnidade ? <span className="font-normal text-muted-foreground"> · {unidade}</span> : null}
-        </h3>
         {endereco && (
           <p className="mt-0.5 flex items-start gap-1.5 text-xs leading-4 text-muted-foreground">
             <MapPin className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />

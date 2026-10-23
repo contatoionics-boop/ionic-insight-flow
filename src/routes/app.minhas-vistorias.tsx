@@ -99,7 +99,7 @@ function MinhasVistoriasPage() {
   const paradas = grupos.reduce((n, g) => n + g.paradas.length, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-xl space-y-4">
       <ResumoRespostasModal
         casoId={resumoCasoId}
         open={!!resumoCasoId}
