@@ -153,11 +153,55 @@ async function carregarFrota(versaoId: string): Promise<FrotaItemArvore[]> {
  * Estrutura usada por um caso (a versão do caso, ou a mais recente da unidade).
  * Com `maisRecente`, devolve a versão mais recente da unidade (base correta para editar).
  */
+/** Erro de "tabela/coluna ainda não existe" (migration pendente), que justifica o modo legado. */
+export function migrationAusente(e: unknown): boolean {
+  const x = e as { code?: string; message?: string } | null;
+  const m = String(x?.message ?? e ?? "");
+  return (
+    x?.code === "42P01" ||
+    x?.code === "42703" ||
+    x?.code === "PGRST205" ||
+    x?.code === "PGRST204" ||
+    /does not exist|schema cache|could not find the/i.test(m)
+  );
+}
+
+/** Repete a leitura em falhas transitórias (conexão fria, instabilidade); migration ausente não repete. */
+export async function comTentativas<T>(fn: () => Promise<T>, tentativas = 3): Promise<T> {
+  let ultimo: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (migrationAusente(e)) throw e;
+      ultimo = e;
+      if (i < tentativas - 1) await new Promise((r) => setTimeout(r, 200 * (i + 1)));
+    }
+  }
+  throw ultimo;
+}
+
 export async function carregarEstruturaDoCaso(
   casoId: string,
   opts?: { maisRecente?: boolean },
 ): Promise<EstruturaCarregada> {
-  const vazio: EstruturaCarregada = {
+  const vazio = estruturaVazia();
+  try {
+    return await comTentativas(() => lerEstruturaDoCaso(casoId, opts, vazio));
+  } catch (e) {
+    if (migrationAusente(e)) {
+      // Migration ainda não aplicada: o fluxo legado continua funcionando.
+      console.warn("[escopo] estrutura indisponível (migration pendente):", (e as Error).message);
+      return vazio;
+    }
+    // Falha de leitura: NÃO volta ao formulário antigo em silêncio; o erro chega à tela (com "tentar de novo").
+    console.error("[escopo] falha ao carregar a estrutura do caso:", (e as Error).message);
+    throw new Error("Não foi possível carregar a estrutura do mapeamento. Tente novamente.");
+  }
+}
+
+function estruturaVazia(): EstruturaCarregada {
+  return {
     versaoId: null,
     numero: null,
     versaoAtualId: null,
@@ -165,23 +209,32 @@ export async function carregarEstruturaDoCaso(
     entidades: [],
     arvore: normalizarArvore({ postos: [], comboios: [], tanquesLubrificante: [], sondas: [], frota: { ativo: false, itens: [] }, config: {} }),
   };
-  try {
-    const { data: caso } = await db
+}
+
+async function lerEstruturaDoCaso(
+  casoId: string,
+  opts: { maisRecente?: boolean } | undefined,
+  vazio: EstruturaCarregada,
+): Promise<EstruturaCarregada> {
+  {
+    const { data: caso, error: casoErr } = await db
       .from("casos")
       .select("escopo_versao_id, unidade_id")
       .eq("id", casoId)
       .maybeSingle();
+    if (casoErr) throw casoErr;
     // Caso sem versão vinculada não herda o escopo de outro mapeamento da unidade
     // (só a edição da estrutura parte da versão mais recente).
     if (!caso?.escopo_versao_id && !opts?.maisRecente) return vazio;
     let dono: Dono = { unidadeId: caso?.unidade_id ?? null, casoOrigemId: casoId };
     if (caso?.escopo_versao_id) {
       // O dono vem da versão apontada (cobre casos sem unidade que compartilham o escopo).
-      const { data: v } = await db
+      const { data: v, error: vErr } = await db
         .from("escopo_versoes")
         .select("unidade_id, caso_origem_id")
         .eq("id", caso.escopo_versao_id)
         .maybeSingle();
+      if (vErr) throw vErr;
       if (v) dono = { unidadeId: v.unidade_id ?? null, casoOrigemId: v.caso_origem_id ?? casoId };
     }
     const versoes = await listarVersoes(dono);
@@ -202,10 +255,6 @@ export async function carregarEstruturaDoCaso(
       entidades: ativas,
       arvore: arvoreDeEntidades(ativas, frota, (versao.config ?? {}) as any),
     };
-  } catch (e) {
-    // Migration ainda não aplicada: o fluxo legado continua funcionando.
-    console.warn("[escopo] estrutura indisponível:", (e as Error).message);
-    return vazio;
   }
 }
 

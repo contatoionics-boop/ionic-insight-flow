@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
-import { carregarEstruturaDoCaso } from "@/lib/escopo/gerar.server";
+import { carregarEstruturaDoCaso, comTentativas, migrationAusente } from "@/lib/escopo/gerar.server";
 import { resumoRfid, rotuloSolucao, type ConfigEscopo, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
@@ -309,11 +309,21 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
   // Repetição estrutural pelo Escopo (tolerante: sem a migration, segue o fluxo legado).
   const aplicaA = new Map<string, string>();
   if (pIds.length) {
-    const { data: aplic, error: aplicErr } = await (supabaseAdmin as any)
-      .from("perguntas")
-      .select("id, entidade_tipo")
-      .in("id", pIds);
-    if (!aplicErr) for (const r of aplic ?? []) aplicaA.set(r.id, r.entidade_tipo ?? "geral");
+    // Só cai no modo legado se a coluna não existir (migration pendente). Falha transitória
+    // repete e, persistindo, vira erro: antes ela devolvia o formulário antigo sem avisar.
+    try {
+      const aplic = await comTentativas(async () => {
+        const { data, error } = await (supabaseAdmin as any)
+          .from("perguntas")
+          .select("id, entidade_tipo")
+          .in("id", pIds);
+        if (error) throw error;
+        return data ?? [];
+      });
+      for (const r of aplic) aplicaA.set(r.id, r.entidade_tipo ?? "geral");
+    } catch (e) {
+      if (!migrationAusente(e)) throw new Error("Não foi possível carregar o formulário do mapeamento. Tente novamente.");
+    }
   }
   const estrutura = await carregarEstruturaDoCaso(casoId);
   const perguntasFinal = expandirPerguntas(perguntas, aplicaA, estrutura.entidades, !!estrutura.versaoId);

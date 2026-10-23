@@ -1,18 +1,42 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, ClipboardList, LogOut, User } from "lucide-react";
+import { ArrowLeft, BellRing, LogOut, Route as RouteIcon, User } from "lucide-react";
 
 import { NotificacoesBell } from "@/components/NotificacoesBell";
 import { useAuth } from "@/hooks/use-auth";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import { listarAgendamentosDoAgente } from "@/lib/agendamentos.functions";
+import { useServerFn } from "@tanstack/react-start";
 
-type TabItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type TabItem = {
+  to: string;
+  search?: { aba: "aceitar" };
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Marca a aba ativa a partir do endereço atual. */
+  ativa: (pathname: string, aba: string | undefined) => boolean;
+  /** Contador no canto do ícone (ex.: agendamentos a aceitar). */
+  contador?: boolean;
+};
 
 const tabs: TabItem[] = [
-  { to: "/app/minhas-vistorias", label: "Mapeamentos", icon: ClipboardList },
-  { to: "/app/agente-perfil", label: "Perfil", icon: User },
+  {
+    to: "/app/minhas-vistorias",
+    search: { aba: "aceitar" },
+    label: "A aceitar",
+    icon: BellRing,
+    ativa: (p, aba) => p.startsWith("/app/minhas-vistorias") && aba === "aceitar",
+    contador: true,
+  },
+  {
+    to: "/app/minhas-vistorias",
+    label: "Roteiro",
+    icon: RouteIcon,
+    ativa: (p, aba) => p.startsWith("/app/minhas-vistorias") && aba !== "aceitar",
+  },
+  { to: "/app/agente-perfil", label: "Perfil", icon: User, ativa: (p) => p.startsWith("/app/agente-perfil") },
 ];
 
 export function AgentMobileLayout() {
@@ -21,6 +45,26 @@ export function AgentMobileLayout() {
   const { config } = useConfiguracoesEmpresa();
   useTheme();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const aba = useRouterState({ select: (s) => (s.location.search as { aba?: string } | undefined)?.aba });
+  const carregarAgendamentos = useServerFn(listarAgendamentosDoAgente);
+  const [aAceitar, setAAceitar] = useState(0);
+
+  // Quantos agendamentos aguardam o aceite do agente (contador da aba "A aceitar").
+  const recontar = useCallback(async () => {
+    try {
+      const ags = await carregarAgendamentos();
+      setAAceitar((ags ?? []).filter((a) => a.aceite_status === "aguardando_aceite").length);
+    } catch {
+      // sem contador: a aba continua funcionando
+    }
+  }, [carregarAgendamentos]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated") return;
+    void recontar();
+    window.addEventListener("agente:aceite-mudou", recontar);
+    return () => window.removeEventListener("agente:aceite-mudou", recontar);
+  }, [auth.status, pathname, recontar]);
   const nomeEmpresa = config?.nome_empresa || "Ionics";
   const displayName = auth.profile?.nome || auth.email || "Agente";
   // Preenchendo um mapeamento: a barra inferior própria do checklist ocupa o rodapé.
@@ -93,17 +137,25 @@ export function AgentMobileLayout() {
       >
         <div className="mx-auto flex max-w-md items-stretch justify-around">
           {tabs.map((t) => {
-            const active = pathname.startsWith(t.to);
+            const active = t.ativa(pathname, aba);
             const Icon = t.icon;
             return (
               <Link
-                key={t.to}
+                key={t.label}
                 to={t.to}
+                search={t.search as never}
                 className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {t.contador && aAceitar > 0 && (
+                    <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+                      {aAceitar}
+                    </span>
+                  )}
+                </span>
                 {t.label}
               </Link>
             );

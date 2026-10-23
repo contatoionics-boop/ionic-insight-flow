@@ -430,9 +430,12 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
 
   if (erro && !dados) {
     return (
-      <div className="mx-auto max-w-lg p-6 text-center">
-        <CircleAlert className="mx-auto mb-3 h-8 w-8 text-destructive" />
+      <div className="mx-auto max-w-lg space-y-4 p-6 text-center">
+        <CircleAlert className="mx-auto h-8 w-8 text-destructive" />
         <p className="text-sm text-destructive">{erro}</p>
+        <Button variant="primary" className="min-h-11" onClick={() => window.location.reload()}>
+          Tentar de novo
+        </Button>
       </div>
     );
   }
