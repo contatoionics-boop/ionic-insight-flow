@@ -6,9 +6,11 @@ type Props = {
   resumo: ResumoGeral;
   onIrPara: (indiceEtapa: number, perguntaId: string) => void;
   compacto?: boolean;
+  /** Na visão por equipamento: indicadores operacionais no lugar do "x de y itens". */
+  frases?: string[];
 };
 
-export function PainelRevisao({ resumo, onIrPara, compacto = false }: Props) {
+export function PainelRevisao({ resumo, onIrPara, compacto = false, frases = [] }: Props) {
   const pendencias = resumo.etapas.flatMap((e, i) =>
     e.faltandoObrigatorias.map((p) => ({ indice: i, etapa: e.etapa.titulo, pergunta: p })),
   );
@@ -25,9 +27,17 @@ export function PainelRevisao({ resumo, onIrPara, compacto = false }: Props) {
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           Concluído
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {resumo.totalRespondidas} de {resumo.totalVisiveis} itens · {resumo.percentual}%
-        </p>
+        {frases.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+            {frases.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {resumo.totalRespondidas} de {resumo.totalVisiveis} itens · {resumo.percentual}%
+          </p>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-3">

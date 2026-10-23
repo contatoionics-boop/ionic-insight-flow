@@ -522,6 +522,8 @@ export type ChecklistVistoriaDTO = {
   orientacoes: string | null;
   /** Solução, RFID, TX e outros dispositivos definidos no escopo. */
   escopoConfig: ConfigEscopo;
+  /** Equipamentos que o agente marcou como concluídos (confirmação operacional; vazio se a tabela não existe). */
+  entidadesConcluidas: string[];
   etapas: ChecklistEtapaDTO[];
 };
 
@@ -594,6 +596,19 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       (r) => !r.origem_cadastro && estaRespondida(r),
     );
 
+    // Marcações "concluído" por equipamento (tabela aditiva; sem ela segue vazio).
+    let entidadesConcluidas: string[] = [];
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: marcadas, error } = await (supabaseAdmin as any)
+        .from("mapeamento_entidade_conclusao")
+        .select("entidade_id")
+        .eq("caso_id", casoId);
+      if (!error) entidadesConcluidas = ((marcadas ?? []) as { entidade_id: string }[]).map((m) => m.entidade_id);
+    } catch {
+      // migration ainda não aplicada
+    }
+
     return {
       casoId,
       clienteNome: ctxAtual.clienteNome,
@@ -602,6 +617,7 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       resumoCadastro: ctxAtual.cadastro.map((f) => ({ label: f.label, valor: f.valor })),
       orientacoes: ctxAtual.cadastro.find((f) => f.label === "Observações do agendamento")?.valor ?? null,
       escopoConfig: ctxAtual.escopoConfig ?? {},
+      entidadesConcluidas,
       entidades: ctxAtual.entidades.map((e) => ({
         id: e.id,
         tipo: e.tipo,
@@ -611,6 +627,45 @@ export const getChecklistVistoria = createServerFn({ method: "POST" })
       })),
       etapas,
     };
+  });
+
+const MarcarEntidadeInput = z.object({
+  token: z.string().min(1).optional(),
+  casoId: z.string().uuid().optional(),
+  entidadeId: z.string().uuid(),
+  concluida: z.boolean(),
+});
+
+/**
+ * Marca (ou reabre) um equipamento como concluído. É só a confirmação operacional do
+ * agente: o estado real continua vindo das respostas. `persistido: false` quando a
+ * tabela ainda não existe (o app segue funcionando só com o estado automático).
+ */
+export const marcarEntidadeConcluida = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => MarcarEntidadeInput.parse(input))
+  .handler(async ({ data }): Promise<{ ok: true; persistido: boolean }> => {
+    const casoId = await resolverCasoId({ token: data.token, casoId: data.casoId });
+    const { loadAgentContext } = await import("@/lib/vistoria-agent.server");
+    const ctx = await loadAgentContext(casoId);
+    if (!ctx.entidades.some((e) => e.id === data.entidadeId)) {
+      throw new Error("Este equipamento não pertence ao mapeamento.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const tabela = (supabaseAdmin as any).from("mapeamento_entidade_conclusao");
+    const { error } = data.concluida
+      ? await tabela.upsert(
+          { caso_id: casoId, entidade_id: data.entidadeId, concluida_em: new Date().toISOString() },
+          { onConflict: "caso_id,entidade_id" },
+        )
+      : await tabela.delete().eq("caso_id", casoId).eq("entidade_id", data.entidadeId);
+    if (error) {
+      // 42P01 / PGRST205: tabela inexistente (migration pendente) — não bloqueia o preenchimento.
+      if (error.code === "42P01" || error.code === "PGRST205" || /does not exist|schema cache/i.test(error.message ?? "")) {
+        return { ok: true, persistido: false };
+      }
+      throw new Error(error.message);
+    }
+    return { ok: true, persistido: true };
   });
 
 const SalvarEtapaInput = z.object({

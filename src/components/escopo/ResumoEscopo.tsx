@@ -77,11 +77,16 @@ export function chipsEscopo(entidades: EntidadeResumo[]): { tipo: string; n: num
   return out;
 }
 
-function IconeTipo({ tipo, className = "h-3.5 w-3.5" }: { tipo: string; className?: string }) {
+export function IconeTipo({ tipo, className = "h-3.5 w-3.5" }: { tipo: string; className?: string }) {
   const v = VISUAL[tipo];
   if (!v) return null;
   const I = v.icone;
   return <I className={className} aria-hidden />;
+}
+
+/** Classes de cor (texto/fundo/borda) do tipo de entidade, para cartões e crachás. */
+export function corDoTipo(tipo: string): string {
+  return VISUAL[tipo]?.cor ?? "text-muted-foreground bg-muted border-border";
 }
 
 function Ramo({

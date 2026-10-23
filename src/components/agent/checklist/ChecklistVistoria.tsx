@@ -20,24 +20,35 @@ import {
   traduzirErroRede,
   useFilaUploads,
 } from "@/lib/midia-upload";
-import type { Resposta } from "@/components/agent/FormFields";
+import { isComplete, type Resposta } from "@/components/agent/FormFields";
 import { EtapasNav, IconeStatus } from "@/components/agent/checklist/EtapasNav";
 import { EtapaPerguntas } from "@/components/agent/checklist/EtapaPerguntas";
 import { PainelRevisao } from "@/components/agent/checklist/PainelRevisao";
 import { AssistentePanel } from "@/components/agent/checklist/AssistentePanel";
 import { FalaMultiCampo } from "@/components/agent/checklist/FalaMultiCampo";
 import {
+  VisaoEquipamentos,
+  ehGeral,
+  unidadeDaPergunta,
+  type Vista,
+} from "@/components/agent/checklist/VisaoEquipamentos";
+import { frasesOperacionais } from "@/components/agent/checklist/ResumoMapeamento";
+import type { IndicePerguntas } from "@/components/agent/checklist/PreencherEquipamento";
+import {
   estadoInicial,
   resumirVistoria,
   respondida,
   rotuloStatus,
+  toPerguntaUI,
 } from "@/lib/vistoria-checklist";
+import { montarNavegacao, type ItemNav } from "@/lib/escopo/navegacao-entidades";
 import { ResumoEscopo } from "@/components/escopo/ResumoEscopo";
 import { contarPorEntidade } from "@/lib/escopo/arvore-perguntas";
 import type { EntidadeEscopo, TipoEntidade } from "@/lib/escopo/tipos";
 import {
   finalizarVistoriaChat,
   getChecklistVistoria,
+  marcarEntidadeConcluida,
   salvarRespostasEtapa,
   type ChecklistVistoriaDTO,
 } from "@/lib/vistoria-agent.functions";
@@ -55,17 +66,22 @@ function CartaoEscopo({
   entidades,
   orientacoes,
   config,
+  fechadoPorPadrao = false,
 }: {
   casoId: string;
   entidades: ChecklistVistoriaDTO["entidades"];
   orientacoes: string | null;
   config?: ChecklistVistoriaDTO["escopoConfig"];
+  /** Sem preferência salva, começa recolhido (ex.: visão por equipamento, para a lista aparecer logo). */
+  fechadoPorPadrao?: boolean;
 }) {
   const chave = `escopo-card:${casoId}`;
-  const [aberto, setAberto] = useState(true);
+  const [aberto, setAberto] = useState(!fechadoPorPadrao);
   useEffect(() => {
     try {
-      if (localStorage.getItem(chave) === "fechado") setAberto(false);
+      const guardado = localStorage.getItem(chave);
+      if (guardado === "fechado") setAberto(false);
+      else if (guardado === "aberto") setAberto(true);
     } catch {
       /* sem armazenamento: segue aberto */
     }
@@ -102,6 +118,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   const carregar = useServerFn(getChecklistVistoria);
   const salvar = useServerFn(salvarRespostasEtapa);
   const finalizar = useServerFn(finalizarVistoriaChat);
+  const marcarConcluida = useServerFn(marcarEntidadeConcluida);
 
   const [dados, setDados] = useState<ChecklistVistoriaDTO | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -115,6 +132,11 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
   const [avisoEtapa, setAvisoEtapa] = useState<string | null>(null);
   const [finalizando, setFinalizando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+  // Visão por equipamento (padrão quando o escopo tem equipamentos) ou por etapa.
+  const [visaoEscolhida, setVisaoEscolhida] = useState<"equipamentos" | "etapas" | null>(null);
+  const [vista, setVista] = useState<Vista>({ tipo: "resumo" });
+  const [concluidas, setConcluidas] = useState<Set<string>>(new Set());
+  const [tentaram, setTentaram] = useState<Set<string>>(new Set());
 
   const sujosRef = useRef<Set<string>>(new Set());
   const stateRef = useRef<Record<string, Resposta>>({});
@@ -158,6 +180,13 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         }
         setDados(d);
         setState(inicial);
+        setConcluidas(new Set(d.entidadesConcluidas ?? []));
+        try {
+          const v = window.localStorage.getItem(`visao-agente:${d.casoId}`);
+          if (v === "etapas" || v === "equipamentos") setVisaoEscolhida(v);
+        } catch {
+          // sem armazenamento: usa o padrão
+        }
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Erro ao carregar o mapeamento.");
       }
@@ -211,6 +240,50 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         : new Map(),
     [entidades, resumo, state],
   );
+
+  // Navegação por equipamento: mesmas perguntas visíveis, agrupadas pela entidade do Escopo.
+  const itensNav = useMemo<ItemNav[]>(
+    () =>
+      resumo
+        ? resumo.etapas.flatMap((e) =>
+            e.visiveis.map((p) => ({
+              id: p.id,
+              entidadeId: p.entidadeId ?? null,
+              obrigatoria: p.obrigatoria,
+              respondida: respondida(p, state[p.id]),
+              completa: !p.obrigatoria || isComplete(toPerguntaUI(p, e.etapa.id), state[p.id] ?? {}, "live"),
+              texto: p.texto,
+              valor: state[p.id]?.text ?? "",
+              etapaId: e.etapa.id,
+              etapaTitulo: e.etapa.titulo,
+              etapaOrdem: e.etapa.ordem,
+            })),
+          )
+        : [],
+    [resumo, state],
+  );
+  const modelo = useMemo(
+    () => montarNavegacao(entidades, itensNav, { concluidas, tentaram }),
+    [entidades, itensNav, concluidas, tentaram],
+  );
+  const indice = useMemo<IndicePerguntas>(() => {
+    const m: IndicePerguntas = new Map();
+    for (const e of resumo?.etapas ?? []) for (const p of e.visiveis) m.set(p.id, { pergunta: p, etapa: e.etapa });
+    return m;
+  }, [resumo]);
+  const temEquipamentos = modelo.porId.size > 0;
+  const visao: "equipamentos" | "etapas" = temEquipamentos ? (visaoEscolhida ?? "equipamentos") : "etapas";
+
+  const escolherVisao = (v: "equipamentos" | "etapas") => {
+    setVisaoEscolhida(v);
+    setModoRevisao(false);
+    try {
+      if (dados) window.localStorage.setItem(`visao-agente:${dados.casoId}`, v);
+    } catch {
+      // ignorado
+    }
+    window.scrollTo({ top: 0 });
+  };
 
   const persistir = useCallback(async () => {
     if (!dados) return true;
@@ -314,6 +387,47 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     }
   };
 
+  /** Marca/reabre um equipamento como concluído (confirmação; o estado real vem das respostas). */
+  const marcarEquipamento = async (entidadeId: string, concluida: boolean) => {
+    setConcluidas((s) => {
+      const n = new Set(s);
+      if (concluida) n.add(entidadeId);
+      else n.delete(entidadeId);
+      return n;
+    });
+    if (concluida) {
+      setTentaram((s) => {
+        const n = new Set(s);
+        n.delete(entidadeId);
+        return n;
+      });
+    }
+    try {
+      await marcarConcluida({
+        data: { ...(token ? { token } : {}), ...(casoId ? { casoId } : {}), entidadeId, concluida },
+      });
+    } catch {
+      // a marcação é só confirmação: sem rede, o estado automático continua valendo
+    }
+  };
+
+  /** Abre o equipamento (ou as informações gerais) que contém a pergunta e rola até ela. */
+  const abrirPergunta = async (perguntaId: string) => {
+    const u = unidadeDaPergunta(modelo, perguntaId);
+    const naMesmaTela =
+      (u && vista.tipo === "equip" && vista.id === u.id) || (!u && vista.tipo === "geral" && ehGeral(modelo, perguntaId));
+    if (!naMesmaTela) {
+      await persistir();
+      if (u) setVista({ tipo: "equip", id: u.id, origem: { tipo: "resumo" } });
+      else if (ehGeral(modelo, perguntaId)) setVista({ tipo: "geral" });
+    }
+    setModoRevisao(false);
+    setDestaque(perguntaId);
+    setTimeout(() => {
+      document.getElementById(`pergunta-${perguntaId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  };
+
   if (erro && !dados) {
     return (
       <div className="mx-auto max-w-lg p-6 text-center">
@@ -392,11 +506,24 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     }
   };
 
+  const unidadeAberta = visao === "equipamentos" && vista.tipo === "equip" ? (modelo.porId.get(vista.id) ?? null) : null;
   const perguntaFoco =
-    etapaResumo.visiveis.find((p) => p.id === destaque) ??
-    etapaResumo.faltandoObrigatorias[0] ??
-    etapaResumo.visiveis[0] ??
-    null;
+    visao === "equipamentos"
+      ? ((destaque ? indice.get(destaque)?.pergunta : undefined) ??
+        (unidadeAberta
+          ? indice.get(unidadeAberta.itens.find((i) => i.obrigatoria && !i.completa)?.id ?? unidadeAberta.itens[0]?.id ?? "")?.pergunta
+          : undefined) ??
+        null)
+      : (etapaResumo.visiveis.find((p) => p.id === destaque) ??
+        etapaResumo.faltandoObrigatorias[0] ??
+        etapaResumo.visiveis[0] ??
+        null);
+  const tituloAssistente =
+    visao === "equipamentos"
+      ? (unidadeAberta?.tituloCompleto ?? (vista.tipo === "geral" ? "Informações gerais" : dados.formularioNome))
+      : etapaResumo.etapa.titulo;
+  const frases = visao === "equipamentos" ? frasesOperacionais(modelo) : [];
+  const faltantesTotal = resumo.etapas.reduce((a, e) => a + e.faltandoObrigatorias.length, 0);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-3 pb-32 pt-4 sm:px-5 lg:pb-10">
@@ -406,6 +533,15 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             {dados.clienteNome}
           </h1>
           <p className="mt-1 break-words text-xs uppercase text-muted-foreground">{dados.formularioNome}</p>
+          {temEquipamentos && (
+            <button
+              type="button"
+              onClick={() => escolherVisao(visao === "equipamentos" ? "etapas" : "equipamentos")}
+              className="mt-1 min-h-9 text-xs text-muted-foreground underline"
+            >
+              {visao === "equipamentos" ? "Ver por etapa" : "Ver por equipamento"}
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
           {onTrocarModo && (
@@ -431,9 +567,18 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           entidades={dados.entidades}
           orientacoes={dados.orientacoes}
           config={dados.escopoConfig}
+          fechadoPorPadrao={visao === "equipamentos"}
         />
       )}
 
+      {visao === "equipamentos" ? (
+        vista.tipo !== "equip" &&
+        vista.tipo !== "geral" && (
+          <p className="mt-2 text-right text-xs text-muted-foreground">
+            {salvando ? "Salvando…" : salvoEm ? `Salvo às ${salvoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Salvo no aparelho"}
+          </p>
+        )
+      ) : (
       <div className="mt-3 rounded-xl border border-border bg-card p-3">
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium text-foreground">
@@ -458,6 +603,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           />
         </div>
       </div>
+      )}
 
       {(!fila.online || fila.pendentes.length > 0) && (
         <div
@@ -478,20 +624,42 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         </div>
       )}
 
-      <div className="mt-4 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)_18rem] lg:gap-5">
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <EtapasNav
-            etapas={resumo.etapas}
-            atual={modoRevisao ? -1 : etapaAtual}
-            onSelecionar={(i) => void irPara(i)}
-          />
-        </aside>
+      <div
+        className={`mt-4 lg:grid lg:gap-5 ${
+          visao === "equipamentos" ? "lg:grid-cols-[minmax(0,1fr)_18rem]" : "lg:grid-cols-[16rem_minmax(0,1fr)_18rem]"
+        }`}
+      >
+        {visao === "etapas" && (
+          <aside className="lg:sticky lg:top-4 lg:self-start">
+            <EtapasNav
+              etapas={resumo.etapas}
+              atual={modoRevisao ? -1 : etapaAtual}
+              onSelecionar={(i) => void irPara(i)}
+            />
+          </aside>
+        )}
 
         <main className="mt-4 min-w-0 lg:mt-0">
           {modoRevisao ? (
             <section className="space-y-4">
+              {visao === "equipamentos" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModoRevisao(false);
+                    window.scrollTo({ top: 0 });
+                  }}
+                  className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Voltar ao resumo
+                </button>
+              )}
               <h2 className="text-base font-semibold text-foreground">Revisão final</h2>
-              <PainelRevisao resumo={resumo} onIrPara={(i, p) => void irPara(i, p)} />
+              <PainelRevisao
+                resumo={resumo}
+                frases={frases}
+                onIrPara={(i, p) => (visao === "equipamentos" ? void abrirPergunta(p) : void irPara(i, p))}
+              />
               {erro && (
                 <p className="whitespace-pre-line rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {erro}
@@ -517,6 +685,40 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
                   Finalizar mapeamento
                 </Button>
               </div>
+            </section>
+          ) : visao === "equipamentos" ? (
+            <section className="space-y-4">
+              <VisaoEquipamentos
+                modelo={modelo}
+                vista={vista}
+                onVista={setVista}
+                indice={indice}
+                state={state}
+                update={update}
+                casoId={dados.casoId}
+                token={token ?? "app"}
+                destaque={destaque}
+                fala={(perguntas) => (
+                  <FalaMultiCampo
+                    token={token ?? "app"}
+                    tokenLink={token}
+                    casoIdAuth={casoId}
+                    perguntas={perguntas}
+                    onAplicar={(valores) => valores.forEach((v) => update(v.perguntaId, { text: v.valor }))}
+                  />
+                )}
+                salvando={salvando}
+                salvoEm={salvoEm}
+                persistir={persistir}
+                onTentou={(id) => setTentaram((s) => new Set(s).add(id))}
+                onMarcar={marcarEquipamento}
+                onIrParaPergunta={(id) => void abrirPergunta(id)}
+              />
+              {erro && (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {erro}
+                </p>
+              )}
             </section>
           ) : (
             <section className="space-y-4">
@@ -576,11 +778,39 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         </main>
 
         <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
-          <PainelRevisao resumo={resumo} onIrPara={(i, p) => void irPara(i, p)} compacto />
+          <PainelRevisao
+            resumo={resumo}
+            frases={frases}
+            onIrPara={(i, p) => (visao === "equipamentos" ? void abrirPergunta(p) : void irPara(i, p))}
+            compacto
+          />
         </aside>
       </div>
 
-      {!modoRevisao && (
+      {!modoRevisao && visao === "equipamentos" && vista.tipo === "resumo" && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-3 py-3 backdrop-blur [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-6xl flex-col gap-1">
+            {faltantesTotal > 0 && (
+              <p className="text-center text-xs text-muted-foreground">
+                {faltantesTotal} {faltantesTotal === 1 ? "campo obrigatório pendente" : "campos obrigatórios pendentes"}
+              </p>
+            )}
+            <Button
+              variant="primary"
+              className="min-h-11 w-full"
+              onClick={async () => {
+                await persistir();
+                setModoRevisao(true);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Revisar e finalizar <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!modoRevisao && visao === "etapas" && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-3 py-3 backdrop-blur [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))] lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <Button
@@ -618,7 +848,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
         onFechar={() => setAssistenteAberto(false)}
         tokenLink={token}
         casoIdAuth={casoId}
-        etapaTitulo={etapaResumo.etapa.titulo}
+        etapaTitulo={tituloAssistente}
         perguntaFoco={perguntaFoco}
         onUsarSugestao={(id, valor) => update(id, { text: valor })}
       />
