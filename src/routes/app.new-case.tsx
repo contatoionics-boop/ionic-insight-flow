@@ -545,7 +545,10 @@ function NewCasePage() {
   const toggleForm = (id: string) => {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
-  const qtdDoForm = (id: string) => Math.max(1, Math.min(20, Math.floor(formQtd[id] ?? 1)));
+  /** Formulário que repete as perguntas por equipamento do escopo cobre tudo num só mapeamento: sempre 1. */
+  const repetePorEntidade = (id: string) => !!formMeta[id]?.repetePorEntidade;
+  const qtdDoForm = (id: string) =>
+    repetePorEntidade(id) ? 1 : Math.max(1, Math.min(20, Math.floor(formQtd[id] ?? 1)));
   /** Lista final enviada ao servidor: cada formulário repetido pela sua quantidade. */
   const formIdsExpandidos = formIds.flatMap((id) => Array.from({ length: qtdDoForm(id) }, () => id));
 
@@ -863,7 +866,10 @@ function NewCasePage() {
                         className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                       />
                       <span className="min-w-0 flex-1 text-foreground">{f.nome}</span>
-                      {formIds.includes(f.id) && (
+                      {formIds.includes(f.id) && repetePorEntidade(f.id) && (
+                        <span className="shrink-0 text-xs text-muted-foreground">cobre todo o escopo</span>
+                      )}
+                      {formIds.includes(f.id) && !repetePorEntidade(f.id) && (
                         <span
                           className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
                           onClick={(e) => e.preventDefault()}
@@ -888,7 +894,7 @@ function NewCasePage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {forms.length === 1
                   ? "O único formulário ativo já foi selecionado automaticamente."
-                  : "Selecione ao menos um formulário. Cada mapeamento é independente; use Qtd. para criar o mesmo formulário mais de uma vez (ex.: um por comboio)."}
+                  : "Selecione ao menos um formulário. Cada mapeamento é independente. Formulários marcados \"cobre todo o escopo\" já repetem as perguntas por bomba, bico ou comboio; os demais aceitam Qtd. para criar o mesmo formulário mais de uma vez."}
               </p>
             </div>
             <div>

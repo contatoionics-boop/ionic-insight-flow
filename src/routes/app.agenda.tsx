@@ -227,15 +227,17 @@ function AgendaPage() {
                       <button
                         key={e.id}
                         onClick={(ev) => { ev.stopPropagation(); if (grupo.length > 1) setDiaAberto(d); else setSel(e); }}
-                        title={grupo.length > 1 ? `${grupo.length} formulários neste agendamento` : execLabel[est]}
-                        className="flex w-full items-center gap-1 truncate rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
+                        title={`${e.unidade?.matriz?.empresa?.nome ?? ""}${e.unidade?.nome ? ` · ${e.unidade.nome}` : ""} — ${grupo.length > 1 ? `${grupo.length} formulários neste agendamento` : execLabel[est]}`}
+                        className="block w-full rounded bg-primary/10 px-1 py-0.5 text-left text-[10px] text-primary hover:bg-primary/20"
                       >
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${execDotClass[est]}`} />
-                        <span className="truncate">
-                          {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
+                        <span className="flex items-center gap-1">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${execDotClass[est]}`} />
+                          <span className="truncate">
+                            {new Date(e.agendado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {e.unidade?.matriz?.empresa?.nome ?? ""}{e.unidade?.nome ? ` · ${e.unidade.nome}` : ""}
+                          </span>
                         </span>
                         {grupo.length > 1 && (
-                          <span className="shrink-0 rounded bg-primary/20 px-1 text-[9px] font-semibold">{grupo.length} formulários</span>
+                          <span className="mt-0.5 block pl-2.5 text-[9px] font-semibold text-primary/80">{grupo.length} formulários</span>
                         )}
                       </button>
                     );
