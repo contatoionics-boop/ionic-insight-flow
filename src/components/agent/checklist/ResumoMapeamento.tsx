@@ -29,14 +29,14 @@ function Linha({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-sm active:bg-muted"
+      className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-left shadow-sm active:bg-muted"
     >
       {icone}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{titulo}</span>
-        <span className="block truncate text-xs text-muted-foreground">{detalhe}</span>
+        <span className="block text-sm font-semibold leading-snug text-foreground">{titulo}</span>
+        <span className="block text-xs text-muted-foreground">{detalhe}</span>
+        <span className="mt-1 block">{badge}</span>
       </span>
-      {badge}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
     </button>
   );
@@ -58,7 +58,7 @@ export function frasesOperacionais(modelo: ModeloNav): string[] {
   const linha = (unidades: Unidade[], um: string, varios: string, concluida: string, concluidas: string) => {
     if (!unidades.length) return;
     const c = contarEstados(unidades);
-    frases.push(`${c.concluidas} de ${c.total} ${plural(c.total, um, varios)} ${plural(c.concluidas, concluida, concluidas)}`);
+    frases.push(`${c.concluidas} de ${c.total} ${plural(c.total, um, varios)} ${plural(c.total, concluida, concluidas)}`);
   };
   linha(modelo.sequencia("bomba"), "bomba", "bombas", "concluída", "concluídas");
   linha(modelo.comboios, "comboio", "comboios", "concluído", "concluídos");

@@ -31,6 +31,9 @@ const DE: Record<string, string> = {
   bico: "do bico",
 };
 
+/** Tipos de equipamento no feminino (concordância das mensagens). */
+const FEMININO = new Set(["bomba", "ilha", "sonda"]);
+
 const NOMES_GRUPO: Record<string, { titulo: string; um: string; varios: string; concl: [string, string] }> = {
   comboios: { titulo: "Comboios", um: "comboio", varios: "comboios", concl: ["concluído", "concluídos"] },
   tanques: { titulo: "Tanques com lubrificante", um: "tanque", varios: "tanques", concl: ["concluído", "concluídos"] },
@@ -64,7 +67,7 @@ const topo = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
 function resumoGrupo(unidades: Unidade[], um: string, varios: string, concl: [string, string]) {
   const c = contarEstados(unidades);
-  return `${c.concluidas} de ${c.total} ${c.total === 1 ? um : varios} ${c.concluidas === 1 ? concl[0] : concl[1]}`;
+  return `${c.concluidas} de ${c.total} ${c.total === 1 ? um : varios} ${c.total === 1 ? concl[0] : concl[1]}`;
 }
 
 export function VisaoEquipamentos({
@@ -229,9 +232,16 @@ export function VisaoEquipamentos({
   }
 
   const proxima = u.soProprias ? null : modelo.proxima(u.id);
-  const destinoSaida: Vista = vista.origem;
+  // Próximo equipamento em outra ilha: o rótulo diz a ilha ("Bomba 01 · Ilha 02") e a lista de
+  // retorno passa a ser a da nova ilha.
+  const ilhaDaProxima = proxima ? proxima.ancestrais[proxima.ancestrais.length - 1] : undefined;
+  const mudaDeIlha = !!proxima && !!ilhaDaProxima && ilhaDaProxima.tipo === "ilha" && proxima.entidade.parent_id !== u.entidade.parent_id;
+  const destinoSaida: Vista =
+    mudaDeIlha && vista.origem.tipo === "lista" && vista.origem.chave.startsWith("ilha:")
+      ? { tipo: "lista", chave: `ilha:${ilhaDaProxima!.id}` }
+      : vista.origem;
   const rotuloProxima = proxima
-    ? `Salvar e ir para ${proxima.titulo}`
+    ? `Salvar e ir para ${proxima.titulo}${mudaDeIlha ? ` · ${ilhaDaProxima!.rotulo}` : ""}`
     : destinoSaida.tipo === "lista"
       ? "Salvar e voltar à lista"
       : "Salvar e voltar ao resumo";
@@ -292,7 +302,7 @@ export function VisaoEquipamentos({
           return;
         }
         await onMarcar(u.entidade.id, true);
-        setAviso(`${u.titulo} marcado como concluído.`);
+        setAviso(`${u.titulo} marcad${FEMININO.has(u.entidade.tipo) ? "a" : "o"} como concluíd${FEMININO.has(u.entidade.tipo) ? "a" : "o"}.`);
       }}
       onVoltar={async () => {
         await persistir();
