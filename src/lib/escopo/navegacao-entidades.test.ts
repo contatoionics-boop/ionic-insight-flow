@@ -121,6 +121,14 @@ describe("montarNavegacao", () => {
     expect(nav.proxima("il1:dados")).toBeNull();
   });
 
+  it("posto e ilha sem nenhuma pergunta no formulário não aparecem (ex.: formulário só de comboio)", () => {
+    const nav = montarNavegacao(entidades, [item("c1"), item("c2")]);
+    expect(nav.pista).toHaveLength(0);
+    expect(nav.comboios).toHaveLength(2);
+    const soIlha2 = montarNavegacao(entidades, [item("b3")]);
+    expect(soIlha2.pista[0].ilhas.map((i) => i.ilha.id)).toEqual(["il2"]);
+  });
+
   it("marcação manual e tentativa mudam o estado com obrigatória faltando", () => {
     const itens = [feito("b1"), item("b1")];
     expect(montarNavegacao(entidades, itens).porId.get("b1")!.estado).toBe("em_andamento");

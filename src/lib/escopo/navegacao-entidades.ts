@@ -233,12 +233,16 @@ export function montarNavegacao(
           const equipamentos = (filhosDe.get(f.id) ?? [])
             .map((b) => criarUnidade(b, false))
             .filter((u): u is Unidade => !!u);
-          no.ilhas.push({ ilha: f, dados: criarUnidade(f, true), equipamentos });
+          const dados = criarUnidade(f, true);
+          // Ilha sem nenhuma pergunta neste formulário (ex.: formulário só de comboio) não aparece.
+          if (!dados && equipamentos.length === 0) continue;
+          no.ilhas.push({ ilha: f, dados, equipamentos });
         } else {
           const u = criarUnidade(f, false);
           if (u) no.diretos.push(u);
         }
       }
+      if (!no.dados && no.ilhas.length === 0 && no.diretos.length === 0) continue; // posto sem perguntas
       pista.push(no);
       continue;
     }
