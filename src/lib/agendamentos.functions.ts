@@ -392,11 +392,14 @@ export const listarAgendamentosDoAgente = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AceiteAgendamento[]> => {
     const { data, error } = await supabaseAdmin
       .from("agendamentos")
-      .select("id, agendado_em, endereco_vistoria, observacoes_agendamento, aceite_status, motivo_recusa, unidade:unidades(nome, matriz:matrizes(empresa:empresas(nome)))")
+      .select("id, agendado_em, endereco_vistoria, observacoes_agendamento, aceite_status, motivo_recusa, unidade:unidades(nome, matriz:matrizes(empresa:empresas(nome))), casos(id, status)")
       .eq("agente_id", context.userId)
       .order("agendado_em", { ascending: true });
     if (error) throw new Error(error.message);
-    return ((data ?? []) as any[]).map((r) => ({
+    return ((data ?? []) as any[])
+      // Agendamento sem nenhum mapeamento ativo (excluído/cancelado) não tem o que aceitar.
+      .filter((r) => ((r.casos ?? []) as { status: string }[]).some((c) => c.status !== "cancelado"))
+      .map((r) => ({
       id: r.id,
       agendado_em: r.agendado_em,
       endereco_vistoria: r.endereco_vistoria,

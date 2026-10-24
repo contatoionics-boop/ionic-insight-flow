@@ -621,11 +621,14 @@ export const deletarVistoria = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertPodeGerenciarAgendamentos(context.supabase, context.userId);
-    const { error } = await supabaseAdmin
+    const { data: caso, error: cErr } = await supabaseAdmin
       .from("casos")
-      .delete()
-      .eq("id", data.casoId);
-    if (error) throw new Error(error.message);
+      .select("id, codigo, agendamento_id")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (cErr) throw new Error(`Falha ao localizar o mapeamento: ${cErr.message}`);
+    // Idempotente: se já foi excluído, não é erro.
+    if (caso) await removerMapeamentoCompleto(caso);
     return { ok: true };
   });
 
@@ -757,6 +760,55 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
 
   });
 
+/**
+ * Exclusão completa de um mapeamento: arquivos enviados, respostas, chat, eventos, propostas e o
+ * próprio caso; se o agendamento ficar sem nenhum mapeamento, ele também é removido (senão
+ * continuava aparecendo para o agente aceitar).
+ */
+async function removerMapeamentoCompleto(caso: { id: string; codigo: string; agendamento_id: string | null }) {
+  // Arquivos enviados pelo agente
+  try {
+    const { data: arquivos } = await supabaseAdmin.storage
+      .from("agente-uploads")
+      .list(`casos/${caso.id}`, { limit: 1000 });
+    if (arquivos?.length) {
+      await supabaseAdmin.storage
+        .from("agente-uploads")
+        .remove(arquivos.map((a) => `casos/${caso.id}/${a.name}`));
+    }
+  } catch {
+    /* storage é best-effort */
+  }
+
+  for (const tabela of [
+    "respostas_agente",
+    "chat_mensagens",
+    "mapeamento_eventos",
+    "mapeamento_observacoes",
+    "notificacoes",
+    "links_agente",
+    "propostas_comerciais",
+  ] as const) {
+    await (supabaseAdmin as any).from(tabela).delete().eq("caso_id", caso.id);
+  }
+
+  const { error } = await supabaseAdmin.from("casos").delete().eq("id", caso.id);
+  if (error) throw new Error(error.message);
+
+  // Remove o agendamento se não sobrou nenhum mapeamento nele
+  if (caso.agendamento_id) {
+    const { count } = await supabaseAdmin
+      .from("casos")
+      .select("id", { count: "exact", head: true })
+      .eq("agendamento_id", caso.agendamento_id);
+    if (!count) {
+      await supabaseAdmin.from("mapeamento_eventos").delete().eq("agendamento_id", caso.agendamento_id);
+      await supabaseAdmin.from("agendamentos").delete().eq("id", caso.agendamento_id);
+    }
+  }
+}
+
+
 /** Exclui definitivamente um mapeamento (e o agendamento, se ficar vazio). Admin/especialista. */
 export const excluirMapeamento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -779,46 +831,7 @@ export const excluirMapeamento = createServerFn({ method: "POST" })
     // Idempotente: se já foi excluído, não é erro.
     if (!caso) return { ok: true, codigo: null, jaExcluido: true };
 
-    // Arquivos enviados pelo agente
-    try {
-      const { data: arquivos } = await supabaseAdmin.storage
-        .from("agente-uploads")
-        .list(`casos/${data.casoId}`, { limit: 1000 });
-      if (arquivos?.length) {
-        await supabaseAdmin.storage
-          .from("agente-uploads")
-          .remove(arquivos.map((a) => `casos/${data.casoId}/${a.name}`));
-      }
-    } catch {
-      /* storage é best-effort */
-    }
-
-    for (const tabela of [
-      "respostas_agente",
-      "chat_mensagens",
-      "mapeamento_eventos",
-      "mapeamento_observacoes",
-      "notificacoes",
-      "links_agente",
-      "propostas_comerciais",
-    ] as const) {
-      await (supabaseAdmin as any).from(tabela).delete().eq("caso_id", data.casoId);
-    }
-
-    const { error } = await supabaseAdmin.from("casos").delete().eq("id", data.casoId);
-    if (error) throw new Error(error.message);
-
-    // Remove o agendamento se não sobrou nenhum mapeamento nele
-    if (caso.agendamento_id) {
-      const { count } = await supabaseAdmin
-        .from("casos")
-        .select("id", { count: "exact", head: true })
-        .eq("agendamento_id", caso.agendamento_id);
-      if (!count) {
-        await supabaseAdmin.from("mapeamento_eventos").delete().eq("agendamento_id", caso.agendamento_id);
-        await supabaseAdmin.from("agendamentos").delete().eq("id", caso.agendamento_id);
-      }
-    }
+    await removerMapeamentoCompleto(caso);
 
     return { ok: true, codigo: caso.codigo, jaExcluido: false };
   });
