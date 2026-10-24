@@ -78,6 +78,11 @@ export function rotuloTipoAcao(v: string | null | undefined): string | null {
   return s ? (ROTULO_TIPO_ACAO[s] ?? s) : null;
 }
 
+/** Nome oficial da solução: "SSGFROTA" (tudo junto, maiúsculo), qualquer que seja a grafia de origem. */
+export function padronizarSolucao(texto: string): string {
+  return texto.replace(/ssg[\s_-]*frota/gi, "SSGFROTA");
+}
+
 export function rotuloModalidade(v: string | null | undefined): string | null {
   const s = limparTexto(v).toLowerCase();
   return s ? (ROTULO_MODALIDADE[s] ?? s) : null;

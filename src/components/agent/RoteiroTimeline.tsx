@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Check, ChevronDown, Flag, Lock, MapPin, Play } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, ChevronDown, Flag, MapPin, Play } from "lucide-react";
 
 import { Botao } from "@/components/agent/ui";
 import { cn } from "@/lib/utils";
 import { finalizado, type CasoBase, type GrupoDia, type Parada } from "@/lib/agente-roteiro";
+import { padronizarSolucao } from "@/lib/texto";
 import type { ProgressoCaso } from "@/lib/agente-progresso.functions";
 
 export type CasoCard = CasoBase & {
@@ -22,8 +23,11 @@ function nomePartes(nome: string | undefined | null): { codigo: string; descrica
   if (!nome) return { codigo: "Formulário", descricao: "" };
   const limpo = nome.replace(/\s*\(por estrutura do escopo\)\s*/i, "").replace(/\s+/g, " ").trim();
   const [codigo, resto] = limpo.split(/\s*[|–-]\s+/, 2);
-  if (!resto) return { codigo: limpo, descricao: "" };
-  return { codigo: codigo!, descricao: resto.toLowerCase().replace(/^./, (c) => c.toUpperCase()) };
+  if (!resto) return { codigo: padronizarSolucao(limpo), descricao: "" };
+  return {
+    codigo: codigo!,
+    descricao: padronizarSolucao(resto.toLowerCase().replace(/^./, (c) => c.toUpperCase())),
+  };
 }
 
 const cliente = (c: CasoCard) => c.unidade?.matriz?.empresa?.nome ?? "—";
@@ -46,13 +50,14 @@ function Circulo({ numero, estado }: { numero: number; estado: "andamento" | "pr
 
 function LinhaFormulario({
   caso,
-  atual,
+  destaque,
   progresso,
   onVerRespostas,
   unico,
 }: {
   caso: CasoCard;
-  atual: boolean;
+  /** Botão principal (cheio) ou secundário (contorno), quando há outro formulário em andamento. */
+  destaque: boolean;
   progresso?: ProgressoCaso;
   onVerRespostas: (id: string) => void;
   unico: boolean;
@@ -78,10 +83,6 @@ function LinhaFormulario({
           </span>
         ) : iniciado ? (
           <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-800">Em andamento</span>
-        ) : !atual ? (
-          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
-            <Lock className="h-3 w-3" aria-hidden /> Depois
-          </span>
         ) : null}
       </div>
 
@@ -101,10 +102,10 @@ function LinhaFormulario({
         </button>
       )}
 
-      {atual && !pronto && (
+      {!pronto && (
         <div className={cn("mt-2", unico && "mt-3")}>
           <Link to="/app/vistoria/$casoId" params={{ casoId: caso.id }} className="contents">
-            <Botao variante="primario">
+            <Botao variante={destaque ? "primario" : "contorno"}>
               {iniciado ? "Continuar" : "Iniciar"} <ArrowRight className="h-4 w-4" aria-hidden />
             </Botao>
           </Link>
@@ -178,14 +179,14 @@ function CartaoParada({
         )}
 
         <p className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {parada.casos.length === 1 ? "1 formulário" : `${parada.casos.length} formulários · faça um de cada vez`}
+          {parada.casos.length === 1 ? "1 formulário" : `${parada.casos.length} formulários · escolha por onde começar`}
         </p>
         <ul className="mt-1.5 space-y-2">
           {parada.casos.map((c) => (
             <LinhaFormulario
               key={c.id}
               caso={c}
-              atual={parada.atual?.id === c.id}
+              destaque={!parada.emAndamento || c.status === "em_andamento"}
               progresso={progresso.get(c.id)}
               onVerRespostas={onVerRespostas}
               unico={parada.casos.length === 1}

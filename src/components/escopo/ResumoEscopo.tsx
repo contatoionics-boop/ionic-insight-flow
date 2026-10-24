@@ -17,6 +17,7 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
+import { padronizarSolucao } from "@/lib/texto";
 import { resumoRfid, rotuloSolucao, type ConfigEscopo, type TipoEntidade } from "@/lib/escopo/tipos";
 
 export type EntidadeResumo = {
@@ -190,7 +191,7 @@ export function ResumoEscopo({
     }
     return m;
   }, [entidades]);
-  const texto = orientacoes?.trim();
+  const texto = orientacoes ? padronizarSolucao(orientacoes.trim()) : "";
   const raizes = filhos.get(null) ?? [];
   const cartoes = useMemo(() => cartoesConfig(config), [config]);
 
