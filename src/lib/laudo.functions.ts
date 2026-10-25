@@ -472,3 +472,35 @@ export const listarFotosLaudo = createServerFn({ method: "POST" })
       .map((f) => ({ ...f, url: (mapa.get(f.path) as string) ?? "" }))
       .filter((f) => f.url);
   });
+
+const EnviarImagemInput = z.object({
+  casoId: z.string().uuid(),
+  nome: z.string().min(1).max(80).regex(/^[\w.-]+$/),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  base64: z.string().min(1).max(14_000_000),
+});
+
+/**
+ * Grava uma imagem do documento (desenho técnico, foto original) no armazenamento público.
+ * Passa pelo servidor porque a política de gravação do bucket é só de super admin.
+ */
+export const enviarImagemLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => EnviarImagemInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: caso, error } = await (context.supabase as any)
+      .from("casos")
+      .select("id")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!caso) throw new Error("Sem acesso a este caso.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const caminho = `laudos/${data.casoId}/${data.nome}`;
+    const { error: erroUp } = await supabaseAdmin.storage
+      .from("empresa-logos")
+      .upload(caminho, Buffer.from(data.base64, "base64"), { upsert: true, contentType: data.contentType });
+    if (erroUp) throw new Error(erroUp.message);
+    return { url: supabaseAdmin.storage.from("empresa-logos").getPublicUrl(caminho).data.publicUrl };
+  });

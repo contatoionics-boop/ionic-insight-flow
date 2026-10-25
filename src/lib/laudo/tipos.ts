@@ -1,3 +1,4 @@
+import type { DesenhoProjeto } from "@/lib/marcacao/tipos";
 // Tipos compartilhados do laudo estruturado (client-safe).
 
 export type OrigemVariavel =
@@ -76,6 +77,8 @@ type Imagem = {
   legenda: string | null;
   /** largura máxima em pt (PDF) / px (prévia) */
   larguraMax?: number;
+  /** projeto do desenho técnico sobre foto (para reabrir e editar); a imagem final fica em `url` */
+  desenho?: DesenhoProjeto;
 };
 /** caixa padronizada "OBSERVAÇÃO TÉCNICA" */
 type Observacao = { id: string; tipo: "observacao"; titulo?: string | null; texto: string };

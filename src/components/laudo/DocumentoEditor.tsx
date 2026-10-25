@@ -11,6 +11,7 @@ import {
   ImagePlus,
   Loader2,
   Pencil,
+  PencilRuler,
   Plus,
   RotateCcw,
   Save,
@@ -25,7 +26,8 @@ import {
   salvarDocumentoLaudo,
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
-import { arvoreDocumento, fimDaSecao, renumerar } from "@/lib/laudo/numeracao";
+import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
+import { arvoreDocumento, fimDaSecao, imagemNumerada, numeroDaFigura, renumerar, semPrefixoFigura } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
 import type { MetaLaudo } from "@/lib/laudo/meta";
@@ -478,6 +480,7 @@ function EditorBloco({
   casoId: string;
 }) {
   const [enviando, setEnviando] = useState(false);
+  const [desenhando, setDesenhando] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function upload(file: File) {
@@ -732,8 +735,12 @@ function EditorBloco({
               )}
               {bloco.url ? "Substituir imagem" : "Enviar imagem"}
             </Button>
+            <Button variant="secondary" onClick={() => setDesenhando(true)}>
+              <PencilRuler className="mr-2 h-4 w-4" />
+              {bloco.desenho ? "Editar desenho técnico" : "Criar desenho técnico"}
+            </Button>
             {bloco.url ? (
-              <Button variant="secondary" onClick={() => onChange({ ...bloco, url: "" })}>
+              <Button variant="secondary" onClick={() => onChange({ ...bloco, url: "", desenho: undefined })}>
                 <Trash2 className="mr-2 h-4 w-4" /> Remover imagem
               </Button>
             ) : null}
@@ -747,14 +754,24 @@ function EditorBloco({
               <option value={480}>Grande</option>
             </select>
           </div>
-          <Input
-            value={bloco.legenda ?? ""}
-            placeholder="Legenda"
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange({ ...bloco, legenda: v });
-            }}
-          />
+          <div className="flex items-center gap-2">
+            {imagemNumerada(bloco) && (
+              <span
+                className="shrink-0 rounded-md bg-muted px-2 py-2 font-mono text-xs text-muted-foreground"
+                title="O número da figura acompanha a posição no documento"
+              >
+                Figura {numeroDaFigura(bloco.legenda) ?? "…"} —
+              </span>
+            )}
+            <Input
+              value={imagemNumerada(bloco) ? semPrefixoFigura(bloco.legenda) : (bloco.legenda ?? "")}
+              placeholder="Legenda"
+              onChange={(e) => {
+                const v = e.target.value;
+                onChange({ ...bloco, legenda: v });
+              }}
+            />
+          </div>
           <Input
             value={bloco.alt}
             placeholder="Descrição técnica"
@@ -763,6 +780,25 @@ function EditorBloco({
               onChange({ ...bloco, alt: v });
             }}
           />
+          {desenhando && (
+            <EditorMarcacao
+              casoId={casoId}
+              inicial={bloco.desenho ?? null}
+              onFechar={() => setDesenhando(false)}
+              onSalvar={(r) => {
+                onChange({
+                  ...bloco,
+                  url: r.url,
+                  desenho: r.desenho,
+                  legenda: semPrefixoFigura(bloco.legenda) ? bloco.legenda : "Desenho técnico",
+                  larguraMax: Math.max(bloco.larguraMax ?? 0, 480),
+                  alt: !bloco.alt || bloco.alt === "Imagem do documento" ? "Desenho técnico sobre foto" : bloco.alt,
+                });
+                setDesenhando(false);
+                toast.success("Desenho técnico salvo no documento.");
+              }}
+            />
+          )}
         </div>
       );
     case "alert":
