@@ -43,14 +43,21 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     let active = true;
+    // Usuário já carregado. O Supabase repete o evento de login ao voltar o foco para a janela e a
+    // cada renovação do token; recarregar a tela nesses casos desmontava a página e perdia o que
+    // estava sendo editado (documento, desenho, formulário).
+    let usuarioAtual: string | null = null;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       if (!session?.user) {
+        usuarioAtual = null;
         setState({ status: "unauthenticated", userId: null, email: null, profile: null, role: null });
         return;
       }
       const { id, email } = session.user;
+      if (usuarioAtual === id && event !== "USER_UPDATED") return;
+      usuarioAtual = id;
       setState((prev) => ({ ...prev, status: "loading", userId: id, email: email ?? null }));
       loadProfileAndRole(id, email ?? "").then((extras) => {
         if (!active) return;
@@ -65,6 +72,7 @@ export function useAuth(): AuthState {
         return;
       }
       const { id, email } = session.user;
+      usuarioAtual = id;
       loadProfileAndRole(id, email ?? "").then((extras) => {
         if (!active) return;
         setState({ status: "authenticated", userId: id, email: email ?? null, ...extras });
