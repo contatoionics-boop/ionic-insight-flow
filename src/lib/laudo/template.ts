@@ -30,7 +30,7 @@ export type EntradaTemplate = {
   cabecalho: CabecalhoLaudo;
   /** achados de análise técnica descartados pelo especialista */
   achadosDescartados?: string[];
-  /** produtos contratados, extraídos da proposta comercial do caso */
+  /** (não usado nas tabelas: produtos e materiais nascem vazios para o especialista preencher) */
   produtosProposta?: ProdutoProposta[];
 };
 
@@ -327,10 +327,6 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     ? ids
     : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
   // Produtos IONICS vêm EXCLUSIVAMENTE da proposta comercial do caso.
-  // Regras técnicas não geram produtos contratados.
-  const produtos = entrada.produtosProposta ?? [];
-
-
   const varios = grupos.length > 1;
   // Quando a análise técnica já descreve o objeto (bomba e/ou pista), o
   // parágrafo genérico do template antigo é suprimido para não duplicar
@@ -367,6 +363,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       nivel: 3,
     });
   }
+  // Produtos e materiais: o sistema NÃO sugere itens (nem da proposta, nem do catálogo),
+  // para não induzir a erro. As tabelas nascem só com o cabeçalho e uma linha em branco;
+  // o especialista inclui apenas o que realmente se aplica ao caso.
   blocos.push({
     id: bid("t"),
     tipo: "table",
@@ -374,15 +373,8 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     colunas: ["Código", "Descrição", "Qtd."],
     origem: "dynamic",
     editavel: true,
-    // Sem proposta com itens identificados a tabela nasce vazia, para o
-    // especialista incluir manualmente os produtos contratados.
-    linhas: produtos.map((p) => ({
-      celulas: [p.codigo ?? "—", p.descricao, p.quantidade ?? "—"],
-    })),
+    linhas: [{ celulas: ["", "", ""] }],
   });
-  // Materiais de infraestrutura: o sistema NÃO sugere itens do catálogo. A tabela
-  // nasce com o cabeçalho e uma linha em branco (referência de preenchimento)
-  // para o especialista incluir apenas o que realmente se aplica ao caso.
   blocos.push({
     id: bid("t"),
     tipo: "table",
@@ -392,18 +384,6 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     editavel: true,
     linhas: [{ celulas: ["", "", "", "", ""] }],
   });
-
-  if (!produtos.length) {
-    blocos.push({
-      id: bid("n"),
-      tipo: "notes",
-      origem: "dynamic",
-      editavel: true,
-      itens: [
-        "Nenhum produto identificado na proposta comercial anexada. O especialista deve incluir os produtos contratados nesta tabela.",
-      ],
-    });
-  }
 
 
   // 2.4 Bicos de abastecimento

@@ -76,3 +76,22 @@ describe("seção 2.1 — Equipamentos de TI e banco de dados", () => {
     expect(t).not.toContain("2.4.1");
   });
 });
+
+describe("tabelas de produtos e materiais", () => {
+  it("nascem sem itens, mesmo com produtos na proposta; dimensões de referência continuam fixas", () => {
+    const blocos = montarBlocos({
+      variaveis: vars({}),
+      materiais: [],
+      produtosProposta: [{ codigo: "T1000", descricao: "Terminal T1000", quantidade: "2" }] as any,
+      cabecalho: { cliente: "C", unidade: "U", data: "01/01/2026", agente: "A", especialista: "P", modalidade: "presencial" },
+    });
+    const tabela = (t: string) => blocos.find((b: any) => b.tipo === "table" && b.titulo === t) as any;
+    for (const t of ["Produtos IONICS", "Materiais de infraestrutura"]) {
+      expect(tabela(t).linhas).toHaveLength(1);
+      expect(tabela(t).linhas[0].celulas.every((c: string) => c === "")).toBe(true);
+    }
+    expect(JSON.stringify(blocos)).not.toContain("Terminal T1000");
+    const dims = tabela("Dimensões de referência");
+    if (dims) expect(dims.linhas.length).toBeGreaterThan(0);
+  });
+});
