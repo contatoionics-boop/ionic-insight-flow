@@ -520,9 +520,12 @@ async function figura(
     return;
   }
   const maxW = Math.min(bloco.larguraMax ?? 360, CONTENT_W);
-  const w = Math.min(maxW, img.width);
-  const h = (img.height / img.width) * w;
   const legendaLines = bloco.legenda ? wrap(bloco.legenda, ctx.font, 8.5, CONTENT_W) : [];
+  // imagem alta (foto vertical) não pode passar da altura útil de uma página, senão sai cortada
+  const maxH = TOP - BOTTOM - legendaLines.length * 11 - 24;
+  const escala = Math.min(1, maxW / img.width, maxH / img.height);
+  const w = img.width * escala;
+  const h = img.height * escala;
   need(ctx, h + legendaLines.length * 11 + 16);
   const x = MARGIN_X + (CONTENT_W - w) / 2;
   ctx.y -= 6;
