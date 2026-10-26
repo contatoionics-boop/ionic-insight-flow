@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Search,
   Table as TableIcon,
   Trash2,
 } from "lucide-react";
@@ -27,6 +28,8 @@ import {
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
+import { BuscaProdutoModal } from "@/components/laudo/BuscaProdutoModal";
+import { aceitaProduto, inserirProduto } from "@/lib/laudo/produto-linha";
 import { arvoreDocumento, fimDaSecao, imagemNumerada, numeroDaFigura, renumerar, semPrefixoFigura } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
@@ -481,6 +484,7 @@ function EditorBloco({
 }) {
   const [enviando, setEnviando] = useState(false);
   const [desenhando, setDesenhando] = useState(false);
+  const [buscandoProduto, setBuscandoProduto] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function upload(file: File) {
@@ -678,7 +682,23 @@ function EditorBloco({
               </tbody>
             </table>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {aceitaProduto(bloco.colunas) && (
+              <>
+                <Button variant="secondary" onClick={() => setBuscandoProduto(true)}>
+                  <Search className="mr-2 h-4 w-4" /> Buscar no catálogo
+                </Button>
+                <BuscaProdutoModal
+                  aberto={buscandoProduto}
+                  onFechar={() => setBuscandoProduto(false)}
+                  onEscolher={(prod) => {
+                    onChange({ ...bloco, linhas: inserirProduto(bloco.linhas, bloco.colunas, prod) });
+                    setBuscandoProduto(false);
+                    toast.success(`${prod.codigo} adicionado à tabela.`);
+                  }}
+                />
+              </>
+            )}
             <Button
               variant="secondary"
               onClick={() =>
