@@ -35,6 +35,7 @@ import { statusLabels, type CaseStatus } from "@/lib/casos";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
+import { baixarBase64 } from "@/lib/baixar-pdf";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
 import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
@@ -146,6 +147,8 @@ function ReviewCasePage() {
 
   const [reopenOpen, setReopenOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [aprovado, setAprovado] = useState(false);
+  const [erroPdfAprovado, setErroPdfAprovado] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState("");
   const [working, setWorking] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -490,7 +493,8 @@ function ReviewCasePage() {
       if (Object.values(dirty).some(Boolean)) await salvarTudo();
       await aprovarFn({ data: { casoId: caseData.id } });
       setApproveOpen(false);
-      navigate({ to: "/app/history" });
+      // depois de aprovar, oferece gerar o PDF antes de sair da tela
+      setAprovado(true);
     } finally {
       setWorking(false);
     }
@@ -1206,6 +1210,38 @@ function ReviewCasePage() {
             disabled={working || (pendenciasAprovacao.length > 0 && !cienteDasPendencias)}
           >
             Confirmar aprovação
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={aprovado} onClose={() => navigate({ to: "/app/history" })} title="Mapeamento aprovado">
+        <p className="text-sm text-foreground">
+          O mapeamento <strong>{caseData.codigo}</strong> foi aprovado. Deseja gerar o PDF do resultado agora? Você também
+          poderá gerá-lo depois pela tela <strong>Mapeamentos</strong>.
+        </p>
+        {erroPdfAprovado && (
+          <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-sm text-destructive">{erroPdfAprovado}</p>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => navigate({ to: "/app/history" })} disabled={downloading}>
+            Agora não
+          </Button>
+          <Button
+            disabled={downloading}
+            onClick={async () => {
+              setDownloading(true);
+              setErroPdfAprovado(null);
+              try {
+                baixarBase64(await gerarLaudoPdf({ data: { casoId: caseData.id } }));
+                navigate({ to: "/app/history" });
+              } catch (e) {
+                setErroPdfAprovado(e instanceof Error ? e.message : "Falha ao gerar PDF.");
+              } finally {
+                setDownloading(false);
+              }
+            }}
+          >
+            {downloading ? "Gerando PDF…" : "Gerar PDF"}
           </Button>
         </div>
       </Modal>
