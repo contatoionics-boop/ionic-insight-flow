@@ -11,6 +11,7 @@ import { analisarEscopoManual, analisarPropostaPrevia, registrarProposta } from 
 import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
+import { estruturaDoEscopo, estruturaEhVazia } from "@/lib/escopo/sugerir";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
 import { montarOrientacoes } from "@/lib/escopo/orientacoes";
 import {
@@ -115,28 +116,44 @@ function NewCasePage() {
   const salvarEstrutura = useServerFn(salvarEscopoEstrutura);
   const [estrutura, setEstrutura] = useState<ArvoreEscopo>(arvoreVazia());
 
+  /** true enquanto a estrutura foi preenchida pelo sistema (a partir da proposta) e ninguém mexeu nela. */
+  const estruturaAuto = useRef(false);
+  const [inputPropostaKey, setInputPropostaKey] = useState(0);
+
   /** Sugere a árvore a partir das quantidades do escopo identificado (editável depois). */
   function sugerirEstrutura() {
-    const e = escopoPrevia;
-    const num = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
-    const postos = Math.max(1, num(e?.qtd_postos?.valor));
-    const bombas = Math.max(1, num(e?.qtd_bombas?.valor));
-    const bicosTotal = num(e?.qtd_bicos?.valor);
-    const bicosPorBomba = bicosTotal ? Math.max(1, Math.round(bicosTotal / bombas / postos)) : 1;
-    const bombasPorPosto = Math.max(1, Math.ceil(bombas / postos));
-    setEstrutura({
-      postos: Array.from({ length: postos }, () => ({
-        ilhas: [{ bombas: Array.from({ length: bombasPorPosto }, () => ({ bicos: bicosPorBomba })) }],
-      })),
-      comboios: Array.from(
-        { length: num(e?.qtd_comboios?.valor) || (e?.tem_comboio?.valor ? 1 : 0) },
-        () => ({ tanques: 0, bicos: 0 }),
-      ),
-      tanquesLubrificante: [],
-      sondas: [],
-      frota: { ativo: false, itens: [] },
-      config: estrutura.config ?? {},
-    });
+    estruturaAuto.current = true;
+    setEstrutura(estruturaDoEscopo(escopoPrevia, estrutura.config ?? {}));
+  }
+
+  // A estrutura física acompanha o escopo lido da proposta (e as correções feitas nele) enquanto não for editada à mão.
+  useEffect(() => {
+    if (!escopoPrevia) return;
+    if (!estruturaAuto.current && !estruturaEhVazia(estrutura)) return;
+    estruturaAuto.current = true;
+    setEstrutura((atual) => estruturaDoEscopo(escopoPrevia, atual.config ?? {}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escopoPrevia]);
+
+  function editarEstrutura(v: ArvoreEscopo) {
+    estruturaAuto.current = false;
+    setEstrutura(v);
+  }
+
+  /** Remove o documento (ou o texto) do escopo e o que foi preenchido a partir dele, para começar de novo. */
+  function limparEscopo() {
+    if (propostaPathPrevia) void supabase.storage.from("propostas").remove([propostaPathPrevia]);
+    setProposta(null);
+    setPropostaPathPrevia(null);
+    setPropostaNome(null);
+    setPropostaTamanho(null);
+    setEscopoPrevia(null);
+    setErroPrevia(null);
+    setErroManual(null);
+    setEscopoManualTexto("");
+    setInputPropostaKey((k) => k + 1);
+    if (estruturaAuto.current) setEstrutura((atual) => ({ ...arvoreVazia(), config: atual.config ?? {} }));
+    estruturaAuto.current = false;
   }
 
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -824,6 +841,7 @@ function NewCasePage() {
               {escopoModo === "pdf" ? (
                 <>
                   <input
+                    key={inputPropostaKey}
                     type="file"
                     accept="application/pdf"
                     onChange={(e) => {
@@ -855,6 +873,11 @@ function NewCasePage() {
                   {analisando && (
                     <p className="mt-2 text-xs text-muted-foreground">Lendo o escopo da proposta…</p>
                   )}
+                  {(proposta || propostaPathPrevia || escopoPrevia) && !analisando && (
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={limparEscopo}>
+                      Limpar e enviar outro documento
+                    </Button>
+                  )}
                   {erroPrevia && (
                     <p className="mt-2 text-xs text-destructive">{erroPrevia}</p>
                   )}
@@ -884,6 +907,11 @@ function NewCasePage() {
                   {erroManual && (
                     <p className="mt-2 text-xs text-destructive">{erroManual}</p>
                   )}
+                  {(escopoManualTexto || escopoPrevia) && (
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={limparEscopo}>
+                      Limpar texto e escopo identificado
+                    </Button>
+                  )}
                 </>
               )}
 
@@ -905,13 +933,13 @@ function NewCasePage() {
               </div>
               {escopoPrevia && (
                 <Button type="button" variant="outline" onClick={sugerirEstrutura}>
-                  Sugerir a partir do escopo identificado
+                  Refazer a partir do escopo identificado
                 </Button>
               )}
             </div>
             <EstruturaEscopo
               value={estrutura}
-              onChange={setEstrutura}
+              onChange={editarEstrutura}
               disabled={working}
               itensDaProposta={escopoPrevia?.itens_previstos?.valor ?? []}
             />

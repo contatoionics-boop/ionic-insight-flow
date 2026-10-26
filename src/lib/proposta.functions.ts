@@ -247,6 +247,6 @@ export const analisarEscopoManual = createServerFn({ method: "POST" })
   .inputValidator((i) => z.object({ texto: z.string().min(10).max(20000) }).parse(i))
   .handler(async ({ data }) => {
     const { extrairEscopoProposta } = await import("@/lib/proposta/extrair.server");
-    const escopo = await extrairEscopoProposta(data.texto);
+    const escopo = await extrairEscopoProposta(data.texto, { textoLivre: true });
     return { escopo };
   });

@@ -102,10 +102,23 @@ function listaOuNull(x: unknown): string[] | null {
   return null;
 }
 
+export type OpcoesExtracao = {
+  /**
+   * Texto escrito à mão pelo usuário (não é uma proposta com itens numerados): o texto inteiro
+   * é o escopo contratado, em vez de depender das seções do PDF.
+   */
+  textoLivre?: boolean;
+};
+
+const secoesDoTexto = (texto: string, opcoes?: OpcoesExtracao) =>
+  opcoes?.textoLivre
+    ? { cabecalho: "", escopo: texto, observacoes: "", institucional: "" }
+    : segmentarProposta(texto);
+
 /** Extração puramente determinística (usada nos testes e como base). */
-export function extrairEscopoDeterministico(texto: string): EscopoProposta {
+export function extrairEscopoDeterministico(texto: string, opcoes?: OpcoesExtracao): EscopoProposta {
   const escopo: EscopoProposta = JSON.parse(JSON.stringify(ESCOPO_VAZIO));
-  const secoes = segmentarProposta(texto);
+  const secoes = secoesDoTexto(texto, opcoes);
   Object.assign(escopo, escopoDeterministico(secoes));
   return sincronizarLegado(escopo);
 }
@@ -118,11 +131,11 @@ function sincronizarLegado(escopo: EscopoProposta): EscopoProposta {
   return escopo;
 }
 
-export async function extrairEscopoProposta(texto: string): Promise<EscopoProposta> {
+export async function extrairEscopoProposta(texto: string, opcoes?: OpcoesExtracao): Promise<EscopoProposta> {
   const escopo: EscopoProposta = JSON.parse(JSON.stringify(ESCOPO_VAZIO));
   if (!texto.trim()) return escopo;
 
-  const secoes = segmentarProposta(texto);
+  const secoes = secoesDoTexto(texto, opcoes);
   const deterministico = escopoDeterministico(secoes);
   Object.assign(escopo, deterministico);
 
