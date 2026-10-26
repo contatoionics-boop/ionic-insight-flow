@@ -289,6 +289,13 @@ export function escopoDeterministico(secoes: SecoesProposta): Parcial {
   // ambíguo (null): não afirma nada — vira pendência para revisão humana
 
 
+  const tanquesLub = quantidade(esc, /tanques?\s+(?:de|com|para)?\s*(?:oleo|lubrificante\w*)/);
+  if (tanquesLub !== null) {
+    set("qtd_tanques_lubrificante", campo(tanquesLub, 0.85, "escopo", linhaComTermo(esc, /tanque/)));
+  }
+  const sondas = quantidade(esc, /sondas?\b/);
+  if (sondas !== null) set("qtd_sondas", campo(sondas, 0.85, "escopo", linhaComTermo(esc, /sonda/)));
+
   const bombas = quantidade(esc, /bombas?\b/);
   if (bombas !== null) set("qtd_bombas", campo(bombas, 0.9, "escopo", linhaComTermo(esc, /bomba/)));
 

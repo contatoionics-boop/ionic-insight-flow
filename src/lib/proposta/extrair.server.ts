@@ -40,6 +40,8 @@ const RespostaSchema = z.object({
   tem_pista: Campo.optional(),
   qtd_postos: Campo.optional(),
   qtd_bombas: Campo.optional(),
+  qtd_tanques_lubrificante: Campo.optional(),
+  qtd_sondas: Campo.optional(),
   tipo_bomba_previsto: Campo.optional(),
   qtd_bicos: Campo.optional(),
   qtd_pistas: Campo.optional(),
@@ -155,7 +157,7 @@ export async function extrairEscopoProposta(texto: string, opcoes?: OpcoesExtrac
         '{"chave":{"valor":..., "confianca":0.0, "trecho":"..."}}. ' +
         "Chaves: nome_cliente, cnpj, unidade, cidade_uf, cep, endereco, contato, responsavel_proposta, " +
         "numero_proposta, data_proposta, nome_solucao (ex.: SAAF, SSGFROTA), fase_automacao (1-4), " +
-        "nivel_automacao (1-3), tem_pista (boolean), qtd_postos, qtd_bombas, tipo_bomba_previsto " +
+        "nivel_automacao (1-3), tem_pista (boolean), qtd_postos, qtd_bombas, qtd_tanques_lubrificante, qtd_sondas, tipo_bomba_previsto " +
         "(mecânica|elétrica|submersa), qtd_bicos, qtd_pistas, modalidade_nldiv, tipo_acao " +
         "('instalacao'|'upgrade'), objeto_escopo, tipo_objeto, ids_objetos (lista), terminal, rfid, " +
         "bitola_bico, tensao, comunicacao_prevista ('wifi'|'4g'|'ambos'), regime_contratacao, " +
@@ -212,6 +214,8 @@ export async function extrairEscopoProposta(texto: string, opcoes?: OpcoesExtrac
     set("tem_pista", boolOuNull(parsed.tem_pista?.valor), parsed.tem_pista);
     set("qtd_postos", numeroOuNull(parsed.qtd_postos?.valor), parsed.qtd_postos);
     set("qtd_bombas", numeroOuNull(parsed.qtd_bombas?.valor), parsed.qtd_bombas);
+    set("qtd_tanques_lubrificante", numeroOuNull(parsed.qtd_tanques_lubrificante?.valor), parsed.qtd_tanques_lubrificante);
+    set("qtd_sondas", numeroOuNull(parsed.qtd_sondas?.valor), parsed.qtd_sondas);
     set(
       "tipo_bomba_previsto",
       textoOuNull(parsed.tipo_bomba_previsto?.valor),

@@ -42,6 +42,8 @@ export type EscopoProposta = {
   tem_comboio: CampoProposta<boolean>;
   qtd_postos: CampoProposta<number>;
   qtd_comboios: CampoProposta<number>;
+  qtd_tanques_lubrificante: CampoProposta<number>;
+  qtd_sondas: CampoProposta<number>;
   qtd_bombas: CampoProposta<number>;
   tipo_bomba_previsto: CampoProposta<string>;
   qtd_bicos: CampoProposta<number>;
@@ -94,6 +96,8 @@ export const ESCOPO_VAZIO: EscopoProposta = {
   tem_comboio: { ...vazio },
   qtd_postos: { ...vazio },
   qtd_comboios: { ...vazio },
+  qtd_tanques_lubrificante: { ...vazio },
+  qtd_sondas: { ...vazio },
   qtd_bombas: { ...vazio },
   tipo_bomba_previsto: { ...vazio },
   qtd_bicos: { ...vazio },
@@ -139,6 +143,8 @@ export const ROTULOS_ESCOPO: Record<keyof EscopoProposta, string> = {
   tem_comboio: "Caminhão comboio",
   qtd_postos: "Quantidade de postos",
   qtd_comboios: "Quantidade de comboios",
+  qtd_tanques_lubrificante: "Quantidade de tanques com lubrificante",
+  qtd_sondas: "Quantidade de sondas",
   qtd_bombas: "Quantidade de bombas",
   tipo_bomba_previsto: "Tipo de bomba previsto",
   qtd_bicos: "Quantidade de bicos",

@@ -8,7 +8,6 @@ import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { agendarMapeamento } from "@/lib/casos.functions";
 import { verificarConflitoAgente } from "@/lib/agendamentos.functions";
 import { analisarEscopoManual, analisarPropostaPrevia, registrarProposta } from "@/lib/proposta.functions";
-import { EscopoIdentificado } from "@/components/proposta/EscopoIdentificado";
 import { normalizarEscopo, type EscopoProposta } from "@/lib/proposta/tipos";
 import { EstruturaEscopo } from "@/components/escopo/EstruturaEscopo";
 import { estruturaDoEscopo, estruturaEhVazia } from "@/lib/escopo/sugerir";
@@ -134,6 +133,12 @@ function NewCasePage() {
     setEstrutura((atual) => estruturaDoEscopo(escopoPrevia, atual.config ?? {}));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [escopoPrevia]);
+
+  const resumoLido = (e: EscopoProposta) => {
+    const n = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
+    const comboios = n(e.qtd_comboios?.valor) || (e.tem_comboio?.valor ? 1 : 0);
+    return `${n(e.qtd_postos?.valor)} posto(s) · ${comboios} comboio(s) · ${n(e.qtd_tanques_lubrificante?.valor)} tanque(s) com lubrificante · ${n(e.qtd_sondas?.valor)} sonda(s)`;
+  };
 
   function editarEstrutura(v: ArvoreEscopo) {
     estruturaAuto.current = false;
@@ -916,9 +921,10 @@ function NewCasePage() {
               )}
 
               {escopoPrevia && (
-                <div className="mt-3">
-                  <EscopoIdentificado escopo={escopoPrevia} onChange={setEscopoPrevia} />
-                </div>
+                <p className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  Lido do escopo: <strong className="text-foreground">{resumoLido(escopoPrevia)}</strong>. A estrutura abaixo foi
+                  preenchida com essas quantidades; ajuste o que for preciso.
+                </p>
               )}
             </div>
           </div>
@@ -928,7 +934,7 @@ function NewCasePage() {
               <div>
                 <Label>Estrutura física do escopo</Label>
                 <p className="text-xs text-muted-foreground">
-                  Postos, ilhas, bombas, bicos, tanques, sondas, comboios e frota/DIV. Cada grupo é opcional e independente. Define o que o agente vai mapear.
+                  Postos, ilhas, bombas, bicos, tanques, sondas, comboios e frota/DIV. Cada grupo é opcional e independente. Define o que o agente vai mapear. A leitura da proposta preenche só as quantidades de postos, comboios, tanques e sondas.
                 </p>
               </div>
               {escopoPrevia && (
