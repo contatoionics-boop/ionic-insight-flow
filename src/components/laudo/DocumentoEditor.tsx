@@ -29,7 +29,8 @@ import {
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
 import { BuscaProdutoModal } from "@/components/laudo/BuscaProdutoModal";
-import { aceitaProduto, inserirProduto } from "@/lib/laudo/produto-linha";
+import { CelulaComBusca } from "@/components/laudo/CelulaComBusca";
+import { aceitaProduto, aplicarProdutoNaLinha, colunaDeBusca, inserirProduto, removerColuna } from "@/lib/laudo/produto-linha";
 import { arvoreDocumento, fimDaSecao, imagemNumerada, numeroDaFigura, renumerar, semPrefixoFigura } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
@@ -616,7 +617,7 @@ function EditorBloco({
               <thead>
                 <tr>
                   {bloco.colunas.map((c, j) => (
-                    <th key={j} className="p-1">
+                    <th key={j} className="p-1 align-top">
                       <Input
                         value={c}
                         onChange={(e) => {
@@ -626,25 +627,19 @@ function EditorBloco({
                           onChange({ ...bloco, colunas });
                         }}
                       />
+                      {bloco.colunas.length > 1 && (
+                        <button
+                          type="button"
+                          className="mt-1 w-full rounded border border-border px-2 py-1 text-[11px] font-normal text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                          title={`Excluir a coluna "${c}" (as linhas ficam)`}
+                          onClick={() => onChange({ ...bloco, ...removerColuna(bloco.colunas, bloco.linhas, j) })}
+                        >
+                          Excluir coluna
+                        </button>
+                      )}
                     </th>
                   ))}
-                  <th className="p-1">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        onChange({
-                          ...bloco,
-                          colunas: bloco.colunas.slice(0, -1),
-                          linhas: bloco.linhas.map((l) => ({
-                            ...l,
-                            celulas: l.celulas.slice(0, -1),
-                          })),
-                        })
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </th>
+                  <th className="p-1 text-[11px] font-normal text-muted-foreground">Linha</th>
                 </tr>
               </thead>
               <tbody>
@@ -652,24 +647,46 @@ function EditorBloco({
                   <tr key={i}>
                     {bloco.colunas.map((_, j) => (
                       <td key={j} className="p-1">
-                        <Input
-                          value={l.celulas[j] ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const linhas = bloco.linhas.map((row, k) => {
-                              if (k !== i) return row;
-                              const celulas = [...row.celulas];
-                              celulas[j] = v;
-                              return { ...row, celulas };
-                            });
-                            onChange({ ...bloco, linhas });
-                          }}
-                        />
+                        {aceitaProduto(bloco.colunas) && colunaDeBusca(bloco.colunas[j] ?? "") ? (
+                          <CelulaComBusca
+                            value={l.celulas[j] ?? ""}
+                            onChange={(v) => {
+                              const linhas = bloco.linhas.map((row, k) => {
+                                if (k !== i) return row;
+                                const celulas = [...row.celulas];
+                                celulas[j] = v;
+                                return { ...row, celulas };
+                              });
+                              onChange({ ...bloco, linhas });
+                            }}
+                            onEscolher={(prod) =>
+                              onChange({
+                                ...bloco,
+                                linhas: bloco.linhas.map((row, k) => (k === i ? aplicarProdutoNaLinha(row, bloco.colunas, prod) : row)),
+                              })
+                            }
+                          />
+                        ) : (
+                          <Input
+                            value={l.celulas[j] ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const linhas = bloco.linhas.map((row, k) => {
+                                if (k !== i) return row;
+                                const celulas = [...row.celulas];
+                                celulas[j] = v;
+                                return { ...row, celulas };
+                              });
+                              onChange({ ...bloco, linhas });
+                            }}
+                          />
+                        )}
                       </td>
                     ))}
                     <td className="p-1">
                       <Button
                         variant="secondary"
+                        title="Excluir esta linha"
                         onClick={() =>
                           onChange({ ...bloco, linhas: bloco.linhas.filter((_, k) => k !== i) })
                         }

@@ -27,3 +27,33 @@ export function inserirProduto(linhas: Linha[], colunas: string[], produto: { co
   const soEmBranco = linhas.length > 0 && linhas.every((l) => l.celulas.every((c) => !c.trim()));
   return soEmBranco ? [...linhas.slice(0, -1), nova] : [...linhas, nova];
 }
+
+/** Qual coluna dispara a busca no catálogo ao digitar: "Código" ou "Descrição". */
+export function colunaDeBusca(coluna: string): "codigo" | "descricao" | null {
+  const n = norm(coluna);
+  if (/^codigo/.test(n)) return "codigo";
+  if (/^descri/.test(n)) return "descricao";
+  return null;
+}
+
+/** Aplica o produto escolhido na linha digitada: troca código e descrição, mantém o resto e põe quantidade 1 se vazia. */
+export function aplicarProdutoNaLinha(linha: Linha, colunas: string[], produto: { codigo: string; nome: string }): Linha {
+  const celulas = colunas.map((c, j) => {
+    const atual = linha.celulas[j] ?? "";
+    const n = norm(c);
+    if (/^codigo/.test(n)) return produto.codigo;
+    if (/^descri/.test(n)) return produto.nome;
+    if (/^(qtd|quant)/.test(n)) return atual.trim() ? atual : "1";
+    return atual;
+  });
+  return { ...linha, celulas };
+}
+
+/** Remove só a coluna `indice` (e a célula correspondente de cada linha); a tabela nunca fica sem coluna. */
+export function removerColuna<T extends { celulas: string[] }>(colunas: string[], linhas: T[], indice: number) {
+  if (colunas.length <= 1 || indice < 0 || indice >= colunas.length) return { colunas, linhas };
+  return {
+    colunas: colunas.filter((_, j) => j !== indice),
+    linhas: linhas.map((l) => ({ ...l, celulas: l.celulas.filter((_, j) => j !== indice) })),
+  };
+}

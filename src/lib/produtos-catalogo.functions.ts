@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ordenarPorRelevancia } from "@/lib/produtos-catalogo-rank";
 
 export type ProdutoCatalogo = { codigo: string; nome: string };
 
@@ -24,12 +25,13 @@ export const buscarProdutosCatalogo = createServerFn({ method: "POST" })
     for (const termo of limparTermo(data.q).split(/\s+/).filter(Boolean)) {
       q = q.or(`codigo.ilike.%${termo}%,nome.ilike.%${termo}%`);
     }
-    const { data: linhas, error } = await q.order("nome", { ascending: true }).limit(data.limite);
+    // traz mais que o pedido para ordenar por relevância (texto seguido primeiro) antes de cortar
+    const { data: linhas, error } = await q.order("nome", { ascending: true }).limit(150);
     if (error) {
       if (/produtos_catalogo/.test(error.message) && /(does not exist|schema cache)/.test(error.message)) {
         throw new Error("O catálogo de produtos ainda não foi carregado no banco (falta rodar a migration de produtos).");
       }
       throw new Error(error.message);
     }
-    return (linhas ?? []) as ProdutoCatalogo[];
+    return ordenarPorRelevancia((linhas ?? []) as ProdutoCatalogo[], data.q).slice(0, data.limite);
   });
