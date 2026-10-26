@@ -9,9 +9,8 @@ import { listarMapeamentosComProgresso, type MapeamentoComProgresso } from "@/li
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
 import { excluirMapeamento } from "@/lib/casos.functions";
-import { gerarPdfLaudo } from "@/lib/laudo.functions";
-import { baixarBase64 } from "@/lib/baixar-pdf";
-import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, FileText, Loader2, Trash2, X } from "lucide-react";
+import { AcoesPdfResultado } from "@/components/mapeamento/AcoesPdfResultado";
+import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, Trash2, X } from "lucide-react";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 
 export const Route = createFileRoute("/app/cases")({
@@ -41,20 +40,6 @@ function CasesPage() {
   const reagendar = useServerFn(reagendarAposRecusa);
   const excluir = useServerFn(excluirMapeamento);
   const [excluindo, setExcluindo] = useState<string | null>(null);
-  const gerarPdf = useServerFn(gerarPdfLaudo);
-  const [gerandoPdf, setGerandoPdf] = useState<string | null>(null);
-
-  const baixarPdf = async (caso: MapeamentoComProgresso) => {
-    setGerandoPdf(caso.id);
-    try {
-      baixarBase64(await gerarPdf({ data: { casoId: caso.id } }));
-      toast.success(`PDF do mapeamento ${caso.codigo} gerado.`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível gerar o PDF.");
-    } finally {
-      setGerandoPdf(null);
-    }
-  };
 
   const excluirCaso = async (caso: MapeamentoComProgresso) => {
     if (!window.confirm(`Excluir definitivamente o mapeamento ${caso.codigo}? Respostas, arquivos e histórico serão apagados.`)) return;
@@ -156,7 +141,7 @@ function CasesPage() {
   return (
     <div>
       <PageHeader
-        title="Mapeamentos"
+        title="Resultado de mapeamentos"
         description="Todos os mapeamentos da plataforma. Clique em uma linha para ver detalhes."
         actions={
           <Button variant="outline" onClick={exportarCsv} disabled={filtradas.length === 0}>
@@ -336,9 +321,7 @@ function CasesPage() {
                     )}
                     {(c.status === "aprovado" || c.status === "concluido") && (
                       <div onClick={(e) => e.stopPropagation()} className="mb-1">
-                        <Button size="sm" variant="outline" onClick={() => baixarPdf(c)} disabled={gerandoPdf === c.id} title="Gerar o PDF do resultado do mapeamento">
-                          {gerandoPdf === c.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1 h-3.5 w-3.5" />} Gerar PDF
-                        </Button>
+                        <AcoesPdfResultado casoId={c.id} codigo={c.codigo} />
                       </div>
                     )}
                     {recusado && (

@@ -9,6 +9,7 @@ import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
+import { AcoesPdfResultado } from "@/components/mapeamento/AcoesPdfResultado";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
@@ -283,7 +284,7 @@ function VistoriaDetalhesPage() {
     <div>
       <div className="mb-4">
         <Link to="/app/cases" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Voltar para mapeamentos
+          <ArrowLeft className="h-4 w-4" /> Voltar para resultado de mapeamentos
         </Link>
       </div>
 
@@ -291,14 +292,19 @@ function VistoriaDetalhesPage() {
         title={`Mapeamento ${caso.codigo}`}
         description={caso.unidade?.matriz?.empresa?.nome ?? undefined}
         actions={
-          podeAbrirRevisao ? (
-            <Link to="/app/review/$id" params={{ id: caso.id }}>
-              <Button>
-                <ExternalLink className="h-4 w-4" />
-                Abrir na revisão
-              </Button>
-            </Link>
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            {["aguardando_revisao", "aprovado", "concluido"].includes(caso.status) && (
+              <AcoesPdfResultado casoId={caso.id} codigo={caso.codigo} tamanho="md" />
+            )}
+            {podeAbrirRevisao ? (
+              <Link to="/app/review/$id" params={{ id: caso.id }}>
+                <Button>
+                  <ExternalLink className="h-4 w-4" />
+                  Abrir na revisão
+                </Button>
+              </Link>
+            ) : null}
+          </div>
         }
       />
 

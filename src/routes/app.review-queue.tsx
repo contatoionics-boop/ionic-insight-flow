@@ -35,7 +35,7 @@ function ReviewQueuePage() {
   return (
     <div>
       <PageHeader
-        title="Fila de revisão"
+        title="Mapeamentos"
         description="Mapeamentos aguardando análise e aprovação."
       />
       {loading ? (

@@ -332,7 +332,10 @@ export const confirmarAlertaLaudo = createServerFn({ method: "POST" })
 export const gerarPdfLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   // `remontar` é aceito por compatibilidade, mas ignorado.
-  .inputValidator((i) => CasoInput.extend({ remontar: z.boolean().optional() }).parse(i))
+  // `ignorarPendencias`: o usuário confirmou na tela que quer o PDF mesmo com [CONFIRMAR] e alertas sem ciência.
+  .inputValidator((i) =>
+    CasoInput.extend({ remontar: z.boolean().optional(), ignorarPendencias: z.boolean().optional() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { buildLaudoPdf } = await import("@/lib/pdf-laudo.server");
     const supabase = context.supabase;
@@ -355,7 +358,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
       );
     }
 
-    const pendencias = blocosComPendencia(conteudo.blocos as BlocoLaudo[]);
+    const pendencias = data.ignorarPendencias ? 0 : blocosComPendencia(conteudo.blocos as BlocoLaudo[]);
     if (pendencias) {
       const rotulos = rotulosPendencias(conteudo.blocos as BlocoLaudo[]);
       throw new Error(
@@ -366,9 +369,11 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
     }
 
     const confirmacoes = (caso.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[];
-    const pendentes = alertasBloqueantes(conteudo.blocos as BlocoLaudo[]).filter(
-      (a) => !confirmacoes.some((c) => c.codigo === a.codigo),
-    );
+    const pendentes = data.ignorarPendencias
+      ? []
+      : alertasBloqueantes(conteudo.blocos as BlocoLaudo[]).filter(
+          (a) => !confirmacoes.some((c) => c.codigo === a.codigo),
+        );
     if (pendentes.length) {
       throw new Error(
         `Existem alertas técnicos bloqueantes sem confirmação: ${pendentes.map((p) => p.codigo).join(", ")}. Corrija ou registre ciência do risco antes de emitir o laudo.`,

@@ -35,7 +35,7 @@ import { statusLabels, type CaseStatus } from "@/lib/casos";
 import { RespostasLeitura } from "@/components/revisao/RespostasLeitura";
 import { useImagemLightbox } from "@/components/revisao/ImagemLightbox";
 import { aprovarMapeamento, solicitarCorrecao } from "@/lib/mapeamento.functions";
-import { baixarBase64 } from "@/lib/baixar-pdf";
+import { AcoesPdfResultado } from "@/components/mapeamento/AcoesPdfResultado";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { carregarEscopoEstrutura } from "@/lib/escopo.functions";
 import { decodificarIdInstancia, expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
@@ -148,7 +148,6 @@ function ReviewCasePage() {
   const [reopenOpen, setReopenOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [aprovado, setAprovado] = useState(false);
-  const [erroPdfAprovado, setErroPdfAprovado] = useState<string | null>(null);
   const [reopenReason, setReopenReason] = useState("");
   const [working, setWorking] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -581,7 +580,7 @@ function ReviewCasePage() {
       <div>
         <p className="text-sm text-muted-foreground">Mapeamento não encontrado.</p>
         <Link to="/app/review-queue" className="mt-2 inline-block text-sm text-primary hover:underline">
-          Voltar para fila
+          Voltar para mapeamentos
         </Link>
       </div>
     );
@@ -865,7 +864,7 @@ function ReviewCasePage() {
         to="/app/review-queue"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Voltar para fila
+        <ArrowLeft className="h-4 w-4" /> Voltar para mapeamentos
       </Link>
 
       {/* resumo do mapeamento */}
@@ -1217,32 +1216,13 @@ function ReviewCasePage() {
       <Modal open={aprovado} onClose={() => navigate({ to: "/app/history" })} title="Mapeamento aprovado">
         <p className="text-sm text-foreground">
           O mapeamento <strong>{caseData.codigo}</strong> foi aprovado. Deseja gerar o PDF do resultado agora? Você também
-          poderá gerá-lo depois pela tela <strong>Mapeamentos</strong>.
+          poderá gerá-lo depois pela tela <strong>Resultado de mapeamentos</strong>.
         </p>
-        {erroPdfAprovado && (
-          <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-sm text-destructive">{erroPdfAprovado}</p>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={() => navigate({ to: "/app/history" })} disabled={downloading}>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Button variant="outline" onClick={() => navigate({ to: "/app/history" })}>
             Agora não
           </Button>
-          <Button
-            disabled={downloading}
-            onClick={async () => {
-              setDownloading(true);
-              setErroPdfAprovado(null);
-              try {
-                baixarBase64(await gerarLaudoPdf({ data: { casoId: caseData.id } }));
-                navigate({ to: "/app/history" });
-              } catch (e) {
-                setErroPdfAprovado(e instanceof Error ? e.message : "Falha ao gerar PDF.");
-              } finally {
-                setDownloading(false);
-              }
-            }}
-          >
-            {downloading ? "Gerando PDF…" : "Gerar PDF"}
-          </Button>
+          <AcoesPdfResultado casoId={caseData.id} codigo={caseData.codigo} tamanho="md" aoBaixar={() => navigate({ to: "/app/history" })} />
         </div>
       </Modal>
 
