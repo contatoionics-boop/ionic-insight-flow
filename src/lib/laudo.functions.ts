@@ -509,3 +509,40 @@ export const enviarImagemLaudo = createServerFn({ method: "POST" })
     if (erroUp) throw new Error(erroUp.message);
     return { url: supabaseAdmin.storage.from("empresa-logos").getPublicUrl(caminho).data.publicUrl };
   });
+
+/**
+ * Edita no documento quem aparece como Analista de Projetos e Especialista em Automação.
+ * Vale para a tela e para o PDF (mesma fonte: variáveis manuais do laudo). Vazio volta ao padrão do sistema.
+ */
+export const salvarCabecalhoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        especialista: z.string().max(120).optional(),
+        analista: z.string().max(120).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const { data: atual, error } = await supabase.from("casos").select("laudo_variaveis").eq("id", data.casoId).maybeSingle();
+    if (error) throw new Error(error.message);
+    const variaveis = { ...((atual?.laudo_variaveis ?? {}) as unknown as VariaveisLaudo) };
+    const aplicar = (chave: string, texto: string | undefined) => {
+      if (texto === undefined) return;
+      const v = texto.trim();
+      variaveis[chave] = v
+        ? { chave, valor: v, origem: "manual", confianca: 1 }
+        : { chave, valor: null, origem: "ausente", confianca: 0 };
+    };
+    aplicar("especialista_automacao", data.especialista);
+    aplicar("analista_projetos", data.analista);
+    const { error: uErr } = await supabase.from("casos").update({ laudo_variaveis: variaveis as any }).eq("id", data.casoId);
+    if (uErr) throw new Error(uErr.message);
+
+    const { carregarMetaLaudoDoCaso } = await import("@/lib/laudo/meta.server");
+    const { meta } = await carregarMetaLaudoDoCaso(supabase, data.casoId);
+    return { meta };
+  });

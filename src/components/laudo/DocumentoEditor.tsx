@@ -24,13 +24,22 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   resolverConflitoLaudo,
   restaurarBlocoLaudo,
+  salvarCabecalhoLaudo,
   salvarDocumentoLaudo,
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
 import { BuscaProdutoModal } from "@/components/laudo/BuscaProdutoModal";
 import { CelulaComBusca } from "@/components/laudo/CelulaComBusca";
-import { aceitaProduto, aplicarProdutoNaLinha, colunaDeBusca, inserirProduto, removerColuna } from "@/lib/laudo/produto-linha";
+import {
+  MODELOS_TABELA_PRODUTO,
+  aceitaProduto,
+  aplicarProdutoNaLinha,
+  colunaDeBusca,
+  inserirProduto,
+  removerColuna,
+  type ModeloTabelaProduto,
+} from "@/lib/laudo/produto-linha";
 import { arvoreDocumento, fimDaSecao, imagemNumerada, numeroDaFigura, renumerar, semPrefixoFigura } from "@/lib/laudo/numeracao";
 import { comChaves, conteudoDoBloco, dedupBlocos, marcarEdicao } from "@/lib/laudo/mesclar";
 import { blocoSecaoVII, blocos24, blocos241 } from "@/lib/laudo/blocos-nivel2";
@@ -63,7 +72,7 @@ function novoId() {
 function criarBloco(
   tipo: TipoBloco,
   nivel?: 1 | 2 | 3 | 4,
-  opcoes?: { colunas?: number; linhas?: number },
+  opcoes?: { colunas?: number; linhas?: number; modelo?: ModeloTabelaProduto },
 ): BlocoLaudo {
   const base = {
     id: novoId(),
@@ -78,6 +87,16 @@ function criarBloco(
     case "bullets":
       return { ...base, tipo: "bullets", itens: ["Novo item"] };
     case "table": {
+      if (opcoes?.modelo) {
+        const m = MODELOS_TABELA_PRODUTO[opcoes.modelo];
+        return {
+          ...base,
+          tipo: "table",
+          titulo: m.titulo,
+          colunas: [...m.colunas],
+          linhas: [{ celulas: m.colunas.map(() => "") }],
+        };
+      }
       const nc = Math.max(1, Math.min(8, opcoes?.colunas ?? 2));
       const nl = Math.max(1, Math.min(30, opcoes?.linhas ?? 2));
       return {
@@ -405,9 +424,54 @@ function Visual({
   }
 }
 
+/** Campo do cabeçalho editável no lugar: grava ao sair do campo ou com Enter; vazio volta ao padrão do sistema. */
+function CampoCabecalho({ valor, onSalvar }: { valor: string; onSalvar: (v: string) => Promise<void> }) {
+  const [texto, setTexto] = useState(valor === "—" ? "" : valor);
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => setTexto(valor === "—" ? "" : valor), [valor]);
+
+  async function gravar() {
+    if (texto.trim() === (valor === "—" ? "" : valor).trim()) return;
+    setSalvando(true);
+    try {
+      await onSalvar(texto);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível salvar.");
+      setTexto(valor === "—" ? "" : valor);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <input
+      value={texto}
+      disabled={salvando}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={() => void gravar()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      placeholder="Nome da pessoa (vazio = padrão)"
+      title="Editável: vale para o documento e para o PDF"
+      className="w-full rounded border border-dashed border-primary/50 bg-primary/5 px-1.5 py-0.5 text-[11.5px] outline-none focus:border-primary"
+    />
+  );
+}
+
 /** Cabeçalho impresso da folha (mesmas regras/valores do PDF FR-31-10). */
-function CabecalhoFolha({ meta }: { meta: MetaLaudo }) {
+function CabecalhoFolha({
+  meta,
+  editavel = false,
+  onSalvarCampo,
+}: {
+  meta: MetaLaudo;
+  /** no modo Editar, Analista e Especialista podem ser trocados (nem sempre é a mesma pessoa) */
+  editavel?: boolean;
+  onSalvarCampo?: (campo: "analista" | "especialista", valor: string) => Promise<void>;
+}) {
   const cel = `border border-[${NAVY}] px-2 py-1`;
+  const campos = { "Analista de Projetos:": "analista", "Especialista em Automação:": "especialista" } as const;
   return (
     <header className="mb-6 text-[11px]" style={{ color: TINTA }}>
       <div className="grid grid-cols-[90px_1fr_110px]">
@@ -464,7 +528,11 @@ function CabecalhoFolha({ meta }: { meta: MetaLaudo }) {
               {rotulo}
             </div>
             <div className="px-2 py-1.5" style={{ border: `1px solid ${NAVY}` }}>
-              {valor || "—"}
+              {editavel && onSalvarCampo && rotulo in campos ? (
+                <CampoCabecalho valor={valor} onSalvar={(v) => onSalvarCampo(campos[rotulo as keyof typeof campos], v)} />
+              ) : (
+                valor || "—"
+              )}
             </div>
           </div>
         ))}
@@ -876,7 +944,7 @@ function MenuAdicionar({
   onAdd: (
     tipo: TipoBloco,
     nivel?: 1 | 2 | 3 | 4,
-    opcoes?: { colunas?: number; linhas?: number },
+    opcoes?: { colunas?: number; linhas?: number; modelo?: ModeloTabelaProduto },
   ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
@@ -988,6 +1056,19 @@ function MenuAdicionar({
               }}
             >
               {n.rotulo}
+            </button>
+          ))}
+          {(["produtos", "materiais"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
+              onClick={() => {
+                onAdd("table", undefined, { modelo: m });
+                fechar();
+              }}
+            >
+              {m === "produtos" ? "Tabela de produtos (busca no catálogo)" : "Tabela de materiais (busca no catálogo)"}
             </button>
           ))}
           {tabela ? (
@@ -1122,6 +1203,9 @@ export function DocumentoEditor({
   meta?: MetaLaudo | null;
 }) {
   const fnSalvar = useServerFn(salvarDocumentoLaudo);
+  const fnCabecalho = useServerFn(salvarCabecalhoLaudo);
+  const [metaLocal, setMetaLocal] = useState<MetaLaudo | null>(meta ?? null);
+  useEffect(() => setMetaLocal(meta ?? null), [meta]);
   const fnConflito = useServerFn(resolverConflitoLaudo);
   const fnRestaurar = useServerFn(restaurarBlocoLaudo);
 
@@ -1222,7 +1306,7 @@ export function DocumentoEditor({
     indice: number,
     tipo: TipoBloco,
     nivel?: 1 | 2 | 3 | 4,
-    opcoes?: { colunas?: number; linhas?: number },
+    opcoes?: { colunas?: number; linhas?: number; modelo?: ModeloTabelaProduto },
   ) {
     const bloco = criarBloco(tipo, nivel, opcoes);
     const next = [...blocos];
@@ -1454,7 +1538,17 @@ export function DocumentoEditor({
             className="w-full max-w-[820px] bg-white px-[56px] py-[48px] shadow-[0_2px_18px_rgba(15,23,42,0.18)] sm:px-[72px]"
             style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
           >
-          {meta ? <CabecalhoFolha meta={meta} /> : null}
+          {metaLocal ? (
+            <CabecalhoFolha
+              meta={metaLocal}
+              editavel={modo === "editar"}
+              onSalvarCampo={async (campo, valor) => {
+                const r = await fnCabecalho({ data: { casoId, [campo]: valor } });
+                setMetaLocal(r.meta);
+                toast.success(campo === "especialista" ? "Especialista em Automação atualizado." : "Analista de Projetos atualizado.");
+              }}
+            />
+          ) : null}
           {modo === "editar" && (
             <MenuAdicionar
               onAdd={(t, n, o) => inserir(0, t, n, o)}

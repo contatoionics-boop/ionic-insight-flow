@@ -57,3 +57,11 @@ export function removerColuna<T extends { celulas: string[] }>(colunas: string[]
     linhas: linhas.map((l) => ({ ...l, celulas: l.celulas.filter((_, j) => j !== indice) })),
   };
 }
+
+export type ModeloTabelaProduto = "produtos" | "materiais";
+
+/** Tabelas prontas, já com Código e Descrição (a busca no catálogo funciona nelas) e uma linha em branco. */
+export const MODELOS_TABELA_PRODUTO: Record<ModeloTabelaProduto, { titulo: string; colunas: string[] }> = {
+  produtos: { titulo: "Produtos IONICS", colunas: ["Código", "Descrição", "Qtd."] },
+  materiais: { titulo: "Materiais de infraestrutura", colunas: ["Código", "Descrição", "Aplicação", "Un.", "Qtd."] },
+};

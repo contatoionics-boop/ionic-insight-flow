@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aceitaProduto, aplicarProdutoNaLinha, colunaDeBusca, inserirProduto, linhaDoProduto, removerColuna } from "./produto-linha";
+import { MODELOS_TABELA_PRODUTO, aceitaProduto, aplicarProdutoNaLinha, colunaDeBusca, inserirProduto, linhaDoProduto, removerColuna } from "./produto-linha";
 
 const p = { codigo: "2.2.08.06.000", nome: "NIPLE DUPLO 1\" - ROSCA NPT" };
 const materiais = ["Código", "Descrição", "Aplicação", "Un.", "Qtd."];
@@ -48,5 +48,11 @@ describe("busca ao digitar e exclusão de coluna", () => {
   it("nunca deixa a tabela sem colunas", () => {
     const linhas = [{ celulas: ["a"] }];
     expect(removerColuna(["X"], linhas, 0)).toEqual({ colunas: ["X"], linhas });
+  });
+});
+
+describe("modelos de tabela de produtos", () => {
+  it("todos os modelos aceitam a busca no catálogo", () => {
+    for (const m of Object.values(MODELOS_TABELA_PRODUTO)) expect(aceitaProduto(m.colunas)).toBe(true);
   });
 });
