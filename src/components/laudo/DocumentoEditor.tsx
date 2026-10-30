@@ -1313,8 +1313,8 @@ export function DocumentoEditor({
     next.splice(indice, 0, bloco);
     atualizar(next);
     setModo("editar");
-    // imagem exige o painel (upload); os demais editam direto na folha
-    if (tipo === "image") setEditando(bloco.id);
+    // imagem (upload) e tabela (campos e busca de produtos) só existem no painel de edição; os demais editam direto na folha
+    if (tipo === "image" || tipo === "table") setEditando(bloco.id);
   }
 
 
