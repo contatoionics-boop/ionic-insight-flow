@@ -156,3 +156,28 @@ describe("solução do Escopo na introdução e nas instruções", () => {
     expect(textos(montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto: c }))).toContain("CONFIRMAR: nome da solução");
   });
 });
+
+describe("TI/banco de dados pela solução do Escopo e contato do cliente", () => {
+  const cab = { cliente: "C", unidade: "U", data: "01/01/2026", agente: "Cledir Nunes", especialista: "P", modalidade: "remoto" };
+  const titulos = (b: any[]) => b.filter((x) => x.tipo === "heading").map((x) => x.texto);
+  it("On-premise inclui a seção de TI e banco de dados, sem pendência de solução", () => {
+    const b = montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto });
+    expect(titulos(b)).toContain("Equipamentos de TI e banco de dados");
+    expect(JSON.stringify(b)).not.toContain("solução contratada (SAAF ou SSGFROTA)");
+  });
+  it("SSGFrota no Escopo não leva TI/banco de dados", () => {
+    const c = { ...contexto, escopo: { ...contexto.escopo, solucao: "ssg_frota" } };
+    const b = montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto: c });
+    expect(titulos(b)).not.toContain("Equipamentos de TI e banco de dados");
+  });
+  it("o agente nunca aparece como contato do cliente", () => {
+    const v = (valor: string) => ({
+      responsavel_cliente: { chave: "responsavel_cliente", valor, origem: "formulario", confianca: 1 },
+      contato_cliente: { chave: "contato_cliente", valor: "(17) 99605-2315", origem: "formulario", confianca: 1 },
+    }) as VariaveisLaudo;
+    const intro = (valor: string) => JSON.stringify(montarBlocos({ variaveis: v(valor), materiais: [], cabecalho: cab, contexto }));
+    expect(intro("Cledir Nunes - Mateus")).toContain("(Mateus - (17) 99605-2315)");
+    expect(intro("Cledir Nunes")).toContain("((17) 99605-2315)");
+    expect(intro("Cledir Nunes")).not.toContain("Cledir Nunes -");
+  });
+});

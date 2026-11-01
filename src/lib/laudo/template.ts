@@ -61,6 +61,16 @@ function raw(vars: VariaveisLaudo, chave: string): string | null {
 }
 
 
+const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+/** Tira do texto os nomes que são do agente (o valor pode juntar várias respostas: "Agente - Cliente"). */
+export function semAgente(valor: string | null, agente: string | null | undefined): string | null {
+  if (!valor) return null;
+  const nome = semAcento(agente ?? "");
+  const partes = valor.split(/\s+-\s+/).filter((p) => p.trim() && (!nome || semAcento(p) !== nome));
+  return partes.length ? partes.join(" - ") : null;
+}
+
 function bool(vars: VariaveisLaudo, chave: string): boolean | null {
   const val = (raw(vars, chave) ?? "").toLowerCase().trim();
   if (!val) return null;
@@ -127,7 +137,8 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   // ---------- 1. Introdução ----------
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
   // quem informou os dados (formulário respondido pelo cliente/agente), quando conhecido
-  const responsavel = raw(vars, "responsavel_cliente");
+  // "Responsável pelo acompanhamento" chega pré-preenchido com o agente: o contato do cliente nunca é o próprio agente
+  const responsavel = semAgente(raw(vars, "responsavel_cliente"), entrada.cabecalho.agente);
   const contato = raw(vars, "contato_cliente");
   const modalidadeTexto = raw(vars, "modalidade");
   // a solução do Escopo (dado estruturado) manda; o nome textual só vale quando o Escopo não a define
@@ -187,7 +198,11 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   // Solução contratada: define se a seção 2.1 (TI/banco de dados/ERP, exclusiva
   // do SAAF) entra no documento. SSGFROTA NÃO possui esses requisitos e o
   // sistema jamais assume SAAF por omissão.
-  const solucao = solucaoContratada(vars);
+  // A solução definida no Escopo manda (On-premise leva os requisitos de TI/banco de dados; SSGFrota não);
+  // o nome textual só decide quando o Escopo não define.
+  const solucaoDoEscopo = entrada.contexto?.escopo.solucao;
+  const solucao: "saaf" | "ssg_frota" | null =
+    solucaoDoEscopo === "on_premise" ? "saaf" : solucaoDoEscopo === "ssg_frota" ? "ssg_frota" : solucaoContratada(vars);
 
   if (solucao === "saaf") {
     const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
