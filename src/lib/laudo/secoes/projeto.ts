@@ -96,7 +96,8 @@ const COMUNICACAO: Record<string, string> = {
 export function textoComunicacao(contexto: ContextoLaudo, vars: VariaveisLaudo): string {
   const escopo = (contexto.escopo.comunicacao ?? "").toLowerCase();
   if (COMUNICACAO[escopo]) return COMUNICACAO[escopo];
-  const derivada = (vars.comunicacao_tipos?.valor ?? "").toLowerCase();
+  // do próprio mapeamento ou, na falta, de outro da mesma visita (contexto mesclado)
+  const derivada = (vars.comunicacao_tipos?.valor || contexto.gerais.comunicacao_tipos || "").toLowerCase();
   const wifi = /wi-?fi/.test(derivada);
   const movel = /4g|gsm|gprs/.test(derivada);
   if (wifi && movel) return COMUNICACAO.ambos;

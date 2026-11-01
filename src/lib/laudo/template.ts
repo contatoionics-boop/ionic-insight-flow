@@ -12,6 +12,7 @@ import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
 import type { ContextoLaudo } from "./contexto";
 import { blocosProjeto } from "./secoes/projeto";
 import { solucaoContratada } from "./solucao";
+import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -129,6 +130,11 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const responsavel = raw(vars, "responsavel_cliente");
   const contato = raw(vars, "contato_cliente");
   const modalidadeTexto = raw(vars, "modalidade");
+  // a solução do Escopo (dado estruturado) manda; o nome textual só vale quando o Escopo não a define
+  const solucaoEscopo = entrada.contexto?.escopo.solucao
+    ? (SOLUCOES_ESCOPO.find((s) => s.value === entrada.contexto?.escopo.solucao)?.label ?? entrada.contexto.escopo.solucao)
+    : null;
+  const nomeSolucao = solucaoEscopo ?? v(vars, "nome_solucao", "nome da solução");
   const origemDados =
     responsavel || contato
       ? ` As informações e os registros fotográficos foram disponibilizados pelo cliente (${[responsavel, contato].filter(Boolean).join(" - ")})` +
@@ -141,7 +147,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     texto:
       `Este documento apresenta o resultado do mapeamento técnico realizado para ${v(vars, "nome_cliente", "nome do cliente")}, ` +
       `em atendimento ${v(vars, "modalidade", "modalidade")}, referente à ${v(vars, "tipo_acao", "tipo de ação (instalação ou upgrade)")} ` +
-      `da solução ${v(vars, "nome_solucao", "nome da solução")} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.` +
+      `da solução ${nomeSolucao} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.` +
       origemDados,
   });
   blocos.push({
@@ -464,7 +470,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     id: bid("bl"),
     tipo: "bullets",
     itens: [
-      `A infraestrutura elétrica e hidráulica é de responsabilidade do cliente e deve estar concluída antes da instalação da solução ${v(vars, "nome_solucao", "nome da solução")}.`,
+      `A infraestrutura elétrica e hidráulica é de responsabilidade do cliente e deve estar concluída antes da instalação da solução ${nomeSolucao}.`,
       "O local de instalação deve permitir acesso seguro ao terminal e aos sensores para manutenção.",
       "Alterações de escopo após a emissão deste documento exigem novo mapeamento técnico.",
       "A IONICS não se responsabiliza por instalações executadas fora das especificações deste documento.",

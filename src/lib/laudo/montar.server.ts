@@ -60,7 +60,7 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
   const { data: caso, error } = await supabase
     .from("casos")
     .select(
-      "id, codigo, agendado_em, formulario_id, laudo_variaveis, laudo_conteudo, laudo_alertas, laudo_analise, modalidade, nivel, tipo_solicitacao, agente_nome_manual, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
+      "id, codigo, agendamento_id, agendado_em, formulario_id, laudo_variaveis, laudo_conteudo, laudo_alertas, laudo_analise, modalidade, nivel, tipo_solicitacao, agente_nome_manual, agente:profiles!agente_id(nome, email), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics)))",
     )
     .eq("id", casoId)
     .maybeSingle();
@@ -105,6 +105,54 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
     respostasPorEntidade: linhas.map((l: LinhaResposta) => ({ entidadeId: l.entidadeId, chave: l.chave_laudo, valor: l.valor })),
     instanciasAmbiguas: ambiguas,
     materiais: (materiais ?? []) as unknown as MaterialCatalogo[],
+  };
+}
+
+/**
+ * Contextos dos outros mapeamentos do mesmo agendamento (cancelados ficam de fora). Falha ao ler um
+ * irmão não derruba o laudo: ele segue só com os dados do próprio caso.
+ */
+async function carregarContextosIrmaos(supabase: any, caso: any, casoId: string) {
+  const vazio = { contextos: [] as import("@/lib/laudo/contexto").ContextoLaudo[], codigos: [] as string[] };
+  const agendamentoId = caso.agendamento_id;
+  if (!agendamentoId) return vazio;
+  const { data: irmaos } = await supabase
+    .from("casos")
+    .select("id, codigo, status")
+    .eq("agendamento_id", agendamentoId)
+    .neq("id", casoId)
+    .neq("status", "cancelado")
+    .order("codigo", { ascending: true });
+  const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
+  const { montarContextoLaudo } = await import("@/lib/laudo/contexto");
+  const saida = { ...vazio, contextos: [] as typeof vazio.contextos, codigos: [] as string[] };
+  for (const irmao of irmaos ?? []) {
+    try {
+      const estrutura = await carregarEstruturaDoCaso(irmao.id);
+      const { respostasPorEntidade } = await carregarRespostasPorEntidade(supabase, irmao.id);
+      saida.contextos.push(
+        montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade }),
+      );
+      saida.codigos.push(irmao.codigo);
+    } catch {
+      // irmão ilegível: segue sem ele
+    }
+  }
+  return saida;
+}
+
+async function carregarRespostasPorEntidade(supabase: any, casoId: string) {
+  const { data } = await (supabase as any)
+    .from("respostas_agente")
+    .select("entidade_id, valor_texto, transcricao, tipo, pergunta:perguntas(chave_laudo, tipo)")
+    .eq("caso_id", casoId);
+  const { valorDaResposta } = await import("@/lib/laudo/respostas");
+  return {
+    respostasPorEntidade: (data ?? []).map((r: any) => ({
+      entidadeId: (r.entidade_id ?? null) as string | null,
+      chave: (r.pergunta?.chave_laudo ?? null) as string | null,
+      valor: valorDaResposta({ tipo: r.pergunta?.tipo ?? r.tipo ?? null, valor_texto: r.valor_texto, transcricao: r.transcricao }),
+    })),
   };
 }
 
@@ -193,11 +241,18 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   // Equipamentos vendidos informados no agendamento têm prioridade sobre a leitura automática da proposta.
   // A mesma leitura do Escopo alimenta o contexto por entidade (bombas, comboios, RFID, DIV…).
   let contexto: import("@/lib/laudo/contexto").ContextoLaudo | null = null;
+  let irmaosCodigos: string[] = [];
   try {
     const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
     const estrutura = await carregarEstruturaDoCaso(casoId);
     const { montarContextoLaudo } = await import("@/lib/laudo/contexto");
     contexto = montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade });
+    // Mapeamentos do mesmo agendamento (ex.: formulário da pista e do comboio) compõem UM documento:
+    // cada caso mantém seus dados e o contexto junta o que os demais informaram.
+    const { mesclarContextos } = await import("@/lib/laudo/contexto");
+    const irmaos = await carregarContextosIrmaos(supabase, caso, casoId);
+    if (irmaos.contextos.length) contexto = mesclarContextos(contexto, irmaos.contextos);
+    irmaosCodigos = irmaos.codigos;
     const equip = estrutura.arvore.config?.equipamentos ?? [];
     if (equip.length) {
       produtosProposta = equip.map((e) => ({
@@ -249,6 +304,8 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
         instancias_ambiguas: instanciasAmbiguas,
         // o que o Escopo define + o que o mapeamento informou, por bomba/comboio (base do documento mestre)
         contexto,
+        // outros mapeamentos do mesmo agendamento cujos dados entraram no contexto
+        casos_agrupados: irmaosCodigos,
       } as any,
     })
     .eq("id", casoId);

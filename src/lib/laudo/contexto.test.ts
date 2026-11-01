@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHAVES_LAUDO, CHAVES_POR_NOME } from "./chaves";
-import { montarContextoLaudo } from "./contexto";
+import { mesclarContextos, montarContextoLaudo } from "./contexto";
 import { arvoreVazia, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 const ent = (id: string, tipo: EntidadeEscopo["tipo"], rotulo: string, parent_id: string | null, ordem = 0): EntidadeEscopo => ({
@@ -88,5 +88,47 @@ describe("chaves do laudo", () => {
       expect(CHAVES_POR_NOME.has(chave)).toBe(true);
       if (escopo) expect(CHAVES_POR_NOME.get(chave)!.escopo).toBe(escopo);
     }
+  });
+});
+
+describe("mesclarContextos — mapeamentos da mesma visita", () => {
+  const e = (id: string, tipo: any, rotulo: string, parent_id: string | null, ordem = 0) => ({ id, tipo, rotulo, parent_id, ordem });
+  const r = (entidadeId: string | null, chave: string, valor: string) => ({ entidadeId, chave, valor });
+  const cfg = { solucao: "on_premise", rfid: { ativo: true, itens: [{ tecnologia: "Mifare", quantidade: 70 }] } } as any;
+  // caso da pista: bombas completas, comboios só com rótulo
+  const pista = montarContextoLaudo({
+    entidades: [e("p", "posto", "Posto 01", null), e("i", "ilha", "Ilha 01", "p"), e("b1", "bomba", "Bomba 01", "i"), e("k1", "bico", "Bico 01", "b1"), e("c1", "comboio", "Comboio 01", null, 0), e("c2", "comboio", "Comboio 02", null, 1)],
+    arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }], config: cfg },
+    respostas: [r("b1", "combustivel", "Diesel S10"), r(null, "comunicacao_tipos", "Wi-Fi e GSM")],
+  });
+  // caso do comboio: identificação dos comboios, sem pista
+  const comboio = montarContextoLaudo({
+    entidades: [e("x1", "comboio", "Comboio 01", null, 0), e("x2", "comboio", "Comboio 02", null, 1), e("y1", "bico", "Bico 01", "x1"), e("y2", "bico", "Bico 02", "x1")],
+    arvore: { ...arvoreVazia(), config: {} as any },
+    respostas: [r("x1", "identificacao_comboio", "Comboio 400"), r("x2", "identificacao_comboio", "Comboio 409"), r("x1", "placa_comboio", "ABC-1D23")],
+  });
+
+  it("junta pista e comboio de casos diferentes num contexto só", () => {
+    const m = mesclarContextos(pista, [comboio]);
+    expect(m.bombas.map((b) => b.rotulo)).toEqual(["Bomba 01"]);
+    expect(m.comboios.map((c) => c.identificacao)).toEqual(["Comboio 400", "Comboio 409"]);
+    expect(m.comboios[0].atributos.placa_comboio).toBe("ABC-1D23");
+    expect(m.comboios[0].qtdBicos).toBe(2);
+    expect(m.escopo.solucao).toBe("on_premise");
+    expect(m.escopo.rfid.quantidade).toBe(70);
+    expect(m.escopo.temPista && m.escopo.temComboio).toBe(true);
+    expect(m.gerais.comunicacao_tipos).toBe("Wi-Fi e GSM");
+  });
+  it("o principal manda: o outro só preenche lacunas", () => {
+    const outro = montarContextoLaudo({
+      entidades: [e("x1", "comboio", "Comboio 01", null, 0)],
+      arvore: { ...arvoreVazia(), config: {} as any },
+      respostas: [r("x1", "identificacao_comboio", "Comboio 999")],
+    });
+    const base = mesclarContextos(comboio, [outro]);
+    expect(base.comboios[0].identificacao).toBe("Comboio 400");
+  });
+  it("sem outros contextos, devolve o mesmo", () => {
+    expect(mesclarContextos(pista, [])).toBe(pista);
   });
 });

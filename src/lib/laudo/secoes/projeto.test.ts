@@ -141,3 +141,18 @@ describe("Projeto no documento completo", () => {
     expect(new Set(chaves).size).toBe(chaves.length);
   });
 });
+
+describe("solução do Escopo na introdução e nas instruções", () => {
+  const cab = { cliente: "C", unidade: "U", data: "01/01/2026", agente: "A", especialista: "P", modalidade: "remoto" };
+  const textos = (blocos: any[]) => JSON.stringify(blocos);
+  it("usa a solução definida no Escopo, sem pendência", () => {
+    const b = montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto });
+    expect(textos(b)).toContain("da solução On-premise no escopo:");
+    expect(textos(b)).toContain("instalação da solução On-premise.");
+    expect(textos(b)).not.toContain("CONFIRMAR: nome da solução");
+  });
+  it("sem solução no Escopo, mantém a pendência", () => {
+    const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
+    expect(textos(montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto: c }))).toContain("CONFIRMAR: nome da solução");
+  });
+});

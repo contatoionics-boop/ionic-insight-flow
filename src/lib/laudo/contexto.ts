@@ -149,3 +149,65 @@ export function montarContextoLaudo(entrada: {
 
   return { escopo, bombas, comboios, gerais };
 }
+
+/** Preenche com o complemento só o que a base não tem (a base nunca é sobrescrita). */
+const completar = (base: Atributos, complemento: Atributos): Atributos => ({ ...complemento, ...base });
+
+const maisBicos = (a: BicoCtx[], b: BicoCtx[]) => (b.length > a.length ? b : a);
+
+/**
+ * Junta os contextos de mapeamentos da MESMA visita (ex.: formulário da pista e formulário do comboio,
+ * cada um em seu caso) num único contexto. O primeiro (`principal`) manda: o dos demais só preenche lacunas.
+ * Bombas se unem pelo local (posto/ilha/rótulo); comboios, pela posição (1º com 1º, 2º com 2º).
+ */
+export function mesclarContextos(principal: ContextoLaudo, outros: ContextoLaudo[]): ContextoLaudo {
+  let atual = principal;
+  for (const o of outros) atual = mesclarDois(atual, o);
+  return atual;
+}
+
+function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
+  const chaveBomba = (x: BombaCtx) => `${x.posto ?? ""}|${x.ilha ?? ""}|${x.rotulo}`;
+  const doOutro = new Map(b.bombas.map((x) => [chaveBomba(x), x]));
+  const bombas: BombaCtx[] = a.bombas.map((x) => {
+    const y = doOutro.get(chaveBomba(x));
+    if (!y) return x;
+    doOutro.delete(chaveBomba(x));
+    const bicos = maisBicos(x.bicos, y.bicos);
+    return { ...x, atributos: completar(x.atributos, y.atributos), bicos, qtdBicos: bicos.length };
+  });
+  bombas.push(...doOutro.values());
+
+  const total = Math.max(a.comboios.length, b.comboios.length);
+  const comboios: ComboioCtx[] = [];
+  for (let i = 0; i < total; i++) {
+    const x = a.comboios[i];
+    const y = b.comboios[i];
+    if (!x || !y) {
+      comboios.push((x ?? y)!);
+      continue;
+    }
+    const atributos = completar(x.atributos, y.atributos);
+    const bicos = maisBicos(x.bicos, y.bicos);
+    comboios.push({ ...x, atributos, bicos, qtdBicos: bicos.length, identificacao: atributos.identificacao_comboio || x.rotulo });
+  }
+
+  const ea = a.escopo;
+  const eb = b.escopo;
+  const escopo: EscopoCtx = {
+    ...ea,
+    solucao: ea.solucao ?? eb.solucao,
+    comunicacao: ea.comunicacao ?? eb.comunicacao,
+    temPista: ea.temPista || eb.temPista || bombas.length > 0,
+    temComboio: ea.temComboio || eb.temComboio || comboios.length > 0,
+    qtdPostos: Math.max(ea.qtdPostos, eb.qtdPostos),
+    qtdBombas: bombas.length,
+    qtdComboios: comboios.length,
+    qtdTanquesLubrificante: Math.max(ea.qtdTanquesLubrificante, eb.qtdTanquesLubrificante),
+    qtdSondas: Math.max(ea.qtdSondas, eb.qtdSondas),
+    rfid: eb.rfid.quantidade > ea.rfid.quantidade ? eb.rfid : ea.rfid,
+    tx: eb.tx.quantidade > ea.tx.quantidade ? eb.tx : ea.tx,
+    frota: eb.frota.totalDiv > ea.frota.totalDiv ? eb.frota : ea.frota,
+  };
+  return { escopo, bombas, comboios, gerais: completar(a.gerais, b.gerais) };
+}
