@@ -101,6 +101,8 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
   return {
     caso,
     respostas: respostasLaudo,
+    // respostas por unidade (bomba, bico, comboio), sem colapsar: base do contexto de composição
+    respostasPorEntidade: linhas.map((l: LinhaResposta) => ({ entidadeId: l.entidadeId, chave: l.chave_laudo, valor: l.valor })),
     instanciasAmbiguas: ambiguas,
     materiais: (materiais ?? []) as unknown as MaterialCatalogo[],
   };
@@ -125,7 +127,7 @@ export function metaDoCasoLaudo(caso: any) {
  */
 export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { extrairVariaveis } = await import("@/lib/laudo/extrair.server");
-  const { caso, respostas, materiais, instanciasAmbiguas } = await carregarContextoLaudo(supabase, casoId);
+  const { caso, respostas, respostasPorEntidade, materiais, instanciasAmbiguas } = await carregarContextoLaudo(supabase, casoId);
 
   const anteriores = (caso.laudo_variaveis ?? {}) as VariaveisLaudo;
   const manuais: VariaveisLaudo = Object.fromEntries(
@@ -189,9 +191,14 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { produtosDaProposta } = await import("@/lib/laudo/produtos-proposta");
   let produtosProposta = produtosDaProposta(escopoProposta);
   // Equipamentos vendidos informados no agendamento têm prioridade sobre a leitura automática da proposta.
+  // A mesma leitura do Escopo alimenta o contexto por entidade (bombas, comboios, RFID, DIV…).
+  let contexto: import("@/lib/laudo/contexto").ContextoLaudo | null = null;
   try {
     const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
-    const equip = (await carregarEstruturaDoCaso(casoId)).arvore.config?.equipamentos ?? [];
+    const estrutura = await carregarEstruturaDoCaso(casoId);
+    const { montarContextoLaudo } = await import("@/lib/laudo/contexto");
+    contexto = montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade });
+    const equip = estrutura.arvore.config?.equipamentos ?? [];
     if (equip.length) {
       produtosProposta = equip.map((e) => ({
         codigo: e.codigo ?? null,
@@ -206,6 +213,7 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { blocos, achados } = montarBlocosEAnalise({
     achadosDescartados: descartados,
     produtosProposta,
+    contexto,
     variaveis,
     materiais,
     cabecalho: {
@@ -239,6 +247,8 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
         analisado_em: new Date().toISOString(),
         // respostas por entidade com valores diferentes: não entram no laudo (decisão manual)
         instancias_ambiguas: instanciasAmbiguas,
+        // o que o Escopo define + o que o mapeamento informou, por bomba/comboio (base do documento mestre)
+        contexto,
       } as any,
     })
     .eq("id", casoId);

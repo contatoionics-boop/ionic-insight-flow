@@ -213,8 +213,9 @@ function Visual({
       return (
         <p
           id={`bloco-${bloco.id}`}
-          className="mt-2 indent-8 text-justify text-[12.5px] leading-[1.7]"
+          className={`mt-2 indent-8 text-justify text-[12.5px] leading-[1.7] ${editavel && bloco.destaque === "editavel" ? "rounded-sm bg-yellow-100/80 ring-1 ring-yellow-300" : ""}`}
           style={{ color: TINTA }}
+          title={editavel && bloco.destaque === "editavel" ? "Campo de revisão: confira e ajuste se preciso (no PDF sai sem destaque)" : undefined}
         >
           {editavel ? (
             <CampoInline

@@ -24,6 +24,8 @@ export type VariaveisLaudo = Record<string, VariavelLaudo>;
 export type BlocoTabelaLinha = {
   celulas: string[];
   nota?: string | null;
+  /** tabela automática: a linha pertence a esta entidade do Escopo (bomba, comboio…) */
+  entidadeId?: string | null;
 };
 
 /** origem do bloco dentro do documento */
@@ -43,6 +45,8 @@ export type MetaBloco = {
   removivel?: boolean;
   /** bloco removido pelo especialista — não renderiza nem ressuscita */
   oculto?: boolean;
+  /** campo de revisão do especialista: amarelo no editor; o PDF sai sem destaque */
+  destaque?: "editavel";
 };
 
 type Heading = {

@@ -401,7 +401,26 @@ export function EstruturaEscopo({
                     value={totalRfid(config.rfid.itens) || 1}
                     disabled={disabled}
                     onValueChange={(v) =>
-                      setConfig({ rfid: { ativo: true, itens: [{ tecnologia: "", quantidade: Number(v) || 1 }] } })
+                      setConfig({
+                        rfid: { ativo: true, itens: [{ tecnologia: config.rfid?.itens?.[0]?.tecnologia ?? "", quantidade: Number(v) || 1 }] },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+            {config.rfid?.ativo && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-sm text-muted-foreground">Tecnologia do cartão (ex.: Mifare, Melexis)</span>
+                <div className="w-48">
+                  <Input
+                    value={config.rfid.itens?.[0]?.tecnologia ?? ""}
+                    disabled={disabled}
+                    placeholder="Informe a tecnologia"
+                    onChange={(e) =>
+                      setConfig({
+                        rfid: { ativo: true, itens: [{ tecnologia: e.target.value, quantidade: totalRfid(config.rfid?.itens) || 1 }] },
+                      })
                     }
                   />
                 </div>

@@ -9,6 +9,8 @@ import {
   type MaterialCatalogo,
 } from "./regras";
 import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
+import type { ContextoLaudo } from "./contexto";
+import { blocosProjeto } from "./secoes/projeto";
 import { solucaoContratada } from "./solucao";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
@@ -32,6 +34,8 @@ export type EntradaTemplate = {
   achadosDescartados?: string[];
   /** (não usado nas tabelas: produtos e materiais nascem vazios para o especialista preencher) */
   produtosProposta?: ProdutoProposta[];
+  /** Escopo + respostas por entidade (bombas, comboios…): alimenta a seção Projeto */
+  contexto?: ContextoLaudo | null;
 };
 
 /** chaves de texto livre onde valores sem sentido não podem ir para o documento */
@@ -121,13 +125,24 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
 
   // ---------- 1. Introdução ----------
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
+  // quem informou os dados (formulário respondido pelo cliente/agente), quando conhecido
+  const responsavel = raw(vars, "responsavel_cliente");
+  const contato = raw(vars, "contato_cliente");
+  const modalidadeTexto = raw(vars, "modalidade");
+  const origemDados =
+    responsavel || contato
+      ? ` As informações e os registros fotográficos foram disponibilizados pelo cliente (${[responsavel, contato].filter(Boolean).join(" - ")})` +
+        `${modalidadeTexto ? ` no formulário de Mapeamento Técnico - ${modalidadeTexto.charAt(0).toUpperCase()}${modalidadeTexto.slice(1)}` : ""}.`
+      : "";
   blocos.push({
     id: bid("p"),
     tipo: "paragraph",
+    destaque: "editavel",
     texto:
       `Este documento apresenta o resultado do mapeamento técnico realizado para ${v(vars, "nome_cliente", "nome do cliente")}, ` +
       `em atendimento ${v(vars, "modalidade", "modalidade")}, referente à ${v(vars, "tipo_acao", "tipo de ação (instalação ou upgrade)")} ` +
-      `da solução ${v(vars, "nome_solucao", "nome da solução")} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.`,
+      `da solução ${v(vars, "nome_solucao", "nome da solução")} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.` +
+      origemDados,
   });
   blocos.push({
     id: bid("p"),
@@ -151,7 +166,10 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   }
 
 
-  // ---------- 2. Requisitos de infraestrutura ----------
+  // ---------- 2. Projeto (Escopo + respostas por entidade; tabelas automáticas) ----------
+  blocos.push(...blocosProjeto({ contexto: entrada.contexto ?? null, vars, nivel, id: bid }));
+
+  // ---------- Requisitos de infraestrutura ----------
   blocos.push({
     id: bid("h"),
     tipo: "heading",
