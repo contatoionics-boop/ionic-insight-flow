@@ -367,11 +367,12 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   // 2.3 Objeto do mapeamento — repetível
   blocos.push({
     id: bid("h"),
+    chave: "pista:titulo",
     tipo: "heading",
     numero: "2.3",
     texto: "Objeto do mapeamento",
     nivel: 2,
-  });
+  } as BlocoLaudo);
 
   // Escopo com bombas: uma descrição por bomba (respostas da própria bomba); sem bombas, fluxo por respostas únicas.
   const blocosDaPista = blocosPista({ contexto: entrada.contexto ?? null, nivel, id: bid });

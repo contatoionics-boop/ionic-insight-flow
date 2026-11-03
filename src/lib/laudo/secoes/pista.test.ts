@@ -54,6 +54,13 @@ describe("Pista por bomba", () => {
     expect(itens("b1")).toContain("Bomba mecânica");
     expect(itens("b1")).not.toContain("alta vazão");
   });
+  it("o Escopo manda: bico cadastrado vence a resposta 'sem bico' (sem contradizer a tabela do Projeto)", () => {
+    const c = montarContextoLaudo({ entidades, arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }] }, respostas: [...respostas, r("b1", "bico_ausente", "sim"), r("b1", "alta_vazao", "sim")] });
+    const bl = blocosPista({ contexto: c, nivel: "nivel_1", id: ids }) as any[];
+    expect(textos(bl, "b1")).toContain("A bomba possui 1 bico de abastecimento");
+    expect(textos(bl, "b1")).not.toContain("não possui bico");
+    expect(textos(bl, "b1")).not.toContain("sem bico");
+  });
   it("sem bombas no Escopo não cria a seção", () => {
     const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
     expect(blocosPista({ contexto: c, nivel: null, id: ids })).toBeNull();
@@ -66,6 +73,10 @@ describe("Pista por bomba no documento", () => {
   it("o Objeto do mapeamento vem das bombas, sem a pendência de identificação dos objetos", () => {
     const b = montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto }) as any[];
     expect(b.some((x) => x.chave === "bomba:b2:resumo")).toBe(true);
+    const i = b.findIndex((x) => x.chave === "pista:titulo");
+    expect(i).toBeGreaterThan(-1);
+    expect(b[i].texto).toBe("Objeto do mapeamento");
+    expect(b.findIndex((x) => x.chave === "bomba:b1:titulo")).toBeGreaterThan(i);
     expect(JSON.stringify(b)).not.toContain("identificação dos objetos");
   });
   it("sem Escopo estruturado o fluxo anterior continua", () => {

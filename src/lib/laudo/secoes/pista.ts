@@ -22,9 +22,12 @@ function variaveisDaBomba(b: BombaCtx): VariaveisLaudo {
   ) as VariaveisLaudo;
 }
 
+/** Bomba sem bico: o Escopo manda (bico cadastrado = tem bico); a resposta só vale quando não há bico no Escopo. */
+const semBico = (b: BombaCtx): boolean => !b.qtdBicos && sim(b.atributos.bico_ausente);
+
 /** Os bicos da bomba, em uma frase; bomba sem bico é dita como tal. */
 function frasesDosBicos(b: BombaCtx): string | null {
-  if (sim(b.atributos.bico_ausente)) return "A bomba não possui bico de abastecimento.";
+  if (semBico(b)) return "A bomba não possui bico de abastecimento.";
   if (!b.qtdBicos) return null;
   const partes = [`A bomba possui ${b.qtdBicos} bico${b.qtdBicos === 1 ? "" : "s"} de abastecimento`];
   const mangueira = [...new Set(b.bicos.map((k) => k.atributos.bitola_mangueira).filter(Boolean))];
@@ -40,10 +43,10 @@ function frasesDosBicos(b: BombaCtx): string | null {
 function pontosDeAtencao(b: BombaCtx): string[] {
   const pontos: string[] = [];
   const altaVazao = sim(b.atributos.alta_vazao);
-  const semBico = sim(b.atributos.bico_ausente);
-  if (altaVazao && semBico)
+  const sem = semBico(b);
+  if (altaVazao && sem)
     pontos.push("Bomba de alta vazão (transferência para comboios) sem bico de abastecimento: confirmar com o cliente como será feito o controle do abastecimento.");
-  else if (semBico) pontos.push("Bomba sem bico de abastecimento: confirmar com o cliente como será feito o controle do abastecimento.");
+  else if (sem) pontos.push("Bomba sem bico de abastecimento: confirmar com o cliente como será feito o controle do abastecimento.");
   else if (altaVazao) pontos.push("Bomba de alta vazão (transferência para comboios): conferir a faixa de vazão antes de dimensionar o medidor.");
   return pontos;
 }
