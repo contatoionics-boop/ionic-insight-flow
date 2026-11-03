@@ -90,6 +90,7 @@ export const CHAVES_LAUDO: ChaveLaudo[] = [
   { chave: "operadora_gsm_outra", rotulo: "Outra operadora GSM", descricao: "Operadora não listada.", escopo: "bomba" },
   { chave: "estabilidade_wifi", rotulo: "Estabilidade do Wi-Fi", descricao: "Estabilidade do sinal Wi-Fi no local.", escopo: "bomba" },
   { chave: "velocidade_conexao_faixa", rotulo: "Velocidade de conexão (faixa)", descricao: "Faixa de velocidade informada no local (seleção).", escopo: "bomba" },
+  { chave: "nome_contato_cliente", rotulo: "Nome do contato do cliente", descricao: "Nome da pessoa do cliente que responde pelo mapeamento (nunca o agente).", escopo: "geral" },
   { chave: "contato_cliente", rotulo: "Contato do cliente", descricao: "Telefone do contato do cliente.", escopo: "geral" },
   { chave: "email_cliente", rotulo: "E-mail do cliente", descricao: "E-mail do contato do cliente.", escopo: "geral" },
   { chave: "velocidade_download_mbps", rotulo: "Velocidade de download (Mbps)", descricao: "Velocidade medida de download no local.", escopo: "geral" },

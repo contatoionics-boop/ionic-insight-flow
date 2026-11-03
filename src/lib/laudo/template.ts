@@ -138,7 +138,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   blocos.push({ id: bid("h"), tipo: "heading", numero: "1", texto: "Introdução", nivel: 1 });
   // quem informou os dados (formulário respondido pelo cliente/agente), quando conhecido
   // "Responsável pelo acompanhamento" chega pré-preenchido com o agente: o contato do cliente nunca é o próprio agente
-  const responsavel = semAgente(raw(vars, "responsavel_cliente"), entrada.cabecalho.agente);
+  const responsavel = raw(vars, "nome_contato_cliente") ?? semAgente(raw(vars, "responsavel_cliente"), entrada.cabecalho.agente);
   const contato = raw(vars, "contato_cliente");
   const modalidadeTexto = raw(vars, "modalidade");
   // a solução do Escopo (dado estruturado) manda; o nome textual só vale quando o Escopo não a define

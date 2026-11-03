@@ -180,4 +180,13 @@ describe("TI/banco de dados pela solução do Escopo e contato do cliente", () =
     expect(intro("Cledir Nunes")).toContain("((17) 99605-2315)");
     expect(intro("Cledir Nunes")).not.toContain("Cledir Nunes -");
   });
+  it("o nome do contato do cliente (chave própria) vale mais que o responsável pré-preenchido", () => {
+    const variaveis = {
+      responsavel_cliente: { chave: "responsavel_cliente", valor: "Cledir Nunes", origem: "formulario", confianca: 1 },
+      nome_contato_cliente: { chave: "nome_contato_cliente", valor: "Mateus", origem: "formulario", confianca: 1 },
+      contato_cliente: { chave: "contato_cliente", valor: "(17) 99605-2315", origem: "formulario", confianca: 1 },
+    } as VariaveisLaudo;
+    const intro = JSON.stringify(montarBlocos({ variaveis, materiais: [], cabecalho: cab, contexto }));
+    expect(intro).toContain("(Mateus - (17) 99605-2315)");
+  });
 });
