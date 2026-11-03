@@ -56,6 +56,21 @@ describe("Wi-Fi e aplicação pela solução do Escopo", () => {
   });
 });
 
+describe("Wi-Fi e GSM/4G conforme o Escopo", () => {
+  const titulos = (config: Record<string, unknown>, comboio = false, comWifiNoCampo = true) => {
+    const entidades = comboio ? [{ id: "k1", tipo: "comboio" as const, rotulo: "Comboio 01", parent_id: null, ordem: 0 }] : [];
+    const c = montarContextoLaudo({ entidades, arvore: { ...arvoreVazia(), config } as any, respostas: [] });
+    // campo com Wi-Fi 2.4 GHz encontrado: o achado de GSM só entra se o Escopo ou o comboio o pedirem
+    const variaveis: VariaveisLaudo = !comWifiNoCampo ? {} : { frequencia_wifi: v("frequencia_wifi", "2.4 GHz"), comunicacao_tipos: v("comunicacao_tipos", "WiFi") };
+    return (montarBlocos({ variaveis, materiais: [], cabecalho: cab, contexto: c }) as any[]).filter((b) => b.chave?.startsWith("dados:") && b.tipo === "heading").map((b) => b.chave);
+  };
+  it("só Wi-Fi: sem GSM/4G", () => expect(titulos({ comunicacao: "wifi" })).toEqual(["dados:wifi", "dados:radio"]));
+  it("só 4G (e sem Wi-Fi no campo): sem Wi-Fi", () => expect(titulos({ comunicacao: "4g" }, false, false)).toEqual(["dados:gsm", "dados:radio"]));
+  it("ambos: os dois", () => expect(titulos({ comunicacao: "ambos" })).toEqual(["dados:wifi", "dados:gsm", "dados:radio"]));
+  it("comboio sempre leva GSM/4G", () => expect(titulos({ comunicacao: "wifi" }, true)).toContain("dados:gsm"));
+  it("sem comunicação no Escopo mantém o comportamento anterior (Wi-Fi presente)", () => expect(titulos({})).toContain("dados:wifi"));
+});
+
 describe("Transferência de dados no documento", () => {
   it("o parágrafo das velocidades entra no Wi-Fi quando o Escopo tem Wi-Fi", () => {
     const c = ctx({ comunicacao: "wifi", solucao: "ssg_frota" }, [{ chave: "velocidade_download_mbps", valor: "92" }, { chave: "velocidade_upload_mbps", valor: "18" }]);

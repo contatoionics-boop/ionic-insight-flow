@@ -15,7 +15,7 @@ import { solucaoContratada } from "./solucao";
 import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
-import { ajustarAplicacao, blocoVelocidades, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
+import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
@@ -319,18 +319,20 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const achadoWifi = achadosComunicacao.filter((a) => a.chave === "comunicacao_wifi");
   const achadoGsm = achadosComunicacao.filter((a) => a.chave === "comunicacao_gsm");
 
-  blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 });
   const aplicacao = nomeDaAplicacao(entrada.contexto ?? null);
-  if (achadoWifi.length) {
-    // A conclusão técnica derivada dos dados substitui o texto genérico.
-    blocos.push(...ajustarAplicacao(blocosDosAchados(achadoWifi), aplicacao));
-  } else {
-    blocos.push({
-      id: bid("p"),
-      tipo: "paragraph",
-      texto:
-        "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
-    });
+  if (mostrarWifi(entrada.contexto ?? null, achadoWifi.length > 0)) {
+    blocos.push({ id: bid("h"), chave: "dados:wifi", tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 } as BlocoLaudo);
+    if (achadoWifi.length) {
+      // A conclusão técnica derivada dos dados substitui o texto genérico.
+      blocos.push(...ajustarAplicacao(blocosDosAchados(achadoWifi), aplicacao));
+    } else {
+      blocos.push({
+        id: bid("p"),
+        tipo: "paragraph",
+        texto:
+          "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
+      });
+    }
   }
   const velocidades = blocoVelocidades({
     vars,
@@ -340,8 +342,8 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
   if (velocidades) blocos.push(velocidades);
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
-  if (achadoGsm.length || comunicacao.includes("4g") || comunicacao.includes("gsm")) {
-    blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
+  if (mostrarGsm({ contexto: entrada.contexto ?? null, temAchadoGsm: achadoGsm.length > 0, tiposRespondidos: comunicacao })) {
+    blocos.push({ id: bid("h"), chave: "dados:gsm", tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 } as BlocoLaudo);
     if (achadoGsm.length) {
       blocos.push(...ajustarAplicacao(blocosDosAchados(achadoGsm), aplicacao));
     } else {
@@ -353,7 +355,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       });
     }
   }
-  blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 });
+  blocos.push({ id: bid("h"), chave: "dados:radio", tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 } as BlocoLaudo);
   blocos.push({
     id: bid("p"),
     tipo: "paragraph",

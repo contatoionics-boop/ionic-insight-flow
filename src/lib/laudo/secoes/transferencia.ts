@@ -25,6 +25,28 @@ export function usaWifi(contexto: ContextoLaudo | null, temAchadoWifi: boolean):
 }
 
 /**
+ * Wi-Fi aparece quando o Escopo o contempla; Escopo só 4G esconde a seção, a menos que o
+ * campo tenha encontrado Wi-Fi. Sem comunicação no Escopo, a seção fica (comportamento anterior).
+ */
+export function mostrarWifi(contexto: ContextoLaudo | null, temAchadoWifi: boolean): boolean {
+  const escopo = (contexto?.escopo.comunicacao ?? "").toLowerCase();
+  return escopo === "4g" ? temAchadoWifi : true;
+}
+
+/**
+ * GSM/4G aparece quando o Escopo o contempla (4G ou ambos) ou há comboio (veículo em movimento,
+ * sem rede fixa); também quando o campo encontrou cobertura. Sem comunicação no Escopo, vale o que
+ * as respostas indicam (`comunicacao_tipos`).
+ */
+export function mostrarGsm(entrada: { contexto: ContextoLaudo | null; temAchadoGsm: boolean; tiposRespondidos: string }): boolean {
+  const { contexto, temAchadoGsm, tiposRespondidos } = entrada;
+  const escopo = (contexto?.escopo.comunicacao ?? "").toLowerCase();
+  if (escopo === "4g" || escopo === "ambos" || contexto?.escopo.temComboio || temAchadoGsm) return true;
+  if (escopo === "wifi") return false;
+  return /4g|gsm|gprs/i.test(tiposRespondidos);
+}
+
+/**
  * Velocidade medida no local. Havendo Wi-Fi, a ausência de medida vira [CONFIRMAR];
  * sem Wi-Fi o parágrafo só aparece se o agente mediu mesmo assim.
  */
