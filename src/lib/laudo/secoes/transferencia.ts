@@ -35,8 +35,13 @@ export function blocoVelocidades(entrada: {
   id: string;
 }): Paragrafo | null {
   const { vars, contexto, wifi, id } = entrada;
-  const download = lido(vars, contexto, "velocidade_download_mbps");
-  const upload = lido(vars, contexto, "velocidade_upload_mbps");
+  // velocidade é número: texto sem dígito (resposta fora do campo) conta como não medida
+  const medida = (chave: string) => {
+    const valor = lido(vars, contexto, chave);
+    return valor && /\d/.test(valor) ? valor : null;
+  };
+  const download = medida("velocidade_download_mbps");
+  const upload = medida("velocidade_upload_mbps");
   if (!wifi && !download && !upload) return null;
   const texto =
     `Velocidade de conexão medida no local: download ${download ? emMbps(download) : pendencia("velocidade_download_mbps", "velocidade de download")}` +

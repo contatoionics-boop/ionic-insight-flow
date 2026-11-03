@@ -24,6 +24,12 @@ describe("velocidades de conexão", () => {
     expect(blocoVelocidades({ vars: {}, contexto: null, wifi: true, id: "x" })?.texto).toContain("[CONFIRMAR: velocidade de download]");
     expect(blocoVelocidades({ vars: {}, contexto: null, wifi: false, id: "x" })).toBeNull();
   });
+  it("resposta sem número (fora do campo) não é repetida no documento: vira pendência", () => {
+    const b = blocoVelocidades({ vars: { velocidade_download_mbps: v("velocidade_download_mbps", "Florianópolis"), velocidade_upload_mbps: v("velocidade_upload_mbps", "20") }, contexto: null, wifi: true, id: "x" });
+    expect(b?.texto).toContain("[CONFIRMAR: velocidade de download]");
+    expect(b?.texto).toContain("upload 20 Mbps");
+    expect(b?.texto).not.toContain("Florianópolis");
+  });
   it("lê a medida de outro mapeamento da mesma visita (contexto mesclado)", () => {
     const c = ctx({}, [{ chave: "velocidade_download_mbps", valor: "40" }, { chave: "velocidade_upload_mbps", valor: "10" }]);
     expect(blocoVelocidades({ vars: {}, contexto: c, wifi: true, id: "x" })?.texto).toContain("download 40 Mbps e upload 10 Mbps");
