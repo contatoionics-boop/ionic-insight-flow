@@ -15,6 +15,7 @@ import { solucaoContratada } from "./solucao";
 import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
+import { ajustarAplicacao, blocoVelocidades, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
@@ -319,9 +320,10 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const achadoGsm = achadosComunicacao.filter((a) => a.chave === "comunicacao_gsm");
 
   blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 });
+  const aplicacao = nomeDaAplicacao(entrada.contexto ?? null);
   if (achadoWifi.length) {
     // A conclusão técnica derivada dos dados substitui o texto genérico.
-    blocos.push(...blocosDosAchados(achadoWifi));
+    blocos.push(...ajustarAplicacao(blocosDosAchados(achadoWifi), aplicacao));
   } else {
     blocos.push({
       id: bid("p"),
@@ -330,11 +332,18 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
         "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
     });
   }
+  const velocidades = blocoVelocidades({
+    vars,
+    contexto: entrada.contexto ?? null,
+    wifi: usaWifi(entrada.contexto ?? null, achadoWifi.length > 0),
+    id: bid("p"),
+  });
+  if (velocidades) blocos.push(velocidades);
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
   if (achadoGsm.length || comunicacao.includes("4g") || comunicacao.includes("gsm")) {
     blocos.push({ id: bid("h"), tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 });
     if (achadoGsm.length) {
-      blocos.push(...blocosDosAchados(achadoGsm));
+      blocos.push(...ajustarAplicacao(blocosDosAchados(achadoGsm), aplicacao));
     } else {
       blocos.push({
         id: bid("p"),
