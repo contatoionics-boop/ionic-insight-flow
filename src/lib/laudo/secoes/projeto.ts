@@ -41,7 +41,7 @@ export function vazaoDaBomba(a: Record<string, string>): string | null {
 }
 
 /** Rótulos das bombas; se o mesmo rótulo se repete em ilhas/postos diferentes, acrescenta o local. */
-function rotulosDasBombas(bombas: BombaCtx[]): string[] {
+export function rotulosDasBombas(bombas: BombaCtx[]): string[] {
   const repetidos = new Set(bombas.map((b) => b.rotulo).filter((r, i, todos) => todos.indexOf(r) !== i));
   const varios = (campo: "posto" | "ilha") => new Set(bombas.map((b) => b[campo])).size > 1;
   return bombas.map((b) => {

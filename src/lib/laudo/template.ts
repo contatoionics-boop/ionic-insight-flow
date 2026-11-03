@@ -15,6 +15,7 @@ import { solucaoContratada } from "./solucao";
 import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
+import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
@@ -372,7 +373,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     nivel: 2,
   });
 
-  const ids = idsObjetos(vars);
+  // Escopo com bombas: uma descrição por bomba (respostas da própria bomba); sem bombas, fluxo por respostas únicas.
+  const blocosDaPista = blocosPista({ contexto: entrada.contexto ?? null, nivel, id: bid });
+  const ids = blocosDaPista ? (entrada.contexto?.bombas ?? []).map((b) => b.id) : idsObjetos(vars);
   const grupos = ids.length
     ? ids
     : [raw(vars, "objeto_escopo") ?? pendencia("ids_objetos", "identificação dos objetos")];
@@ -385,7 +388,8 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const descreveObjeto = achados23.some(
     (a) => a.chave === "bomba_identificacao" || a.chave === "pista_abastecimento",
   );
-  grupos.forEach((grupo, i) => {
+  if (blocosDaPista) blocos.push(...blocosDaPista);
+  else grupos.forEach((grupo, i) => {
     const numero = varios ? `2.3.${i + 1}` : null;
     blocos.push({ id: bid("h"), tipo: "heading", numero, texto: grupo, nivel: 3 });
     if (descreveObjeto) return;
@@ -401,7 +405,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
 
   // Análise técnica do cenário físico (bomba, registrador, bloco medidor, pista).
-  blocos.push(...blocosDosAchados(achados23));
+  if (!blocosDaPista) blocos.push(...blocosDosAchados(achados23));
 
   // Produtos e materiais são idênticos para todos os objetos: uma tabela só.
   if (varios) {
