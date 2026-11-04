@@ -15,6 +15,7 @@ import { solucaoContratada } from "./solucao";
 import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
+import { blocosComboio } from "./secoes/comboio";
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -440,6 +441,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     linhas: [{ celulas: ["", "", "", "", ""] }],
   });
 
+  // Caminhão comboio: um grupo por comboio do Escopo (só entra quando há comboios)
+  const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid });
+  if (blocosDoComboio) blocos.push(...blocosDoComboio);
 
   // 2.4 Bicos de abastecimento
   // No Nível 2 o conteúdo dos bicos é o bloco estrutural da seção VII
