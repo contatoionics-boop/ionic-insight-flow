@@ -265,11 +265,15 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     // escopo estruturado indisponível: mantém os itens da proposta
   }
 
+  // respostas gerais dos mapeamentos irmãos (mesma visita) completam as lacunas deste caso
+  const { completarVariaveis } = await import("@/lib/laudo/contexto");
+  const variaveisDaVisita = completarVariaveis(variaveis, contexto, (chave, valor): VariaveisLaudo[string] => ({ chave, valor, origem: "formulario", confianca: 1 }));
+
   const { blocos, achados } = montarBlocosEAnalise({
     achadosDescartados: descartados,
     produtosProposta,
     contexto,
-    variaveis,
+    variaveis: variaveisDaVisita,
     materiais,
     cabecalho: {
       cliente: meta.cliente,

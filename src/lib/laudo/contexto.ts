@@ -211,3 +211,22 @@ function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
   };
   return { escopo, bombas, comboios, gerais: completar(a.gerais, b.gerais) };
 }
+
+/**
+ * Variáveis gerais do documento completadas com o que os mapeamentos da mesma visita informaram
+ * (`contexto.gerais` já vem mesclado). Só preenche lacunas: o que este caso respondeu ou o
+ * especialista editou nunca é trocado.
+ */
+export function completarVariaveis<V extends { valor: string | null }>(
+  variaveis: Record<string, V>,
+  contexto: ContextoLaudo | null,
+  nova: (chave: string, valor: string) => V,
+): Record<string, V> {
+  if (!contexto) return variaveis;
+  const resultado = { ...variaveis };
+  for (const [chave, valor] of Object.entries(contexto.gerais)) {
+    if ((resultado[chave]?.valor ?? "").toString().trim()) continue;
+    resultado[chave] = nova(chave, valor);
+  }
+  return resultado;
+}

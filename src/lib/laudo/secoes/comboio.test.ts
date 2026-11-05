@@ -33,7 +33,7 @@ describe("Caminhão comboio por unidade", () => {
     expect(new Set(chaves).size).toBe(chaves.length);
   });
   it("o resumo usa só as respostas do próprio comboio", () => {
-    expect(textos(blocos, "c1")).toContain("veículo Volvo FH, placa ABC1D23, alimentado em 24VCC");
+    expect(textos(blocos, "c1")).toContain("é um veículo Volvo FH, placa ABC1D23, alimentado em 24VCC");
     expect(textos(blocos, "c2")).not.toContain("Volvo");
   });
   it("comboio sem dados do veículo vira pendência, nunca texto inventado", () => {
@@ -42,7 +42,9 @@ describe("Caminhão comboio por unidade", () => {
   it("bicos e medição vêm do Escopo e das respostas", () => {
     expect(textos(blocos, "c1")).toContain("O comboio possui 2 bicos de abastecimento, com mangueira de 3/4");
     expect(textos(blocos, "c2")).toContain("O comboio possui 1 bico de abastecimento");
-    expect(textos(blocos, "c1")).toContain("2 sistema(s) de abastecimento");
+    expect(textos(blocos, "c1")).toContain("2 sistemas de abastecimento (bloco medidor)");
+    const um = montarContextoLaudo({ entidades, arvore: arvoreVazia(), respostas: [...respostas, r("c2", "qtd_blocos_medidores", "1")] });
+    expect(textos(blocosComboio({ contexto: um, id: ids }) as any[], "c2")).toContain("1 sistema de abastecimento");
     expect(textos(blocos, "c1")).toContain("Bloco medidor Liquid Controls, com saída de 2");
     expect(textos(blocos, "c1")).toContain("frente 0,5 m, atrás 0,4 m");
   });

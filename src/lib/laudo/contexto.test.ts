@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHAVES_LAUDO, CHAVES_POR_NOME } from "./chaves";
-import { mesclarContextos, montarContextoLaudo } from "./contexto";
+import { completarVariaveis, mesclarContextos, montarContextoLaudo } from "./contexto";
 import { arvoreVazia, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 const ent = (id: string, tipo: EntidadeEscopo["tipo"], rotulo: string, parent_id: string | null, ordem = 0): EntidadeEscopo => ({
@@ -127,6 +127,16 @@ describe("mesclarContextos — mapeamentos da mesma visita", () => {
     });
     const base = mesclarContextos(comboio, [outro]);
     expect(base.comboios[0].identificacao).toBe("Comboio 400");
+  });
+  it("respostas gerais da visita completam as variáveis do caso, sem trocar o que o caso já tem", () => {
+    const nova = (chave: string, valor: string) => ({ chave, valor, origem: "formulario" as const, confianca: 1 });
+    const m = mesclarContextos(pista, [comboio]);
+    const vars = { comunicacao_tipos: nova("comunicacao_tipos", "Só 4G") };
+    const c = completarVariaveis(vars, m, nova);
+    expect(c.comunicacao_tipos.valor).toBe("Só 4G");
+    const vazias = completarVariaveis({}, m, nova);
+    expect(vazias.comunicacao_tipos.valor).toBe("Wi-Fi e GSM");
+    expect(completarVariaveis(vars, null, nova)).toBe(vars);
   });
   it("sem outros contextos, devolve o mesmo", () => {
     expect(mesclarContextos(pista, [])).toBe(pista);

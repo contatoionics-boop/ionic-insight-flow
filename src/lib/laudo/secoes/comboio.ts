@@ -17,7 +17,7 @@ const medida = (v: string | undefined, un: string) => (v && /^\d+([.,]\d+)?$/.te
 function frasesDoVeiculo(c: ComboioCtx): string {
   const a = c.atributos;
   const veiculo = [a.marca_veiculo, a.modelo_veiculo].filter(Boolean).join(" ");
-  const partes = [veiculo ? `veículo ${veiculo}` : null, a.placa_comboio ? `placa ${a.placa_comboio}` : null].filter(Boolean);
+  const partes = [veiculo ? `um veículo ${veiculo}` : null, a.placa_comboio ? `placa ${a.placa_comboio}` : null].filter(Boolean);
   const base = partes.length ? partes.join(", ") : pendencia("marca_veiculo", "marca e modelo do veículo");
   const tensao = a.tensao_veiculo ? `, alimentado em ${a.tensao_veiculo}` : "";
   return `O comboio mapeado é ${base}${tensao}.`;
@@ -38,7 +38,11 @@ function frasesDosBicos(c: ComboioCtx): string | null {
 function frasesDaMedicao(c: ComboioCtx): string[] {
   const a = c.atributos;
   const frases: string[] = [];
-  if (a.qtd_blocos_medidores) frases.push(`O comboio possui ${a.qtd_blocos_medidores} sistema(s) de abastecimento (bloco medidor).`);
+  if (a.qtd_blocos_medidores) {
+    const n = parseInt(a.qtd_blocos_medidores, 10);
+    const sistemas = Number.isNaN(n) ? `${a.qtd_blocos_medidores} sistema(s)` : `${n} sistema${n === 1 ? "" : "s"}`;
+    frases.push(`O comboio possui ${sistemas} de abastecimento (bloco medidor).`);
+  }
   if (a.marca_registrador) {
     const altura = a.altura_registrador ? `, instalado a ${medida(a.altura_registrador, "m")} do piso` : "";
     frases.push(`Registrador existente ${a.marca_registrador}${a.modelo_registrador ? ` ${a.modelo_registrador}` : ""}${altura}.`);
