@@ -11,12 +11,15 @@ import { motivoDaSugestao } from "@/lib/laudo/sugestoes";
 export function SugestaoMateriaisModal({
   aberto,
   casoId,
+  tipo = "materiais",
   codigosNaTabela,
   onFechar,
   onAdicionar,
 }: {
   aberto: boolean;
   casoId: string;
+  /** "materiais" = catálogo de materiais; "produtos" = equipamentos marcados para sugestão */
+  tipo?: "materiais" | "produtos";
   /** códigos já presentes na tabela (não são sugeridos de novo) */
   codigosNaTabela: string[];
   onFechar: () => void;
@@ -33,7 +36,7 @@ export function SugestaoMateriaisModal({
     let vivo = true;
     setCarregando(true);
     setErro(null);
-    buscar({ data: { casoId } })
+    buscar({ data: { casoId, tipo } })
       .then((r) => {
         if (!vivo) return;
         setItens(r.materiais as MaterialCatalogo[]);
@@ -44,7 +47,7 @@ export function SugestaoMateriaisModal({
     return () => {
       vivo = false;
     };
-  }, [aberto, casoId, buscar]);
+  }, [aberto, casoId, tipo, buscar]);
 
   const jaTem = useMemo(() => new Set(codigosNaTabela.map((c) => c.trim().toLowerCase()).filter(Boolean)), [codigosNaTabela]);
   const disponiveis = itens.filter((m) => !jaTem.has(m.codigo.trim().toLowerCase()));
@@ -56,7 +59,7 @@ export function SugestaoMateriaisModal({
     });
 
   return (
-    <Modal open={aberto} onClose={onFechar} title="Sugestões de materiais do escopo">
+    <Modal open={aberto} onClose={onFechar} title={tipo === "produtos" ? "Sugestões de equipamentos do escopo" : "Sugestões de materiais do escopo"}>
       <p className="mb-3 text-xs text-muted-foreground">
         Itens do catálogo cujas regras se aplicam a este mapeamento. Marque os que fazem sentido; nada é inserido sem a sua confirmação.
       </p>
@@ -68,7 +71,7 @@ export function SugestaoMateriaisModal({
             <Loader2 className="h-4 w-4 animate-spin" /> Calculando sugestões…
           </p>
         ) : disponiveis.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">Nenhum material novo a sugerir para este mapeamento.</p>
+          <p className="p-3 text-sm text-muted-foreground">{tipo === "produtos" ? "Nenhum equipamento a sugerir para este mapeamento (cadastre regras na tela Catálogo de equipamentos)." : "Nenhum material novo a sugerir para este mapeamento."}</p>
         ) : (
           <ul className="divide-y divide-border">
             {disponiveis.map((m) => (

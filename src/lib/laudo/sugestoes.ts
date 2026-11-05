@@ -77,3 +77,27 @@ export function inserirMateriais(linhas: Linha[], colunas: string[], escolhidos:
   const soEmBranco = linhas.every((l) => l.celulas.every((c) => !c.trim()));
   return soEmBranco ? novas : [...linhas, ...novas];
 }
+
+/** Equipamento do catálogo de produtos visto como item sugerível (mesmas regras dos materiais). */
+export function equipamentoComoMaterial(e: {
+  codigo: string;
+  nome: string;
+  categoria?: string | null;
+  unidade?: string | null;
+  quantidade_padrao?: number | string | null;
+  regra?: MaterialCatalogo["regra"] | null;
+  ativo?: boolean;
+}): MaterialCatalogo {
+  const qtd = Number(e.quantidade_padrao);
+  return {
+    id: e.codigo,
+    codigo: e.codigo,
+    descricao: e.nome,
+    aplicacao: e.categoria ?? null,
+    unidade: e.unidade || "un",
+    quantidade_padrao: Number.isFinite(qtd) && qtd > 0 ? qtd : 1,
+    regra: e.regra ?? {},
+    ativo: e.ativo !== false,
+    ordem: 100,
+  };
+}

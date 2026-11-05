@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contextoRegrasDeVariaveis, inserirMateriais, linhaDoMaterial, motivoDaSugestao, sugerirMateriais } from "./sugestoes";
+import { contextoRegrasDeVariaveis, equipamentoComoMaterial, inserirMateriais, linhaDoMaterial, motivoDaSugestao, sugerirMateriais } from "./sugestoes";
 import type { MaterialCatalogo } from "./regras";
 
 const mat = (codigo: string, regra: MaterialCatalogo["regra"] = {}, extra: Partial<MaterialCatalogo> = {}): MaterialCatalogo => ({
@@ -37,5 +37,14 @@ describe("sugestão de materiais", () => {
   it("explica o motivo da sugestão", () => {
     expect(motivoDaSugestao(mat("A"))).toBe("Aplica-se a todos os mapeamentos");
     expect(motivoDaSugestao(mat("B", { nivel: ["nivel_2"], bitola: ['1"'] }))).toBe('Regra: nível 2, bitola 1"');
+  });
+  it("equipamento do catálogo entra como item sugerível, com as mesmas regras", () => {
+    const e = equipamentoComoMaterial({ codigo: "NOVO-1", nome: "Sensor X", categoria: "Sensores", unidade: null, quantidade_padrao: "2", regra: { nivel: ["nivel_2"] } });
+    expect(e).toMatchObject({ id: "NOVO-1", codigo: "NOVO-1", descricao: "Sensor X", aplicacao: "Sensores", unidade: "un", quantidade_padrao: 2, ativo: true });
+    const ctx2 = contextoRegrasDeVariaveis(v({ nivel_servico: "nivel_2" }) as any);
+    const ctx1 = contextoRegrasDeVariaveis(v({ nivel_servico: "nivel_1" }) as any);
+    expect(sugerirMateriais([e], ctx2, [], ["Código", "Descrição", "Qtd."])).toHaveLength(1);
+    expect(sugerirMateriais([e], ctx1, [], ["Código", "Descrição", "Qtd."])).toHaveLength(0);
+    expect(equipamentoComoMaterial({ codigo: "A", nome: "a", quantidade_padrao: "x" }).quantidade_padrao).toBe(1);
   });
 });

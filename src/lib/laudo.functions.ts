@@ -547,10 +547,13 @@ export const salvarCabecalhoLaudo = createServerFn({ method: "POST" })
     return { meta };
   });
 
-/** Materiais do catálogo que as regras indicam para o caso (só sugestão: o especialista escolhe o que entra). */
+/**
+ * Itens que as regras indicam para o caso (só sugestão: o especialista escolhe o que entra).
+ * `materiais` vem do catálogo de materiais; `produtos` dos equipamentos marcados para sugestão.
+ */
 export const sugerirMateriaisLaudo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => CasoInput.parse(i))
+  .inputValidator((i) => z.object({ casoId: z.string().uuid(), tipo: z.enum(["materiais", "produtos"]).default("materiais") }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: caso, error } = await context.supabase
       .from("casos")
@@ -558,14 +561,24 @@ export const sugerirMateriaisLaudo = createServerFn({ method: "POST" })
       .eq("id", data.casoId)
       .maybeSingle();
     if (error) throw new Error(error.message);
+    const { contextoRegrasDeVariaveis, equipamentoComoMaterial } = await import("@/lib/laudo/sugestoes");
+    const { materiaisAplicaveis } = await import("@/lib/laudo/regras");
+    const ctx = contextoRegrasDeVariaveis((caso?.laudo_variaveis ?? {}) as VariaveisLaudo);
+    if (data.tipo === "produtos") {
+      const { data: eq, error: e3 } = await (context.supabase as any)
+        .from("produtos_catalogo")
+        .select("codigo, nome, categoria, unidade, quantidade_padrao, regra, ativo")
+        .eq("ativo", true)
+        .eq("sugerir", true);
+      // migration da 4C ainda não aplicada: sem sugestões, sem erro
+      if (e3) return { materiais: [] as any[] };
+      return { materiais: materiaisAplicaveis((eq ?? []).map(equipamentoComoMaterial), ctx) };
+    }
     const { data: catalogo, error: e2 } = await context.supabase
       .from("catalogo_materiais")
       .select("id, codigo, descricao, aplicacao, unidade, quantidade_padrao, regra, ativo, ordem")
       .eq("ativo", true)
       .order("ordem", { ascending: true });
     if (e2) throw new Error(e2.message);
-    const { contextoRegrasDeVariaveis } = await import("@/lib/laudo/sugestoes");
-    const { materiaisAplicaveis } = await import("@/lib/laudo/regras");
-    const ctx = contextoRegrasDeVariaveis((caso?.laudo_variaveis ?? {}) as VariaveisLaudo);
     return { materiais: materiaisAplicaveis((catalogo ?? []) as any, ctx) };
   });

@@ -22,6 +22,7 @@ import { Route as AppAgentePerfilRouteImport } from './routes/app.agente-perfil'
 import { Route as AppBaseConhecimentoRouteImport } from './routes/app.base-conhecimento'
 import { Route as AppBlocosPadraoRouteImport } from './routes/app.blocos-padrao'
 import { Route as AppCasesRouteImport } from './routes/app.cases'
+import { Route as AppCatalogoEquipamentosRouteImport } from './routes/app.catalogo-equipamentos'
 import { Route as AppCatalogoMateriaisRouteImport } from './routes/app.catalogo-materiais'
 import { Route as AppClientsRouteImport } from './routes/app.clients'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
@@ -111,6 +112,11 @@ const AppBlocosPadraoRoute = AppBlocosPadraoRouteImport.update({
 const AppCasesRoute = AppCasesRouteImport.update({
   id: '/cases',
   path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogoEquipamentosRoute = AppCatalogoEquipamentosRouteImport.update({
+  id: '/catalogo-equipamentos',
+  path: '/catalogo-equipamentos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCatalogoMateriaisRoute = AppCatalogoMateriaisRouteImport.update({
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-equipamentos': typeof AppCatalogoEquipamentosRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-equipamentos': typeof AppCatalogoEquipamentosRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/app/base-conhecimento': typeof AppBaseConhecimentoRoute
   '/app/blocos-padrao': typeof AppBlocosPadraoRoute
   '/app/cases': typeof AppCasesRoute
+  '/app/catalogo-equipamentos': typeof AppCatalogoEquipamentosRoute
   '/app/catalogo-materiais': typeof AppCatalogoMateriaisRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/app/base-conhecimento'
     | '/app/blocos-padrao'
     | '/app/cases'
+    | '/app/catalogo-equipamentos'
     | '/app/catalogo-materiais'
     | '/app/clients'
     | '/app/configuracoes'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/app/base-conhecimento'
     | '/app/blocos-padrao'
     | '/app/cases'
+    | '/app/catalogo-equipamentos'
     | '/app/catalogo-materiais'
     | '/app/configuracoes'
     | '/app/dashboard'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/app/base-conhecimento'
     | '/app/blocos-padrao'
     | '/app/cases'
+    | '/app/catalogo-equipamentos'
     | '/app/catalogo-materiais'
     | '/app/clients'
     | '/app/configuracoes'
@@ -583,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/cases'
       fullPath: '/app/cases'
       preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/catalogo-equipamentos': {
+      id: '/app/catalogo-equipamentos'
+      path: '/catalogo-equipamentos'
+      fullPath: '/app/catalogo-equipamentos'
+      preLoaderRoute: typeof AppCatalogoEquipamentosRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/catalogo-materiais': {
@@ -800,6 +819,7 @@ interface AppRouteChildren {
   AppBaseConhecimentoRoute: typeof AppBaseConhecimentoRoute
   AppBlocosPadraoRoute: typeof AppBlocosPadraoRoute
   AppCasesRoute: typeof AppCasesRoute
+  AppCatalogoEquipamentosRoute: typeof AppCatalogoEquipamentosRoute
   AppCatalogoMateriaisRoute: typeof AppCatalogoMateriaisRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -827,6 +847,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBaseConhecimentoRoute: AppBaseConhecimentoRoute,
   AppBlocosPadraoRoute: AppBlocosPadraoRoute,
   AppCasesRoute: AppCasesRoute,
+  AppCatalogoEquipamentosRoute: AppCatalogoEquipamentosRoute,
   AppCatalogoMateriaisRoute: AppCatalogoMateriaisRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppConfiguracoesRoute: AppConfiguracoesRoute,

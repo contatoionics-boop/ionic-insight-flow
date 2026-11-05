@@ -778,24 +778,21 @@ function EditorBloco({
                 <Button variant="secondary" onClick={() => setBuscandoProduto(true)}>
                   <Search className="mr-2 h-4 w-4" /> Buscar no catálogo
                 </Button>
-                {bloco.colunas.some((c) => /^aplic/i.test(c.normalize("NFD").replace(/\p{Diacritic}/gu, ""))) && (
-                  <>
-                    <Button variant="secondary" onClick={() => setSugerindo(true)}>
-                      <Sparkles className="mr-2 h-4 w-4" /> Sugerir itens do escopo
-                    </Button>
-                    <SugestaoMateriaisModal
-                      aberto={sugerindo}
-                      casoId={casoId}
-                      codigosNaTabela={bloco.linhas.map((l) => l.celulas[bloco.colunas.findIndex((c) => /^c[oó]digo/i.test(c))] ?? "")}
-                      onFechar={() => setSugerindo(false)}
-                      onAdicionar={(escolhidos) => {
-                        onChange({ ...bloco, linhas: inserirMateriais(bloco.linhas, bloco.colunas, escolhidos) });
-                        setSugerindo(false);
-                        toast.success(`${escolhidos.length} material(is) adicionado(s). Revise as quantidades.`);
-                      }}
-                    />
-                  </>
-                )}
+                <Button variant="secondary" onClick={() => setSugerindo(true)}>
+                  <Sparkles className="mr-2 h-4 w-4" /> Sugerir itens do escopo
+                </Button>
+                <SugestaoMateriaisModal
+                  aberto={sugerindo}
+                  casoId={casoId}
+                  tipo={bloco.colunas.some((c) => /^aplic/i.test(c.normalize("NFD").replace(/\p{Diacritic}/gu, ""))) ? "materiais" : "produtos"}
+                  codigosNaTabela={bloco.linhas.map((l) => l.celulas[bloco.colunas.findIndex((c) => /^c[oó]digo/i.test(c))] ?? "")}
+                  onFechar={() => setSugerindo(false)}
+                  onAdicionar={(escolhidos) => {
+                    onChange({ ...bloco, linhas: inserirMateriais(bloco.linhas, bloco.colunas, escolhidos) });
+                    setSugerindo(false);
+                    toast.success(`${escolhidos.length} item(ns) adicionado(s). Revise as quantidades.`);
+                  }}
+                />
                 <BuscaProdutoModal
                   aberto={buscandoProduto}
                   onFechar={() => setBuscandoProduto(false)}

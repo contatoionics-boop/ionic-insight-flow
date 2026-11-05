@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Search } from "lucide-react";
 
-import { Input, Modal } from "@/components/ui-bits";
+import { toast } from "sonner";
+import { Button, Input, Modal } from "@/components/ui-bits";
+import { salvarEquipamento } from "@/lib/equipamentos-catalogo.functions";
 import { buscarProdutosCatalogo, type ProdutoCatalogo } from "@/lib/produtos-catalogo.functions";
 
 /** Busca no catálogo de produtos ativos (código + nome) para preencher uma linha de tabela do documento. */
@@ -16,6 +18,11 @@ export function BuscaProdutoModal({
   onEscolher: (p: ProdutoCatalogo) => void;
 }) {
   const buscar = useServerFn(buscarProdutosCatalogo);
+  const cadastrar = useServerFn(salvarEquipamento);
+  const [novo, setNovo] = useState(false);
+  const [codigoNovo, setCodigoNovo] = useState("");
+  const [nomeNovo, setNomeNovo] = useState("");
+  const [salvando, setSalvando] = useState(false);
   const [texto, setTexto] = useState("");
   const [itens, setItens] = useState<ProdutoCatalogo[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -85,6 +92,46 @@ export function BuscaProdutoModal({
         {itens.length >= 30 ? "Mostrando os 30 primeiros; refine a busca para ver outros. " : ""}
         Lista carregada do relatório de produtos ativos, até a integração com o Protheus.
       </p>
+      <div className="mt-3 border-t border-border pt-3">
+        {!novo ? (
+          <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => { setNovo(true); setNomeNovo(texto); }}>
+            Não achou? Cadastrar equipamento novo
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Use o código do Protheus; se o equipamento ainda não tem código, informe um provisório (ex.: NOVO-001). Ele fica no catálogo para os próximos mapeamentos.
+            </p>
+            <div className="grid grid-cols-[9rem_1fr] gap-2">
+              <Input placeholder="Código" value={codigoNovo} onChange={(e) => setCodigoNovo(e.target.value)} />
+              <Input placeholder="Nome do equipamento" value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setNovo(false)}>Cancelar</Button>
+              <Button
+                disabled={salvando || codigoNovo.trim().length < 2 || nomeNovo.trim().length < 2}
+                onClick={async () => {
+                  setSalvando(true);
+                  try {
+                    const r = await cadastrar({ data: { codigo: codigoNovo.trim(), nome: nomeNovo.trim(), somenteNovo: true } });
+                    toast.success(`${r.codigo} cadastrado no catálogo.`);
+                    setNovo(false);
+                    setCodigoNovo("");
+                    setNomeNovo("");
+                    onEscolher({ codigo: r.codigo, nome: r.nome });
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "Não foi possível cadastrar o equipamento.");
+                  } finally {
+                    setSalvando(false);
+                  }
+                }}
+              >
+                {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Cadastrar e usar
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
