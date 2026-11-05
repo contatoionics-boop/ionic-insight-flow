@@ -16,6 +16,7 @@ import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { blocosComboio } from "./secoes/comboio";
+import { blocosDiv, blocosRfid, blocosTx } from "./secoes/extras";
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -485,11 +486,15 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   }
 
   // ---------- VII. Blocos padrão condicionais (Nível 2 / Comboio) ----------
-  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura }));
+  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura, solucao: solucaoEscopo, comboioNoEscopo: !!entrada.contexto?.escopo.temComboio }));
   if (nivel2) {
     // conclusões da análise técnica sobre bicos seguem após a seção estrutural
     blocos.push(...secao("2.4"));
   }
+
+  // ---------- RFID, DIV e TX: só quando o Escopo os define ----------
+  const extra = { contexto: entrada.contexto ?? null, id: bid };
+  blocos.push(...(blocosRfid(extra) ?? []), ...(blocosDiv({ ...extra, nivel2 }) ?? []), ...(blocosTx(extra) ?? []));
 
 
   // ---------- 3. Instruções gerais ----------

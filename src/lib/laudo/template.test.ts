@@ -72,8 +72,10 @@ describe("seção 2.1 — Equipamentos de TI e banco de dados", () => {
     });
     expect(temHeading(blocos, "Equipamentos de TI e banco de dados")).toBe(false);
     const t = texto(blocos);
-    expect(t).toContain("2.4. bicos de abastecimento");
-    expect(t).not.toContain("2.4.1");
+    // título sem número no texto (a numeração é automática)
+    expect(t).toContain('"chave":"nivel2:2.4"');
+    expect(t).toContain('"texto":"bicos de abastecimento"');
+    expect(t).not.toContain("nivel2:2.4.1");
   });
 });
 

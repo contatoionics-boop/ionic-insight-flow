@@ -136,9 +136,10 @@ export function blocos24(opcoes: OpcoesNivel2 = {}): BlocoLaudo[] {
       id: criarId(opcoes, "h"),
       chave: "nivel2:2.4",
       tipo: "heading",
-      numero: null,
+      // numeração automática (renumerar): o número nunca fica fixo no texto
+      numero: "2.4",
       nivel: 2,
-      texto: "2.4. BICOS DE ABASTECIMENTO",
+      texto: "Bicos de abastecimento",
     } as BlocoLaudo,
     p(
       "nivel2:2.4:texto-1",
@@ -190,9 +191,9 @@ export function blocos241(opcoes: OpcoesNivel2 = {}): BlocoLaudo[] {
       id: criarId(opcoes, "h"),
       chave: "nivel2:2.4.1",
       tipo: "heading",
-      numero: null,
+      numero: "2.4.1",
       nivel: 3,
-      texto: "2.4.1. ADEQUAÇÃO DO SUPORTE/DESCANSO DO BICO - COMBOIOS",
+      texto: "Adequação do suporte/descanso do bico - Comboios",
     } as BlocoLaudo,
     p(
       "nivel2:2.4.1:texto-1",
@@ -211,23 +212,28 @@ export type EntradaBlocosNivel2 = {
   variaveis: VariaveisLaudo;
   bid: (prefixo: string) => string;
   proximaFigura: () => number;
+  /** nome da solução vindo do Escopo (fonte de verdade); sem ele, cai no nome textual */
+  solucao?: string | null;
+  /** o Escopo tem comboio: liga o 2.4.1 além da evidência confirmada nas variáveis */
+  comboioNoEscopo?: boolean;
 };
 
 /**
- * Seção VII do documento de instruções. Só é emitida para escopo Nível 2;
- * o tópico 2.4.1 só entra quando o escopo inclui comboio.
+ * Bicos de abastecimento (Nível 2 / NLDIV), conteúdo literal do documento de instruções.
+ * Só é emitido para escopo Nível 2; o tópico 2.4.1 só entra quando há comboio (Escopo ou
+ * evidência confirmada). Os títulos são numerados automaticamente; o título interno
+ * "VII. Instruções…" do documento de instruções não vai para o resultado do cliente.
  */
 export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
   const { nivel, variaveis, bid, proximaFigura } = entrada;
   if (!ehNivel2(nivel)) return [];
 
   const opcoes: OpcoesNivel2 = {
-    solucao: nomeSolucaoNivel2(variaveis),
+    solucao: entrada.solucao || nomeSolucaoNivel2(variaveis),
     id: bid,
     proximaFigura,
   };
-  const comboioConfirmado = temComboio(variaveis);
-  const out = [blocoSecaoVII(opcoes, comboioConfirmado), ...blocos24(opcoes)];
-  if (comboioConfirmado) out.push(...blocos241(opcoes));
+  const out = blocos24(opcoes);
+  if (entrada.comboioNoEscopo || temComboio(variaveis)) out.push(...blocos241(opcoes));
   return out;
 }
