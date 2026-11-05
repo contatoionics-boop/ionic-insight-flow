@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
+import { EXIGENCIAS, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
 
 export type BlocoPadrao = {
   id: string;
@@ -36,6 +37,15 @@ const SalvarInput = z.object({
   titulo_secao: z.string().optional().nullable(),
   ativo: z.boolean().default(true),
   ordem: z.number().int().default(0),
+  /** quando o bloco entra sozinho no documento (vazio/ausente = só inserção manual) */
+  regra: z
+    .object({
+      automatico: z.boolean(),
+      solucao: z.array(z.string()).default([]),
+      nivel: z.array(z.string()).default([]),
+      exige: z.array(z.enum(EXIGENCIAS)).default([]),
+    })
+    .optional(),
 });
 
 /** Converte o texto do editor em blocos do laudo. */
@@ -84,7 +94,7 @@ export const salvarBlocoPadrao = createServerFn({ method: "POST" })
       descricao: data.descricao?.trim() || null,
       categoria: data.categoria,
       blocos: corpoParaBlocos(data.corpo, data.titulo_secao) as any,
-      escopo: {} as any,
+      escopo: regraParaEscopo(data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [] }) as any,
       ativo: data.ativo,
       ordem: data.ordem,
       criado_por: context.userId,

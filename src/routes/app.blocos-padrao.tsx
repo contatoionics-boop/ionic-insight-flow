@@ -12,6 +12,15 @@ import {
   salvarBlocoPadrao,
   type BlocoPadrao,
 } from "@/lib/blocos-padrao.functions";
+import {
+  EXIGENCIAS,
+  NIVEIS_REGRA,
+  ROTULO_EXIGENCIA,
+  SOLUCOES_REGRA,
+  lerRegra,
+  resumoDaRegra,
+  type RegraBlocoPadrao,
+} from "@/lib/laudo/blocos-padrao-regras";
 
 export const Route = createFileRoute("/app/blocos-padrao")({
   component: BlocosPadraoPage,
@@ -43,6 +52,7 @@ type Form = {
   corpo: string;
   ativo: boolean;
   ordem: number;
+  regra: RegraBlocoPadrao;
 };
 
 const VAZIO: Form = {
@@ -53,6 +63,7 @@ const VAZIO: Form = {
   corpo: "",
   ativo: true,
   ordem: 100,
+  regra: { automatico: false, solucao: [], nivel: [], exige: [] },
 };
 
 function corpoDosBlocos(b: BlocoPadrao): string {
@@ -103,6 +114,7 @@ function BlocosPadraoPage() {
       corpo: corpoDosBlocos(b),
       ativo: b.ativo,
       ordem: b.ordem,
+      regra: lerRegra(b.escopo),
     });
     setAberto(true);
   }
@@ -120,6 +132,7 @@ function BlocosPadraoPage() {
           corpo: form.corpo,
           ativo: form.ativo,
           ordem: Number(form.ordem) || 0,
+          regra: form.regra,
         },
       });
       toast.success("Bloco padrão salvo.");
@@ -179,6 +192,7 @@ function BlocosPadraoPage() {
                   {b.nome}
                   <Badge className="bg-muted text-muted-foreground">{b.categoria}</Badge>
                   {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativo</Badge>}
+                  {lerRegra(b.escopo).automatico && <Badge className="bg-primary/10 text-primary">{resumoDaRegra(lerRegra(b.escopo))}</Badge>}
                 </p>
                 {b.descricao && <p className="text-xs text-muted-foreground">{b.descricao}</p>}
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -248,6 +262,43 @@ function BlocosPadraoPage() {
             />
           </div>
 
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={form.regra.automatico}
+                onChange={(e) => setForm({ ...form, regra: { ...form.regra, automatico: e.target.checked } })}
+              />
+              Inserir automaticamente no documento
+            </label>
+            {form.regra.automatico && (
+              <div className="space-y-2 text-xs">
+                <p className="text-muted-foreground">
+                  O bloco entra antes das Instruções gerais, quando o mapeamento atender a TODAS as condições marcadas
+                  (grupo sem marcação = qualquer). Depois de entrar, o especialista pode editar o texto.
+                </p>
+                <GrupoMarcas
+                  titulo="Solução"
+                  opcoes={SOLUCOES_REGRA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                  marcados={form.regra.solucao}
+                  onChange={(solucao) => setForm({ ...form, regra: { ...form.regra, solucao } })}
+                />
+                <GrupoMarcas
+                  titulo="Nível de serviço"
+                  opcoes={NIVEIS_REGRA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                  marcados={form.regra.nivel}
+                  onChange={(nivel) => setForm({ ...form, regra: { ...form.regra, nivel } })}
+                />
+                <GrupoMarcas
+                  titulo="Só quando o Escopo tiver"
+                  opcoes={EXIGENCIAS.map((x) => ({ valor: x, rotulo: ROTULO_EXIGENCIA[x] }))}
+                  marcados={form.regra.exige}
+                  onChange={(exige) => setForm({ ...form, regra: { ...form.regra, exige: exige as RegraBlocoPadrao["exige"] } })}
+                />
+              </div>
+            )}
+          </div>
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -266,6 +317,36 @@ function BlocosPadraoPage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function GrupoMarcas({
+  titulo,
+  opcoes,
+  marcados,
+  onChange,
+}: {
+  titulo: string;
+  opcoes: { valor: string; rotulo: string }[];
+  marcados: string[];
+  onChange: (v: string[]) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 font-medium">{titulo}</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {opcoes.map((o) => (
+          <label key={o.valor} className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={marcados.includes(o.valor)}
+              onChange={(e) => onChange(e.target.checked ? [...marcados, o.valor] : marcados.filter((x) => x !== o.valor))}
+            />
+            {o.rotulo}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

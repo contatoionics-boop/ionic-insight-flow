@@ -269,7 +269,20 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { completarVariaveis } = await import("@/lib/laudo/contexto");
   const variaveisDaVisita = completarVariaveis(variaveis, contexto, (chave, valor): VariaveisLaudo[string] => ({ chave, valor, origem: "formulario", confianca: 1 }));
 
+  // Blocos padrão com inserção automática (regra gravada em `escopo`); falha na leitura não derruba a geração.
+  let blocosPadrao: import("@/lib/laudo/blocos-padrao-regras").BlocoPadraoAuto[] = [];
+  try {
+    const { data: padroes } = await supabase
+      .from("blocos_padrao")
+      .select("id, nome, escopo, blocos, ordem")
+      .eq("ativo", true);
+    blocosPadrao = ((padroes ?? []) as any[]).filter((p) => p?.escopo?.automatico === true);
+  } catch {
+    // sem blocos padrão automáticos
+  }
+
   const { blocos, achados } = montarBlocosEAnalise({
+    blocosPadrao,
     achadosDescartados: descartados,
     produtosProposta,
     contexto,

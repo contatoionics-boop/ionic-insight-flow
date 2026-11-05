@@ -17,6 +17,7 @@ import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achad
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { blocosComboio } from "./secoes/comboio";
 import { blocosDiv, blocosRfid, blocosTx } from "./secoes/extras";
+import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./blocos-padrao-regras";
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
@@ -41,6 +42,8 @@ export type EntradaTemplate = {
   produtosProposta?: ProdutoProposta[];
   /** Escopo + respostas por entidade (bombas, comboios…): alimenta a seção Projeto */
   contexto?: ContextoLaudo | null;
+  /** blocos padrão com regra de inserção automática (cadastrados em "Blocos padrão") */
+  blocosPadrao?: BlocoPadraoAuto[];
 };
 
 /** chaves de texto livre onde valores sem sentido não podem ir para o documento */
@@ -494,7 +497,12 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
 
   // ---------- RFID, DIV e TX: só quando o Escopo os define ----------
   const extra = { contexto: entrada.contexto ?? null, id: bid };
-  blocos.push(...(blocosRfid(extra) ?? []), ...(blocosDiv({ ...extra, nivel2 }) ?? []), ...(blocosTx(extra) ?? []));
+  // Blocos padrão automáticos (regras em dados): um padrão que exige TX substitui o espaço vazio da TX.
+  const avaliacao = { nivel: nivel ?? null, contexto: entrada.contexto ?? null };
+  const padroes = entrada.blocosPadrao ?? [];
+  const txCoberta = padraoCobre(padroes, avaliacao, "tx");
+  blocos.push(...(blocosRfid(extra) ?? []), ...(blocosDiv({ ...extra, nivel2 }) ?? []), ...(txCoberta ? [] : blocosTx(extra) ?? []));
+  blocos.push(...blocosPadraoAutomaticos(padroes, avaliacao, bid));
 
 
   // ---------- 3. Instruções gerais ----------
