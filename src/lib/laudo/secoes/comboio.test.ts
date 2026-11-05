@@ -72,6 +72,28 @@ describe("Caminhão comboio por unidade", () => {
     }
     expect(blocos.find((x) => x.chave === "comboio:c1:layout").legenda).toBe("Layout — Comboio 400");
   });
+  it("espaço do T1000 só com solução On-premise; aviso das listas só no mapeamento remoto", () => {
+    const chaves = (b: any[] | null) => (b ?? []).map((x) => x.chave);
+    const com = (solucao: string | null) => montarContextoLaudo({ entidades, arvore: { ...arvoreVazia(), config: { solucao } as any }, respostas });
+    const onprem = blocosComboio({ contexto: com("on_premise"), id: ids, remoto: true }) as any[];
+    expect(chaves(onprem)).toEqual(expect.arrayContaining(["comboio:espaco_terminal", "comboio:aviso_listas"]));
+    expect(onprem.find((x) => x.chave === "comboio:espaco_terminal").texto).toContain("0,55x0,55x0,25 m");
+    expect(onprem.find((x) => x.chave === "comboio:aviso_listas").tipo).toBe("observacao");
+    // ambos vêm antes do primeiro comboio
+    expect(onprem.findIndex((x) => x.chave === "comboio:aviso_listas")).toBeLessThan(onprem.findIndex((x) => x.chave === "comboio:c1:titulo"));
+    // presencial: sem aviso; SSGFrota ou sem solução: sem afirmação sobre o T1000
+    expect(chaves(blocosComboio({ contexto: com("on_premise"), id: ids }))).not.toContain("comboio:aviso_listas");
+    for (const s of ["ssg_frota", null]) expect(chaves(blocosComboio({ contexto: com(s), id: ids, remoto: true }))).not.toContain("comboio:espaco_terminal");
+    expect(chaves(blocosComboio({ contexto: com("ssg_frota"), id: ids, remoto: true }))).toContain("comboio:aviso_listas");
+  });
+  it("no documento, a modalidade do caso decide o aviso", () => {
+    const ctx = montarContextoLaudo({ entidades, arvore: { ...arvoreVazia(), config: { solucao: "on_premise" } as any }, respostas });
+    const cab = { cliente: "C", unidade: "U", data: "01/01/2026", agente: "A", especialista: "P" };
+    const tem = (modalidade: string) => (montarBlocos({ variaveis: {}, materiais: [], cabecalho: { ...cab, modalidade }, contexto: ctx }) as any[]).some((x) => x.chave === "comboio:aviso_listas");
+    expect(tem("remoto")).toBe(true);
+    expect(tem("Remoto")).toBe(true);
+    expect(tem("presencial")).toBe(false);
+  });
   it("sem comboios no Escopo a seção não existe", () => {
     const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
     expect(blocosComboio({ contexto: c, id: ids })).toBeNull();

@@ -79,12 +79,26 @@ function pontosDeAtencao(c: ComboioCtx): string[] {
  * Blocos do caminhão comboio, um grupo por comboio do Escopo; `null` quando o Escopo não tem comboios
  * (a seção não aparece).
  */
-export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string }): BlocoLaudo[] | null {
+export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string; remoto?: boolean }): BlocoLaudo[] | null {
   const { contexto, id } = entrada;
   if (!contexto?.escopo.temComboio || !contexto.comboios.length) return null;
   const varios = contexto.comboios.length > 1;
   const meta = { origem: "dynamic", editavel: true, removivel: true } as const;
   const blocos: BlocoLaudo[] = [{ id: id("h"), chave: "comboio:titulo", tipo: "heading", numero: "2.4", texto: "Caminhão comboio", nivel: 2, ...meta } as BlocoLaudo];
+
+  // texto fixo do documento de referência: o T1000 é o terminal da solução On-premise (SAAF);
+  // sem solução definida, ou em SSGFrota, não se afirma nada sobre o terminal
+  if (contexto.escopo.solucao === "on_premise")
+    blocos.push({
+      id: id("p"), chave: "comboio:espaco_terminal", tipo: "paragraph", ...meta,
+      texto: "Para instalação do T1000 será necessário que o compartimento no qual estão alocados os dispositivos de abastecimento (Bloco Medidor/Carretel da Mangueira) disponha minimamente de 0,55x0,55x0,25 m.",
+    } as BlocoLaudo);
+  // mapeamento remoto: as listas vêm só do que o cliente informou e fotografou
+  if (entrada.remoto)
+    blocos.push({
+      id: id("o"), chave: "comboio:aviso_listas", tipo: "observacao", titulo: "Listas sujeitas a alteração", ...meta,
+      texto: "As listas de equipamentos IONICS e de materiais de infraestrutura abaixo foram elaboradas a partir das informações e dos registros fotográficos enviados pelo cliente no mapeamento remoto; podem sofrer alterações (inclusões, exclusões ou ajustes de quantidade) após a validação das condições reais de cada comboio.",
+    } as BlocoLaudo);
 
   contexto.comboios.forEach((c, i) => {
     const chave = (sufixo: string) => `comboio:${c.id}:${sufixo}`;
