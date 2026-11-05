@@ -546,3 +546,26 @@ export const salvarCabecalhoLaudo = createServerFn({ method: "POST" })
     const { meta } = await carregarMetaLaudoDoCaso(supabase, data.casoId);
     return { meta };
   });
+
+/** Materiais do catálogo que as regras indicam para o caso (só sugestão: o especialista escolhe o que entra). */
+export const sugerirMateriaisLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => CasoInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: caso, error } = await context.supabase
+      .from("casos")
+      .select("laudo_variaveis")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const { data: catalogo, error: e2 } = await context.supabase
+      .from("catalogo_materiais")
+      .select("id, codigo, descricao, aplicacao, unidade, quantidade_padrao, regra, ativo, ordem")
+      .eq("ativo", true)
+      .order("ordem", { ascending: true });
+    if (e2) throw new Error(e2.message);
+    const { contextoRegrasDeVariaveis } = await import("@/lib/laudo/sugestoes");
+    const { materiaisAplicaveis } = await import("@/lib/laudo/regras");
+    const ctx = contextoRegrasDeVariaveis((caso?.laudo_variaveis ?? {}) as VariaveisLaudo);
+    return { materiais: materiaisAplicaveis((catalogo ?? []) as any, ctx) };
+  });

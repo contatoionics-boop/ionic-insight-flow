@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Sparkles,
   Table as TableIcon,
   Trash2,
 } from "lucide-react";
@@ -31,6 +32,8 @@ import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
 import { BuscaProdutoModal } from "@/components/laudo/BuscaProdutoModal";
 import { CelulaComBusca } from "@/components/laudo/CelulaComBusca";
+import { SugestaoMateriaisModal } from "@/components/laudo/SugestaoMateriaisModal";
+import { inserirMateriais } from "@/lib/laudo/sugestoes";
 import {
   MODELOS_TABELA_PRODUTO,
   aceitaProduto,
@@ -555,6 +558,7 @@ function EditorBloco({
   const [enviando, setEnviando] = useState(false);
   const [desenhando, setDesenhando] = useState(false);
   const [buscandoProduto, setBuscandoProduto] = useState(false);
+  const [sugerindo, setSugerindo] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function upload(file: File) {
@@ -774,6 +778,24 @@ function EditorBloco({
                 <Button variant="secondary" onClick={() => setBuscandoProduto(true)}>
                   <Search className="mr-2 h-4 w-4" /> Buscar no catálogo
                 </Button>
+                {bloco.colunas.some((c) => /^aplic/i.test(c.normalize("NFD").replace(/\p{Diacritic}/gu, ""))) && (
+                  <>
+                    <Button variant="secondary" onClick={() => setSugerindo(true)}>
+                      <Sparkles className="mr-2 h-4 w-4" /> Sugerir itens do escopo
+                    </Button>
+                    <SugestaoMateriaisModal
+                      aberto={sugerindo}
+                      casoId={casoId}
+                      codigosNaTabela={bloco.linhas.map((l) => l.celulas[bloco.colunas.findIndex((c) => /^c[oó]digo/i.test(c))] ?? "")}
+                      onFechar={() => setSugerindo(false)}
+                      onAdicionar={(escolhidos) => {
+                        onChange({ ...bloco, linhas: inserirMateriais(bloco.linhas, bloco.colunas, escolhidos) });
+                        setSugerindo(false);
+                        toast.success(`${escolhidos.length} material(is) adicionado(s). Revise as quantidades.`);
+                      }}
+                    />
+                  </>
+                )}
                 <BuscaProdutoModal
                   aberto={buscandoProduto}
                   onFechar={() => setBuscandoProduto(false)}
