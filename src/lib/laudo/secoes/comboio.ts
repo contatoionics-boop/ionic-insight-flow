@@ -101,6 +101,11 @@ export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (pr
     const itens = pontosDeAtencao(c);
     if (itens.length) blocos.push({ id: id("bl"), chave: chave("pontos_atencao"), tipo: "bullets", itens, ...meta } as BlocoLaudo);
 
+    // layout do comboio: espaço reservado; o especialista cria o desenho técnico (sem vínculo dinâmico)
+    blocos.push({
+      id: id("img"), chave: chave("layout"), tipo: "image", url: "", alt: `Layout do ${c.identificacao}`, legenda: `Layout — ${c.identificacao}`, larguraMax: 480, ...meta,
+    } as BlocoLaudo);
+
     // tabelas assistidas: nascem com 3 linhas em branco; o especialista inclui só o que se aplica
     blocos.push({
       id: id("t"), chave: chave("equipamentos"), tipo: "table", titulo: `Equipamentos IONICS — ${c.identificacao}`,

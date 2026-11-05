@@ -93,6 +93,10 @@ export function blocosPista(entrada: {
     }
     const itens = [...new Set([...pontosDeAtencao(b), ...recomendacoes])];
     if (itens.length) blocos.push({ id: id("bl"), chave: chave("pontos_atencao"), tipo: "bullets", itens, ...meta } as BlocoLaudo);
+    // layout da bomba: espaço reservado; o especialista cria o desenho técnico (sem vínculo dinâmico)
+    blocos.push({
+      id: id("img"), chave: chave("layout"), tipo: "image", url: "", alt: `Layout da ${rotulos[i]}`, legenda: `Layout — ${rotulos[i]}`, larguraMax: 480, ...meta,
+    } as BlocoLaudo);
   });
   return blocos;
 }

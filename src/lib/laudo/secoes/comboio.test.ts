@@ -63,6 +63,15 @@ describe("Caminhão comboio por unidade", () => {
       }
     }
   });
+  it("cada comboio tem um espaço de layout (imagem vazia, chave estável) antes das tabelas", () => {
+    for (const id of ["c1", "c2"]) {
+      const i = blocos.findIndex((x) => x.chave === `comboio:${id}:layout`);
+      expect(blocos[i]).toMatchObject({ tipo: "image", url: "" });
+      expect(blocos[i].legenda).toMatch(/^Layout — /);
+      expect(blocos.findIndex((x) => x.chave === `comboio:${id}:equipamentos`)).toBeGreaterThan(i);
+    }
+    expect(blocos.find((x) => x.chave === "comboio:c1:layout").legenda).toBe("Layout — Comboio 400");
+  });
   it("sem comboios no Escopo a seção não existe", () => {
     const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
     expect(blocosComboio({ contexto: c, id: ids })).toBeNull();

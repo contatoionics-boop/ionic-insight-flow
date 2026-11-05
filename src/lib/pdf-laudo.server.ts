@@ -509,6 +509,7 @@ async function figura(
   bloco: Extract<BlocoLaudo, { tipo: "image" }>,
   baseUrl?: string | null,
 ) {
+  if (!bloco.url) return; // espaço de layout ainda sem desenho: não vai ao PDF
   const dados = await carregarFigura(bloco.url, baseUrl);
   if (!dados) return;
   let img: any;

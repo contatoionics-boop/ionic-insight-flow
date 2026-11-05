@@ -32,6 +32,13 @@ describe("Pista por bomba", () => {
     const chaves = blocos.map((b) => b.chave);
     expect(new Set(chaves).size).toBe(chaves.length);
   });
+  it("cada bomba tem um espaço de layout (imagem vazia, chave estável), sem ir ao PDF enquanto vazio", () => {
+    for (const id of ["b1", "b2", "b3"]) {
+      const l = blocos.find((b) => b.chave === `bomba:${id}:layout`);
+      expect(l).toMatchObject({ tipo: "image", url: "" });
+      expect(l.legenda).toMatch(/^Layout — Bomba 0\d$/);
+    }
+  });
   it("o resumo usa só as respostas da própria bomba", () => {
     const b1 = textos(blocos, "b1");
     expect(b1).toContain("bomba mecânica Wayne");
