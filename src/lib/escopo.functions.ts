@@ -46,6 +46,8 @@ const ArvoreSchema = z.object({
   config: z.object({
     solucao: z.string().max(100).nullable().optional(),
     comunicacao: z.enum(["wifi", "4g", "ambos"]).nullable().optional(),
+    comunicacao_posto: z.enum(["wifi", "4g", "ambos"]).nullable().optional(),
+    comunicacao_comboio: z.enum(["wifi", "4g", "ambos"]).nullable().optional(),
     rfid: z
       .object({
         ativo: z.boolean(),

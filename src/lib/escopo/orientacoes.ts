@@ -32,8 +32,14 @@ export function montarOrientacoes(
     linhas.push(`TX: ${cfg.tx.itens.map((i) => `${i.quantidade}× ${i.modelo}`).join(", ")}`);
   if (cfg?.outros?.length)
     linhas.push(`Outros dispositivos: ${cfg.outros.map((o) => `${o.quantidade}× ${o.nome}`).join(", ")}`);
-  const comunicacao = arvore.config?.comunicacao || escopo?.comunicacao_prevista?.valor;
-  if (comunicacao) linhas.push(`Comunicação prevista: ${COMUNICACAO[comunicacao] ?? comunicacao}`);
+  const cfgCom = arvore.config;
+  if (cfgCom?.comunicacao_posto || cfgCom?.comunicacao_comboio) {
+    if (cfgCom.comunicacao_posto) linhas.push(`Comunicação prevista (posto): ${COMUNICACAO[cfgCom.comunicacao_posto] ?? cfgCom.comunicacao_posto}`);
+    if (cfgCom.comunicacao_comboio) linhas.push(`Comunicação prevista (comboio): ${COMUNICACAO[cfgCom.comunicacao_comboio] ?? cfgCom.comunicacao_comboio}`);
+  } else {
+    const comunicacao = cfgCom?.comunicacao || escopo?.comunicacao_prevista?.valor;
+    if (comunicacao) linhas.push(`Comunicação prevista: ${COMUNICACAO[comunicacao] ?? comunicacao}`);
+  }
 
   const r = resumoArvore(arvore);
   const estrutura: string[] = [];

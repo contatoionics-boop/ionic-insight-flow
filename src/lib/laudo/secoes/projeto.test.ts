@@ -190,3 +190,27 @@ describe("TI/banco de dados pela solução do Escopo e contato do cliente", () =
     expect(intro).toContain("(Mateus - (17) 99605-2315)");
   });
 });
+
+describe("Projeto — conexão de dados separada por posto e comboio", () => {
+  const com = (cfg: any) => {
+    const ctx = montarContextoLaudo({ entidades, arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }], config: { solucao: "on_premise", ...cfg } }, respostas });
+    const b = blocosProjeto({ contexto: ctx, vars: {}, nivel: "nivel_1", id: ids });
+    return { posto: tab(b, "projeto:comunicacao_pista").linhas[0].celulas[0], comboio: tab(b, "projeto:comunicacao_comboio").linhas[0].celulas[0] };
+  };
+  it("posto e comboio podem usar modelos diferentes", () => {
+    expect(com({ comunicacao_posto: "wifi", comunicacao_comboio: "4g" })).toEqual({
+      posto: "Comunicação via Wi-Fi",
+      comboio: "Comunicação via 4G (GPRS/GSM)",
+    });
+    expect(com({ comunicacao_posto: "ambos", comunicacao_comboio: "wifi" }).posto).toBe("Comunicação via Wi-Fi e 4G (GPRS/GSM)");
+  });
+  it("sem a específica, vale a conexão única das versões antigas; a específica vence a única", () => {
+    expect(com({ comunicacao: "4g" })).toEqual({ posto: "Comunicação via 4G (GPRS/GSM)", comboio: "Comunicação via 4G (GPRS/GSM)" });
+    expect(com({ comunicacao: "4g", comunicacao_comboio: "wifi" })).toEqual({ posto: "Comunicação via 4G (GPRS/GSM)", comboio: "Comunicação via Wi-Fi" });
+  });
+  it("só o lado informado muda; o outro fica a confirmar", () => {
+    const r = com({ comunicacao_posto: "wifi" });
+    expect(r.posto).toBe("Comunicação via Wi-Fi");
+    expect(r.comboio).toContain("[CONFIRMAR");
+  });
+});

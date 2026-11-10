@@ -92,9 +92,14 @@ const COMUNICACAO: Record<string, string> = {
   ambos: "Comunicação via Wi-Fi e 4G (GPRS/GSM)",
 };
 
-/** Tipo de comunicação: o Escopo manda; sem ele, a derivada das respostas (`comunicacao_tipos`). */
-export function textoComunicacao(contexto: ContextoLaudo, vars: VariaveisLaudo): string {
-  const escopo = (contexto.escopo.comunicacao ?? "").toLowerCase();
+/**
+ * Tipo de comunicação: o Escopo manda (a do posto ou a do comboio, que podem ser diferentes; sem a específica
+ * vale a única das versões antigas); sem ele, a derivada das respostas (`comunicacao_tipos`).
+ */
+export function textoComunicacao(contexto: ContextoLaudo, vars: VariaveisLaudo, alvo?: "posto" | "comboio"): string {
+  const e = contexto.escopo;
+  const especifica = alvo === "posto" ? e.comunicacaoPosto : alvo === "comboio" ? e.comunicacaoComboio : null;
+  const escopo = (especifica ?? e.comunicacao ?? "").toLowerCase();
   if (COMUNICACAO[escopo]) return COMUNICACAO[escopo];
   // do próprio mapeamento ou, na falta, de outro da mesma visita (contexto mesclado)
   const derivada = (vars.comunicacao_tipos?.valor || contexto.gerais.comunicacao_tipos || "").toLowerCase();
@@ -129,7 +134,6 @@ export function blocosProjeto(entrada: {
   const solucao = e.solucao ? (SOLUCOES_ESCOPO.find((s) => s.value === e.solucao)?.label ?? e.solucao) : pendencia("solucao", "solução contratada (SSGFrota ou On-premise)");
   blocos.push(tabela(id("t"), "projeto:solucao", "SOLUÇÃO", ["Solução"], [{ celulas: [solucao] } as Linha]));
 
-  const comunicacao = textoComunicacao(contexto, vars);
   if (e.temPista) {
     const rotulos = rotulosDasBombas(contexto.bombas);
     const linhas = contexto.bombas.map((b, i) => linhaDeBomba(rotulos[i], b));
@@ -137,12 +141,12 @@ export function blocosProjeto(entrada: {
       tabela(id("t"), "projeto:posto", "POSTO", ["Bomba", "Vazão", "QTD de bicos", "Bitola do bico"],
         linhas.length ? linhas : [{ celulas: [pendencia("bombas", "bombas do posto"), "", "", ""] } as Linha]),
     );
-    blocos.push(tabela(id("t"), "projeto:comunicacao_pista", "COMUNICAÇÃO (POSTO)", ["Comunicação"], [{ celulas: [comunicacao] } as Linha]));
+    blocos.push(tabela(id("t"), "projeto:comunicacao_pista", "COMUNICAÇÃO (POSTO)", ["Comunicação"], [{ celulas: [textoComunicacao(contexto, vars, "posto")] } as Linha]));
   }
 
   if (e.temComboio) {
     blocos.push(tabela(id("t"), "projeto:comboio", "COMBOIO", ["Frota", "QTD de bicos", "Bitola do bico"], contexto.comboios.map(linhaDeComboio)));
-    blocos.push(tabela(id("t"), `projeto:comunicacao_${ENTIDADES_DE_COMBOIO}`, "COMUNICAÇÃO (COMBOIO)", ["Comunicação"], [{ celulas: [comunicacao] } as Linha]));
+    blocos.push(tabela(id("t"), `projeto:comunicacao_${ENTIDADES_DE_COMBOIO}`, "COMUNICAÇÃO (COMBOIO)", ["Comunicação"], [{ celulas: [textoComunicacao(contexto, vars, "comboio")] } as Linha]));
   }
 
   // Tecnologia de identificação só vem do dado estruturado do Escopo; sem ele, fica a confirmar (regra a validar com o Robson).

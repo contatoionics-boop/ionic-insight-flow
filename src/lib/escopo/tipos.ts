@@ -125,9 +125,25 @@ export type ItemEquipamento = { codigo?: string; descricao: string; quantidade: 
  * Configuração da versão do Escopo. Dados de escopo (não geram perguntas por item):
  * solução, RFID, TX e outros dispositivos adicionados quando necessário.
  */
+export type ConexaoDados = "wifi" | "4g" | "ambos";
+
+/** Modelos de conexão de dados (o posto e o comboio podem usar modelos diferentes). */
+export const CONEXOES_DADOS: { value: ConexaoDados; label: string }[] = [
+  { value: "wifi", label: "Wi-Fi" },
+  { value: "4g", label: "4G (GPRS/GSM)" },
+  { value: "ambos", label: "Wi-Fi e 4G (GPRS/GSM)" },
+];
+
+export const ehConexaoDados = (v: unknown): v is ConexaoDados => v === "wifi" || v === "4g" || v === "ambos";
+
 export type ConfigEscopo = {
   solucao?: SolucaoEscopo | string | null;
-  comunicacao?: "wifi" | "4g" | "ambos" | null;
+  /** Conexão única (versões antigas): vale para posto e comboio quando não há a específica. */
+  comunicacao?: ConexaoDados | null;
+  /** Conexão de dados do posto / pista. */
+  comunicacao_posto?: ConexaoDados | null;
+  /** Conexão de dados do comboio. */
+  comunicacao_comboio?: ConexaoDados | null;
   rfid?: { ativo: boolean; itens: ItemRfid[] };
   tx?: { ativo: boolean; itens: ItemTx[] };
   outros?: ItemOutroDispositivo[];
@@ -142,6 +158,8 @@ export function normalizarConfig(c: ConfigEscopo | null | undefined): ConfigEsco
   const out: ConfigEscopo = {};
   if (c?.solucao) out.solucao = c.solucao;
   if (c?.comunicacao) out.comunicacao = c.comunicacao;
+  if (ehConexaoDados(c?.comunicacao_posto)) out.comunicacao_posto = c!.comunicacao_posto;
+  if (ehConexaoDados(c?.comunicacao_comboio)) out.comunicacao_comboio = c!.comunicacao_comboio;
   if (c?.rfid?.ativo) {
     out.rfid = {
       ativo: true,

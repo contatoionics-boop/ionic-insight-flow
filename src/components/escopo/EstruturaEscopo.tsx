@@ -6,6 +6,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import { parsearItemProposta } from "@/lib/laudo/produtos-proposta";
 import {
+  CONEXOES_DADOS,
   LIMITES,
   SOLUCOES_ESCOPO,
   pad2,
@@ -14,6 +15,7 @@ import {
   resumoArvore,
   totalRfid,
   type ArvoreEscopo,
+  type ConexaoDados,
   type ConfigEscopo,
   type IlhaArvore,
   type ItemEquipamento,
@@ -91,6 +93,54 @@ export function EstruturaEscopo({
                 ))}
               </select>
             </label>
+          </section>
+
+          {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
+          <section className="rounded-md border border-border p-3">
+            <p className="mb-2 text-sm font-medium">Conexão de dados</p>
+            <div className="space-y-2">
+              {value.postos.length > 0 && (
+                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span>Posto / pista</span>
+                  <select
+                    value={config.comunicacao_posto ?? config.comunicacao ?? ""}
+                    disabled={disabled}
+                    onChange={(e) => setConfig({ comunicacao_posto: (e.target.value || null) as ConexaoDados | null })}
+                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
+                    aria-label="Conexão de dados do posto"
+                  >
+                    <option value="">Não informada</option>
+                    {CONEXOES_DADOS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {value.comboios.length > 0 && (
+                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span>Comboio</span>
+                  <select
+                    value={config.comunicacao_comboio ?? config.comunicacao ?? ""}
+                    disabled={disabled}
+                    onChange={(e) => setConfig({ comunicacao_comboio: (e.target.value || null) as ConexaoDados | null })}
+                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
+                    aria-label="Conexão de dados do comboio"
+                  >
+                    <option value="">Não informada</option>
+                    {CONEXOES_DADOS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {value.postos.length === 0 && value.comboios.length === 0 && (
+                <p className="text-xs text-muted-foreground">Informe a quantidade de postos ou de comboios para definir a conexão de cada um.</p>
+              )}
+            </div>
           </section>
 
           {/* Equipamentos vendidos (proposta) */}

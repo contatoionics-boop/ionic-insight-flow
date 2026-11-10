@@ -37,6 +37,9 @@ export type ComboioCtx = {
 export type EscopoCtx = {
   solucao: string | null;
   comunicacao: string | null;
+  /** conexão de dados do posto e do comboio (cada um pode usar um modelo); sem a específica vale `comunicacao` */
+  comunicacaoPosto: string | null;
+  comunicacaoComboio: string | null;
   temPista: boolean;
   temComboio: boolean;
   qtdPostos: number;
@@ -127,6 +130,8 @@ export function montarContextoLaudo(entrada: {
   const escopo: EscopoCtx = {
     solucao: cfg.solucao ? String(cfg.solucao) : null,
     comunicacao: cfg.comunicacao ?? null,
+    comunicacaoPosto: cfg.comunicacao_posto ?? null,
+    comunicacaoComboio: cfg.comunicacao_comboio ?? null,
     temPista: qtdPostos > 0 || bombas.length > 0,
     temComboio: comboios.length > 0,
     qtdPostos,
@@ -198,6 +203,8 @@ function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
     ...ea,
     solucao: ea.solucao ?? eb.solucao,
     comunicacao: ea.comunicacao ?? eb.comunicacao,
+    comunicacaoPosto: ea.comunicacaoPosto ?? eb.comunicacaoPosto,
+    comunicacaoComboio: ea.comunicacaoComboio ?? eb.comunicacaoComboio,
     temPista: ea.temPista || eb.temPista || bombas.length > 0,
     temComboio: ea.temComboio || eb.temComboio || comboios.length > 0,
     qtdPostos: Math.max(ea.qtdPostos, eb.qtdPostos),
