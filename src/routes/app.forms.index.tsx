@@ -628,13 +628,13 @@ function FormsPage() {
           <div><Label>Nome</Label><Input required value={fNome} onChange={(e) => setFNome(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={fDesc} onChange={(e) => setFDesc(e.target.value)} /></div>
           <div>
-            <Label>Empresa (opcional)</Label>
+            <Label>Cliente (opcional)</Label>
             <Select value={fEmp} onChange={(e) => setFEmp(e.target.value)}>
-              <option value="">Template (sem empresa)</option>
+              <option value="">Padrão (serve a todos os clientes)</option>
               {empresas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </Select>
             <p className="mt-1 text-xs text-muted-foreground">
-              Deixe sem empresa para criar um template reutilizável.
+              Sem cliente = formulário padrão, que aparece no agendamento de qualquer cliente. Com cliente = formulário feito para a especificidade dele: só aparece quando esse cliente é escolhido no agendamento.
             </p>
           </div>
           <div className="flex justify-end gap-2">

@@ -1,3 +1,4 @@
+import { formulariosVisiveis, qtdDeOutrosClientes } from "@/lib/formularios-visiveis";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,7 +51,7 @@ type EnderecoBase = {
 };
 type Matriz = { id: string; empresa_id: string; nome: string; cnpj: string | null } & EnderecoBase;
 type Unidade = { id: string; matriz_id: string; nome: string; codigo_ionics: string | null } & EnderecoBase;
-type Form = { id: string; nome: string };
+type Form = { id: string; nome: string; empresa_id: string | null };
 type Agente = { id: string; nome: string; user_id: string };
 
 type AgendamentoDraft = {
@@ -174,6 +175,7 @@ function NewCasePage() {
   const [formQtd, setFormQtd] = useState<Record<string, number>>({});
   /** Por formulário: itens do escopo que o sugerem e se já repete perguntas por entidade. */
   const [formMeta, setFormMeta] = useState<Record<string, { sugerirQuando: string[]; repetePorEntidade: boolean }>>({});
+  const [mostrarOutrosClientes, setMostrarOutrosClientes] = useState(false);
   const [agentId, setAgentId] = useState("");
   const [agenteNomeManual, setAgenteNomeManual] = useState("");
   const [tipoSolicitacao, setTipoSolicitacao] = useState<"instalacao" | "upgrade">("instalacao");
@@ -324,7 +326,7 @@ function NewCasePage() {
           .from("unidades")
           .select("id, matriz_id, nome, codigo_ionics, logradouro, numero, bairro, cidade, estado" as any)
           .order("nome"),
-        supabase.from("formularios").select("id, nome").eq("ativo", true).order("nome"),
+        supabase.from("formularios").select("id, nome, empresa_id").eq("ativo", true).order("nome"),
         loadAgents(),
       ]);
       setEmpresas(((e.data ?? []) as unknown) as Empresa[]);
@@ -637,6 +639,20 @@ function NewCasePage() {
     }
   }
 
+  // Formulário de cliente específico só aparece para esse cliente; os padrão (sem cliente) aparecem sempre.
+  const formsVisiveis = useMemo(
+    () => formulariosVisiveis(forms, empresaId, mostrarOutrosClientes),
+    [forms, empresaId, mostrarOutrosClientes],
+  );
+  const outrosEscondidos = useMemo(() => qtdDeOutrosClientes(forms, empresaId), [forms, empresaId]);
+  const nomeDaEmpresa = (id: string | null) => empresas.find((e) => e.id === id)?.nome ?? "outro cliente";
+  // Trocou de cliente: tira da seleção o que deixou de ser visível (formulário de outro cliente).
+  useEffect(() => {
+    if (!forms.length) return;
+    const visiveis = new Set(formsVisiveis.map((f) => f.id));
+    setFormIds((cur) => (cur.every((id) => visiveis.has(id)) ? cur : cur.filter((id) => visiveis.has(id))));
+  }, [forms, formsVisiveis]);
+
   const toggleForm = (id: string) => {
     setFormIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
@@ -652,7 +668,7 @@ function NewCasePage() {
   const sugestoesDoEscopo = useMemo(() => {
     const q = quantidadesDoEscopo(estrutura);
     const out: { form: Form; motivos: string[]; qtd: number }[] = [];
-    for (const f of forms) {
+    for (const f of formsVisiveis) {
       const quando = formMeta[f.id]?.sugerirQuando ?? [];
       const ativos = SUGERIR_QUANDO_OPCOES.filter((o) => quando.includes(o.value) && q[o.value] > 0);
       if (!ativos.length || formIds.includes(f.id)) continue;
@@ -664,7 +680,7 @@ function NewCasePage() {
       });
     }
     return out;
-  }, [forms, formMeta, estrutura, formIds]);
+  }, [formsVisiveis, formMeta, estrutura, formIds]);
 
   const adicionarSugestao = (id: string, qtd: number) => {
     setFormIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
@@ -994,10 +1010,10 @@ function NewCasePage() {
                 </div>
               )}
               <div className="mt-1 max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
-                {forms.length === 0 ? (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário ativo.</p>
+                {formsVisiveis.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">Nenhum formulário disponível para este cliente.</p>
                 ) : (
-                  forms.map((f) => (
+                  formsVisiveis.map((f) => (
                     <label
                       key={f.id}
                       className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50"
@@ -1010,7 +1026,17 @@ function NewCasePage() {
                         aria-label={`Selecionar formulário ${f.nome}`}
                         className="h-4 w-4 rounded border-border disabled:cursor-not-allowed"
                       />
-                      <span className="min-w-0 flex-1 text-foreground">{f.nome}</span>
+                      <span className="min-w-0 flex-1 text-foreground">
+                        {f.nome}
+                        {f.grupo === "cliente" && (
+                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">deste cliente</span>
+                        )}
+                        {f.grupo === "outro" && (
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            de {nomeDaEmpresa(f.empresa_id)}
+                          </span>
+                        )}
+                      </span>
                       {formIds.includes(f.id) && repetePorEntidade(f.id) && (
                         <span className="shrink-0 text-xs text-muted-foreground">cobre todo o escopo</span>
                       )}
@@ -1036,6 +1062,17 @@ function NewCasePage() {
                   ))
                 )}
               </div>
+              {(outrosEscondidos > 0 || mostrarOutrosClientes) && (
+                <label className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={mostrarOutrosClientes}
+                    onChange={(e) => setMostrarOutrosClientes(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border"
+                  />
+                  Mostrar também formulários feitos para outros clientes ({outrosEscondidos})
+                </label>
+              )}
               <p className="mt-1 text-xs text-muted-foreground">
                 {forms.length === 1
                   ? "O único formulário ativo já foi selecionado automaticamente."
