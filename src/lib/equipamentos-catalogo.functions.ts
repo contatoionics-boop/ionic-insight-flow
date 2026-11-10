@@ -27,7 +27,7 @@ const limparTermo = (t: string) =>
 const FALTA_MIGRATION = "O catálogo de equipamentos ainda não foi atualizado no banco (falta aplicar a migration 20261105120000_equipamentos_catalogo).";
 const faltaColuna = (msg: string) => /(column|schema cache)/i.test(msg) && /(sugerir|regra|categoria|quantidade_padrao|unidade)/.test(msg);
 
-/** Lista para a tela de manutenção: busca por código/nome; novos (cadastrados à mão) primeiro. */
+/** Lista para a tela de manutenção: busca por código/nome; novos (origem manual, que vem antes de planilha/protheus em ordem alfabética) primeiro. */
 export const listarEquipamentos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) =>
@@ -41,7 +41,7 @@ export const listarEquipamentos = createServerFn({ method: "POST" })
       q = q.or(`codigo.ilike.%${termo}%,nome.ilike.%${termo}%`);
     }
     if (data.somenteManuais) q = q.eq("origem", "manual");
-    const { data: linhas, error } = await q.order("origem", { ascending: false }).order("nome", { ascending: true }).limit(100);
+    const { data: linhas, error } = await q.order("origem", { ascending: true }).order("nome", { ascending: true }).limit(100);
     if (error) throw new Error(faltaColuna(error.message) ? FALTA_MIGRATION : error.message);
     return ((linhas ?? []) as any[]).map((l) => ({ ...l, quantidade_padrao: Number(l.quantidade_padrao ?? 1) })) as EquipamentoCatalogo[];
   });
