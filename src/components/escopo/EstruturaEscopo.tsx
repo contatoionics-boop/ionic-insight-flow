@@ -95,54 +95,6 @@ export function EstruturaEscopo({
             </label>
           </section>
 
-          {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
-          <section className="rounded-md border border-border p-3">
-            <p className="mb-2 text-sm font-medium">Conexão de dados</p>
-            <div className="space-y-2">
-              {value.postos.length > 0 && (
-                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <span>Posto / pista</span>
-                  <select
-                    value={config.comunicacao_posto ?? config.comunicacao ?? ""}
-                    disabled={disabled}
-                    onChange={(e) => setConfig({ comunicacao_posto: (e.target.value || null) as ConexaoDados | null })}
-                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
-                    aria-label="Conexão de dados do posto"
-                  >
-                    <option value="">Não informada</option>
-                    {CONEXOES_DADOS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {value.comboios.length > 0 && (
-                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <span>Comboio</span>
-                  <select
-                    value={config.comunicacao_comboio ?? config.comunicacao ?? ""}
-                    disabled={disabled}
-                    onChange={(e) => setConfig({ comunicacao_comboio: (e.target.value || null) as ConexaoDados | null })}
-                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
-                    aria-label="Conexão de dados do comboio"
-                  >
-                    <option value="">Não informada</option>
-                    {CONEXOES_DADOS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {value.postos.length === 0 && value.comboios.length === 0 && (
-                <p className="text-xs text-muted-foreground">Informe a quantidade de postos ou de comboios para definir a conexão de cada um.</p>
-              )}
-            </div>
-          </section>
-
           {/* Equipamentos vendidos (proposta) */}
           <section className="rounded-md border border-border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -344,12 +296,60 @@ export function EstruturaEscopo({
           />
           <ColecaoNomeada
             titulo="sonda"
-            tituloPlural="Sondas"
+            tituloPlural="Tanques com medidores"
             itens={value.sondas}
             max={LIMITES.sondas}
             disabled={disabled}
             onChange={(sondas) => set({ sondas })}
           />
+
+          {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
+          <section className="rounded-md border border-border p-3">
+            <p className="mb-2 text-sm font-medium">Conexão de dados</p>
+            <div className="space-y-2">
+              {value.postos.length > 0 && (
+                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span>Posto / pista</span>
+                  <select
+                    value={config.comunicacao_posto ?? config.comunicacao ?? ""}
+                    disabled={disabled}
+                    onChange={(e) => setConfig({ comunicacao_posto: (e.target.value || null) as ConexaoDados | null })}
+                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
+                    aria-label="Conexão de dados do posto"
+                  >
+                    <option value="">Não informada</option>
+                    {CONEXOES_DADOS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {value.comboios.length > 0 && (
+                <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span>Comboio</span>
+                  <select
+                    value={config.comunicacao_comboio ?? config.comunicacao ?? ""}
+                    disabled={disabled}
+                    onChange={(e) => setConfig({ comunicacao_comboio: (e.target.value || null) as ConexaoDados | null })}
+                    className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
+                    aria-label="Conexão de dados do comboio"
+                  >
+                    <option value="">Não informada</option>
+                    {CONEXOES_DADOS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {value.postos.length === 0 && value.comboios.length === 0 && (
+                <p className="text-xs text-muted-foreground">Informe a quantidade de postos ou de comboios para definir a conexão de cada um.</p>
+              )}
+            </div>
+          </section>
 
           {/* Frota / DIV */}
           <section className="rounded-md border border-border p-3">
@@ -651,7 +651,7 @@ export function EstruturaEscopo({
           )}
           <p className="mb-2 text-muted-foreground">
             {resumo.postos} posto(s) · {resumo.ilhas} ilha(s) · {resumo.bombas} bomba(s) · {resumo.bicos} bico(s)
-            · {resumo.tanques} tanque(s) c/ lubrificante · {resumo.sondas} sonda(s) · {resumo.comboios} comboio(s)
+            · {resumo.tanques} tanque(s) c/ lubrificante · {resumo.sondas} tanque(s) c/ medidor · {resumo.comboios} comboio(s)
             {resumo.comboios > 0 ? ` (${resumo.tanquesComboio} tanque(s), ${resumo.bicosComboio} bico(s))` : ""}
             {resumo.frota ? " · frota/DIV" : ""}
           </p>
@@ -687,7 +687,7 @@ export function EstruturaEscopo({
             )}
             {value.sondas.length > 0 && (
               <li>
-                Sondas
+                Tanques com medidores
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.sondas.map((t, i) => (
                     <li key={i}>{rotuloEntidade("sonda", i + 1, t.nome)}</li>
