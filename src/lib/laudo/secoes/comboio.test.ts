@@ -61,7 +61,7 @@ describe("Caminhão comboio por unidade", () => {
     expect(textos(b, "c1")).toContain("não possui suporte/descanso para o bico");
     const img = b.find((x) => x.chave === "comboio:c1:suporte_img");
     expect(img).toMatchObject({ tipo: "image", url: "/laudo/nivel2-suporte-bico-comboio.png" });
-    expect(img.legenda).toContain("Comboio 400");
+    expect(img.legenda).toMatch(/^Figura \d+ — Esboço sugerido do Suporte do Bico — Comboio 400$/);
     expect(textos(b, "c2")).not.toContain("suporte/descanso");
     expect(b.some((x) => x.chave === "comboio:c2:suporte_img")).toBe(false);
     // sem resposta: não afirma nada

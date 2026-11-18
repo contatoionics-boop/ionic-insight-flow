@@ -80,7 +80,7 @@ function pontosDeAtencao(c: ComboioCtx): string[] {
  * Blocos do caminhão comboio, um grupo por comboio do Escopo; `null` quando o Escopo não tem comboios
  * (a seção não aparece).
  */
-export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string; remoto?: boolean; nivel2?: boolean }): BlocoLaudo[] | null {
+export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string; remoto?: boolean; nivel2?: boolean; proximaFigura?: () => number }): BlocoLaudo[] | null {
   const { contexto, id } = entrada;
   if (!contexto?.escopo.temComboio || !contexto.comboios.length) return null;
   const varios = contexto.comboios.length > 1;
@@ -123,7 +123,7 @@ export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (pr
       paragrafo("suporte", "O comboio não possui suporte/descanso para o bico. Recomendamos o uso de descanso para o bico; esboço (layout) sugerido para construção do “Suporte do Bico” a ser implementado nos Caminhões Comboio, usando barra chata de ferro galvanizado 2” x 3/16” (50,80 x 4,75mm). No ato da instalação da automação o Agente Técnico Credenciado (ATC) escolherá o local adequado para fixá-lo com parafusos e porcas 5/16” x 1” ou 3/4” na parte superior/teto do compartimento.");
       blocos.push({
         id: id("img"), chave: chave("suporte_img"), tipo: "image", url: FIGURA_N2_SUPORTE.url, alt: FIGURA_N2_SUPORTE.alt,
-        legenda: `${FIGURA_N2_SUPORTE.legendaBase} — ${c.identificacao}`, larguraMax: FIGURA_N2_SUPORTE.larguraMax, ...meta,
+        legenda: `Figura ${entrada.proximaFigura?.() ?? 1} — ${FIGURA_N2_SUPORTE.legendaBase} — ${c.identificacao}`, larguraMax: FIGURA_N2_SUPORTE.larguraMax, ...meta,
       } as BlocoLaudo);
     }
 

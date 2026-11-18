@@ -446,7 +446,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
 
   // Caminhão comboio: um grupo por comboio do Escopo (só entra quando há comboios)
-  const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid, remoto: /remot/i.test(entrada.cabecalho.modalidade ?? ""), nivel2: ehNivel2(nivel) });
+  const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid, remoto: /remot/i.test(entrada.cabecalho.modalidade ?? ""), nivel2: ehNivel2(nivel), proximaFigura });
   if (blocosDoComboio) blocos.push(...blocosDoComboio);
 
   // 2.4 Bicos de abastecimento
