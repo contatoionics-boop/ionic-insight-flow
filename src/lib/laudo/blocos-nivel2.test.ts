@@ -29,18 +29,15 @@ describe("Nível 2 / NLDIV com o Escopo", () => {
     expect(t.some((x) => /VII\./.test(x))).toBe(false);
     const iComboio = t.findIndex((x) => /Caminhão comboio/.test(x));
     const iBicos = t.findIndex((x) => /Bicos de abastecimento/.test(x));
-    const iSuporte = t.findIndex((x) => /Adequação do suporte/.test(x));
     expect(iComboio).toBeGreaterThan(-1);
     expect(iBicos).toBeGreaterThan(iComboio);
-    expect(iSuporte).toBe(iBicos + 1);
     // números reais (calculados), nunca o "2.4." fixo do texto
     expect(t[iBicos]).toMatch(/^3\.\d Bicos/);
-    expect(t[iSuporte]).toMatch(/^3\.\d\.1 Adequação/);
   });
-  it("o 2.4.1 vem do comboio do Escopo, mesmo sem evidência nas variáveis", () => {
+  it("a adequação do suporte do bico não é mais um tópico global: só entra no comboio sem suporte", () => {
     const chaves = (b: any[]) => b.map((x) => x.chave);
-    expect(chaves(montar("nivel_2", comComboio))).toContain("nivel2:2.4.1");
-    expect(chaves(montar("nivel_2", soPista))).not.toContain("nivel2:2.4.1");
+    expect(chaves(montar("nivel_2", comComboio))).not.toContain("nivel2:2.4.1");
+    expect(titulos(montar("nivel_2", comComboio)).some((x) => /Adequação do suporte/.test(x))).toBe(false);
     expect(chaves(montar("nivel_2", soPista))).toContain("nivel2:2.4");
   });
   it("o nome da solução vem do Escopo, não do texto livre", () => {

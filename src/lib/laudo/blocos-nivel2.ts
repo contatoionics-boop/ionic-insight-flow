@@ -214,14 +214,13 @@ export type EntradaBlocosNivel2 = {
   proximaFigura: () => number;
   /** nome da solução vindo do Escopo (fonte de verdade); sem ele, cai no nome textual */
   solucao?: string | null;
-  /** o Escopo tem comboio: liga o 2.4.1 além da evidência confirmada nas variáveis */
+  /** @deprecated o 2.4.1 saiu do bloco global; mantido só por compatibilidade das chamadas */
   comboioNoEscopo?: boolean;
 };
 
 /**
  * Bicos de abastecimento (Nível 2 / NLDIV), conteúdo literal do documento de instruções.
- * Só é emitido para escopo Nível 2; o tópico 2.4.1 só entra quando há comboio (Escopo ou
- * evidência confirmada). Os títulos são numerados automaticamente; o título interno
+ * Só é emitido para escopo Nível 2. Os títulos são numerados automaticamente; o título interno
  * "VII. Instruções…" do documento de instruções não vai para o resultado do cliente.
  */
 export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
@@ -234,6 +233,7 @@ export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
     proximaFigura,
   };
   const out = blocos24(opcoes);
-  if (entrada.comboioNoEscopo || temComboio(variaveis)) out.push(...blocos241(opcoes));
+  // A adequação do suporte do bico não é mais um tópico global: entra dentro de cada comboio que
+  // informou não ter suporte (secoes/comboio.ts). `blocos241` segue disponível na biblioteca do editor.
   return out;
 }

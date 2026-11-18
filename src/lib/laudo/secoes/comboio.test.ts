@@ -54,6 +54,25 @@ describe("Caminhão comboio por unidade", () => {
     expect(itens("c1")).toContain("GSM/4G");
     expect(blocos.some((b) => b.chave === "comboio:c2:pontos_atencao")).toBe(false);
   });
+  it("suporte do bico: só o comboio que informou NÃO ter suporte recebe o texto e o desenho", () => {
+    const resp = [...respostas, r("c1", "suporte_bico", "nao"), r("c2", "suporte_bico", "sim")];
+    const ctx = montarContextoLaudo({ entidades, arvore: arvoreVazia(), respostas: resp });
+    const b = blocosComboio({ contexto: ctx, id: ids }) as any[];
+    expect(textos(b, "c1")).toContain("não possui suporte/descanso para o bico");
+    const img = b.find((x) => x.chave === "comboio:c1:suporte_img");
+    expect(img).toMatchObject({ tipo: "image", url: "/laudo/nivel2-suporte-bico-comboio.png" });
+    expect(img.legenda).toContain("Comboio 400");
+    expect(textos(b, "c2")).not.toContain("suporte/descanso");
+    expect(b.some((x) => x.chave === "comboio:c2:suporte_img")).toBe(false);
+    // sem resposta: não afirma nada
+    expect(b.some((x) => x.chave === "comboio:c2:suporte")).toBe(false);
+    expect(blocos.some((x) => x.chave === "comboio:c1:suporte")).toBe(false);
+  });
+  it("suporte do bico no Nível 2 acrescenta o texto da NLDIV", () => {
+    const ctx = montarContextoLaudo({ entidades, arvore: arvoreVazia(), respostas: [...respostas, r("c1", "suporte_bico", "nao")] });
+    expect(textos(blocosComboio({ contexto: ctx, id: ids, nivel2: true }) as any[], "c1")).toContain("NLDIV");
+    expect(textos(blocosComboio({ contexto: ctx, id: ids, nivel2: false }) as any[], "c1")).not.toContain("NLDIV");
+  });
   it("tabelas de equipamentos e materiais por comboio nascem com 3 linhas em branco", () => {
     for (const id of ["c1", "c2"]) {
       for (const t of ["equipamentos", "materiais"]) {

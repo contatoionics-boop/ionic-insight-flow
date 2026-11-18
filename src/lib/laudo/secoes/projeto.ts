@@ -149,9 +149,20 @@ export function blocosProjeto(entrada: {
     blocos.push(tabela(id("t"), `projeto:comunicacao_${ENTIDADES_DE_COMBOIO}`, "COMUNICAÇÃO (COMBOIO)", ["Comunicação"], [{ celulas: [textoComunicacao(contexto, vars, "comboio")] } as Linha]));
   }
 
-  // Tecnologia de identificação só vem do dado estruturado do Escopo; sem ele, fica a confirmar (regra a validar com o Robson).
-  const tecnologia = e.rfid.tecnologias.length ? e.rfid.tecnologias.join(" / ") : pendencia("tecnologia_identificacao", "tecnologia de identificação");
-  const qtd = e.rfid.quantidade > 0 ? `${e.rfid.quantidade} ${e.rfid.quantidade === 1 ? "unidade" : "unidades"}` : pendencia("qtd_identificacao", "quantidade de dispositivos de identificação");
-  blocos.push(tabela(id("t"), "projeto:nivel", "NÍVEL DE AUTOMAÇÃO", ["Nível", "Tecnologia", "QTD"], [{ celulas: [rotuloNivel(nivel, contexto), tecnologia, qtd] } as Linha]));
+  blocos.push(tabela(id("t"), "projeto:nivel", "NÍVEL DE AUTOMAÇÃO", ["Nível"], [{ celulas: [rotuloNivel(nivel, contexto)] } as Linha]));
+
+  // Tipos de tecnologia de identificação (RFID, DIV, TX), cada um só quando está no Escopo, com a quantidade.
+  // O nível não carrega a tecnologia: o mesmo nível pode ter mais de uma (DIV + TX, DIV + cartão, as três).
+  const un = (n: number) => `${n} ${n === 1 ? "unidade" : "unidades"}`;
+  const tecnologias: Linha[] = [];
+  if (e.rfid.ativo) {
+    const tipo = e.rfid.tecnologias.length ? ` (${e.rfid.tecnologias.join(" / ")})` : "";
+    tecnologias.push({ celulas: [`Cartão RFID${tipo}`, e.rfid.quantidade > 0 ? un(e.rfid.quantidade) : pendencia("qtd_identificacao", "quantidade de cartões RFID")] } as Linha);
+  }
+  if (e.frota.ativa)
+    tecnologias.push({ celulas: ["DIV", e.frota.totalDiv > 0 ? un(e.frota.totalDiv) : pendencia("qtd_div", "quantidade de DIV")] } as Linha);
+  if (e.tx.ativo)
+    tecnologias.push({ celulas: ["Telemetria TX", e.tx.quantidade > 0 ? un(e.tx.quantidade) : pendencia("qtd_tx", "quantidade de TX")] } as Linha);
+  if (tecnologias.length) blocos.push(tabela(id("t"), "projeto:tecnologia", "TIPO DE TECNOLOGIA", ["Tecnologia", "QTD"], tecnologias));
   return blocos;
 }

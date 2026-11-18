@@ -125,14 +125,14 @@ describe("condicionais Nível 2 / 2.4 / 2.4.1", () => {
     expect(ks).not.toContain("nivel2:2.4.1");
   });
 
-  it("Nível 2 + Comboio: 2.4 e 2.4.1", () => {
+  it("Nível 2 + Comboio: 2.4; o suporte do bico vai dentro de cada comboio, não como 2.4.1 global", () => {
     const v: VariaveisLaudo = {
       ...vars(extrairEscopoDeterministico(PROPOSTA_SETEL)),
       comboio: { chave: "comboio", valor: "sim", origem: "formulario", confianca: 1 },
     };
     const ks = chaves("nivel_2", v);
     expect(ks).toContain("nivel2:2.4");
-    expect(ks).toContain("nivel2:2.4.1");
+    expect(ks).not.toContain("nivel2:2.4.1");
   });
 
   it("Nível 1: nenhum dos dois", () => {

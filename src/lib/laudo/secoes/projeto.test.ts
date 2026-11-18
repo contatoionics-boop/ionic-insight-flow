@@ -43,7 +43,7 @@ describe("Projeto — caso Seis Lagoas", () => {
   it("monta as seções de Projeto na ordem do documento", () => {
     expect(blocos.map((b: any) => b.chave)).toEqual([
       "projeto:titulo", "projeto:solucao", "projeto:posto", "projeto:comunicacao_pista",
-      "projeto:comboio", "projeto:comunicacao_comboio", "projeto:nivel",
+      "projeto:comboio", "projeto:comunicacao_comboio", "projeto:nivel", "projeto:tecnologia",
     ]);
     expect(tab(blocos, "projeto:solucao").linhas[0].celulas).toEqual(["On-premise"]);
   });
@@ -65,8 +65,11 @@ describe("Projeto — caso Seis Lagoas", () => {
   it("comunicação vem do Escopo", () => {
     expect(tab(blocos, "projeto:comunicacao_pista").linhas[0].celulas[0]).toBe("Comunicação via Wi-Fi");
   });
-  it("NÍVEL: nível, tecnologia e quantidade do Escopo", () => {
-    expect(tab(blocos, "projeto:nivel").linhas[0].celulas).toEqual(["Nível 1 (Posto e Comboio)", "Mifare", "70 unidades"]);
+  it("NÍVEL: só o nível; a tecnologia vai para a tabela própria, com a quantidade do Escopo", () => {
+    expect(tab(blocos, "projeto:nivel").colunas).toEqual(["Nível"]);
+    expect(tab(blocos, "projeto:nivel").linhas[0].celulas).toEqual(["Nível 1 (Posto e Comboio)"]);
+    expect(tab(blocos, "projeto:tecnologia").colunas).toEqual(["Tecnologia", "QTD"]);
+    expect(tab(blocos, "projeto:tecnologia").linhas.map((l: any) => l.celulas)).toEqual([["Cartão RFID (Mifare)", "70 unidades"]]);
   });
   it("tabelas automáticas não têm linhas em branco", () => {
     for (const k of ["projeto:posto", "projeto:comboio"]) {
@@ -76,12 +79,22 @@ describe("Projeto — caso Seis Lagoas", () => {
 });
 
 describe("Projeto — dados ausentes e regras", () => {
-  it("tecnologia não definida no Escopo fica [CONFIRMAR], sem assumir RFID/Teclado", () => {
+  it("RFID sem tecnologia informada não inventa o tipo; nível ausente fica [CONFIRMAR]", () => {
     const c = montarContextoLaudo({ entidades: [], arvore: { ...arvoreVazia(), config: { rfid: { ativo: true, itens: [{ tecnologia: "", quantidade: 5 }] } } as any }, respostas: [] });
-    const t = tab(blocosProjeto({ contexto: c, vars: {}, nivel: null, id: ids }), "projeto:nivel");
-    expect(t.linhas[0].celulas[1]).toContain("[CONFIRMAR: tecnologia de identificação]");
-    expect(t.linhas[0].celulas[0]).toContain("[CONFIRMAR: nível de automação]");
-    expect(t.linhas[0].celulas[2]).toBe("5 unidades");
+    const b = blocosProjeto({ contexto: c, vars: {}, nivel: null, id: ids });
+    expect(tab(b, "projeto:nivel").linhas[0].celulas[0]).toContain("[CONFIRMAR: nível de automação]");
+    expect(tab(b, "projeto:tecnologia").linhas[0].celulas).toEqual(["Cartão RFID", "5 unidades"]);
+  });
+  it("tecnologias combinadas (RFID + DIV + TX): uma linha por tecnologia do Escopo, com a quantidade", () => {
+    const cfg = { rfid: { ativo: true, itens: [{ tecnologia: "Mifare", quantidade: 10 }] }, tx: { ativo: true, itens: [{ quantidade: 2 }] } } as any;
+    const frota = { ativo: true, itens: [{ modelo: "Scania", quantidade: 3 }, { modelo: "Volvo", quantidade: 1 }] } as any;
+    const c = montarContextoLaudo({ entidades: [], arvore: { ...arvoreVazia(), config: cfg, frota }, respostas: [] });
+    const t = tab(blocosProjeto({ contexto: c, vars: {}, nivel: "nivel_2", id: ids }), "projeto:tecnologia");
+    expect(t.linhas.map((l: any) => l.celulas)).toEqual([["Cartão RFID (Mifare)", "10 unidades"], ["DIV", "4 unidades"], ["Telemetria TX", "2 unidades"]]);
+  });
+  it("sem nenhuma tecnologia no Escopo, a tabela de tecnologia não é criada", () => {
+    const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
+    expect(blocosProjeto({ contexto: c, vars: {}, nivel: "nivel_1", id: ids }).some((b: any) => b.chave === "projeto:tecnologia")).toBe(false);
   });
   it("sem posto e sem comboio no Escopo: só Solução e Nível", () => {
     const c = montarContextoLaudo({ entidades: [], arvore: arvoreVazia(), respostas: [] });
@@ -148,7 +161,9 @@ describe("solução do Escopo na introdução e nas instruções", () => {
   it("usa a solução definida no Escopo, sem pendência", () => {
     const b = montarBlocos({ variaveis: {}, materiais: [], cabecalho: cab, contexto });
     expect(textos(b)).toContain("da solução On-premise no escopo:");
-    expect(textos(b)).toContain("instalação da solução On-premise.");
+    // as Instruções gerais usam o texto oficial do documento, sem o nome da solução do Escopo
+    expect(textos(b)).toContain("A IONICS orienta e auxilia em questões de infraestrutura");
+    expect(textos(b)).toContain("A IONICS coloca o MInfra-001_SAAF");
     expect(textos(b)).not.toContain("CONFIRMAR: nome da solução");
   });
   it("sem solução no Escopo, mantém a pendência", () => {

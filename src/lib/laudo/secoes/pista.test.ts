@@ -26,9 +26,12 @@ const textos = (blocos: any[], id: string) => JSON.stringify(blocos.filter((b) =
 describe("Pista por bomba", () => {
   const blocos = blocosPista({ contexto, nivel: "nivel_1", id: ids }) as any[];
 
-  it("um grupo por bomba do Escopo, com chaves estáveis pela entidade", () => {
-    const titulos = blocos.filter((b) => b.tipo === "heading").map((b) => [b.chave, b.texto, b.numero]);
-    expect(titulos).toEqual([["bomba:b1:titulo", "Bomba 01", "2.3.1"], ["bomba:b2:titulo", "Bomba 02", "2.3.2"], ["bomba:b3:titulo", "Bomba 03", "2.3.3"]]);
+  it("o objeto é o POSTO (título), com um grupo por bomba abaixo e chaves estáveis pela entidade", () => {
+    const titulos = blocos.filter((b) => b.tipo === "heading").map((b) => [b.chave, b.texto, b.numero, b.nivel]);
+    expect(titulos).toEqual([
+      ["pista:posto:Posto 01", "Posto 01", null, 3],
+      ["bomba:b1:titulo", "Bomba 01", null, 4], ["bomba:b2:titulo", "Bomba 02", null, 4], ["bomba:b3:titulo", "Bomba 03", null, 4],
+    ]);
     const chaves = blocos.map((b) => b.chave);
     expect(new Set(chaves).size).toBe(chaves.length);
   });

@@ -446,7 +446,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   });
 
   // Caminhão comboio: um grupo por comboio do Escopo (só entra quando há comboios)
-  const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid, remoto: /remot/i.test(entrada.cabecalho.modalidade ?? "") });
+  const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid, remoto: /remot/i.test(entrada.cabecalho.modalidade ?? ""), nivel2: ehNivel2(nivel) });
   if (blocosDoComboio) blocos.push(...blocosDoComboio);
 
   // 2.4 Bicos de abastecimento
@@ -514,16 +514,14 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     texto: "Instruções gerais",
     nivel: 1,
   });
-  blocos.push({
-    id: bid("bl"),
-    tipo: "bullets",
-    itens: [
-      `A infraestrutura elétrica e hidráulica é de responsabilidade do cliente e deve estar concluída antes da instalação da solução ${nomeSolucao}.`,
-      "O local de instalação deve permitir acesso seguro ao terminal e aos sensores para manutenção.",
-      "Alterações de escopo após a emissão deste documento exigem novo mapeamento técnico.",
-      "A IONICS não se responsabiliza por instalações executadas fora das especificações deste documento.",
-    ],
-  });
+  const instrucao = (n: number, texto: string): BlocoLaudo =>
+    ({ id: bid("p"), chave: `instrucoes:${n}`, tipo: "paragraph", texto, origem: "dynamic", editavel: true }) as BlocoLaudo;
+  // texto oficial do Resultado de Mapeamento (o mesmo dos documentos emitidos pela IONICS)
+  blocos.push(
+    instrucao(1, "A IONICS orienta e auxilia em questões de infraestrutura relacionadas à instalação da sua automação; porém, não se responsabiliza pelos materiais empregados e serviços a serem executados. Sendo assim, cabe ao cliente que as obras de adequação sejam realizadas por pessoal especializado, de modo que atendam as normas de segurança (Mapeamento de risco) e de acordo / em conformidade com a legislação vigente (Instalações em Áreas Classificadas / Atmosferas Explosivas)."),
+    instrucao(2, "Se houver necessidade de alteração nos requisitos de infraestrutura solicitados neste documento é importante que seja comunicado imediatamente; dispomos de técnicos que darão o seu parecer e as devidas orientações para viabilizar a implantação da automação; caso contrário a IONICS não responderá por danos, redução da vida útil dos equipamentos e/ou falhas no funcionamento da solução SAAF."),
+    instrucao(3, "A IONICS coloca o MInfra-001_SAAF e a sua equipe à disposição para auxiliá-los no que for necessário e juntos prosseguir com o projeto de implantação."),
+  );
 
   return { blocos, achados };
 }

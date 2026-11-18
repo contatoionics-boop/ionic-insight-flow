@@ -63,13 +63,21 @@ export function blocosPista(entrada: {
   const { contexto, nivel, id } = entrada;
   if (!contexto?.escopo.temPista || !contexto.bombas.length) return null;
   const rotulos = rotulosDasBombas(contexto.bombas);
-  const varias = contexto.bombas.length > 1;
   const blocos: BlocoLaudo[] = [];
+  const postos = [...new Set(contexto.bombas.map((b) => b.posto ?? "Posto"))];
+  const variosPostos = postos.length > 1;
+  let postoAnterior: string | null = null;
 
   contexto.bombas.forEach((b, i) => {
     const chave = (sufixo: string) => `bomba:${b.id}:${sufixo}`;
     const meta = { origem: "dynamic", editavel: true, removivel: true } as const;
-    blocos.push({ id: id("h"), chave: chave("titulo"), tipo: "heading", numero: varias ? `2.3.${i + 1}` : null, texto: rotulos[i], nivel: 3, ...meta } as BlocoLaudo);
+    // o objeto do mapeamento é o POSTO; a bomba vem abaixo dele (título de apoio, sem número próprio)
+    const posto = b.posto ?? "Posto";
+    if (posto !== postoAnterior) {
+      postoAnterior = posto;
+      blocos.push({ id: id("h"), chave: `pista:posto:${posto}`, tipo: "heading", numero: variosPostos ? `2.3.${postos.indexOf(posto) + 1}` : null, texto: posto, nivel: 3, ...meta } as BlocoLaudo);
+    }
+    blocos.push({ id: id("h"), chave: chave("titulo"), tipo: "heading", numero: null, texto: rotulos[i], nivel: 4, ...meta } as BlocoLaudo);
 
     const vars = variaveisDaBomba(b);
     const bitola = bitolaDosBicos(b.bicos)[0] ?? null;

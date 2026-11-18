@@ -45,10 +45,10 @@ export const FIGURA_N2_PONTEIRA: FiguraLaudo = {
 };
 
 export const FIGURA_N2_SUPORTE: FiguraLaudo = {
-  url: "/laudo/nivel2-suporte-comboio.svg",
-  alt: "Esboço técnico do suporte/descanso do bico para Caminhões Comboio",
-  legendaBase:
-    "Esboço sugerido do Suporte de Bico em barra chata galvanizada 2\u201d x 3/16\u201d (50,80 x 4,75 mm)",
+  // desenho oficial enviado pelo especialista (suportes frontal e traseiro, com as medidas)
+  url: "/laudo/nivel2-suporte-bico-comboio.png",
+  alt: "Esboço do suporte/descanso do bico para Caminhões Comboio, com as medidas dos suportes frontal e traseiro",
+  legendaBase: "Esboço sugerido do Suporte do Bico",
   larguraMax: 380,
 };
 

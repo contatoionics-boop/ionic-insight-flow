@@ -7,6 +7,7 @@
 
 import type { ComboioCtx, ContextoLaudo } from "@/lib/laudo/contexto";
 import { pendencia, type BlocoLaudo } from "@/lib/laudo/tipos";
+import { FIGURA_N2_SUPORTE } from "@/lib/laudo/figuras";
 import { bitolaDosBicos } from "./projeto";
 
 const sim = (v: string | undefined) => ["sim", "s", "true", "1", "yes"].includes((v ?? "").trim().toLowerCase());
@@ -79,7 +80,7 @@ function pontosDeAtencao(c: ComboioCtx): string[] {
  * Blocos do caminhão comboio, um grupo por comboio do Escopo; `null` quando o Escopo não tem comboios
  * (a seção não aparece).
  */
-export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string; remoto?: boolean }): BlocoLaudo[] | null {
+export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (prefixo: string) => string; remoto?: boolean; nivel2?: boolean }): BlocoLaudo[] | null {
   const { contexto, id } = entrada;
   if (!contexto?.escopo.temComboio || !contexto.comboios.length) return null;
   const varios = contexto.comboios.length > 1;
@@ -114,6 +115,17 @@ export function blocosComboio(entrada: { contexto: ContextoLaudo | null; id: (pr
     if (espaco) paragrafo("espaco", espaco);
     const itens = pontosDeAtencao(c);
     if (itens.length) blocos.push({ id: id("bl"), chave: chave("pontos_atencao"), tipo: "bullets", itens, ...meta } as BlocoLaudo);
+
+    // suporte/descanso do bico: só no comboio que informou NÃO ter suporte (cada comboio responde por si)
+    if (nao(c.atributos.suporte_bico)) {
+      if (entrada.nivel2)
+        paragrafo("suporte_nldiv", "O suporte/descanso do bico deverá garantir que a NLDIV que será acoplada à ponteira não sofra impacto ou atrito que possa comprometer o seu funcionamento e/ou provocar a redução da vida útil; também precisará impedir que o corpo do bico se movimente enquanto o caminhão estiver transitando. Este último quesito é necessário para preservar a carga da bateria do Módulo Bico Wireless, já que o dispositivo é ativado quando balançado verticalmente com ângulo de 30°.");
+      paragrafo("suporte", "O comboio não possui suporte/descanso para o bico. Recomendamos o uso de descanso para o bico; esboço (layout) sugerido para construção do “Suporte do Bico” a ser implementado nos Caminhões Comboio, usando barra chata de ferro galvanizado 2” x 3/16” (50,80 x 4,75mm). No ato da instalação da automação o Agente Técnico Credenciado (ATC) escolherá o local adequado para fixá-lo com parafusos e porcas 5/16” x 1” ou 3/4” na parte superior/teto do compartimento.");
+      blocos.push({
+        id: id("img"), chave: chave("suporte_img"), tipo: "image", url: FIGURA_N2_SUPORTE.url, alt: FIGURA_N2_SUPORTE.alt,
+        legenda: `${FIGURA_N2_SUPORTE.legendaBase} — ${c.identificacao}`, larguraMax: FIGURA_N2_SUPORTE.larguraMax, ...meta,
+      } as BlocoLaudo);
+    }
 
     // layout do comboio: espaço reservado; o especialista cria o desenho técnico (sem vínculo dinâmico)
     blocos.push({

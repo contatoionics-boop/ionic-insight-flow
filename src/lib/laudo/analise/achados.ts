@@ -324,7 +324,6 @@ function achadosBico(vars: VariaveisLaudo, bitola: string | null, nivel: string 
   const ponteira = comMm(val(vars, "diametro_ponteira_bico"));
   const comprimento = comMm(val(vars, "comprimento_ponteira_bico"));
   const entrada = comMm(val(vars, "diametro_entrada_bico"));
-  const suporte = bool(vars, "suporte_bico");
 
   if (marca || ponteira || entrada || bitola) {
     const partes: string[] = [];
@@ -339,14 +338,8 @@ function achadosBico(vars: VariaveisLaudo, bitola: string | null, nivel: string 
       recomendacoes.push(
         'Recomenda-se a redução da linha de 1" para 3/4" com niple e luva de redução, mantendo a vazão dentro da faixa homologada do medidor.',
       );
-    if (suporte === false)
-      recomendacoes.push(
-        "Não há suporte/descanso para o bico: é obrigatória a instalação do suporte conforme desenho técnico desta seção, para o correto acionamento do sensor.",
-      );
-    if (suporte === true)
-      recomendacoes.push(
-        "O suporte existente deve ser conferido quanto ao posicionamento do sensor de acomodação do bico.",
-      );
+    // suporte/descanso do bico: tratado em cada comboio (secoes/comboio.ts); um valor único aqui
+    // misturaria comboios com e sem suporte
     recomendacoes.push(
       "Somente componentes homologados pela IONICS podem ser inseridos na linha de abastecimento.",
     );
@@ -358,14 +351,13 @@ function achadosBico(vars: VariaveisLaudo, bitola: string | null, nivel: string 
         titulo: "Bico e linha de abastecimento",
         conclusao: `${partes.join(", ")}.`,
         recomendacoes,
-        severidade: suporte === false ? "atencao" : "info",
+        severidade: "info",
         chavesEvidencia: [
           "marca_bico",
           "diametro_entrada_bico",
           "diametro_ponteira_bico",
           "comprimento_ponteira_bico",
           "bitola_bico",
-          "suporte_bico",
         ],
       }),
     );
