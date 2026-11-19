@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Card, Button, Input, Textarea, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
+import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
+import { lerSlot } from "@/lib/laudo/textos-padrao";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   excluirBlocoPadrao,
@@ -103,6 +105,9 @@ function BlocosPadraoPage() {
     void carregar();
   }, [carregar]);
 
+  // versões dos textos do documento têm tela própria (acima); aqui ficam só os blocos adicionais
+  const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot);
+
   function editar(b: BlocoPadrao) {
     const titulo = (b.blocos ?? []).find((x: any) => x.tipo === "heading") as any;
     setForm({
@@ -161,7 +166,7 @@ function BlocosPadraoPage() {
     <div>
       <PageHeader
         title="Blocos padrão"
-        description="Textos técnicos reutilizáveis para inserir no laudo FR-31-10 durante a revisão."
+        description="Textos do documento com versões (Introdução, Instruções gerais…) e blocos técnicos reutilizáveis do laudo FR-31-10."
         actions={
           <Button
             onClick={() => {
@@ -175,17 +180,26 @@ function BlocosPadraoPage() {
       />
       <ConfiguracoesNav />
 
+      {!carregando && <TextosDoDocumento itens={itens} onAlterou={carregar} />}
+
+      <div className="mb-2 mt-8">
+        <h2 className="text-sm font-semibold">Blocos adicionais</h2>
+        <p className="text-xs text-muted-foreground">
+          Textos extras que se somam ao documento (antes das Instruções gerais, quando automáticos) ou que o especialista insere à mão na revisão.
+        </p>
+      </div>
+
       {carregando ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
         </p>
-      ) : itens.length === 0 ? (
+      ) : blocosAdicionais.length === 0 ? (
         <Card className="p-6 text-sm text-muted-foreground">
           Nenhum bloco padrão cadastrado ainda.
         </Card>
       ) : (
         <div className="space-y-2">
-          {itens.map((b) => (
+          {blocosAdicionais.map((b) => (
             <Card key={b.id} className="flex items-start justify-between gap-3 p-4">
               <button type="button" className="min-w-0 text-left" onClick={() => editar(b)}>
                 <p className="flex items-center gap-2 text-sm font-medium">

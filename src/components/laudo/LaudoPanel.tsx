@@ -10,9 +10,12 @@ import {
   Loader2,
   Pencil,
   ShieldCheck,
+  Type,
 } from "lucide-react";
 import { Badge, Button, Modal, Textarea } from "@/components/ui-bits";
-import { carregarLaudo, confirmarAlertaLaudo, gerarLaudo } from "@/lib/laudo.functions";
+import { carregarLaudo, confirmarAlertaLaudo, escolherTextoLaudo, gerarLaudo } from "@/lib/laudo.functions";
+import { listarBlocosPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
+import { INFO_SLOT, SLOTS_TEXTO, lerSlot, type SlotTexto } from "@/lib/laudo/textos-padrao";
 import { rotuloChave } from "@/lib/laudo/chaves";
 import { DocumentoEditor } from "@/components/laudo/DocumentoEditor";
 import type { NoArvore } from "@/lib/laudo/numeracao";
@@ -69,6 +72,8 @@ export function LaudoPanel({
   const fnCarregar = useServerFn(carregarLaudo);
   const fnGerar = useServerFn(gerarLaudo);
   const fnConfirmar = useServerFn(confirmarAlertaLaudo);
+  const fnEscolherTexto = useServerFn(escolherTextoLaudo);
+  const fnVersoes = useServerFn(listarBlocosPadrao);
 
   const [loading, setLoading] = useState(true);
   const [gerando, setGerando] = useState(false);
@@ -89,6 +94,11 @@ export function LaudoPanel({
   /** Ponto a confirmar atual na navegação anterior/próximo (-1 = ainda não navegou). */
   const [pontoAtual, setPontoAtual] = useState(-1);
   const [salvarDoc, setSalvarDoc] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null });
+  /** textos do documento (Introdução, Instruções…): versão escolhida só para este mapeamento */
+  const [textosAberto, setTextosAberto] = useState(false);
+  const [textosEscolhidos, setTextosEscolhidos] = useState<Record<string, string>>({});
+  const [versoesTexto, setVersoesTexto] = useState<BlocoPadrao[]>([]);
+  const [trocandoTexto, setTrocandoTexto] = useState<SlotTexto | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -99,6 +109,7 @@ export function LaudoPanel({
       setVariaveis(r.variaveis ?? {});
       setConfirmacoes(r.confirmacoes ?? []);
       setAchados((r.achados ?? []) as Achado[]);
+      setTextosEscolhidos(((r as any).textosEscolhidos ?? {}) as Record<string, string>);
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao carregar o laudo.");
     } finally {
@@ -109,6 +120,40 @@ export function LaudoPanel({
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  const abrirTextos = useCallback(async () => {
+    setTextosAberto(true);
+    try {
+      const lista = (await fnVersoes({ data: {} as any })) as BlocoPadrao[];
+      setVersoesTexto(lista.filter((b) => b.ativo && lerSlot(b.escopo).slot));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao carregar as versões dos textos.");
+    }
+  }, [fnVersoes]);
+
+  /** "" = automático (padrão que o mapeamento atende ou o original), "sistema" = texto original, senão o id da versão */
+  const trocarTexto = useCallback(
+    async (slot: SlotTexto, valor: string) => {
+      if (docSujo) {
+        toast.error("Salve a revisão do documento antes de trocar um texto.");
+        return;
+      }
+      if (!confirm(`O texto "${INFO_SLOT[slot].rotulo}" será trocado e o documento remontado. Edições feitas à mão nesse trecho serão descartadas. Continuar?`)) return;
+      setTrocandoTexto(slot);
+      try {
+        const r = await fnEscolherTexto({ data: { casoId, slot, versaoId: valor || null } });
+        setConteudo(r.conteudo);
+        setAchados((r.achados ?? []) as Achado[]);
+        setTextosEscolhidos(r.textosEscolhidos ?? {});
+        toast.success("Texto atualizado no documento.");
+      } catch (e: any) {
+        toast.error(e?.message ?? "Falha ao trocar o texto.");
+      } finally {
+        setTrocandoTexto(null);
+      }
+    },
+    [casoId, docSujo, fnEscolherTexto],
+  );
 
   const registrarSalvar = useCallback((fn: (() => Promise<void>) | null) => {
     setSalvarDoc({ fn });
@@ -318,6 +363,16 @@ export function LaudoPanel({
               </div>
             )}
           </div>
+
+          {conteudo && (
+            <button
+              type="button"
+              onClick={() => void abrirTextos()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium"
+            >
+              <Type className="h-3.5 w-3.5" /> Textos do documento
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -380,6 +435,41 @@ export function LaudoPanel({
         meta={metaDoc}
         semChrome
       />
+
+      {/* versão de cada texto fixo (Introdução, Instruções gerais…) só para este mapeamento */}
+      <Modal open={textosAberto} onClose={() => setTextosAberto(false)} title="Textos do documento">
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Escolha a versão de cada texto para <b>este mapeamento</b>. “Automático” usa a versão padrão que o mapeamento atende ou, sem ela, o texto original do
+            sistema. As versões são criadas em Configurações › Blocos padrão.
+          </p>
+          {SLOTS_TEXTO.map((slot) => {
+            const opcoes = versoesTexto.filter((b) => lerSlot(b.escopo).slot === slot);
+            return (
+              <div key={slot} className="space-y-1">
+                <label className="flex items-center gap-2 text-xs font-medium">
+                  {INFO_SLOT[slot].rotulo}
+                  {trocandoTexto === slot && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                </label>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
+                  value={opcoes.some((o) => o.id === textosEscolhidos[slot]) || textosEscolhidos[slot] === "sistema" ? textosEscolhidos[slot] : ""}
+                  disabled={trocandoTexto !== null}
+                  onChange={(e) => void trocarTexto(slot, e.target.value)}
+                >
+                  <option value="">Automático</option>
+                  <option value="sistema">Texto original do sistema</option>
+                  {opcoes.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
 
       {/* pendências e alertas — fora do fluxo visual do documento */}
       <Modal

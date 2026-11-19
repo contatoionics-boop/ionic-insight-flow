@@ -21,6 +21,7 @@ import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./bl
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoCondicoesWifi, blocosFotosTransferencia, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi, type FotoTransferencia } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
+import { blocosDaVersao, blocosDoSlot, escolherVersao, type CamposTexto, type EscolhasTexto, type SlotTexto, type VersaoTexto } from "./textos-padrao";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
 export type CabecalhoLaudo = {
@@ -44,6 +45,10 @@ export type EntradaTemplate = {
   contexto?: ContextoLaudo | null;
   /** blocos padrão com regra de inserção automática (cadastrados em "Blocos padrão") */
   blocosPadrao?: BlocoPadraoAuto[];
+  /** versões cadastradas dos textos do documento (Configurações › Textos do documento) */
+  textosPadrao?: VersaoTexto[];
+  /** versão escolhida para ESTE mapeamento, por slot (`"sistema"` = texto original) */
+  textosEscolhidos?: EscolhasTexto;
   /** prints do registro fotográfico de transferência de dados (Wi-Fi e sinal da operadora), já em URL pública */
   fotosTransferencia?: FotoTransferencia[];
 };
@@ -160,23 +165,23 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       ? ` As informações e os registros fotográficos foram disponibilizados pelo cliente (${[responsavel, contato].filter(Boolean).join(" - ")})` +
         `${modalidadeTexto ? ` no formulário de Mapeamento Técnico - ${modalidadeTexto.charAt(0).toUpperCase()}${modalidadeTexto.slice(1)}` : ""}.`
       : "";
-  blocos.push({
-    id: bid("p"),
-    tipo: "paragraph",
-    destaque: "editavel",
-    texto:
-      `Este documento apresenta o resultado do mapeamento técnico realizado para ${v(vars, "nome_cliente", "nome do cliente")}, ` +
-      `em atendimento ${v(vars, "modalidade", "modalidade")}, referente à ${v(vars, "tipo_acao", "tipo de ação (instalação ou upgrade)")} ` +
-      `da solução ${nomeSolucao} no escopo: ${v(vars, "objeto_escopo", "objeto do escopo")}.` +
-      origemDados,
-  });
-  blocos.push({
-    id: bid("p"),
-    tipo: "paragraph",
-    texto:
-      "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
-      "Itens sinalizados como pendentes de confirmação dependem de validação antes da emissão definitiva do documento.",
-  });
+  // Textos do documento com versões: a escolhida para o mapeamento, a padrão que o caso atende ou o original do sistema.
+  const avaliacaoTexto = { nivel: nivel ?? null, contexto: entrada.contexto ?? null };
+  const versaoDe = (slot: SlotTexto) => escolherVersao(slot, entrada.textosPadrao ?? [], entrada.textosEscolhidos, avaliacaoTexto);
+  const nivelNumero = (nivel ?? "").match(/(\d)/)?.[1];
+  const campos: CamposTexto = {
+    cliente: v(vars, "nome_cliente", "nome do cliente"),
+    unidade: entrada.cabecalho.unidade || null,
+    solucao: nomeSolucao,
+    nivel: nivelNumero ? `Nível ${nivelNumero}` : null,
+    modalidade: v(vars, "modalidade", "modalidade"),
+    tipo_acao: v(vars, "tipo_acao", "tipo de ação (instalação ou upgrade)"),
+    objeto_escopo: v(vars, "objeto_escopo", "objeto do escopo"),
+    data: entrada.cabecalho.data || null,
+    agente: entrada.cabecalho.agente || null,
+    origem_dados: origemDados,
+  };
+  blocos.push(...blocosDoSlot({ slot: "introducao", versao: versaoDe("introducao"), campos, id: bid }));
 
   // ---------- Observações técnicas relevantes (após a introdução) ----------
   const alertas = alertasDoContexto(ctxRegras);
@@ -213,7 +218,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const solucao: "saaf" | "ssg_frota" | null =
     solucaoDoEscopo === "on_premise" ? "saaf" : solucaoDoEscopo === "ssg_frota" ? "ssg_frota" : solucaoContratada(vars);
 
-  if (solucao === "saaf") {
+  // uma versão de texto de TI/BD aplicável também abre a seção 2.1 (ex.: regra própria para outra solução)
+  const versaoTi = versaoDe("ti_bd");
+  if (solucao === "saaf" || versaoTi) {
     const jaTemSaaf = bool(vars, "cliente_ja_tem_saaf") === true;
     const variante = (raw(vars, "infra_ti_variante") ?? (jaTemSaaf ? "D" : "A")).toUpperCase();
     blocos.push({
@@ -223,7 +230,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       texto: "Equipamentos de TI e banco de dados",
       nivel: 2,
     });
-    if (variante === "D") {
+    if (versaoTi) {
+      blocos.push(...blocosDaVersao({ slot: "ti_bd", versao: versaoTi, campos, id: bid }));
+    } else if (variante === "D") {
       blocos.push({
         id: bid("bl"),
         tipo: "bullets",
@@ -255,50 +264,53 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       });
     }
 
-    // Bloco de equipamentos: sempre presente, para ajuste/preenchimento pelo especialista.
-    blocos.push({
-      id: bid("t"),
-      tipo: "table",
-      titulo: "Especificação do servidor (a validar pelo especialista)",
-      colunas: ["Item", "Especificação mínima"],
-      origem: "dynamic",
-      editavel: true,
-      linhas: [
-        { celulas: ["Processador", "Intel Core i5 ou superior"] },
-        { celulas: ["Memória", "8 GB RAM"] },
-        { celulas: ["Armazenamento", "256 GB SSD"] },
-        { celulas: ["Sistema operacional", "Windows 10/11 ou Windows Server"] },
-        { celulas: ["Banco de dados", "SQL Server / PostgreSQL conforme projeto"] },
-        { celulas: ["Rede", "Ethernet 100/1000 Mbps com acesso ao ponto de comunicação do terminal"] },
-        ...(variante === "B_COMPLETA"
-          ? [{ celulas: ["Expansão", "Slot disponível para módulo GSM"] }]
-          : []),
-      ],
-    });
-    blocos.push({
-      id: bid("t"),
-      tipo: "table",
-      titulo: "Especificação do computador de consulta (a validar pelo especialista)",
-      colunas: ["Item", "Especificação mínima"],
-      origem: "dynamic",
-      editavel: true,
-      linhas: [
-        { celulas: ["Processador", "Intel Core i3 ou superior"] },
-        { celulas: ["Memória", "8 GB RAM"] },
-        { celulas: ["Armazenamento", "256 GB SSD"] },
-        { celulas: ["Sistema operacional", "Windows 10/11"] },
-        { celulas: ["Rede", "Acesso à internet estável e sem restrições (TeamViewer / AnyDesk)"] },
-      ],
-    });
-    blocos.push({
-      id: bid("o"),
-      tipo: "observacao",
-      titulo: "OBSERVAÇÃO TÉCNICA",
-      texto:
-        "As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente.",
-      origem: "dynamic",
-      editavel: true,
-    });
+    // As tabelas de especificação são do SAAF (On-premise)
+    if (solucao === "saaf") {
+      // Bloco de equipamentos: sempre presente, para ajuste/preenchimento pelo especialista.
+      blocos.push({
+        id: bid("t"),
+        tipo: "table",
+        titulo: "Especificação do servidor (a validar pelo especialista)",
+        colunas: ["Item", "Especificação mínima"],
+        origem: "dynamic",
+        editavel: true,
+        linhas: [
+          { celulas: ["Processador", "Intel Core i5 ou superior"] },
+          { celulas: ["Memória", "8 GB RAM"] },
+          { celulas: ["Armazenamento", "256 GB SSD"] },
+          { celulas: ["Sistema operacional", "Windows 10/11 ou Windows Server"] },
+          { celulas: ["Banco de dados", "SQL Server / PostgreSQL conforme projeto"] },
+          { celulas: ["Rede", "Ethernet 100/1000 Mbps com acesso ao ponto de comunicação do terminal"] },
+          ...(variante === "B_COMPLETA"
+            ? [{ celulas: ["Expansão", "Slot disponível para módulo GSM"] }]
+            : []),
+        ],
+      });
+      blocos.push({
+        id: bid("t"),
+        tipo: "table",
+        titulo: "Especificação do computador de consulta (a validar pelo especialista)",
+        colunas: ["Item", "Especificação mínima"],
+        origem: "dynamic",
+        editavel: true,
+        linhas: [
+          { celulas: ["Processador", "Intel Core i3 ou superior"] },
+          { celulas: ["Memória", "8 GB RAM"] },
+          { celulas: ["Armazenamento", "256 GB SSD"] },
+          { celulas: ["Sistema operacional", "Windows 10/11"] },
+          { celulas: ["Rede", "Acesso à internet estável e sem restrições (TeamViewer / AnyDesk)"] },
+        ],
+      });
+      blocos.push({
+        id: bid("o"),
+        tipo: "observacao",
+        titulo: "OBSERVAÇÃO TÉCNICA",
+        texto:
+          "As especificações de TI acima são o padrão IONICS e devem ser conferidas/ajustadas pelo especialista em automação conforme o porte da operação do cliente.",
+        origem: "dynamic",
+        editavel: true,
+      });
+    }
   } else if (solucao === null) {
     // Solução não identificada: não inventa requisitos nem assume SAAF.
     blocos.push({
@@ -528,14 +540,15 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     texto: "Instruções gerais",
     nivel: 1,
   });
-  const instrucao = (n: number, texto: string): BlocoLaudo =>
-    ({ id: bid("p"), chave: `instrucoes:${n}`, tipo: "paragraph", texto, origem: "dynamic", editavel: true }) as BlocoLaudo;
-  // texto oficial do Resultado de Mapeamento (o mesmo dos documentos emitidos pela IONICS)
-  blocos.push(
-    instrucao(1, "A IONICS orienta e auxilia em questões de infraestrutura relacionadas à instalação da sua automação; porém, não se responsabiliza pelos materiais empregados e serviços a serem executados. Sendo assim, cabe ao cliente que as obras de adequação sejam realizadas por pessoal especializado, de modo que atendam as normas de segurança (Mapeamento de risco) e de acordo / em conformidade com a legislação vigente (Instalações em Áreas Classificadas / Atmosferas Explosivas)."),
-    instrucao(2, "Se houver necessidade de alteração nos requisitos de infraestrutura solicitados neste documento é importante que seja comunicado imediatamente; dispomos de técnicos que darão o seu parecer e as devidas orientações para viabilizar a implantação da automação; caso contrário a IONICS não responderá por danos, redução da vida útil dos equipamentos e/ou falhas no funcionamento da solução SAAF."),
-    instrucao(3, "A IONICS coloca o MInfra-001_SAAF e a sua equipe à disposição para auxiliá-los no que for necessário e juntos prosseguir com o projeto de implantação."),
-  );
+  // texto oficial do Resultado de Mapeamento, ou a versão cadastrada em Configurações › Textos do documento
+  blocos.push(...blocosDoSlot({ slot: "instrucoes_gerais", versao: versaoDe("instrucoes_gerais"), campos, id: bid, chaveSistema: (i) => `instrucoes:${i + 1}` }));
+
+  // ---------- Considerações finais: só existe quando há uma versão aplicável ----------
+  const versaoFinal = versaoDe("consideracoes_finais");
+  if (versaoFinal) {
+    blocos.push({ id: bid("h"), chave: "consideracoes_finais:titulo", tipo: "heading", numero: "4", texto: "Considerações finais", nivel: 1, origem: "dynamic", editavel: true, removivel: true } as BlocoLaudo);
+    blocos.push(...blocosDaVersao({ slot: "consideracoes_finais", versao: versaoFinal, campos, id: bid }));
+  }
 
   return { blocos, achados };
 }

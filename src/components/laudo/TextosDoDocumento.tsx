@@ -1,0 +1,305 @@
+import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Badge, Button, Card, Input, Modal, Textarea } from "@/components/ui-bits";
+import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
+import { EXIGENCIAS, NIVEIS_REGRA, ROTULO_EXIGENCIA, SOLUCOES_REGRA, lerRegra, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
+import {
+  CAMPOS_TEXTO,
+  INFO_SLOT,
+  SLOTS_TEXTO,
+  TEXTO_ORIGINAL,
+  blocosParaItens,
+  itensParaCorpo,
+  lerSlot,
+  type SlotTexto,
+} from "@/lib/laudo/textos-padrao";
+
+type Form = {
+  id?: string;
+  slot: SlotTexto;
+  nome: string;
+  corpo: string;
+  padrao: boolean;
+  ativo: boolean;
+  ordem: number;
+  regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige">;
+};
+
+const SEM_CONDICAO = { solucao: [], nivel: [], exige: [] } as Form["regra"];
+
+/** "On-premise · Nível 2 · com Cartão RFID" (vazio = qualquer caso) */
+function condicaoEmTexto(escopo: Record<string, any> | null): string {
+  const r = lerRegra(escopo);
+  const partes: string[] = [];
+  if (r.solucao.length) partes.push(r.solucao.map((s) => SOLUCOES_REGRA.find((x) => x.valor === s)?.rotulo ?? s).join(" ou "));
+  if (r.nivel.length) partes.push(r.nivel.map((n) => NIVEIS_REGRA.find((x) => x.valor === n)?.rotulo ?? n).join(" ou "));
+  if (r.exige.length) partes.push(`com ${r.exige.map((x) => ROTULO_EXIGENCIA[x]).join(" e ")}`);
+  return partes.length ? partes.join(" · ") : "qualquer mapeamento";
+}
+
+/** Textos fixos do documento com versões: o especialista salva, duplica e define qual vale como padrão. */
+export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; onAlterou: () => void | Promise<void> }) {
+  const fnSalvar = useServerFn(salvarBlocoPadrao);
+  const fnExcluir = useServerFn(excluirBlocoPadrao);
+  const [form, setForm] = useState<Form | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const areaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const versoesDe = (slot: SlotTexto) => itens.filter((b) => lerSlot(b.escopo).slot === slot);
+
+  function nova(slot: SlotTexto) {
+    setForm({ slot, nome: "", corpo: itensParaCorpo(TEXTO_ORIGINAL[slot]), padrao: false, ativo: true, ordem: 100, regra: SEM_CONDICAO });
+  }
+  function abrir(b: BlocoPadrao, duplicar = false) {
+    const { slot, padrao } = lerSlot(b.escopo);
+    if (!slot) return;
+    const r = lerRegra(b.escopo);
+    setForm({
+      id: duplicar ? undefined : b.id,
+      slot,
+      nome: duplicar ? `${b.nome} (cópia)` : b.nome,
+      corpo: itensParaCorpo(blocosParaItens(b.blocos)),
+      // a cópia nasce fora do padrão: o especialista decide quando passa a valer
+      padrao: duplicar ? false : padrao,
+      ativo: b.ativo,
+      ordem: b.ordem,
+      regra: { solucao: r.solucao, nivel: r.nivel, exige: r.exige },
+    });
+  }
+
+  async function salvar() {
+    if (!form) return;
+    setSalvando(true);
+    try {
+      await fnSalvar({
+        data: {
+          id: form.id,
+          nome: form.nome,
+          descricao: null,
+          categoria: "texto",
+          corpo: form.corpo,
+          ativo: form.ativo,
+          ordem: Number(form.ordem) || 0,
+          slot: form.slot,
+          padrao: form.padrao,
+          regra: { automatico: false, ...form.regra },
+        },
+      });
+      toast.success("Versão salva.");
+      setForm(null);
+      await onAlterou();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar a versão.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function excluir(b: BlocoPadrao) {
+    if (!confirm(`Excluir a versão "${b.nome}"? Mapeamentos que a usam voltam para o texto padrão.`)) return;
+    try {
+      await fnExcluir({ data: { id: b.id } });
+      toast.success("Versão excluída.");
+      await onAlterou();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao excluir.");
+    }
+  }
+
+  function inserirCampo(chave: string) {
+    if (!form) return;
+    const area = areaRef.current;
+    const marcador = `{{${chave}}}`;
+    if (!area) return setForm({ ...form, corpo: `${form.corpo}${marcador}` });
+    const ini = area.selectionStart ?? form.corpo.length;
+    const fim = area.selectionEnd ?? ini;
+    const corpo = `${form.corpo.slice(0, ini)}${marcador}${form.corpo.slice(fim)}`;
+    setForm({ ...form, corpo });
+    requestAnimationFrame(() => {
+      area.focus();
+      area.setSelectionRange(ini + marcador.length, ini + marcador.length);
+    });
+  }
+
+  const marcar = (grupo: keyof Form["regra"], valor: string, ligado: boolean) => {
+    if (!form) return;
+    const atuais = form.regra[grupo] as string[];
+    setForm({ ...form, regra: { ...form.regra, [grupo]: ligado ? [...atuais, valor] : atuais.filter((x) => x !== valor) } });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold">Textos do documento</h2>
+        <p className="text-xs text-muted-foreground">
+          Cada texto fixo do Resultado de Mapeamento pode ter várias versões. A versão marcada como <b>padrão</b> (e cujas condições o mapeamento atende) entra
+          sozinha; sem nenhuma, vale o texto original do sistema. Para um mapeamento específico, troque a versão na aba Documento (“Textos do documento”).
+        </p>
+      </div>
+
+      {SLOTS_TEXTO.map((slot) => {
+        const versoes = versoesDe(slot);
+        const original = itensParaCorpo(TEXTO_ORIGINAL[slot]);
+        return (
+          <Card key={slot} className="space-y-3 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{INFO_SLOT[slot].rotulo}</p>
+                <p className="text-xs text-muted-foreground">{INFO_SLOT[slot].descricao}</p>
+              </div>
+              <Button variant="secondary" onClick={() => nova(slot)}>
+                Nova versão
+              </Button>
+            </div>
+
+            {versoes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {original ? "Nenhuma versão salva: o documento usa o texto original do sistema." : "Nenhuma versão salva: este texto não aparece no documento."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {versoes.map((b) => {
+                  const { padrao } = lerSlot(b.escopo);
+                  return (
+                    <div key={b.id} className="flex items-start justify-between gap-3 rounded-md border border-border p-3">
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                          {b.nome}
+                          {padrao && <Badge className="bg-primary/10 text-primary">Padrão: {condicaoEmTexto(b.escopo)}</Badge>}
+                          {!padrao && <Badge className="bg-muted text-muted-foreground">Só por escolha no mapeamento</Badge>}
+                          {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativa</Badge>}
+                        </p>
+                        <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{itensParaCorpo(blocosParaItens(b.blocos))}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Button variant="secondary" onClick={() => abrir(b)} aria-label="Editar versão">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="secondary" onClick={() => abrir(b, true)} aria-label="Duplicar versão">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button variant="secondary" onClick={() => excluir(b)} aria-label="Excluir versão">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {original && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Ver o texto original do sistema</summary>
+                <p className="mt-2 whitespace-pre-line rounded-md bg-muted/50 p-3 text-muted-foreground">{original}</p>
+              </details>
+            )}
+          </Card>
+        );
+      })}
+
+      <Modal open={!!form} onClose={() => setForm(null)} title={form ? `${form.id ? "Editar" : "Nova"} versão — ${INFO_SLOT[form.slot].rotulo}` : ""}>
+        {form && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium">Nome da versão</label>
+              <Input value={form.nome} placeholder="Ex.: Introdução 2026" onChange={(e) => setForm({ ...form, nome: e.currentTarget.value })} />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium">Texto</label>
+              <p className="mb-1 text-[11px] text-muted-foreground">
+                Uma linha em branco separa os parágrafos. “- ” no começo da linha cria item de lista. “!” no começo do parágrafo o marca como campo de revisão
+                (amarelo só na tela; o PDF sai normal).
+              </p>
+              <Textarea
+                {...({ ref: areaRef } as object)}
+                rows={12}
+                value={form.corpo}
+                onChange={(e) => setForm({ ...form, corpo: e.currentTarget.value })}
+              />
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="text-[11px] text-muted-foreground">Inserir campo automático:</span>
+                {CAMPOS_TEXTO.map((c) => (
+                  <button
+                    key={c.chave}
+                    type="button"
+                    title={c.rotulo}
+                    onClick={() => inserirCampo(c.chave)}
+                    className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+                  >
+                    {`{{${c.chave}}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-md border border-border p-3 text-xs">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" checked={form.padrao} onChange={(e) => setForm({ ...form, padrao: e.target.checked })} />
+                Usar como padrão
+              </label>
+              <p className="text-muted-foreground">
+                Quando marcado, esta versão entra sozinha nos mapeamentos que atendem a TODAS as condições abaixo (grupo sem marcação = qualquer). Se mais de uma
+                se aplicar, vale a mais específica. Desmarcado, ela só é usada quando escolhida em um mapeamento.
+              </p>
+              {form.padrao && (
+                <>
+                  <Grupo titulo="Solução" opcoes={SOLUCOES_REGRA.map((o) => [o.valor, o.rotulo])} marcados={form.regra.solucao} onMarcar={(v, l) => marcar("solucao", v, l)} />
+                  <Grupo titulo="Nível de serviço" opcoes={NIVEIS_REGRA.map((o) => [o.valor, o.rotulo])} marcados={form.regra.nivel} onMarcar={(v, l) => marcar("nivel", v, l)} />
+                  <Grupo
+                    titulo="Só quando o Escopo tiver"
+                    opcoes={EXIGENCIAS.map((x) => [x, ROTULO_EXIGENCIA[x]])}
+                    marcados={form.regra.exige}
+                    onMarcar={(v, l) => marcar("exige", v, l)}
+                  />
+                </>
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
+              Ativa
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setForm(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={salvar} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
+                {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function Grupo({
+  titulo,
+  opcoes,
+  marcados,
+  onMarcar,
+}: {
+  titulo: string;
+  opcoes: (readonly [string, string])[];
+  marcados: string[];
+  onMarcar: (valor: string, ligado: boolean) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 font-medium">{titulo}</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {opcoes.map(([valor, rotulo]) => (
+          <label key={valor} className="flex items-center gap-1.5">
+            <input type="checkbox" checked={marcados.includes(valor)} onChange={(e) => onMarcar(valor, e.target.checked)} />
+            {rotulo}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

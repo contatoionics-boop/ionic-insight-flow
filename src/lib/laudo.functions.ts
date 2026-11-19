@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { renumerar } from "@/lib/laudo/numeracao";
 import { comChaves, dedupBlocos } from "@/lib/laudo/mesclar";
+import { SLOTS_TEXTO } from "@/lib/laudo/textos-padrao";
 import type { Achado } from "@/lib/laudo/analise/achados";
 import {
   alertasBloqueantes,
@@ -100,6 +101,54 @@ export const carregarLaudo = createServerFn({ method: "POST" })
       confirmacoes: (caso?.laudo_alertas ?? []) as unknown as ConfirmacaoAlerta[],
       achados: ((caso?.laudo_analise as any)?.achados ?? []) as Achado[],
       descartados: (((caso?.laudo_analise as any)?.descartados ?? []) as string[]),
+      // versão de cada texto do documento escolhida para este mapeamento (slot → id da versão ou "sistema")
+      textosEscolhidos: (((caso?.laudo_analise as any)?.textos_escolhidos ?? {}) as Record<string, string>),
+    };
+  });
+
+/**
+ * Escolhe a versão de um texto do documento (Introdução, Instruções gerais…) só para este mapeamento e remonta o documento.
+ * `versaoId` = id de uma versão cadastrada, "sistema" (texto original) ou null (volta ao automático).
+ */
+export const escolherTextoLaudo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        casoId: z.string().uuid(),
+        slot: z.enum(SLOTS_TEXTO),
+        versaoId: z.string().min(1).nullable(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const { data: caso, error } = await supabase
+      .from("casos")
+      .select("laudo_analise")
+      .eq("id", data.casoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+
+    const analise = (caso?.laudo_analise ?? {}) as { textos_escolhidos?: Record<string, string> };
+    const escolhas = { ...(analise.textos_escolhidos ?? {}) };
+    if (data.versaoId) escolhas[data.slot] = data.versaoId;
+    else delete escolhas[data.slot];
+
+    const { error: uErr } = await supabase
+      .from("casos")
+      .update({ laudo_analise: { ...analise, textos_escolhidos: escolhas } as any })
+      .eq("id", data.casoId);
+    if (uErr) throw new Error(uErr.message);
+
+    const { montarESalvarLaudo } = await import("@/lib/laudo/montar.server");
+    const res = await montarESalvarLaudo(supabase, data.casoId);
+    return {
+      conteudo: res.conteudo,
+      achados: res.achados,
+      descartados: res.descartados,
+      pendencias: blocosComPendencia(res.blocos),
+      textosEscolhidos: escolhas,
     };
   });
 

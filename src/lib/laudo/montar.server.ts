@@ -316,15 +316,21 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
 
   // Blocos padrão com inserção automática (regra gravada em `escopo`); falha na leitura não derruba a geração.
   let blocosPadrao: import("@/lib/laudo/blocos-padrao-regras").BlocoPadraoAuto[] = [];
+  // versões dos textos do documento (Introdução, Instruções gerais…): ficam na mesma tabela, identificadas pelo `slot`
+  let textosPadrao: import("@/lib/laudo/textos-padrao").VersaoTexto[] = [];
   try {
     const { data: padroes } = await supabase
       .from("blocos_padrao")
       .select("id, nome, escopo, blocos, ordem")
       .eq("ativo", true);
-    blocosPadrao = ((padroes ?? []) as any[]).filter((p) => p?.escopo?.automatico === true);
+    const { lerSlot } = await import("@/lib/laudo/textos-padrao");
+    const lista = (padroes ?? []) as any[];
+    textosPadrao = lista.filter((p) => lerSlot(p?.escopo).slot);
+    blocosPadrao = lista.filter((p) => p?.escopo?.automatico === true && !lerSlot(p?.escopo).slot);
   } catch {
     // sem blocos padrão automáticos
   }
+  const textosEscolhidos = (analiseSalva as { textos_escolhidos?: Record<string, string> }).textos_escolhidos ?? {};
 
   let fotosTransferencia: import("@/lib/laudo/secoes/transferencia").FotoTransferencia[] = [];
   try {
@@ -335,6 +341,8 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
 
   const { blocos, achados } = montarBlocosEAnalise({
     fotosTransferencia,
+    textosPadrao,
+    textosEscolhidos,
     blocosPadrao,
     achadosDescartados: descartados,
     produtosProposta,
@@ -369,6 +377,8 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
       laudo_analise: {
         achados,
         descartados,
+        // versão de cada texto do documento escolhida para este mapeamento (slot → id da versão ou "sistema")
+        textos_escolhidos: textosEscolhidos,
         analisado_em: new Date().toISOString(),
         // respostas por entidade com valores diferentes: não entram no laudo (decisão manual)
         instancias_ambiguas: instanciasAmbiguas,

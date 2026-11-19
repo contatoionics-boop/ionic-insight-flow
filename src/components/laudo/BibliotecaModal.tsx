@@ -6,6 +6,7 @@ import { Button, Card } from "@/components/ui-bits";
 import { listarBlocosPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { listarFotosLaudo } from "@/lib/laudo.functions";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
+import { lerSlot } from "@/lib/laudo/textos-padrao";
 
 type Foto = { path: string; url: string; legenda: string };
 
@@ -34,7 +35,7 @@ export function BibliotecaModal({
       try {
         if (tipo === "padrao") {
           const r = await fnBlocos({ data: {} as any });
-          if (vivo) setPadroes((r as BlocoPadrao[]).filter((b) => b.ativo));
+          if (vivo) setPadroes((r as BlocoPadrao[]).filter((b) => b.ativo && !lerSlot(b.escopo).slot));
         } else {
           const r = await fnFotos({ data: { casoId } });
           if (vivo) setFotos(r as Foto[]);

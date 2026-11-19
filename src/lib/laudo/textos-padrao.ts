@@ -1,0 +1,251 @@
+// Textos padrão do documento com versões ("slots"), client-safe, funções puras.
+//
+// Cada texto fixo do Resultado de Mapeamento (Introdução, Instruções gerais…) é um SLOT. O especialista
+// guarda várias versões de cada slot em Configurações › Textos do documento e o sistema escolhe uma:
+//   1. a versão escolhida para o mapeamento (troca manual);
+//   2. a versão marcada como padrão cuja condição (solução, nível, itens do Escopo) o caso atende
+//      (empate: a mais específica, depois a ordem);
+//   3. o texto original do sistema (o que o gerador sempre produziu).
+// A versão fica em `blocos_padrao`: `escopo` = { slot, padrao, solucao?, nivel?, exige? } e `blocos` = parágrafos/listas
+// com campos `{{cliente}}`. Campo sem dado vira [CONFIRMAR]; o PDF continua bloqueado enquanto houver pendência.
+
+import { condicoesAtendidas, lerRegra, type AvaliacaoRegra, type BlocoPadraoAuto, type RegraBlocoPadrao } from "./blocos-padrao-regras";
+import { pendencia, type BlocoLaudo } from "./tipos";
+
+export const SLOTS_TEXTO = ["introducao", "instrucoes_gerais", "consideracoes_finais", "ti_bd"] as const;
+export type SlotTexto = (typeof SLOTS_TEXTO)[number];
+
+export const INFO_SLOT: Record<SlotTexto, { rotulo: string; descricao: string }> = {
+  introducao: { rotulo: "Introdução", descricao: "Abre o documento, logo abaixo do título 1. Introdução." },
+  instrucoes_gerais: { rotulo: "Instruções gerais", descricao: "Texto da seção de Instruções gerais, no final dos requisitos." },
+  consideracoes_finais: { rotulo: "Considerações finais", descricao: "Seção extra no fim do documento. Só aparece quando existe uma versão aplicável." },
+  ti_bd: { rotulo: "TI e banco de dados (texto)", descricao: "Texto dos requisitos de TI e banco de dados (2.1). As tabelas de especificação continuam editáveis no documento." },
+};
+
+export const ehSlotTexto = (valor: unknown): valor is SlotTexto => typeof valor === "string" && (SLOTS_TEXTO as readonly string[]).includes(valor);
+
+/** Campos automáticos que o texto pode usar: `{{chave}}`. */
+export const CAMPOS_TEXTO = [
+  { chave: "cliente", rotulo: "Nome do cliente" },
+  { chave: "unidade", rotulo: "Unidade" },
+  { chave: "solucao", rotulo: "Solução (SSGFrota ou On-premise)" },
+  { chave: "nivel", rotulo: "Nível de automação (ex.: Nível 2)" },
+  { chave: "modalidade", rotulo: "Modalidade do mapeamento (remoto/presencial)" },
+  { chave: "tipo_acao", rotulo: "Tipo de ação (instalação ou upgrade)" },
+  { chave: "objeto_escopo", rotulo: "Objeto do escopo" },
+  { chave: "data", rotulo: "Data do mapeamento" },
+  { chave: "agente", rotulo: "Agente do mapeamento" },
+  { chave: "origem_dados", rotulo: "Frase sobre quem informou os dados (pode vir vazia)" },
+] as const;
+
+export type CamposTexto = Record<string, string | null | undefined>;
+
+/** Troca `{{campo}}` pelo valor. Valor ausente (null) ou campo desconhecido vira [CONFIRMAR]; "" é válido (some). */
+export function renderizarCampos(texto: string, campos: CamposTexto): string {
+  return texto.replace(/\{\{\s*([A-Za-z_]\w*)\s*\}\}/g, (_inteiro, chave: string) => {
+    if (!(chave in campos)) return pendencia(chave, `campo desconhecido {{${chave}}}`);
+    const valor = campos[chave];
+    if (valor === null || valor === undefined) return pendencia(chave, CAMPOS_TEXTO.find((c) => c.chave === chave)?.rotulo ?? chave);
+    return valor;
+  });
+}
+
+// ------------------------------------------------------------------ conteúdo do texto
+
+/** Conteúdo editável: parágrafo (com ou sem destaque de revisão) ou lista. */
+export type ItemTexto = { tipo: "paragraph"; texto: string; destaque?: boolean } | { tipo: "bullets"; itens: string[] };
+
+/**
+ * Corpo em texto → itens. Cada linha é um parágrafo; "- " ou "• " no começo vira item de lista;
+ * "!" no começo marca o parágrafo como campo de revisão (amarelo só no editor, PDF limpo).
+ */
+export function corpoParaItens(corpo: string): ItemTexto[] {
+  const itens: ItemTexto[] = [];
+  let lista: string[] = [];
+  const fechar = () => {
+    if (lista.length) itens.push({ tipo: "bullets", itens: lista });
+    lista = [];
+  };
+  for (const bruta of corpo.split(/\r?\n/)) {
+    const l = bruta.trim();
+    if (!l) {
+      fechar();
+      continue;
+    }
+    if (l.startsWith("- ") || l.startsWith("• ")) {
+      lista.push(l.slice(2).trim());
+      continue;
+    }
+    fechar();
+    if (l.startsWith("!")) itens.push({ tipo: "paragraph", texto: l.slice(1).trim(), destaque: true });
+    else itens.push({ tipo: "paragraph", texto: l });
+  }
+  fechar();
+  return itens;
+}
+
+/** Itens → corpo em texto (inverso de `corpoParaItens`). */
+export function itensParaCorpo(itens: ItemTexto[]): string {
+  return itens
+    .map((i) => (i.tipo === "bullets" ? i.itens.map((x) => `- ${x}`).join("\n") : `${i.destaque ? "!" : ""}${i.texto}`))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Blocos gravados na versão → itens (só parágrafo e lista; o resto é ignorado). */
+export function blocosParaItens(blocos: BlocoLaudo[]): ItemTexto[] {
+  const itens: ItemTexto[] = [];
+  for (const b of blocos ?? []) {
+    if (b.tipo === "paragraph") itens.push({ tipo: "paragraph", texto: b.texto, ...(b.destaque ? { destaque: true } : {}) });
+    else if (b.tipo === "bullets") itens.push({ tipo: "bullets", itens: b.itens });
+  }
+  return itens;
+}
+
+/** Itens → blocos para gravar na versão (o texto ainda traz os `{{campos}}`). */
+export function itensParaBlocos(itens: ItemTexto[]): BlocoLaudo[] {
+  const rnd = () => Math.random().toString(36).slice(2, 10);
+  return itens.map((i) =>
+    i.tipo === "bullets"
+      ? ({ id: `tx-bl-${rnd()}`, tipo: "bullets", itens: i.itens } as BlocoLaudo)
+      : ({ id: `tx-p-${rnd()}`, tipo: "paragraph", ...(i.destaque ? { destaque: "editavel" } : {}), texto: i.texto } as BlocoLaudo),
+  );
+}
+
+// ------------------------------------------------------------------ texto original do sistema
+
+const NOME_SOLUCAO_ORIGINAL = "{{solucao}}";
+
+/**
+ * O que o gerador produz quando não há versão. Serve de ponto de partida para "Nova versão".
+ * Introdução e Instruções gerais são o texto oficial; TI/BD é o texto do cenário padrão (servidor + consulta);
+ * Considerações finais não existe no original (vazio).
+ */
+export const TEXTO_ORIGINAL: Record<SlotTexto, ItemTexto[]> = {
+  introducao: [
+    {
+      tipo: "paragraph",
+      destaque: true,
+      texto:
+        "Este documento apresenta o resultado do mapeamento técnico realizado para {{cliente}}, em atendimento {{modalidade}}, " +
+        `referente à {{tipo_acao}} da solução ${NOME_SOLUCAO_ORIGINAL} no escopo: {{objeto_escopo}}.{{origem_dados}}`,
+    },
+    {
+      tipo: "paragraph",
+      texto:
+        "As informações a seguir descrevem os requisitos de infraestrutura, os produtos IONICS e os materiais necessários para a execução do serviço. " +
+        "Itens sinalizados como pendentes de confirmação dependem de validação antes da emissão definitiva do documento.",
+    },
+  ],
+  instrucoes_gerais: [
+    {
+      tipo: "paragraph",
+      texto:
+        "A IONICS orienta e auxilia em questões de infraestrutura relacionadas à instalação da sua automação; porém, não se responsabiliza pelos materiais empregados e serviços a serem executados. Sendo assim, cabe ao cliente que as obras de adequação sejam realizadas por pessoal especializado, de modo que atendam as normas de segurança (Mapeamento de risco) e de acordo / em conformidade com a legislação vigente (Instalações em Áreas Classificadas / Atmosferas Explosivas).",
+    },
+    {
+      tipo: "paragraph",
+      texto:
+        "Se houver necessidade de alteração nos requisitos de infraestrutura solicitados neste documento é importante que seja comunicado imediatamente; dispomos de técnicos que darão o seu parecer e as devidas orientações para viabilizar a implantação da automação; caso contrário a IONICS não responderá por danos, redução da vida útil dos equipamentos e/ou falhas no funcionamento da solução SAAF.",
+    },
+    {
+      tipo: "paragraph",
+      texto: "A IONICS coloca o MInfra-001_SAAF e a sua equipe à disposição para auxiliá-los no que for necessário e juntos prosseguir com o projeto de implantação.",
+    },
+  ],
+  consideracoes_finais: [],
+  ti_bd: [
+    {
+      tipo: "bullets",
+      itens: [
+        "Para operação da automação SAAF é importante que seja disponibilizado um servidor local conectado à rede de internet estável e sem restrições, de modo que possa ser acessado mediante o uso dos aplicativos TeamViewer ou AnyDesk.",
+        "Para consultas da automação SAAF é necessário que seja disponibilizado um computador com conexão à rede de internet estável e sem restrições, acessível pelos mesmos aplicativos.",
+        "A criação do banco de dados SAAF é pré-requisito para a instalação das aplicações da automação; o script será disponibilizado pela equipe SW/IAM - IONICS de acordo com o cronograma de implantação.",
+        "A integração com ERPs também é requisito para operação com o SAAF; a equipe SW/IAM - IONICS dará as instruções para criação das views de importação e exportação de dados.",
+      ],
+    },
+  ],
+};
+
+// ------------------------------------------------------------------ escolha da versão
+
+export type VersaoTexto = BlocoPadraoAuto;
+/** mapeamento específico: `{ slot: idDaVersao | "sistema" }` ("sistema" = texto original) */
+export type EscolhasTexto = Record<string, string>;
+
+/** Slot e "usar como padrão" gravados em `escopo` da versão. */
+export function lerSlot(escopo: Record<string, any> | null | undefined): { slot: SlotTexto | null; padrao: boolean } {
+  const e = escopo ?? {};
+  return { slot: ehSlotTexto(e.slot) ? e.slot : null, padrao: e.padrao === true };
+}
+
+/** Monta o `escopo` de uma versão de texto: slot, padrão e as condições (campos vazios não são gravados). */
+export function escopoDaVersao(slot: SlotTexto, padrao: boolean, regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige">): Record<string, any> {
+  return {
+    slot,
+    padrao,
+    ...(regra.solucao.length ? { solucao: regra.solucao } : {}),
+    ...(regra.nivel.length ? { nivel: regra.nivel } : {}),
+    ...(regra.exige.length ? { exige: regra.exige } : {}),
+  };
+}
+
+const especificidade = (r: RegraBlocoPadrao) => r.solucao.length + r.nivel.length + r.exige.length;
+
+/**
+ * Versão a usar no slot, ou null para o texto original do sistema.
+ * A escolha manual vale mesmo que a condição não seja atendida; versão apagada/inativa cai no padrão.
+ */
+export function escolherVersao(slot: SlotTexto, versoes: VersaoTexto[], escolhas: EscolhasTexto | null | undefined, a: AvaliacaoRegra): VersaoTexto | null {
+  const doSlot = versoes.filter((v) => lerSlot(v.escopo).slot === slot && (v.blocos ?? []).length > 0);
+  const escolhida = escolhas?.[slot];
+  if (escolhida === "sistema") return null;
+  if (escolhida) {
+    const manual = doSlot.find((v) => v.id === escolhida);
+    if (manual) return manual;
+  }
+  const candidatas = doSlot
+    .filter((v) => lerSlot(v.escopo).padrao && condicoesAtendidas(lerRegra(v.escopo), a))
+    .sort((x, y) => especificidade(lerRegra(y.escopo)) - especificidade(lerRegra(x.escopo)) || (x.ordem ?? 0) - (y.ordem ?? 0) || x.nome.localeCompare(y.nome));
+  return candidatas[0] ?? null;
+}
+
+// ------------------------------------------------------------------ geração dos blocos
+
+type Meta = { chave?: string; origem?: "dynamic"; editavel?: true; removivel?: true };
+
+function blocoDoItem(item: ItemTexto, campos: CamposTexto, id: string, meta: Meta): BlocoLaudo {
+  // ordem dos campos preservada (a mescla compara o conteúdo gerado com o salvo)
+  if (item.tipo === "bullets") return { id, tipo: "bullets", itens: item.itens.map((x) => renderizarCampos(x, campos)), ...meta } as BlocoLaudo;
+  const texto = renderizarCampos(item.texto, campos);
+  return (item.destaque ? { id, tipo: "paragraph", destaque: "editavel", texto, ...meta } : { id, tipo: "paragraph", texto, ...meta }) as BlocoLaudo;
+}
+
+/** Blocos de uma versão cadastrada: chave estável `texto:<slot>:<versão>:<posição>` (a edição manual sobrevive ao regerar). */
+export function blocosDaVersao(entrada: { slot: SlotTexto; versao: VersaoTexto; campos: CamposTexto; id: (prefixo: string) => string }): BlocoLaudo[] {
+  const { slot, versao, campos, id } = entrada;
+  return blocosParaItens(versao.blocos).map((item, i) =>
+    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : "p"), { chave: `texto:${slot}:${versao.id}:${i}`, origem: "dynamic", editavel: true, removivel: true }),
+  );
+}
+
+/**
+ * Texto do slot: a versão escolhida ou, sem ela, o texto original do sistema.
+ * `chaveSistema` mantém as chaves que o texto original já tinha (documentos antigos continuam casando na mescla).
+ */
+export function blocosDoSlot(entrada: {
+  slot: SlotTexto;
+  versao: VersaoTexto | null;
+  campos: CamposTexto;
+  id: (prefixo: string) => string;
+  chaveSistema?: (posicao: number) => string;
+}): BlocoLaudo[] {
+  const { slot, versao, campos, id, chaveSistema } = entrada;
+  if (versao) return blocosDaVersao({ slot, versao, campos, id });
+  return TEXTO_ORIGINAL[slot].map((item, i) =>
+    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : "p"), chaveSistema ? { chave: chaveSistema(i), origem: "dynamic", editavel: true } : {}),
+  );
+}
+
+/** Prefixo das chaves dos blocos de um slot no documento (para avisar sobre edições manuais ao trocar de versão). */
+export const prefixosDoSlot = (slot: SlotTexto): string[] => [`texto:${slot}:`, ...(slot === "instrucoes_gerais" ? ["instrucoes:"] : [])];

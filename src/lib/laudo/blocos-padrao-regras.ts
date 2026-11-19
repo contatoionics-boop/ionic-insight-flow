@@ -76,6 +76,11 @@ export type AvaliacaoRegra = { nivel: string | null; contexto: ContextoLaudo | n
 /** A regra é atendida pelo caso? Dado desconhecido nunca satisfaz uma condição (não inclui por engano). */
 export function regraAtende(r: RegraBlocoPadrao, a: AvaliacaoRegra): boolean {
   if (!r.automatico) return false;
+  return condicoesAtendidas(r, a);
+}
+
+/** Só as condições (solução, nível, itens do Escopo), sem exigir o flag "automático" (usado pelas versões de texto). */
+export function condicoesAtendidas(r: RegraBlocoPadrao, a: AvaliacaoRegra): boolean {
   const e = a.contexto?.escopo;
   if (r.solucao.length && (!e?.solucao || !r.solucao.includes(e.solucao))) return false;
   if (r.nivel.length && (!a.nivel || !r.nivel.includes(a.nivel))) return false;

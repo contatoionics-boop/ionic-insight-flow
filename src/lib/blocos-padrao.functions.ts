@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { EXIGENCIAS, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
+import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos } from "@/lib/laudo/textos-padrao";
 
 export type BlocoPadrao = {
   id: string;
@@ -37,6 +38,10 @@ const SalvarInput = z.object({
   titulo_secao: z.string().optional().nullable(),
   ativo: z.boolean().default(true),
   ordem: z.number().int().default(0),
+  /** versão de um texto do documento (Introdução, Instruções gerais…): substitui o texto original; ver textos-padrao.ts */
+  slot: z.enum(SLOTS_TEXTO).optional().nullable(),
+  /** versão de texto usada automaticamente quando as condições são atendidas */
+  padrao: z.boolean().optional(),
   /** quando o bloco entra sozinho no documento (vazio/ausente = só inserção manual) */
   regra: z
     .object({
@@ -89,12 +94,15 @@ export const salvarBlocoPadrao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => SalvarInput.parse(i))
   .handler(async ({ data, context }) => {
+    const regra = data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [] };
+    const versaoDeTexto = !!data.slot;
     const payload = {
       nome: data.nome.trim(),
       descricao: data.descricao?.trim() || null,
-      categoria: data.categoria,
-      blocos: corpoParaBlocos(data.corpo, data.titulo_secao) as any,
-      escopo: regraParaEscopo(data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [] }) as any,
+      categoria: versaoDeTexto ? "texto" : data.categoria,
+      // versão de texto: só parágrafos e listas, com os {{campos}} (o título da seção é do documento)
+      blocos: (versaoDeTexto ? itensParaBlocos(corpoParaItens(data.corpo)) : corpoParaBlocos(data.corpo, data.titulo_secao)) as any,
+      escopo: (data.slot ? escopoDaVersao(data.slot, data.padrao ?? false, regra) : regraParaEscopo(regra)) as any,
       ativo: data.ativo,
       ordem: data.ordem,
       criado_por: context.userId,
