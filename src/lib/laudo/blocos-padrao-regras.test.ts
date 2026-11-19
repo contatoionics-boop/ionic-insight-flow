@@ -20,9 +20,9 @@ describe("regra do bloco padrão", () => {
   it("lê e grava só o que foi preenchido; sem 'automatico' é inserção manual", () => {
     expect(lerRegra({}).automatico).toBe(false);
     expect(lerRegra(null).exige).toEqual([]);
-    expect(lerRegra({ automatico: true, exige: ["tx", "lixo"], nivel: "x" })).toEqual({ automatico: true, solucao: [], nivel: [], exige: ["tx"] });
-    expect(regraParaEscopo({ automatico: false, solucao: ["ssg_frota"], nivel: [], exige: [] })).toEqual({});
-    expect(regraParaEscopo({ automatico: true, solucao: [], nivel: ["nivel_2"], exige: [] })).toEqual({ automatico: true, nivel: ["nivel_2"] });
+    expect(lerRegra({ automatico: true, exige: ["tx", "lixo"], nivel: "x" })).toEqual({ automatico: true, solucao: [], nivel: [], exige: ["tx"], posicao: "antes_instrucoes" });
+    expect(regraParaEscopo({ automatico: false, solucao: ["ssg_frota"], nivel: [], exige: [], posicao: "antes_instrucoes" })).toEqual({});
+    expect(regraParaEscopo({ automatico: true, solucao: [], nivel: ["nivel_2"], exige: [], posicao: "antes_instrucoes" })).toEqual({ automatico: true, nivel: ["nivel_2"] });
   });
   it("resume a regra em português", () => {
     expect(resumoDaRegra(lerRegra({}))).toBe("Inserção manual");

@@ -17,7 +17,9 @@ import {
 import {
   EXIGENCIAS,
   NIVEIS_REGRA,
+  POSICOES_BLOCO,
   ROTULO_EXIGENCIA,
+  ROTULO_POSICAO,
   SOLUCOES_REGRA,
   lerRegra,
   resumoDaRegra,
@@ -65,7 +67,7 @@ const VAZIO: Form = {
   corpo: "",
   ativo: true,
   ordem: 100,
-  regra: { automatico: false, solucao: [], nivel: [], exige: [] },
+  regra: { automatico: false, solucao: [], nivel: [], exige: [], posicao: "antes_instrucoes" },
 };
 
 function corpoDosBlocos(b: BlocoPadrao): string {
@@ -294,9 +296,23 @@ function BlocosPadraoPage() {
             {form.regra.automatico && (
               <div className="space-y-2 text-xs">
                 <p className="text-muted-foreground">
-                  O bloco entra antes das Instruções gerais, quando o mapeamento atender a TODAS as condições marcadas
+                  O bloco entra na posição escolhida abaixo, quando o mapeamento atender a TODAS as condições marcadas
                   (grupo sem marcação = qualquer). Depois de entrar, o especialista pode editar o texto.
                 </p>
+                <div>
+                  <p className="mb-1 font-medium">Posição no documento</p>
+                  <select
+                    className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
+                    value={form.regra.posicao}
+                    onChange={(e) => setForm({ ...form, regra: { ...form.regra, posicao: e.target.value as RegraBlocoPadrao["posicao"] } })}
+                  >
+                    {POSICOES_BLOCO.map((p) => (
+                      <option key={p} value={p}>
+                        {ROTULO_POSICAO[p]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <GrupoMarcas
                   titulo="Solução"
                   opcoes={SOLUCOES_REGRA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}

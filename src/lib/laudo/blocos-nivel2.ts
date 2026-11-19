@@ -216,6 +216,8 @@ export type EntradaBlocosNivel2 = {
   solucao?: string | null;
   /** @deprecated o 2.4.1 saiu do bloco global; mantido só por compatibilidade das chamadas */
   comboioNoEscopo?: boolean;
+  /** blocos de uma versão cadastrada (Configurações › Textos do documento): substituem os textos e desenhos padrão */
+  texto?: BlocoLaudo[] | null;
 };
 
 /**
@@ -232,7 +234,7 @@ export function blocosNivel2(entrada: EntradaBlocosNivel2): BlocoLaudo[] {
     id: bid,
     proximaFigura,
   };
-  const out = blocos24(opcoes);
+  const out = entrada.texto ? [blocos24(opcoes)[0], ...entrada.texto] : blocos24(opcoes);
   // A adequação do suporte do bico não é mais um tópico global: entra dentro de cada comboio que
   // informou não ter suporte (secoes/comboio.ts). `blocos241` segue disponível na biblioteca do editor.
   return out;

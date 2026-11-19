@@ -28,11 +28,21 @@ export const NIVEIS_REGRA = [
   { valor: "nivel_3", rotulo: "Nível 3" },
 ] as const;
 
+/** Onde o bloco adicional automático entra no documento. */
+export const POSICOES_BLOCO = ["apos_introducao", "antes_instrucoes", "fim"] as const;
+export type PosicaoBloco = (typeof POSICOES_BLOCO)[number];
+export const ROTULO_POSICAO: Record<PosicaoBloco, string> = {
+  apos_introducao: "Logo após a Introdução",
+  antes_instrucoes: "Antes das Instruções gerais",
+  fim: "No fim do documento (depois das Instruções e das Considerações finais)",
+};
+
 export type RegraBlocoPadrao = {
   automatico: boolean;
   solucao: string[];
   nivel: string[];
   exige: Exigencia[];
+  posicao: PosicaoBloco;
 };
 
 export type BlocoPadraoAuto = { id: string; nome: string; escopo: Record<string, any> | null; blocos: BlocoLaudo[]; ordem?: number };
@@ -47,6 +57,7 @@ export function lerRegra(escopo: Record<string, any> | null | undefined): RegraB
     solucao: lista(e.solucao),
     nivel: lista(e.nivel),
     exige: lista(e.exige).filter((x): x is Exigencia => (EXIGENCIAS as readonly string[]).includes(x)),
+    posicao: (POSICOES_BLOCO as readonly string[]).includes(e.posicao) ? e.posicao : "antes_instrucoes",
   };
 }
 
@@ -58,6 +69,7 @@ export function regraParaEscopo(r: RegraBlocoPadrao): Record<string, any> {
     ...(r.solucao.length ? { solucao: r.solucao } : {}),
     ...(r.nivel.length ? { nivel: r.nivel } : {}),
     ...(r.exige.length ? { exige: r.exige } : {}),
+    ...(r.posicao && r.posicao !== "antes_instrucoes" ? { posicao: r.posicao } : {}),
   };
 }
 
@@ -68,6 +80,7 @@ export function resumoDaRegra(r: RegraBlocoPadrao): string {
   if (r.solucao.length) partes.push(r.solucao.map((s) => SOLUCOES_REGRA.find((x) => x.valor === s)?.rotulo ?? s).join(" ou "));
   if (r.nivel.length) partes.push(r.nivel.map((n) => NIVEIS_REGRA.find((x) => x.valor === n)?.rotulo ?? n).join(" ou "));
   if (r.exige.length) partes.push(`com ${r.exige.map((x) => ROTULO_EXIGENCIA[x]).join(" e ")}`);
+  if (r.posicao !== "antes_instrucoes") partes.push(r.posicao === "fim" ? "no fim" : "após a Introdução");
   return `Automático${partes.length ? `: ${partes.join(" · ")}` : ": em todos os documentos"}`;
 }
 
@@ -103,11 +116,13 @@ export function blocosPadraoAutomaticos(
   padroes: BlocoPadraoAuto[],
   a: AvaliacaoRegra,
   id: (prefixo: string) => string,
+  posicao: PosicaoBloco = "antes_instrucoes",
 ): BlocoLaudo[] {
   const saida: BlocoLaudo[] = [];
   const ordenados = [...padroes].sort((x, y) => (x.ordem ?? 0) - (y.ordem ?? 0) || x.nome.localeCompare(y.nome));
   for (const p of ordenados) {
-    if (!regraAtende(lerRegra(p.escopo), a)) continue;
+    const regra = lerRegra(p.escopo);
+    if (regra.posicao !== posicao || !regraAtende(regra, a)) continue;
     (p.blocos ?? []).forEach((b, i) => {
       const base = { ...b, id: id("bp"), chave: `padrao:${p.id}:${i}`, origem: "dynamic", editavel: true, removivel: true } as any;
       saida.push(b.tipo === "heading" ? ({ ...base, numero: "0", nivel: 2 } as BlocoLaudo) : (base as BlocoLaudo));

@@ -6,11 +6,12 @@ import { Badge, Button, Card, Input, Modal, Textarea } from "@/components/ui-bit
 import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { EXIGENCIAS, NIVEIS_REGRA, ROTULO_EXIGENCIA, SOLUCOES_REGRA, lerRegra, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
 import {
-  CAMPOS_TEXTO,
+  FIGURAS_TEXTO,
   INFO_SLOT,
   SLOTS_TEXTO,
   TEXTO_ORIGINAL,
   blocosParaItens,
+  camposDoSlot,
   itensParaCorpo,
   lerSlot,
   nomeDaNovaVersao,
@@ -31,6 +32,12 @@ type Form = {
 };
 
 const SEM_CONDICAO = { solucao: [], nivel: [], exige: [] } as Form["regra"];
+
+/** O que vale quando não há versão cadastrada, para os textos que não têm um "original" em texto corrido. */
+const SEM_ORIGINAL: Partial<Record<SlotTexto, string>> = {
+  consideracoes_finais: "este texto não aparece no documento.",
+  tx: "a seção mostra um espaço a confirmar para o especialista preencher.",
+};
 
 /** "On-premise · Nível 2 · com Cartão RFID" (vazio = qualquer caso) */
 function condicaoEmTexto(escopo: Record<string, any> | null): string {
@@ -180,7 +187,7 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
 
             {versoes.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                {original ? "Nenhuma versão salva: o documento usa o texto original do sistema." : "Nenhuma versão salva: este texto não aparece no documento."}
+                {original ? "Nenhuma versão salva: o documento usa o texto original do sistema." : `Nenhuma versão salva: ${SEM_ORIGINAL[slot] ?? "este texto não aparece no documento."}`}
               </p>
             ) : (
               <div className="space-y-2">
@@ -254,7 +261,7 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
               />
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <span className="text-[11px] text-muted-foreground">Inserir campo automático:</span>
-                {CAMPOS_TEXTO.map((c) => (
+                {camposDoSlot(form.slot).map((c) => (
                   <button
                     key={c.chave}
                     type="button"
@@ -266,6 +273,22 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
                   </button>
                 ))}
               </div>
+              {form.slot === "nivel2" && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="text-[11px] text-muted-foreground">Inserir desenho padrão (linha sozinha):</span>
+                  {(Object.keys(FIGURAS_TEXTO) as (keyof typeof FIGURAS_TEXTO)[]).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      title={FIGURAS_TEXTO[n].legendaBase}
+                      onClick={() => setForm({ ...form, corpo: `${form.corpo.replace(/\s+$/, "")}\n\n[figura:${n}]` })}
+                      className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+                    >
+                      {`[figura:${n}]`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 rounded-md border border-border p-3 text-xs">

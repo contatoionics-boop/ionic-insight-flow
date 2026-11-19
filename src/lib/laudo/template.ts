@@ -16,7 +16,7 @@ import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { blocosComboio } from "./secoes/comboio";
-import { blocosDiv, blocosRfid, blocosTx } from "./secoes/extras";
+import { blocosDiv, blocosRfid, blocosTx, camposDiv, camposRfid, camposTx } from "./secoes/extras";
 import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./blocos-padrao-regras";
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoCondicoesWifi, blocosFotosTransferencia, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi, type FotoTransferencia } from "./secoes/transferencia";
@@ -180,8 +180,16 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     data: entrada.cabecalho.data || null,
     agente: entrada.cabecalho.agente || null,
     origem_dados: origemDados,
+    aplicacao: nomeDaAplicacao(entrada.contexto ?? null),
+  };
+  // texto de um slot a partir da versão aplicável (null = sem versão: vale o texto original/gerado)
+  const textoDoSlot = (slot: SlotTexto, extras: CamposTexto = {}, comFiguras = false): BlocoLaudo[] | null => {
+    const versao = versaoDe(slot);
+    return versao ? blocosDaVersao({ slot, versao, campos: { ...campos, ...extras }, id: bid, proximaFigura: comFiguras ? proximaFigura : null }) : null;
   };
   blocos.push(...blocosDoSlot({ slot: "introducao", versao: versaoDe("introducao"), campos, id: bid }));
+  // blocos adicionais automáticos que pedem para entrar logo após a Introdução
+  blocos.push(...blocosPadraoAutomaticos(entrada.blocosPadrao ?? [], avaliacaoTexto, bid, "apos_introducao"));
 
   // ---------- Observações técnicas relevantes (após a introdução) ----------
   const alertas = alertasDoContexto(ctxRegras);
@@ -344,7 +352,11 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   let faixaWifi = false;
   if (wifiVisivel) {
     blocos.push({ id: bid("h"), chave: "dados:wifi", tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 } as BlocoLaudo);
-    if (achadoWifi.length) {
+    const textoWifi = textoDoSlot("wifi", { frequencia_wifi: raw(vars, "frequencia_wifi"), potencia_wifi: raw(vars, "qualidade_wifi") ?? raw(vars, "qualidade_sinal") });
+    if (textoWifi) {
+      // versão cadastrada pelo especialista: substitui o texto técnico gerado (tabela, velocidades e prints continuam)
+      blocos.push(...textoWifi);
+    } else if (achadoWifi.length) {
       // A conclusão técnica derivada dos dados substitui o texto genérico.
       blocos.push(...ajustarAplicacao(blocosDosAchados(achadoWifi), aplicacao));
     } else {
@@ -375,7 +387,10 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
   if (mostrarGsm({ contexto: entrada.contexto ?? null, temAchadoGsm: achadoGsm.length > 0, tiposRespondidos: comunicacao })) {
     blocos.push({ id: bid("h"), chave: "dados:gsm", tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 } as BlocoLaudo);
-    if (achadoGsm.length) {
+    const textoGsm = textoDoSlot("gsm", { operadora_gsm: raw(vars, "operadora_gsm") });
+    if (textoGsm) {
+      blocos.push(...textoGsm);
+    } else if (achadoGsm.length) {
       blocos.push(...ajustarAplicacao(blocosDosAchados(achadoGsm), aplicacao));
     } else {
       blocos.push({
@@ -388,12 +403,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     blocos.push(...blocosFotosTransferencia(entrada.fotosTransferencia ?? [], ["gsm_sinal"], bid, proximaFigura));
   }
   blocos.push({ id: bid("h"), chave: "dados:radio", tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 } as BlocoLaudo);
-  blocos.push({
-    id: bid("p"),
-    tipo: "paragraph",
-    texto:
-      "A comunicação entre o terminal e os periféricos sem fio ocorre em rádio 2.4GHz, com alcance sujeito a obstruções metálicas e à distância entre os módulos.",
-  });
+  blocos.push(...(textoDoSlot("radio") ?? blocosDoSlot({ slot: "radio", versao: null, campos, id: bid })));
 
   // 2.3 Objeto do mapeamento — repetível
   blocos.push({
@@ -515,7 +525,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   }
 
   // ---------- VII. Blocos padrão condicionais (Nível 2 / Comboio) ----------
-  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura, solucao: solucaoEscopo, comboioNoEscopo: !!entrada.contexto?.escopo.temComboio }));
+  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura, solucao: solucaoEscopo, comboioNoEscopo: !!entrada.contexto?.escopo.temComboio, texto: ehNivel2(nivel) ? textoDoSlot("nivel2", {}, true) : null }));
   if (nivel2) {
     // conclusões da análise técnica sobre bicos seguem após a seção estrutural
     blocos.push(...secao("2.4"));
@@ -523,11 +533,18 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
 
   // ---------- RFID, DIV e TX: só quando o Escopo os define ----------
   const extra = { contexto: entrada.contexto ?? null, id: bid };
+  const textoRfid = textoDoSlot("rfid", camposRfid(entrada.contexto ?? null));
+  const textoDiv = textoDoSlot("div", camposDiv(entrada.contexto ?? null));
+  const textoTx = textoDoSlot("tx", camposTx(entrada.contexto ?? null));
   // Blocos padrão automáticos (regras em dados): um padrão que exige TX substitui o espaço vazio da TX.
   const avaliacao = { nivel: nivel ?? null, contexto: entrada.contexto ?? null };
   const padroes = entrada.blocosPadrao ?? [];
-  const txCoberta = padraoCobre(padroes, avaliacao, "tx");
-  blocos.push(...(blocosRfid(extra) ?? []), ...(blocosDiv({ ...extra, nivel2 }) ?? []), ...(txCoberta ? [] : blocosTx(extra) ?? []));
+  const txCoberta = !textoTx && padraoCobre(padroes, avaliacao, "tx");
+  blocos.push(
+    ...(blocosRfid({ ...extra, texto: textoRfid }) ?? []),
+    ...(blocosDiv({ ...extra, nivel2, texto: textoDiv }) ?? []),
+    ...(txCoberta ? [] : blocosTx({ ...extra, texto: textoTx }) ?? []),
+  );
   blocos.push(...blocosPadraoAutomaticos(padroes, avaliacao, bid));
 
 
@@ -549,6 +566,8 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     blocos.push({ id: bid("h"), chave: "consideracoes_finais:titulo", tipo: "heading", numero: "4", texto: "Considerações finais", nivel: 1, origem: "dynamic", editavel: true, removivel: true } as BlocoLaudo);
     blocos.push(...blocosDaVersao({ slot: "consideracoes_finais", versao: versaoFinal, campos, id: bid }));
   }
+  // blocos adicionais automáticos que pedem para ficar no fim do documento
+  blocos.push(...blocosPadraoAutomaticos(padroes, avaliacao, bid, "fim"));
 
   return { blocos, achados };
 }

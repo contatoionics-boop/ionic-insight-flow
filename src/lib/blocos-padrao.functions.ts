@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
-import { EXIGENCIAS, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
+import { EXIGENCIAS, POSICOES_BLOCO, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
 import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos } from "@/lib/laudo/textos-padrao";
 
 export type BlocoPadrao = {
@@ -49,6 +49,8 @@ const SalvarInput = z.object({
       solucao: z.array(z.string()).default([]),
       nivel: z.array(z.string()).default([]),
       exige: z.array(z.enum(EXIGENCIAS)).default([]),
+      /** onde o bloco adicional automático entra (padrão: antes das Instruções gerais) */
+      posicao: z.enum(POSICOES_BLOCO).default("antes_instrucoes"),
     })
     .optional(),
 });
@@ -94,7 +96,7 @@ export const salvarBlocoPadrao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => SalvarInput.parse(i))
   .handler(async ({ data, context }) => {
-    const regra = data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [] };
+    const regra = data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [], posicao: "antes_instrucoes" as const };
     const versaoDeTexto = !!data.slot;
     const payload = {
       nome: data.nome.trim(),

@@ -10,16 +10,29 @@
 // com campos `{{cliente}}`. Campo sem dado vira [CONFIRMAR]; o PDF continua bloqueado enquanto houver pendência.
 
 import { condicoesAtendidas, lerRegra, type AvaliacaoRegra, type BlocoPadraoAuto, type RegraBlocoPadrao } from "./blocos-padrao-regras";
+import { blocos24 } from "./blocos-nivel2";
+import { FIGURA_N2_BICO, FIGURA_N2_PONTEIRA, FIGURA_N2_SUPORTE, type FiguraLaudo } from "./figuras";
 import { pendencia, type BlocoLaudo } from "./tipos";
 
-export const SLOTS_TEXTO = ["introducao", "instrucoes_gerais", "consideracoes_finais", "ti_bd"] as const;
+/** Na ordem em que aparecem no documento. */
+export const SLOTS_TEXTO = ["introducao", "ti_bd", "wifi", "gsm", "radio", "nivel2", "rfid", "div", "tx", "instrucoes_gerais", "consideracoes_finais"] as const;
 export type SlotTexto = (typeof SLOTS_TEXTO)[number];
 
 export const INFO_SLOT: Record<SlotTexto, { rotulo: string; descricao: string }> = {
   introducao: { rotulo: "Introdução", descricao: "Abre o documento, logo abaixo do título 1. Introdução." },
+  ti_bd: { rotulo: "TI e banco de dados (texto)", descricao: "Texto dos requisitos de TI e banco de dados (2.1). As tabelas de especificação continuam editáveis no documento." },
+  wifi: {
+    rotulo: "Transferência de dados — Wi-Fi",
+    descricao: "Texto do Wi-Fi. Sem versão, o texto técnico é gerado das respostas do mapeamento; com versão, ela o substitui. A tabela de condições, as velocidades e os prints continuam.",
+  },
+  gsm: { rotulo: "Transferência de dados — GSM / 4G", descricao: "Texto do GSM/4G. Mesma regra do Wi-Fi; o print do sinal da operadora continua." },
+  radio: { rotulo: "Transferência de dados — Rádio 2.4GHz", descricao: "Texto do rádio entre o terminal e os periféricos sem fio." },
+  nivel2: { rotulo: "Bicos de abastecimento (Nível 2 / NLDIV)", descricao: "Textos e desenhos da seção de bicos do Nível 2. Os desenhos entram com [figura:bico], [figura:ponteira] e [figura:suporte]." },
+  rfid: { rotulo: "Cartão RFID", descricao: "Texto da seção de Cartão RFID (só aparece quando o Escopo tem RFID)." },
+  div: { rotulo: "DIV (texto)", descricao: "Texto da seção de DIV, acima da tabela de tipos (Nível 2 com frota no Escopo). A tabela continua automática." },
+  tx: { rotulo: "Telemetria TX", descricao: "Texto da Telemetria TX (só aparece quando o Escopo tem TX). Sem versão, fica o espaço a confirmar." },
   instrucoes_gerais: { rotulo: "Instruções gerais", descricao: "Texto da seção de Instruções gerais, no final dos requisitos." },
   consideracoes_finais: { rotulo: "Considerações finais", descricao: "Seção extra no fim do documento. Só aparece quando existe uma versão aplicável." },
-  ti_bd: { rotulo: "TI e banco de dados (texto)", descricao: "Texto dos requisitos de TI e banco de dados (2.1). As tabelas de especificação continuam editáveis no documento." },
 };
 
 export const ehSlotTexto = (valor: unknown): valor is SlotTexto => typeof valor === "string" && (SLOTS_TEXTO as readonly string[]).includes(valor);
@@ -36,7 +49,30 @@ export const CAMPOS_TEXTO = [
   { chave: "data", rotulo: "Data do mapeamento" },
   { chave: "agente", rotulo: "Agente do mapeamento" },
   { chave: "origem_dados", rotulo: "Frase sobre quem informou os dados (pode vir vazia)" },
+  { chave: "aplicacao", rotulo: "Nome da aplicação (SAAF ou SSGFrota)" },
+  { chave: "frequencia_wifi", rotulo: "Frequência do Wi-Fi informada" },
+  { chave: "potencia_wifi", rotulo: "Potência do sinal Wi-Fi informada" },
+  { chave: "operadora_gsm", rotulo: "Operadora GSM informada" },
+  { chave: "rfid_quantidade", rotulo: "Quantidade de cartões RFID (ex.: 10 cartões RFID)" },
+  { chave: "rfid_tecnologia", rotulo: "Tecnologia do cartão RFID (Mifare/Melexis)" },
+  { chave: "div_total", rotulo: "Total de DIV do Escopo" },
+  { chave: "tx_quantidade", rotulo: "Quantidade de TX do Escopo" },
 ] as const;
+
+const CAMPOS_BASE = ["cliente", "unidade", "solucao", "aplicacao", "nivel", "modalidade", "tipo_acao", "objeto_escopo", "data", "agente"];
+const EXTRAS_DO_SLOT: Partial<Record<SlotTexto, string[]>> = {
+  introducao: ["origem_dados"],
+  wifi: ["frequencia_wifi", "potencia_wifi"],
+  gsm: ["operadora_gsm"],
+  rfid: ["rfid_quantidade", "rfid_tecnologia"],
+  div: ["div_total"],
+  tx: ["tx_quantidade"],
+};
+/** Campos que fazem sentido em cada texto (os botões de inserir na tela de edição). */
+export const camposDoSlot = (slot: SlotTexto) => {
+  const chaves = new Set([...CAMPOS_BASE, ...(EXTRAS_DO_SLOT[slot] ?? [])]);
+  return CAMPOS_TEXTO.filter((c) => chaves.has(c.chave));
+};
 
 export type CamposTexto = Record<string, string | null | undefined>;
 
@@ -52,12 +88,21 @@ export function renderizarCampos(texto: string, campos: CamposTexto): string {
 
 // ------------------------------------------------------------------ conteúdo do texto
 
-/** Conteúdo editável: parágrafo (com ou sem destaque de revisão) ou lista. */
-export type ItemTexto = { tipo: "paragraph"; texto: string; destaque?: boolean } | { tipo: "bullets"; itens: string[] };
+/** Desenhos padrão que o texto pode incluir com `[figura:nome]` (Nível 2). */
+export const FIGURAS_TEXTO = { bico: FIGURA_N2_BICO, ponteira: FIGURA_N2_PONTEIRA, suporte: FIGURA_N2_SUPORTE } satisfies Record<string, FiguraLaudo>;
+export type NomeFigura = keyof typeof FIGURAS_TEXTO;
+const ehNomeFigura = (v: string): v is NomeFigura => Object.prototype.hasOwnProperty.call(FIGURAS_TEXTO, v);
+
+/** Conteúdo editável: parágrafo (com ou sem destaque de revisão), lista ou desenho padrão. */
+export type ItemTexto =
+  | { tipo: "paragraph"; texto: string; destaque?: boolean }
+  | { tipo: "bullets"; itens: string[] }
+  | { tipo: "figura"; nome: NomeFigura };
 
 /**
  * Corpo em texto → itens. Cada linha é um parágrafo; "- " ou "• " no começo vira item de lista;
- * "!" no começo marca o parágrafo como campo de revisão (amarelo só no editor, PDF limpo).
+ * "!" no começo marca o parágrafo como campo de revisão (amarelo só no editor, PDF limpo);
+ * "[figura:bico]" numa linha sozinha insere um desenho padrão (bico, ponteira, suporte).
  */
 export function corpoParaItens(corpo: string): ItemTexto[] {
   const itens: ItemTexto[] = [];
@@ -77,6 +122,11 @@ export function corpoParaItens(corpo: string): ItemTexto[] {
       continue;
     }
     fechar();
+    const fig = l.match(/^\[figura:\s*(\w+)\s*\]$/i);
+    if (fig && ehNomeFigura(fig[1].toLowerCase())) {
+      itens.push({ tipo: "figura", nome: fig[1].toLowerCase() as NomeFigura });
+      continue;
+    }
     if (l.startsWith("!")) itens.push({ tipo: "paragraph", texto: l.slice(1).trim(), destaque: true });
     else itens.push({ tipo: "paragraph", texto: l });
   }
@@ -87,7 +137,7 @@ export function corpoParaItens(corpo: string): ItemTexto[] {
 /** Itens → corpo em texto (inverso de `corpoParaItens`). */
 export function itensParaCorpo(itens: ItemTexto[]): string {
   return itens
-    .map((i) => (i.tipo === "bullets" ? i.itens.map((x) => `- ${x}`).join("\n") : `${i.destaque ? "!" : ""}${i.texto}`))
+    .map((i) => (i.tipo === "bullets" ? i.itens.map((x) => `- ${x}`).join("\n") : i.tipo === "figura" ? `[figura:${i.nome}]` : `${i.destaque ? "!" : ""}${i.texto}`))
     .filter(Boolean)
     .join("\n\n");
 }
@@ -98,6 +148,10 @@ export function blocosParaItens(blocos: BlocoLaudo[]): ItemTexto[] {
   for (const b of blocos ?? []) {
     if (b.tipo === "paragraph") itens.push({ tipo: "paragraph", texto: b.texto, ...(b.destaque ? { destaque: true } : {}) });
     else if (b.tipo === "bullets") itens.push({ tipo: "bullets", itens: b.itens });
+    else if (b.tipo === "image") {
+      const nome = (Object.keys(FIGURAS_TEXTO) as NomeFigura[]).find((n) => FIGURAS_TEXTO[n].url === b.url);
+      if (nome) itens.push({ tipo: "figura", nome });
+    }
   }
   return itens;
 }
@@ -105,11 +159,14 @@ export function blocosParaItens(blocos: BlocoLaudo[]): ItemTexto[] {
 /** Itens → blocos para gravar na versão (o texto ainda traz os `{{campos}}`). */
 export function itensParaBlocos(itens: ItemTexto[]): BlocoLaudo[] {
   const rnd = () => Math.random().toString(36).slice(2, 10);
-  return itens.map((i) =>
-    i.tipo === "bullets"
-      ? ({ id: `tx-bl-${rnd()}`, tipo: "bullets", itens: i.itens } as BlocoLaudo)
-      : ({ id: `tx-p-${rnd()}`, tipo: "paragraph", ...(i.destaque ? { destaque: "editavel" } : {}), texto: i.texto } as BlocoLaudo),
-  );
+  return itens.map((i) => {
+    if (i.tipo === "bullets") return { id: `tx-bl-${rnd()}`, tipo: "bullets", itens: i.itens } as BlocoLaudo;
+    if (i.tipo === "figura") {
+      const f = FIGURAS_TEXTO[i.nome];
+      return { id: `tx-img-${rnd()}`, tipo: "image", url: f.url, alt: f.alt, legenda: f.legendaBase, larguraMax: f.larguraMax } as BlocoLaudo;
+    }
+    return { id: `tx-p-${rnd()}`, tipo: "paragraph", ...(i.destaque ? { destaque: "editavel" } : {}), texto: i.texto } as BlocoLaudo;
+  });
 }
 
 // ------------------------------------------------------------------ texto original do sistema
@@ -121,7 +178,40 @@ const NOME_SOLUCAO_ORIGINAL = "{{solucao}}";
  * Introdução e Instruções gerais são o texto oficial; TI/BD é o texto do cenário padrão (servidor + consulta);
  * Considerações finais não existe no original (vazio).
  */
+/** Itens a partir dos blocos que o gerador produz (títulos não entram: o título da seção é do documento). */
+function itensDosBlocos(blocos: BlocoLaudo[]): ItemTexto[] {
+  return blocosParaItens(blocos.filter((b) => b.tipo !== "heading"));
+}
+
 export const TEXTO_ORIGINAL: Record<SlotTexto, ItemTexto[]> = {
+  wifi: [
+    {
+      tipo: "paragraph",
+      texto: "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
+    },
+  ],
+  gsm: [
+    {
+      tipo: "paragraph",
+      texto: "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
+    },
+  ],
+  radio: [
+    {
+      tipo: "paragraph",
+      texto: "A comunicação entre o terminal e os periféricos sem fio ocorre em rádio 2.4GHz, com alcance sujeito a obstruções metálicas e à distância entre os módulos.",
+    },
+  ],
+  // o mesmo conteúdo que o gerador usa (blocos24), com o nome da solução como campo
+  nivel2: itensDosBlocos(blocos24({ solucao: "{{solucao}}", id: (p) => p })),
+  rfid: [
+    { tipo: "paragraph", texto: "As liberações de abastecimento contarão com identificação por cartão: {{rfid_quantidade}}, tecnologia {{rfid_tecnologia}}." },
+    { tipo: "paragraph", texto: "O terminal T1000 deverá ser compatível com a tecnologia do cartão RFID utilizado pelo cliente." },
+  ],
+  div: [
+    { tipo: "paragraph", texto: "Estão previstos {{div_total}} DIV para a identificação dos veículos e equipamentos abastecidos, conforme a tabela a seguir." },
+  ],
+  tx: [],
   introducao: [
     {
       tipo: "paragraph",
@@ -214,7 +304,12 @@ export function escolherVersao(slot: SlotTexto, versoes: VersaoTexto[], escolhas
 
 type Meta = { chave?: string; origem?: "dynamic"; editavel?: true; removivel?: true };
 
-function blocoDoItem(item: ItemTexto, campos: CamposTexto, id: string, meta: Meta): BlocoLaudo {
+function blocoDoItem(item: ItemTexto, campos: CamposTexto, id: string, meta: Meta, proximaFigura?: (() => number) | null): BlocoLaudo {
+  if (item.tipo === "figura") {
+    const f = FIGURAS_TEXTO[item.nome];
+    const n = proximaFigura ? proximaFigura() : null;
+    return { id, tipo: "image", url: f.url, alt: f.alt, legenda: n ? `Figura ${n} — ${f.legendaBase}` : f.legendaBase, larguraMax: f.larguraMax, ...meta } as BlocoLaudo;
+  }
   // ordem dos campos preservada (a mescla compara o conteúdo gerado com o salvo)
   if (item.tipo === "bullets") return { id, tipo: "bullets", itens: item.itens.map((x) => renderizarCampos(x, campos)), ...meta } as BlocoLaudo;
   const texto = renderizarCampos(item.texto, campos);
@@ -222,10 +317,17 @@ function blocoDoItem(item: ItemTexto, campos: CamposTexto, id: string, meta: Met
 }
 
 /** Blocos de uma versão cadastrada: chave estável `texto:<slot>:<versão>:<posição>` (a edição manual sobrevive ao regerar). */
-export function blocosDaVersao(entrada: { slot: SlotTexto; versao: VersaoTexto; campos: CamposTexto; id: (prefixo: string) => string }): BlocoLaudo[] {
-  const { slot, versao, campos, id } = entrada;
+export function blocosDaVersao(entrada: {
+  slot: SlotTexto;
+  versao: VersaoTexto;
+  campos: CamposTexto;
+  id: (prefixo: string) => string;
+  /** numeração das figuras do documento (desenhos `[figura:…]`) */
+  proximaFigura?: (() => number) | null;
+}): BlocoLaudo[] {
+  const { slot, versao, campos, id, proximaFigura } = entrada;
   return blocosParaItens(versao.blocos).map((item, i) =>
-    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : "p"), { chave: `texto:${slot}:${versao.id}:${i}`, origem: "dynamic", editavel: true, removivel: true }),
+    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : item.tipo === "figura" ? "img" : "p"), { chave: `texto:${slot}:${versao.id}:${i}`, origem: "dynamic", editavel: true, removivel: true }, proximaFigura),
   );
 }
 
@@ -243,7 +345,7 @@ export function blocosDoSlot(entrada: {
   const { slot, versao, campos, id, chaveSistema } = entrada;
   if (versao) return blocosDaVersao({ slot, versao, campos, id });
   return TEXTO_ORIGINAL[slot].map((item, i) =>
-    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : "p"), chaveSistema ? { chave: chaveSistema(i), origem: "dynamic", editavel: true } : {}),
+    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : item.tipo === "figura" ? "img" : "p"), chaveSistema ? { chave: chaveSistema(i), origem: "dynamic", editavel: true } : {}),
   );
 }
 

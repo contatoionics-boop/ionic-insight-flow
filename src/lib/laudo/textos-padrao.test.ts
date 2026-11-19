@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { arvoreVazia } from "@/lib/escopo/tipos";
 import { montarContextoLaudo } from "@/lib/laudo/contexto";
+import { blocos24 } from "@/lib/laudo/blocos-nivel2";
 import { montarBlocos } from "@/lib/laudo/template";
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 import {
+  TEXTO_ORIGINAL,
   blocosParaItens,
+  camposDoSlot,
   corpoParaItens,
   escolherVersao,
   escopoDaVersao,
@@ -165,5 +168,128 @@ describe("nome da nova versão", () => {
     expect(nomeDaNovaVersao("Introdução 2026", [])).toBe("Introdução 2026 v2");
     expect(nomeDaNovaVersao("Introdução 2026 v2", [])).toBe("Introdução 2026 v3");
     expect(nomeDaNovaVersao("Introdução", ["Introdução v2", "introdução v3"])).toBe("Introdução v4");
+  });
+});
+
+// ------------------------------------------------------------------ Etapa 2: demais textos do documento
+const ctxCompleto = (config: Record<string, unknown>, frota?: Record<string, unknown>) =>
+  montarContextoLaudo({ entidades: [], arvore: { ...arvoreVazia(), config, ...(frota ? { frota } : {}) } as any, respostas: [] });
+const cfgCompleta = { solucao: "on_premise", comunicacao: "ambos", rfid: { ativo: true, itens: [{ tecnologia: "Mifare", quantidade: 10 }] }, tx: { ativo: true, itens: [{ quantidade: 2 }] } };
+const frotaDiv = { ativo: true, itens: [{ modelo: "Scania", quantidade: 3 }, { modelo: "Volvo", quantidade: 1 }] };
+const varsWifi: VariaveisLaudo = { ...variaveis, frequencia_wifi: nova("frequencia_wifi", "2.4 GHz"), qualidade_wifi: nova("qualidade_wifi", "boa"), comunicacao_tipos: nova("comunicacao_tipos", "WiFi, 4G"), operadora_gsm: nova("operadora_gsm", "Claro") };
+const montar2 = (extra: Record<string, any>, config: Record<string, unknown> = cfgCompleta, vars: VariaveisLaudo = varsWifi, frota: Record<string, unknown> | undefined = frotaDiv) =>
+  montarBlocos({ variaveis: vars, materiais: [], cabecalho: cab, contexto: ctxCompleto(config, frota), ...extra }) as any[];
+const porChave = (b: any[], prefixo: string) => b.filter((x) => x.chave?.startsWith(prefixo));
+
+describe("Etapa 2: textos de Wi-Fi, GSM e rádio", () => {
+  it("sem versão, o documento mantém o texto gerado das respostas e o texto do rádio", () => {
+    const b = montar2({});
+    expect(textosDe(b)).toContain("A unidade dispõe de rede Wi-Fi operando em 2.4 GHz");
+    expect(textosDe(b)).toContain("A comunicação entre o terminal e os periféricos sem fio ocorre em rádio 2.4GHz");
+  });
+  it("Wi-Fi: a versão substitui o texto técnico gerado e mantém tabela de condições, velocidades e prints", () => {
+    const wifi = versao("w2", "wifi", "Wi-Fi em {{frequencia_wifi}} ({{potencia_wifi}}) para a aplicação {{aplicacao}}.", { padrao: true });
+    const b = montar2({ textosPadrao: [wifi], fotosTransferencia: [{ tipo: "wifi_detalhes" as const, url: "https://x/d.png" }] });
+    expect(b.find((x) => x.chave === "texto:wifi:w2:0")?.texto).toBe("Wi-Fi em 2.4 GHz (boa) para a aplicação SAAF.");
+    expect(textosDe(b)).not.toContain("A unidade dispõe de rede Wi-Fi operando");
+    expect(b.some((x) => x.chave === "dados:foto_wifi_detalhes")).toBe(true);
+    // o texto do GSM continua o gerado
+    expect(textosDe(b)).toContain("A comunicação por GSM/4G é viável no local");
+  });
+  it("GSM e rádio: versões próprias, cada uma no seu lugar", () => {
+    const gsm = versao("g2", "gsm", "GSM com a operadora {{operadora_gsm}}.", { padrao: true });
+    const radio = versao("r2", "radio", "Rádio novo.", { padrao: true });
+    const b = montar2({ textosPadrao: [gsm, radio] });
+    expect(b.find((x) => x.chave === "texto:gsm:g2:0")?.texto).toBe("GSM com a operadora Claro.");
+    expect(b.find((x) => x.chave === "texto:radio:r2:0")?.texto).toBe("Rádio novo.");
+    const i = (c: string) => b.findIndex((x) => x.chave === c);
+    expect(i("texto:gsm:g2:0")).toBeGreaterThan(i("dados:gsm"));
+    expect(i("texto:radio:r2:0")).toBeGreaterThan(i("dados:radio"));
+    expect(textosDe(b)).not.toContain("alcance sujeito a obstruções metálicas");
+  });
+});
+
+describe("Etapa 2: Nível 2 (bicos) com desenhos", () => {
+  it("o texto original do slot é exatamente o que o gerador produz (sem deriva)", () => {
+    const render = (itens: any[]) => itens.map((i) => (i.tipo === "figura" ? `[${i.nome}]` : i.tipo === "bullets" ? i.itens.join("|") : renderizarCampos(i.texto, { solucao: "X" })));
+    const gerado = blocos24({ solucao: "X", id: (p) => p })
+      .filter((b) => b.tipo !== "heading")
+      .map((b: any) => (b.tipo === "image" ? `[${b.url.includes("ponteira") ? "ponteira" : "bico"}]` : b.tipo === "bullets" ? b.itens.join("|") : b.texto));
+    expect(render(TEXTO_ORIGINAL.nivel2)).toEqual(gerado);
+  });
+  it("a versão troca os textos e desenhos, mantém o título, e os desenhos entram numerados", () => {
+    const n2 = versao("n2", "nivel2", "Texto novo dos bicos para {{solucao}}.\n\n[figura:bico]\n\n- item A\n- item B", { padrao: true });
+    const b = montar2({ textosPadrao: [n2] });
+    expect(b.some((x) => x.chave === "nivel2:2.4" && x.texto === "Bicos de abastecimento")).toBe(true);
+    expect(b.some((x) => x.chave?.startsWith("nivel2:2.4:"))).toBe(false);
+    const novos = porChave(b, "texto:nivel2:n2:");
+    expect(novos.map((x) => x.tipo)).toEqual(["paragraph", "image", "bullets"]);
+    expect(novos[0].texto).toBe("Texto novo dos bicos para On-premise.");
+    expect(novos[1].legenda).toMatch(/^Figura \d+ — /);
+  });
+  it("fora do Nível 2 a versão não faz nada", () => {
+    const n2 = versao("n2", "nivel2", "Texto novo.", { padrao: true });
+    const b = montar2({ textosPadrao: [n2] }, cfgCompleta, { ...varsWifi, nivel_servico: nova("nivel_servico", "nivel_1") });
+    expect(b.some((x) => x.chave?.startsWith("texto:nivel2:"))).toBe(false);
+  });
+  it("[figura:…] ida e volta no corpo; nome desconhecido vira parágrafo comum", () => {
+    const itens = corpoParaItens("[figura:suporte]\n\n[figura:inventada]");
+    expect(itens).toEqual([{ tipo: "figura", nome: "suporte" }, { tipo: "paragraph", texto: "[figura:inventada]" }]);
+    expect(itensParaCorpo([{ tipo: "figura", nome: "bico" }])).toBe("[figura:bico]");
+    expect(blocosParaItens(itensParaBlocos([{ tipo: "figura", nome: "ponteira" }]))).toEqual([{ tipo: "figura", nome: "ponteira" }]);
+  });
+});
+
+describe("Etapa 2: RFID, DIV e TX", () => {
+  it("sem versão, as seções ficam como sempre (RFID com texto do Escopo, TX com espaço a confirmar)", () => {
+    const b = montar2({});
+    expect(b.find((x) => x.chave === "rfid:resumo")?.texto).toContain("10 cartões RFID, tecnologia Mifare");
+    expect(b.find((x) => x.chave === "tx:texto")?.texto).toContain("[CONFIRMAR: texto da Telemetria TX]");
+    expect(b.find((x) => x.chave === "div:resumo")?.texto).toContain("Estão previstos 4 DIV");
+  });
+  it("a versão do RFID substitui os parágrafos e usa os campos do Escopo; o título fica", () => {
+    const rfid = versao("rf2", "rfid", "Cartões: {{rfid_quantidade}} ({{rfid_tecnologia}}).", { padrao: true });
+    const b = montar2({ textosPadrao: [rfid] });
+    expect(b.some((x) => x.chave === "rfid:titulo")).toBe(true);
+    expect(b.some((x) => x.chave === "rfid:resumo" || x.chave === "rfid:compatibilidade")).toBe(false);
+    expect(b.find((x) => x.chave === "texto:rfid:rf2:0")?.texto).toBe("Cartões: 10 cartões RFID (Mifare).");
+  });
+  it("a versão do DIV troca o texto e mantém a tabela automática por tipo", () => {
+    const div = versao("dv2", "div", "Previstos {{div_total}} DIV.", { padrao: true });
+    const b = montar2({ textosPadrao: [div] });
+    expect(b.find((x) => x.chave === "texto:div:dv2:0")?.texto).toBe("Previstos 4 DIV.");
+    expect(b.some((x) => x.chave === "div:resumo")).toBe(false);
+    expect(b.find((x) => x.chave === "div:tipos")?.linhas.map((l: any) => l.celulas)).toEqual([["Scania", "3"], ["Volvo", "1"]]);
+  });
+  it("a versão da TX substitui o espaço a confirmar (campo {{tx_quantidade}})", () => {
+    const tx = versao("tx2", "tx", "Telemetria com {{tx_quantidade}} TX.", { padrao: true });
+    const b = montar2({ textosPadrao: [tx] });
+    expect(b.some((x) => x.chave === "tx:texto")).toBe(false);
+    expect(b.find((x) => x.chave === "texto:tx:tx2:0")?.texto).toBe("Telemetria com 2 TX.");
+    expect(textosDe(b)).not.toContain("[CONFIRMAR: texto da Telemetria TX]");
+  });
+  it("sem o item no Escopo a seção (e a versão) não aparece", () => {
+    const rfid = versao("rf2", "rfid", "Cartões.", { padrao: true });
+    const b = montar2({ textosPadrao: [rfid] }, { solucao: "on_premise" }, varsWifi, undefined);
+    expect(b.some((x) => x.chave?.startsWith("texto:rfid:") || x.chave === "rfid:titulo")).toBe(false);
+  });
+});
+
+describe("Etapa 2: campos por texto e posição dos blocos adicionais", () => {
+  it("cada texto oferece só os campos que fazem sentido", () => {
+    const chaves = (slot: any) => camposDoSlot(slot).map((c) => c.chave);
+    expect(chaves("rfid")).toContain("rfid_tecnologia");
+    expect(chaves("rfid")).not.toContain("div_total");
+    expect(chaves("introducao")).toContain("origem_dados");
+    expect(chaves("radio")).toEqual(expect.arrayContaining(["cliente", "solucao", "aplicacao"]));
+  });
+  it("blocos adicionais automáticos entram na posição escolhida", () => {
+    const bloco = (id: string, posicao?: string) => ({ id, nome: id, ordem: 0, escopo: { automatico: true, ...(posicao ? { posicao } : {}) }, blocos: [{ id: `${id}-p`, tipo: "paragraph" as const, texto: `Texto ${id}` }] });
+    const b = montar2({ blocosPadrao: [bloco("fim", "fim"), bloco("apos", "apos_introducao"), bloco("antes")] });
+    const i = (t: string) => b.findIndex((x) => x.texto === t);
+    expect(i("Texto apos")).toBeGreaterThan(b.findIndex((x) => x.texto === "Introdução"));
+    expect(i("Texto apos")).toBeLessThan(b.findIndex((x) => x.texto === "Projeto"));
+    expect(i("Texto antes")).toBeLessThan(b.findIndex((x) => x.texto === "Instruções gerais"));
+    expect(i("Texto fim")).toBeGreaterThan(b.findIndex((x) => x.chave === "instrucoes:3"));
   });
 });
