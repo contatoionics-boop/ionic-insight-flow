@@ -216,7 +216,8 @@ export function rotuloSolucao(s: string | null | undefined): string | null {
 }
 
 /** Comboio com seus tanques e bicos (como a bomba tem bicos). */
-export type ComboioArvore = { tanques: number; bicos: number };
+/** `nome`: identificação opcional do comboio (ex.: "Frota 400"); vira o nome dele no documento quando o agente não a informa. */
+export type ComboioArvore = { tanques: number; bicos: number; nome?: string };
 
 export type ArvoreEscopo = {
   postos: PostoArvore[];
@@ -305,6 +306,7 @@ export function arvoreDeEntidades(
     comboios: filhos(null, "comboio").map((c) => ({
       tanques: filhos(c.id, "tanque").length,
       bicos: filhos(c.id, "bico").length,
+      ...(c.dados?.nome ? { nome: c.dados.nome } : {}),
     })),
     tanquesLubrificante: itens("tanque_lubrificante"),
     sondas: itens("sonda"),
@@ -318,8 +320,8 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
   const n = (v: unknown, max: number) => Math.max(0, Math.min(max, Math.floor(Number(v) || 0)));
   // Formatos antigos: `comboios` era um número e os tanques da raiz se chamavam `tanques`.
   const legado = a as unknown as { comboios?: unknown; tanques?: ItemEscopo[] };
-  const comboiosBrutos: { tanques?: unknown; bicos?: unknown }[] = Array.isArray(legado.comboios)
-    ? (legado.comboios as { tanques?: unknown; bicos?: unknown }[])
+  const comboiosBrutos: { tanques?: unknown; bicos?: unknown; nome?: unknown }[] = Array.isArray(legado.comboios)
+    ? (legado.comboios as { tanques?: unknown; bicos?: unknown; nome?: unknown }[])
     : Array.from({ length: n(legado.comboios, LIMITES.comboios) }, () => ({}));
   const lub = a.tanquesLubrificante ?? legado.tanques ?? [];
   return {
@@ -330,10 +332,14 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
         })),
       })),
     })),
-    comboios: comboiosBrutos.slice(0, LIMITES.comboios).map((c) => ({
-      tanques: n(c?.tanques, LIMITES.comboioTanques),
-      bicos: n(c?.bicos, LIMITES.comboioBicos),
-    })),
+    comboios: comboiosBrutos.slice(0, LIMITES.comboios).map((c) => {
+      const nome = typeof c?.nome === "string" ? c.nome.trim() : "";
+      return {
+        tanques: n(c?.tanques, LIMITES.comboioTanques),
+        bicos: n(c?.bicos, LIMITES.comboioBicos),
+        ...(nome ? { nome } : {}),
+      };
+    }),
     tanquesLubrificante: lub.slice(0, LIMITES.tanques).map((t) => ({ nome: t.nome?.trim() || undefined })),
     sondas: (a.sondas ?? []).slice(0, LIMITES.sondas).map((t) => ({ nome: t.nome?.trim() || undefined })),
     frota: {
@@ -405,7 +411,7 @@ export function entidadesDesejadas(a: ArvoreEscopo): EntidadeDesejada[] {
     });
   });
   a.comboios.forEach((c, ci) => {
-    const ck = add("comboio", null, ci + 1);
+    const ck = add("comboio", null, ci + 1, c.nome);
     for (let t = 1; t <= c.tanques; t++) add("tanque", ck, t);
     for (let k = 1; k <= c.bicos; k++) add("bico", ck, k);
   });

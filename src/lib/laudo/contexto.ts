@@ -27,7 +27,9 @@ export type BombaCtx = {
 export type ComboioCtx = {
   id: string;
   rotulo: string;
-  /** "Comboio 400": a identificação respondida; sem resposta, o rótulo do Escopo */
+  /** identificação opcional dada no Escopo (ex.: "Frota 400") */
+  nome?: string | null;
+  /** "Comboio 400": a identificação respondida pelo agente; sem resposta, a do Escopo; sem ela, o rótulo do Escopo */
   identificacao: string;
   atributos: Atributos;
   bicos: BicoCtx[];
@@ -119,7 +121,8 @@ export function montarContextoLaudo(entrada: {
     .map((c) => {
       const atributos = atrs(c.id);
       const bicos = bicosDe(c.id);
-      return { id: c.id, rotulo: c.rotulo, identificacao: atributos.identificacao_comboio || c.rotulo, atributos, bicos, qtdBicos: bicos.length };
+      const nome = c.dados?.nome?.trim() || null;
+      return { id: c.id, rotulo: c.rotulo, nome, identificacao: atributos.identificacao_comboio || nome || c.rotulo, atributos, bicos, qtdBicos: bicos.length };
     });
 
   const cfg = entrada.arvore.config ?? {};
@@ -194,7 +197,8 @@ function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
     }
     const atributos = completar(x.atributos, y.atributos);
     const bicos = maisBicos(x.bicos, y.bicos);
-    comboios.push({ ...x, atributos, bicos, qtdBicos: bicos.length, identificacao: atributos.identificacao_comboio || x.rotulo });
+    const nome = x.nome || y.nome || null;
+    comboios.push({ ...x, nome, atributos, bicos, qtdBicos: bicos.length, identificacao: atributos.identificacao_comboio || nome || x.rotulo });
   }
 
   const ea = a.escopo;

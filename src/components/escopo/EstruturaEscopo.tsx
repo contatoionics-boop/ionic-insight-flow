@@ -259,6 +259,17 @@ export function EstruturaEscopo({
                 {value.comboios.map((c, ci) => (
                   <div key={ci} className="rounded border border-border px-3 py-2">
                     <p className="mb-2 text-sm font-medium">Comboio {pad2(ci + 1)}</p>
+                    <div className="mb-2 grid grid-cols-[110px_1fr] items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Identificação</span>
+                      <Input
+                        value={c.nome ?? ""}
+                        disabled={disabled}
+                        placeholder="Opcional. Ex.: Frota 400 (aparece no documento se o agente não informar)"
+                        onChange={(e) =>
+                          set({ comboios: value.comboios.map((x, k) => (k === ci ? { ...x, nome: e.target.value } : x)) })
+                        }
+                      />
+                    </div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <QuantidadeField
                         label="Tanques"
@@ -701,7 +712,8 @@ export function EstruturaEscopo({
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.comboios.map((c, i) => (
                     <li key={i}>
-                      Comboio {pad2(i + 1)} — {c.tanques} tanque(s), {c.bicos} bico(s)
+                      Comboio {pad2(i + 1)}
+                      {c.nome?.trim() ? ` (${c.nome.trim()})` : ""} — {c.tanques} tanque(s), {c.bicos} bico(s)
                     </li>
                   ))}
                 </ul>

@@ -142,3 +142,18 @@ describe("mesclarContextos — mapeamentos da mesma visita", () => {
     expect(mesclarContextos(pista, [])).toBe(pista);
   });
 });
+
+describe("identificação do comboio: resposta do agente > nome do Escopo > rótulo", () => {
+  const e = (id: string, rotulo: string, ordem: number, nome?: string) => ({ id, tipo: "comboio" as const, rotulo, parent_id: null, ordem, ...(nome ? { dados: { nome } } : {}) });
+  const entidades = [e("c1", "Comboio 01 — Frota 400", 0, "Frota 400"), e("c2", "Comboio 02", 1), e("c3", "Comboio 03 — Frota 7", 2, "Frota 7")];
+  const respostas = [{ entidadeId: "c3", chave: "identificacao_comboio", valor: "RD 1010" }];
+  const ctx = montarContextoLaudo({ entidades, arvore: arvoreVazia(), respostas });
+  it("usa o nome do Escopo quando o agente não informou; a resposta do agente vence; sem nada, o rótulo", () => {
+    expect(ctx.comboios.map((c) => c.identificacao)).toEqual(["Frota 400", "Comboio 02", "RD 1010"]);
+  });
+  it("na mescla de mapeamentos da mesma visita o nome não se perde", () => {
+    const so = montarContextoLaudo({ entidades: [e("c1", "Comboio 01", 0), e("c2", "Comboio 02", 1)], arvore: arvoreVazia(), respostas: [] });
+    const merged = mesclarContextos(so, [montarContextoLaudo({ entidades: [e("c1", "Comboio 01 — Frota 400", 0, "Frota 400"), e("c2", "Comboio 02", 1)], arvore: arvoreVazia(), respostas: [] })]);
+    expect(merged.comboios.map((c) => c.identificacao)).toEqual(["Frota 400", "Comboio 02"]);
+  });
+});
