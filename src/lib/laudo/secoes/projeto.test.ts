@@ -49,14 +49,14 @@ describe("Projeto — caso Seis Lagoas", () => {
   });
   it("POSTO: uma linha por bomba, identificação ligada à entidade", () => {
     const t = tab(blocos, "projeto:posto");
-    expect(t.colunas).toEqual(["Bomba", "Vazão", "QTD de bicos", "Bitola do bico"]);
+    expect(t.colunas).toEqual(["Ilha", "Bomba", "Vazão", "QTD de bicos", "Bitola do bico"]);
     expect(t.linhas.map((l: any) => l.entidadeId)).toEqual(["b1", "b2", "b3", "b4"]);
-    expect(t.linhas[0].celulas).toEqual(["Bomba 01 — Wayne — Diesel S10", "30 L/min — Baixa", "1", '3/4"']);
-    expect(t.linhas[1].celulas[0]).toBe("Bomba 02 — Diesel S500"); // sem marca: não aparece
-    expect(t.linhas[2].celulas[3]).toBe('3/4"'); // reserva: bitola da mangueira
+    expect(t.linhas[0].celulas).toEqual(["Ilha 01", "Bomba 01 — Wayne — Diesel S10", "30 L/min — Baixa", "1", '3/4"']);
+    expect(t.linhas[1].celulas[1]).toBe("Bomba 02 — Diesel S500"); // sem marca: não aparece
+    expect(t.linhas[2].celulas[4]).toBe('3/4"'); // reserva: bitola da mangueira
   });
   it("bomba de alta vazão sem bico: valor numérico preservado e 0 bicos explicado", () => {
-    expect(tab(blocos, "projeto:posto").linhas[3].celulas).toEqual(["Bomba 04 — Diesel S500", "120 L/min — Alta", "0 (sem bico)", "—"]);
+    expect(tab(blocos, "projeto:posto").linhas[3].celulas).toEqual(["Ilha 01", "Bomba 04 — Diesel S500", "120 L/min — Alta", "0 (sem bico)", "—"]);
   });
   it("COMBOIO: uma linha por comboio com a identificação respondida", () => {
     const t = tab(blocos, "projeto:comboio");
@@ -120,8 +120,23 @@ describe("Projeto — dados ausentes e regras", () => {
     ];
     const c = montarContextoLaudo({ entidades: es, arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }] }, respostas: [] });
     const t = tab(blocosProjeto({ contexto: c, vars: {}, nivel: null, id: ids }), "projeto:posto");
-    expect(t.linhas[0].celulas[0]).toContain("Bomba 01 (Ilha 01)");
-    expect(t.linhas[1].celulas[0]).toContain("Bomba 01 (Ilha 02)");
+    expect(t.linhas[0].celulas[0]).toBe("Ilha 01");
+    expect(t.linhas[0].celulas[1]).toContain("Bomba 01 (Ilha 01)");
+    expect(t.linhas[1].celulas[0]).toBe("Ilha 02");
+    expect(t.linhas[1].celulas[1]).toContain("Bomba 01 (Ilha 02)");
+  });
+  it("vários postos: a coluna Ilha traz o posto; bomba sem ilha mostra '—'; sem bombas a tabela pede confirmação", () => {
+    const es = [
+      ent("p1", "posto", "Posto 01", null), ent("i1", "ilha", "Ilha 01", "p1"), ent("a", "bomba", "Bomba 01", "i1"),
+      ent("p2", "posto", "Posto 02", null, 1), ent("i2", "ilha", "Ilha 01", "p2"), ent("b", "bomba", "Bomba 01", "i2"),
+    ];
+    const c = montarContextoLaudo({ entidades: es, arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }, { ilhas: [] }] }, respostas: [] });
+    const t = tab(blocosProjeto({ contexto: c, vars: {}, nivel: null, id: ids }), "projeto:posto");
+    expect(t.linhas.map((l: any) => l.celulas[0])).toEqual(["Posto 01 / Ilha 01", "Posto 02 / Ilha 01"]);
+    const vazio = montarContextoLaudo({ entidades: [], arvore: { ...arvoreVazia(), postos: [{ ilhas: [] }] }, respostas: [] });
+    const tv = tab(blocosProjeto({ contexto: vazio, vars: {}, nivel: null, id: ids }), "projeto:posto");
+    expect(tv.linhas[0].celulas).toHaveLength(5);
+    expect(tv.linhas[0].celulas[0]).toContain("[CONFIRMAR");
   });
 });
 

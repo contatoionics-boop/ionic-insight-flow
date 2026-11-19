@@ -59,12 +59,19 @@ function identificacaoDaBomba(rotulo: string, b: BombaCtx): string {
   return partes.join(" — ");
 }
 
-function linhaDeBomba(rotulo: string, b: BombaCtx): Linha {
+/** Ilha da bomba (com o posto na frente quando o Escopo tem mais de um posto); sem ilha informada, "—". */
+function localDaBomba(b: BombaCtx, variosPostos: boolean): string {
+  const ilha = b.ilha ?? "—";
+  return variosPostos && b.posto ? `${b.posto} / ${ilha}` : ilha;
+}
+
+function linhaDeBomba(rotulo: string, b: BombaCtx, variosPostos: boolean): Linha {
   const semBico = sim(b.atributos.bico_ausente);
   const bitolas = bitolaDosBicos(b.bicos);
   return {
     entidadeId: b.id,
     celulas: [
+      localDaBomba(b, variosPostos),
       identificacaoDaBomba(rotulo, b),
       vazaoDaBomba(b.atributos) ?? pendencia("vazao", "vazão"),
       b.qtdBicos > 0 ? String(b.qtdBicos) : semBico ? "0 (sem bico)" : pendencia("qtd_bicos", "quantidade de bicos"),
@@ -136,10 +143,12 @@ export function blocosProjeto(entrada: {
 
   if (e.temPista) {
     const rotulos = rotulosDasBombas(contexto.bombas);
-    const linhas = contexto.bombas.map((b, i) => linhaDeBomba(rotulos[i], b));
+    const variosPostos = new Set(contexto.bombas.map((b) => b.posto)).size > 1;
+    const linhas = contexto.bombas.map((b, i) => linhaDeBomba(rotulos[i], b, variosPostos));
+    // a Ilha vem antes da Bomba: o posto é dividido em ilhas e cada ilha tem suas bombas
     blocos.push(
-      tabela(id("t"), "projeto:posto", "POSTO", ["Bomba", "Vazão", "QTD de bicos", "Bitola do bico"],
-        linhas.length ? linhas : [{ celulas: [pendencia("bombas", "bombas do posto"), "", "", ""] } as Linha]),
+      tabela(id("t"), "projeto:posto", "POSTO", ["Ilha", "Bomba", "Vazão", "QTD de bicos", "Bitola do bico"],
+        linhas.length ? linhas : [{ celulas: [pendencia("bombas", "ilhas e bombas do posto"), "", "", "", ""] } as Linha]),
     );
     blocos.push(tabela(id("t"), "projeto:comunicacao_pista", "COMUNICAÇÃO (POSTO)", ["Comunicação"], [{ celulas: [textoComunicacao(contexto, vars, "posto")] } as Linha]));
   }
