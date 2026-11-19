@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Card, Button, Input, Textarea, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
@@ -108,29 +108,30 @@ function BlocosPadraoPage() {
   // versões dos textos do documento têm tela própria (acima); aqui ficam só os blocos adicionais
   const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot);
 
-  function editar(b: BlocoPadrao) {
+  function editar(b: BlocoPadrao, duplicar = false) {
     const titulo = (b.blocos ?? []).find((x: any) => x.tipo === "heading") as any;
     setForm({
-      id: b.id,
-      nome: b.nome,
+      // a cópia nasce sem id (cria outro bloco) e sem inserção automática, para não repetir o texto no documento
+      id: duplicar ? undefined : b.id,
+      nome: duplicar ? `${b.nome} (cópia)` : b.nome,
       descricao: b.descricao ?? "",
       categoria: b.categoria,
       titulo_secao: titulo?.texto ?? "",
       corpo: corpoDosBlocos(b),
       ativo: b.ativo,
       ordem: b.ordem,
-      regra: lerRegra(b.escopo),
+      regra: duplicar ? { ...lerRegra(b.escopo), automatico: false } : lerRegra(b.escopo),
     });
     setAberto(true);
   }
 
-  async function salvar() {
+  async function salvar(comoNovo = false) {
     setSalvando(true);
     try {
       await fnSalvar({
         data: {
-          id: form.id,
-          nome: form.nome,
+          id: comoNovo ? undefined : form.id,
+          nome: comoNovo && form.nome.trim() === (itens.find((i) => i.id === form.id)?.nome ?? "").trim() ? `${form.nome.trim()} (cópia)` : form.nome,
           descricao: form.descricao || null,
           categoria: form.categoria || "geral",
           titulo_secao: form.titulo_secao || null,
@@ -140,7 +141,7 @@ function BlocosPadraoPage() {
           regra: form.regra,
         },
       });
-      toast.success("Bloco padrão salvo.");
+      toast.success(comoNovo ? "Novo bloco salvo. O original continua guardado." : "Bloco padrão salvo.");
       setAberto(false);
       setForm(VAZIO);
       await carregar();
@@ -213,9 +214,14 @@ function BlocosPadraoPage() {
                   {corpoDosBlocos(b)}
                 </p>
               </button>
-              <Button variant="secondary" onClick={() => excluir(b.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex shrink-0 gap-1">
+                <Button variant="secondary" onClick={() => editar(b, true)} aria-label="Duplicar bloco e editar a cópia">
+                  <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
+                </Button>
+                <Button variant="secondary" onClick={() => excluir(b.id)} aria-label="Excluir bloco">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
@@ -325,8 +331,13 @@ function BlocosPadraoPage() {
             <Button variant="secondary" onClick={() => setAberto(false)}>
               Cancelar
             </Button>
-            <Button onClick={salvar} disabled={salvando || !form.nome || !form.corpo}>
-              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+            {form.id && (
+              <Button variant="secondary" onClick={() => salvar(true)} disabled={salvando || !form.nome || !form.corpo}>
+                Salvar como novo bloco
+              </Button>
+            )}
+            <Button onClick={() => salvar(false)} disabled={salvando || !form.nome || !form.corpo}>
+              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {form.id ? "Salvar alterações" : "Salvar"}
             </Button>
           </div>
         </div>

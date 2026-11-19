@@ -11,6 +11,7 @@ import {
   itensParaBlocos,
   itensParaCorpo,
   lerSlot,
+  nomeDaNovaVersao,
   renderizarCampos,
   type VersaoTexto,
 } from "./textos-padrao";
@@ -156,5 +157,13 @@ describe("textos do documento no template", () => {
     expect(ssg.some((x) => x.texto === "Equipamentos de TI e banco de dados")).toBe(true);
     expect(ssg.find((x) => x.chave === "texto:ti_bd:ti3:0")?.itens).toEqual(["Internet para o SSGFrota."]);
     expect(ssg.some((x) => x.tipo === "table" && /servidor/i.test(x.titulo ?? ""))).toBe(false);
+  });
+});
+
+describe("nome da nova versão", () => {
+  it("acrescenta v2, incrementa e não repete nome existente", () => {
+    expect(nomeDaNovaVersao("Introdução 2026", [])).toBe("Introdução 2026 v2");
+    expect(nomeDaNovaVersao("Introdução 2026 v2", [])).toBe("Introdução 2026 v3");
+    expect(nomeDaNovaVersao("Introdução", ["Introdução v2", "introdução v3"])).toBe("Introdução v4");
   });
 });

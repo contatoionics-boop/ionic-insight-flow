@@ -249,3 +249,12 @@ export function blocosDoSlot(entrada: {
 
 /** Prefixo das chaves dos blocos de um slot no documento (para avisar sobre edições manuais ao trocar de versão). */
 export const prefixosDoSlot = (slot: SlotTexto): string[] => [`texto:${slot}:`, ...(slot === "instrucoes_gerais" ? ["instrucoes:"] : [])];
+
+/** Nome da próxima versão: "Introdução" → "Introdução v2"; "Introdução v2" → "Introdução v3" (sem repetir nome existente). */
+export function nomeDaNovaVersao(nome: string, existentes: string[]): string {
+  const m = nome.trim().match(/^(.*?)\s+v(\d+)$/i);
+  const base = m ? m[1] : nome.trim();
+  let n = m ? Number(m[2]) + 1 : 2;
+  while (existentes.some((e) => e.trim().toLowerCase() === `${base} v${n}`.toLowerCase())) n++;
+  return `${base} v${n}`;
+}

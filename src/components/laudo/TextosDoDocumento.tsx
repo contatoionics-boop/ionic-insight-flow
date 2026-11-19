@@ -13,6 +13,7 @@ import {
   blocosParaItens,
   itensParaCorpo,
   lerSlot,
+  nomeDaNovaVersao,
   type SlotTexto,
 } from "@/lib/laudo/textos-padrao";
 
@@ -25,6 +26,8 @@ type Form = {
   ativo: boolean;
   ordem: number;
   regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige">;
+  /** versão aberta para edição (permite "Salvar como nova versão" sem perder a original) */
+  origem?: BlocoPadrao;
 };
 
 const SEM_CONDICAO = { solucao: [], nivel: [], exige: [] } as Form["regra"];
@@ -66,28 +69,49 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
       ativo: b.ativo,
       ordem: b.ordem,
       regra: { solucao: r.solucao, nivel: r.nivel, exige: r.exige },
+      origem: duplicar ? undefined : b,
     });
   }
 
-  async function salvar() {
+  /**
+   * `comoNova`: grava uma versão nova a partir do que está na tela e mantém a original guardada.
+   * Se a nova passa a ser a padrão, a anterior deixa de ser (continua disponível para escolher em um mapeamento).
+   */
+  async function salvar(comoNova = false) {
     if (!form) return;
     setSalvando(true);
     try {
-      await fnSalvar({
-        data: {
-          id: form.id,
-          nome: form.nome,
-          descricao: null,
-          categoria: "texto",
-          corpo: form.corpo,
-          ativo: form.ativo,
-          ordem: Number(form.ordem) || 0,
-          slot: form.slot,
-          padrao: form.padrao,
-          regra: { automatico: false, ...form.regra },
-        },
-      });
-      toast.success("Versão salva.");
+      const dados = {
+        descricao: null,
+        categoria: "texto",
+        corpo: form.corpo,
+        ativo: form.ativo,
+        ordem: Number(form.ordem) || 0,
+        slot: form.slot,
+        padrao: form.padrao,
+        regra: { automatico: false, ...form.regra },
+      };
+      if (comoNova) {
+        const existentes = versoesDe(form.slot).map((b) => b.nome);
+        const nome = form.nome.trim() === form.origem?.nome.trim() ? nomeDaNovaVersao(form.nome, existentes) : form.nome;
+        await fnSalvar({ data: { ...dados, nome } });
+        const anterior = form.origem;
+        if (anterior && form.padrao && lerSlot(anterior.escopo).padrao) {
+          const r = lerRegra(anterior.escopo);
+          await fnSalvar({
+            data: {
+              id: anterior.id, nome: anterior.nome, descricao: anterior.descricao, categoria: "texto", corpo: itensParaCorpo(blocosParaItens(anterior.blocos)),
+              ativo: anterior.ativo, ordem: anterior.ordem, slot: form.slot, padrao: false, regra: { automatico: false, solucao: r.solucao, nivel: r.nivel, exige: r.exige },
+            },
+          });
+          toast.success(`Nova versão "${nome}" salva como padrão. A anterior continua guardada (use-a escolhendo no mapeamento).`);
+        } else {
+          toast.success(`Nova versão "${nome}" salva. A original continua guardada.`);
+        }
+      } else {
+        await fnSalvar({ data: { ...dados, id: form.id, nome: form.nome } });
+        toast.success("Versão salva.");
+      }
       setForm(null);
       await onAlterou();
     } catch (e: any) {
@@ -173,12 +197,12 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
                         </p>
                         <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{itensParaCorpo(blocosParaItens(b.blocos))}</p>
                       </div>
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex shrink-0 flex-wrap justify-end gap-1">
                         <Button variant="secondary" onClick={() => abrir(b)} aria-label="Editar versão">
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="mr-1.5 h-4 w-4" /> Editar
                         </Button>
-                        <Button variant="secondary" onClick={() => abrir(b, true)} aria-label="Duplicar versão">
-                          <Copy className="h-4 w-4" />
+                        <Button variant="secondary" onClick={() => abrir(b, true)} aria-label="Duplicar versão e editar a cópia">
+                          <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
                         </Button>
                         <Button variant="secondary" onClick={() => excluir(b)} aria-label="Excluir versão">
                           <Trash2 className="h-4 w-4" />
@@ -194,6 +218,9 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
               <details className="text-xs">
                 <summary className="cursor-pointer text-muted-foreground">Ver o texto original do sistema</summary>
                 <p className="mt-2 whitespace-pre-line rounded-md bg-muted/50 p-3 text-muted-foreground">{original}</p>
+                <Button variant="secondary" className="mt-2" onClick={() => nova(slot)}>
+                  <Copy className="mr-1.5 h-4 w-4" /> Duplicar para editar
+                </Button>
               </details>
             )}
           </Card>
@@ -203,6 +230,11 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
       <Modal open={!!form} onClose={() => setForm(null)} title={form ? `${form.id ? "Editar" : "Nova"} versão — ${INFO_SLOT[form.slot].rotulo}` : ""}>
         {form && (
           <div className="space-y-3">
+            {form.origem && (
+              <p className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground">
+                <b>Salvar alterações</b> substitui esta versão. <b>Salvar como nova versão</b> cria outra e mantém esta como está (mapeamentos que usam esta continuam iguais).
+              </p>
+            )}
             <div>
               <label className="text-xs font-medium">Nome da versão</label>
               <Input value={form.nome} placeholder="Ex.: Introdução 2026" onChange={(e) => setForm({ ...form, nome: e.currentTarget.value })} />
@@ -267,8 +299,13 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
               <Button variant="secondary" onClick={() => setForm(null)}>
                 Cancelar
               </Button>
-              <Button onClick={salvar} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
-                {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+              {form.origem && (
+                <Button variant="secondary" onClick={() => salvar(true)} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
+                  Salvar como nova versão
+                </Button>
+              )}
+              <Button onClick={() => salvar(false)} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
+                {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {form.origem ? "Salvar alterações" : "Salvar"}
               </Button>
             </div>
           </div>
