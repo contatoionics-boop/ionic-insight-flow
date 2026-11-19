@@ -19,7 +19,7 @@ import { blocosComboio } from "./secoes/comboio";
 import { blocosDiv, blocosRfid, blocosTx } from "./secoes/extras";
 import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./blocos-padrao-regras";
 import { blocosPista } from "./secoes/pista";
-import { ajustarAplicacao, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi } from "./secoes/transferencia";
+import { ajustarAplicacao, blocoCondicoesWifi, blocosFotosTransferencia, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi, type FotoTransferencia } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
@@ -44,6 +44,8 @@ export type EntradaTemplate = {
   contexto?: ContextoLaudo | null;
   /** blocos padrão com regra de inserção automática (cadastrados em "Blocos padrão") */
   blocosPadrao?: BlocoPadraoAuto[];
+  /** prints do registro fotográfico de transferência de dados (Wi-Fi e sinal da operadora), já em URL pública */
+  fotosTransferencia?: FotoTransferencia[];
 };
 
 /** chaves de texto livre onde valores sem sentido não podem ir para o documento */
@@ -326,7 +328,9 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const achadoGsm = achadosComunicacao.filter((a) => a.chave === "comunicacao_gsm");
 
   const aplicacao = nomeDaAplicacao(entrada.contexto ?? null);
-  if (mostrarWifi(entrada.contexto ?? null, achadoWifi.length > 0)) {
+  const wifiVisivel = mostrarWifi(entrada.contexto ?? null, achadoWifi.length > 0);
+  let faixaWifi = false;
+  if (wifiVisivel) {
     blocos.push({ id: bid("h"), chave: "dados:wifi", tipo: "heading", numero: num22(), texto: "WiFi", nivel: 3 } as BlocoLaudo);
     if (achadoWifi.length) {
       // A conclusão técnica derivada dos dados substitui o texto genérico.
@@ -339,14 +343,23 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
           "A transferência por WiFi exige cobertura de sinal estável no ponto de abastecimento, com rede dedicada ou liberação das portas de comunicação utilizadas pela aplicação.",
       });
     }
+    // condições informadas no formulário (frequência, potência, estabilidade, velocidade), por bomba/comboio
+    const condicoes = blocoCondicoesWifi({ contexto: entrada.contexto ?? null, id: bid("t") });
+    if (condicoes) {
+      blocos.push(condicoes);
+      faixaWifi = condicoes.linhas.some((l) => !!l.celulas[4] && l.celulas[4] !== "—");
+    }
   }
   const velocidades = blocoVelocidades({
     vars,
     contexto: entrada.contexto ?? null,
     wifi: usaWifi(entrada.contexto ?? null, achadoWifi.length > 0),
     id: bid("p"),
+    faixaInformada: faixaWifi,
   });
   if (velocidades) blocos.push(velocidades);
+  // prints do Wi-Fi Network Analyzer (SSID/detalhes e gráfico das redes), quando o agente os anexou
+  if (wifiVisivel) blocos.push(...blocosFotosTransferencia(entrada.fotosTransferencia ?? [], ["wifi_detalhes", "wifi_grafico"], bid, proximaFigura));
   const comunicacao = (raw(vars, "comunicacao_tipos") ?? "").toLowerCase();
   if (mostrarGsm({ contexto: entrada.contexto ?? null, temAchadoGsm: achadoGsm.length > 0, tiposRespondidos: comunicacao })) {
     blocos.push({ id: bid("h"), chave: "dados:gsm", tipo: "heading", numero: num22(), texto: "GSM / 4G", nivel: 3 } as BlocoLaudo);
@@ -360,6 +373,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
           "Onde não houver cobertura WiFi, a comunicação será feita por GSM/4G, com chip de dados fornecido pelo cliente e antena externa instalada em ponto de boa recepção.",
       });
     }
+    blocos.push(...blocosFotosTransferencia(entrada.fotosTransferencia ?? [], ["gsm_sinal"], bid, proximaFigura));
   }
   blocos.push({ id: bid("h"), chave: "dados:radio", tipo: "heading", numero: num22(), texto: "Rádio 2.4GHz", nivel: 3 } as BlocoLaudo);
   blocos.push({

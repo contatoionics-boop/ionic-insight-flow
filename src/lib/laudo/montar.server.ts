@@ -156,6 +156,51 @@ async function carregarRespostasPorEntidade(supabase: any, casoId: string) {
   };
 }
 
+/**
+ * Prints do registro fotográfico de transferência de dados (Wi-Fi Network Analyzer e sinal da operadora).
+ * Copia a foto do armazenamento privado do agente para o público do documento (a URL assinada expira em 1 h);
+ * falha em uma foto não derruba a geração: o documento segue sem ela (o especialista pode inseri-la à mão).
+ */
+export async function carregarFotosTransferencia(supabase: any, casoId: string): Promise<import("@/lib/laudo/secoes/transferencia").FotoTransferencia[]> {
+  const { tipoDaFotoTransferencia } = await import("@/lib/laudo/secoes/transferencia");
+  const { data, error } = await supabase
+    .from("respostas_agente")
+    .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto)")
+    .eq("caso_id", casoId)
+    .eq("tipo", "foto");
+  if (error) return [];
+  const escolhidas = new Map<import("@/lib/laudo/secoes/transferencia").TipoFotoTransferencia, string>();
+  for (const r of (data ?? []) as any[]) {
+    const tipo = tipoDaFotoTransferencia(r.pergunta?.texto ?? "");
+    if (!tipo || escolhidas.has(tipo)) continue;
+    const caminhos = [...((r.arquivos_paths ?? []) as string[]), ...(r.arquivo_path ? [r.arquivo_path as string] : [])];
+    const imagem = caminhos.find((p) => p && /\.(jpe?g|png|webp)$/i.test(p));
+    if (imagem) escolhidas.set(tipo, imagem);
+  }
+  if (!escolhidas.size) return [];
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const fotos: import("@/lib/laudo/secoes/transferencia").FotoTransferencia[] = [];
+  for (const [tipo, caminho] of escolhidas) {
+    try {
+      const { data: arquivo, error: erroDownload } = await supabaseAdmin.storage.from("agente-uploads").download(caminho);
+      if (erroDownload || !arquivo || arquivo.size > 8_000_000) continue;
+      const nome = (caminho.split("/").pop() ?? "foto.jpg").replace(/[^\w.-]/g, "_");
+      const ext = (nome.match(/\.(jpe?g|png|webp)$/i)?.[1] ?? "jpg").toLowerCase();
+      const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      const destino = `laudos/${casoId}/transferencia-${tipo}-${nome}`;
+      const { error: erroUp } = await supabaseAdmin.storage
+        .from("empresa-logos")
+        .upload(destino, Buffer.from(await arquivo.arrayBuffer()), { upsert: true, contentType });
+      if (erroUp) continue;
+      fotos.push({ tipo, url: supabaseAdmin.storage.from("empresa-logos").getPublicUrl(destino).data.publicUrl });
+    } catch {
+      // foto indisponível: segue sem ela
+    }
+  }
+  return fotos;
+}
+
 export function metaDoCasoLaudo(caso: any) {
   const u = caso.unidade;
   const empresa = u?.matriz?.empresa?.nome ?? u?.matriz?.nome ?? "—";
@@ -281,7 +326,15 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     // sem blocos padrão automáticos
   }
 
+  let fotosTransferencia: import("@/lib/laudo/secoes/transferencia").FotoTransferencia[] = [];
+  try {
+    fotosTransferencia = await carregarFotosTransferencia(supabase, casoId);
+  } catch {
+    // sem os prints: o documento segue sem as imagens
+  }
+
   const { blocos, achados } = montarBlocosEAnalise({
+    fotosTransferencia,
     blocosPadrao,
     achadosDescartados: descartados,
     produtosProposta,
