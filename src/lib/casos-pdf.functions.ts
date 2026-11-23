@@ -1,3 +1,4 @@
+import { separarMidias } from "@/lib/midia-arquivos";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -144,7 +145,8 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
         const paths: string[] = Array.isArray(r?.arquivos_paths) && r.arquivos_paths.length
           ? r.arquivos_paths
           : r?.arquivo_path ? [r.arquivo_path] : [];
-        for (const pth of paths) arquivoPaths.push(pth);
+        // vídeo opcional da pergunta de foto não entra no PDF (só imagens são baixadas e embutidas)
+        for (const pth of separarMidias(paths).imagens) arquivoPaths.push(pth);
       }
     }
     const fotos = new Map<string, { bytes: Uint8Array; mime: string }>();

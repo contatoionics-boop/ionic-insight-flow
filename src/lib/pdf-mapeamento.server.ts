@@ -5,6 +5,7 @@
  * Rebrand: corpo branco, navy (#1a2436) em cabeçalho/rodapé,
  * azul (#3b82f6) como acento de seção e número do documento.
  */
+import { separarMidias } from "@/lib/midia-arquivos";
 import {
   PDFDocument,
   PDFFont,
@@ -970,13 +971,15 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
               : r?.arquivo_path ? [r.arquivo_path] : [];
             const selo =
               r?.ia_aprovado === true ? "IA OK" : r?.ia_aprovado === false ? "IA REVISAR" : undefined;
-            const legendaBase = p.instrucao_agente || p.texto;
-            if (paths.length === 0) {
+            // o vídeo opcional da pergunta não é embutido no PDF: só a menção na legenda da primeira foto
+            const { imagens, videos } = separarMidias(paths);
+            const legendaBase = (p.instrucao_agente || p.texto) + (videos.length ? " — vídeo anexado (disponível no sistema)" : "");
+            if (imagens.length === 0) {
               return [{ legenda: legendaBase, foto: undefined, selo: undefined as string | undefined }];
             }
             return Promise.all(
-              paths.map(async (path, i) => ({
-                legenda: paths.length > 1 ? `${legendaBase} (${i + 1}/${paths.length})` : legendaBase,
+              imagens.map(async (path, i) => ({
+                legenda: imagens.length > 1 ? `${legendaBase} (${i + 1}/${imagens.length})` : legendaBase,
                 foto: (await getFoto(path)) ?? undefined,
                 selo: i === 0 ? selo : undefined,
               })),

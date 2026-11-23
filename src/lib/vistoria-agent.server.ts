@@ -2,6 +2,7 @@
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { combinarArquivosFoto } from "@/lib/midia-arquivos";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso, comTentativas, migrationAusente } from "@/lib/escopo/gerar.server";
@@ -929,6 +930,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- **Sempre** chame \`salvar_resposta\` antes de avançar. Use o exato \`pergunta_id\` listado abaixo.`,
     `- Respeite condicionais: pergunte apenas as visíveis listadas. Se uma resposta tornar nova pergunta visível, ela aparecerá no próximo turno.`,
     `- Quando o usuário anexar uma ou mais fotos (mensagem contendo "[ANEXO_FOTO arquivo_path=..." ou "[ANEXO_FOTOS arquivos_paths=p1,p2,..."), chame \`validar_foto\` na PRIMEIRA foto e em seguida chame \`salvar_resposta\` UMA ÚNICA VEZ passando \`arquivos_paths\` com a lista completa (ou \`arquivo_path\` se for só uma). Não crie respostas separadas por foto — todas pertencem ao mesmo \`pergunta_id\`.`,
+    `- Se a mensagem de fotos trouxer também "[ANEXO_VIDEO_FOTO arquivo_path=...", o vídeo opcional daquela pergunta já foi salvo pelo sistema junto da(s) foto(s): NÃO o inclua em \`salvar_resposta\` e chame \`validar_foto\` apenas na primeira FOTO.`,
     `- **Revisão de respostas anteriores:** se o usuário pedir para revisar/consultar algo que já respondeu, consulte o \`state\` ou os dados de cadastro acima e responda diretamente — NÃO chame \`salvar_resposta\` nesse caso. Depois, retome a próxima pergunta pendente.`,
     `- A interface mostra apenas a sua última mensagem por vez (estilo ChatGPT). Por isso, cada turno deve conter a pergunta atual completa e autocontida — não diga "como mencionei acima".`,
     `- **Nunca** sugira, mencione ou implique que o mapeamento pode ser finalizado enquanto \`Obrigatórias faltando > 0\`. Se o usuário pedir para finalizar antes disso, informe quantas obrigatórias ainda faltam, liste as próximas e retome imediatamente pela PRÓXIMA PERGUNTA indicada no ESTADO OFICIAL.`,
@@ -962,6 +964,8 @@ export async function execSalvarResposta(
     arquivo_path?: string;
     arquivos_paths?: string[];
     transcricao?: string;
+    /** pergunta de foto: apaga o vídeo anexado (o vídeo é um só e vive em `arquivos_paths`) */
+    remover_video?: boolean;
   },
   opts?: { origemCadastro?: boolean; confirmadoCadastro?: boolean },
 ): Promise<{ ok: boolean; motivo?: string; estado_pos_salvamento?: { obrigatorias_faltando: number; total_obrigatorias: number; respondidas_obrigatorias: number; proxima_pergunta_id: string | null; pode_finalizar: boolean } }> {
@@ -975,22 +979,23 @@ export async function execSalvarResposta(
   const incomingList = (input.arquivos_paths ?? []).filter(Boolean);
   const incomingSingle = input.arquivo_path ? [input.arquivo_path] : [];
   let arquivos_paths: string[] = [];
+  let arquivo_path: string | null;
   if (p.tipo === "foto") {
-    const merged = [
-      ...(existente?.arquivos_paths ?? []),
-      ...incomingList,
-      ...incomingSingle,
-    ];
-    arquivos_paths = Array.from(new Set(merged.filter(Boolean)));
+    // Imagens acumulam; a pergunta de foto aceita também UM vídeo (o novo substitui o anterior; `remover_video` apaga).
+    // `arquivo_path` é sempre a primeira imagem: sem foto a pergunta não está respondida.
+    const antes = existente?.arquivos_paths?.length ? existente.arquivos_paths : existente?.arquivo_path ? [existente.arquivo_path] : [];
+    const comb = combinarArquivosFoto(antes, [...incomingList, ...incomingSingle], { removerVideo: input.remover_video });
+    arquivos_paths = comb.arquivos;
+    arquivo_path = comb.arquivoPath;
   } else {
     arquivos_paths = [...incomingList, ...incomingSingle];
+    arquivo_path = arquivos_paths[0] ?? input.arquivo_path ?? null;
   }
-  const arquivo_path = arquivos_paths[0] ?? input.arquivo_path ?? null;
   const transcricao = input.transcricao ?? null;
 
   // Type-specific validation
   if (p.tipo === "foto" && !arquivo_path) {
-    return { ok: false, motivo: "Pergunta tipo foto exige arquivo_path ou arquivos_paths." };
+    return { ok: false, motivo: "Pergunta tipo foto exige ao menos uma foto (o vídeo só pode ser anexado depois da foto)." };
   }
   if (p.tipo === "video" && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo vídeo exige arquivo_path." };

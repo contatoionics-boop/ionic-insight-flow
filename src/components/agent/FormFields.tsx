@@ -12,6 +12,7 @@ import {
   Mic,
   Pencil,
   Square,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ import {
   traduzirErroRede,
   useFilaUploads,
 } from "@/lib/midia-upload";
+import { EXT_VIDEO } from "@/lib/midia-arquivos";
 import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
@@ -183,6 +185,12 @@ export type Resposta = {
   filePath?: string;
   fileName?: string;
   filePreview?: string;
+  /** pergunta de foto: vídeo opcional da mesma pergunta (um só); vai junto da foto em `arquivos_paths` */
+  videoPath?: string;
+  videoName?: string;
+  videoPreview?: string;
+  /** o agente removeu o vídeo: o servidor apaga o vídeo salvo */
+  removerVideo?: boolean;
   ia?: IaResultado;
   iaConfirmada?: boolean;
   audioPath?: string;
@@ -1027,6 +1035,25 @@ function CampoFoto({
           <Images className="h-4 w-4" /> Galeria
         </Button>
       </div>
+      {resposta.filePath && (
+        <div className="space-y-2 rounded-md border border-dashed border-border p-3">
+          <p className="text-sm font-medium">Vídeo (opcional)</p>
+          <SeletorVideo
+            casoId={casoId}
+            token={token}
+            mode={mode}
+            caminho={resposta.videoPath}
+            previa={resposta.videoPreview}
+            desabilitado={ocupado}
+            aoEnviar={(v) => update({ videoPath: v.path, videoName: v.nome, videoPreview: v.previa, removerVideo: false })}
+            aoRemover={() => {
+              if (resposta.videoPreview?.startsWith("blob:")) URL.revokeObjectURL(resposta.videoPreview);
+              void descartarArquivo(resposta.videoPath);
+              update({ videoPath: undefined, videoName: undefined, videoPreview: undefined, removerVideo: true });
+            }}
+          />
+        </div>
+      )}
       {err && <p className="text-xs text-destructive">{err}</p>}
       {oferecerNativa && (
         <Button
@@ -1046,8 +1073,6 @@ function CampoFoto({
   );
 }
 
-const EXT_VIDEO = /\.(mp4|mov|m4v|webm|3gp|3gpp)$/i;
-
 function tipoVideo(file: File): string {
   if (file.type.startsWith("video/")) return file.type;
   const ext = file.name.split(".").pop()?.toLowerCase();
@@ -1057,28 +1082,39 @@ function tipoVideo(file: File): string {
   return "video/mp4";
 }
 
-function CampoVideo({
+/**
+ * Gravar (câmera do aparelho) ou escolher um vídeo da galeria, com envio, progresso e fila offline.
+ * Usado pela pergunta de vídeo e pelo vídeo opcional da pergunta de foto.
+ */
+function SeletorVideo({
   casoId,
   token,
-  resposta,
-  update,
   mode,
+  caminho,
+  previa,
+  aoEnviar,
+  aoRemover,
+  desabilitado = false,
 }: {
   casoId: string;
   token: string;
-  resposta: Resposta;
-  update: (patch: Partial<Resposta>) => void;
   mode: RendererMode;
+  caminho?: string;
+  previa?: string;
+  aoEnviar: (v: { path: string; nome: string; previa: string }) => void;
+  /** com ele aparece o botão "Remover vídeo" */
+  aoRemover?: () => void;
+  desabilitado?: boolean;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galeriaRef = useRef<HTMLInputElement>(null);
-  const urlVideo = useUrlArquivo(resposta.filePath, resposta.filePreview, casoId, token, mode);
+  const urlVideo = useUrlArquivo(caminho, previa, casoId, token, mode);
   const [uploading, setUploading] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const fila = useFilaUploads();
-  const pendente = !!resposta.filePath && fila.pendentes.includes(resposta.filePath);
-  const progressoFila = pendente && fila.enviando === resposta.filePath ? fila.progresso : 0;
+  const pendente = !!caminho && fila.pendentes.includes(caminho);
+  const progressoFila = pendente && fila.enviando === caminho ? fila.progresso : 0;
 
   const limpar = () => {
     if (cameraRef.current) cameraRef.current.value = "";
@@ -1097,10 +1133,10 @@ function CampoVideo({
       return setErro("Formato não aceito. Use MP4, MOV, WebM ou 3GP.");
     }
     const tipo = tipoVideo(file);
-    const previaAntiga = resposta.filePreview;
-    const preview = URL.createObjectURL(file);
+    const previaAntiga = previa;
+    const nova = URL.createObjectURL(file);
     if (mode === "preview") {
-      update({ filePath: "preview", fileName: file.name, filePreview: preview });
+      aoEnviar({ path: "preview", nome: file.name, previa: nova });
       limpar();
       return;
     }
@@ -1108,14 +1144,15 @@ function CampoVideo({
     setProgresso(0);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
-      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
-      const caminhoAntigo = resposta.filePath;
+      // a extensão do caminho identifica o arquivo como vídeo (ver midia-arquivos.ts)
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${EXT_VIDEO.test(`x.${ext}`) ? ext : "mp4"}`;
+      const caminhoAntigo = caminho;
       await enviarArquivo({ path, blob: file, contentType: tipo, onProgress: setProgresso });
       if (previaAntiga?.startsWith("blob:")) URL.revokeObjectURL(previaAntiga);
-      update({ filePath: path, fileName: file.name, filePreview: preview });
+      aoEnviar({ path, nome: file.name, previa: nova });
       void descartarArquivo(caminhoAntigo);
     } catch (error) {
-      URL.revokeObjectURL(preview);
+      URL.revokeObjectURL(nova);
       setErro(traduzirErroRede(error, "Erro ao enviar vídeo."));
     } finally {
       setUploading(false);
@@ -1129,6 +1166,8 @@ function CampoVideo({
     if (f) void enviar(f);
   };
 
+  const ocupado = uploading || desabilitado;
+
   return (
     <div className="space-y-3">
       <input ref={cameraRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={aoEscolher} />
@@ -1136,7 +1175,7 @@ function CampoVideo({
       {urlVideo && (
         <video controls playsInline preload="metadata" src={urlVideo} className="w-full rounded-md border border-border" />
       )}
-      {resposta.filePath && !urlVideo && (
+      {caminho && !urlVideo && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           {pendente ? "Vídeo guardado no aparelho." : "Vídeo enviado e salvo."}
         </div>
@@ -1144,21 +1183,51 @@ function CampoVideo({
       {pendente && (
         <>
           <AvisoPendente texto="Sem conexão: o vídeo será enviado automaticamente quando o sinal voltar. Mantenha o aplicativo aberto." />
-          {fila.enviando === resposta.filePath && <BarraProgresso pct={progressoFila} rotulo="Enviando vídeo…" />}
+          {fila.enviando === caminho && <BarraProgresso pct={progressoFila} rotulo="Enviando vídeo…" />}
         </>
       )}
       {uploading && <BarraProgresso pct={progresso} rotulo="Enviando vídeo… não feche a tela" />}
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" onClick={() => cameraRef.current?.click()} disabled={uploading} className="h-12">
-          <Video className="h-4 w-4" /> {resposta.filePath ? "Regravar" : "Gravar vídeo"}
+        <Button type="button" onClick={() => cameraRef.current?.click()} disabled={ocupado} className="h-12">
+          <Video className="h-4 w-4" /> {caminho ? "Regravar" : "Gravar vídeo"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} disabled={uploading} className="h-12">
+        <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} disabled={ocupado} className="h-12">
           <Images className="h-4 w-4" /> Galeria
         </Button>
       </div>
+      {aoRemover && caminho && (
+        <Button type="button" variant="outline" onClick={aoRemover} disabled={ocupado} className="h-11 w-full">
+          <Trash2 className="h-4 w-4" /> Remover vídeo
+        </Button>
+      )}
       <p className="text-[11px] text-muted-foreground">Limite de {LIMITE_VIDEO_BYTES / 1024 / 1024} MB por vídeo.</p>
       {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
+  );
+}
+
+function CampoVideo({
+  casoId,
+  token,
+  resposta,
+  update,
+  mode,
+}: {
+  casoId: string;
+  token: string;
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+  mode: RendererMode;
+}) {
+  return (
+    <SeletorVideo
+      casoId={casoId}
+      token={token}
+      mode={mode}
+      caminho={resposta.filePath}
+      previa={resposta.filePreview}
+      aoEnviar={(v) => update({ filePath: v.path, fileName: v.nome, filePreview: v.previa })}
+    />
   );
 }
 

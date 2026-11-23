@@ -175,6 +175,8 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             (r.text ?? "") !== (b?.text ?? "") ||
             (r.transcription ?? "") !== (b?.transcription ?? "") ||
             (r.filePath ?? "") !== (b?.filePath ?? "") ||
+            (r.videoPath ?? "") !== (b?.videoPath ?? "") ||
+            !!r.removerVideo !== !!b?.removerVideo ||
             (r.audioPath ?? "") !== (b?.audioPath ?? "");
           if (mudou) sujosRef.current.add(id);
         }
@@ -201,7 +203,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     try {
       const limpo = Object.fromEntries(
         Object.entries(state).map(([k, r]) => {
-          const { filePreview: _ignored, ...rest } = r as Resposta & { filePreview?: string };
+          const { filePreview: _ignored, videoPreview: _ignoradoVideo, ...rest } = r as Resposta & { filePreview?: string };
           return [k, rest];
         }),
       );
@@ -300,17 +302,21 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
       .map((id) => {
         const r = atual[id] ?? {};
         // Arquivo ainda na fila offline não existe no servidor: só é enviado depois do upload.
-        const arquivos = ([r.filePath, r.audioPath].filter(Boolean) as string[]).filter(
-          (p) => !caminhoPendente(p),
+        // O vídeo opcional da pergunta de foto vai junto da foto (imagem primeiro) e espera por ela.
+        const fotoPendente = !!r.filePath && caminhoPendente(r.filePath);
+        const arquivos = ([r.filePath, r.videoPath, r.audioPath].filter(Boolean) as string[]).filter(
+          (p) => !caminhoPendente(p) && !(p === r.videoPath && fotoPendente),
         );
+        const removerVideo = !!r.removerVideo && !r.videoPath && !fotoPendente;
         return {
           perguntaId: id,
           ...(r.text?.trim() ? { valorTexto: r.text.trim() } : {}),
           ...(r.transcription?.trim() ? { transcricao: r.transcription.trim() } : {}),
           ...(arquivos.length ? { arquivosPaths: arquivos } : {}),
+          ...(removerVideo ? { removerVideo: true } : {}),
         };
       })
-      .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths);
+      .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths || r.removerVideo);
     if (respostas.length === 0) {
       sujosRef.current.clear();
       return true;
@@ -350,7 +356,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     () =>
       aoUploadConcluir((path) => {
         for (const [id, r] of Object.entries(stateRef.current)) {
-          if (r.filePath === path || r.audioPath === path) sujosRef.current.add(id);
+          if (r.filePath === path || r.videoPath === path || r.audioPath === path) sujosRef.current.add(id);
         }
         void persistir();
       }),

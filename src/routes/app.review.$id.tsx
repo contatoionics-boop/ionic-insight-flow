@@ -24,6 +24,8 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
+import { EXT_VIDEO, ordenarMidias, separarMidias } from "@/lib/midia-arquivos";
+import { LIMITE_VIDEO_BYTES } from "@/lib/midia-upload";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
@@ -362,9 +364,12 @@ function ReviewCasePage() {
   const persistirArquivos = async (
     perguntaId: string,
     tipo: string,
-    lista: string[],
+    listaOriginal: string[],
   ) => {
+    let lista = listaOriginal;
     if (!caseData) return;
+    // pergunta de foto: imagens primeiro e depois o vídeo (um só); `arquivo_path` é a primeira imagem
+    lista = tipo === "foto" ? ordenarMidias(lista) : lista;
     const patch = {
       arquivos_paths: lista,
       arquivo_path: lista[0] ?? null,
@@ -404,21 +409,35 @@ function ReviewCasePage() {
     tipo: string,
     files: FileList | null,
     substituirTudo = false,
+    /** pergunta de foto: anexa/substitui o vídeo opcional (as imagens ficam como estão) */
+    soVideo = false,
   ) => {
     if (!caseData || !files || files.length === 0) return;
+    if (soVideo) {
+      const f = files[0];
+      if (!f.type.startsWith("video/") && !EXT_VIDEO.test(f.name)) return alert("Formato não aceito. Use MP4, MOV, WebM ou 3GP.");
+      if (f.size > LIMITE_VIDEO_BYTES) return alert(`O vídeo tem ${(f.size / 1024 / 1024).toFixed(0)} MB e o limite é ${LIMITE_VIDEO_BYTES / 1024 / 1024} MB.`);
+    }
     setUploading((u) => ({ ...u, [perguntaId]: true }));
     try {
       const novos: string[] = [];
-      for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      for (const file of soVideo ? [files[0]] : Array.from(files)) {
+        const extBruta = file.name.split(".").pop()?.toLowerCase() || "bin";
+        // a extensão do caminho identifica o arquivo como vídeo (ver midia-arquivos.ts)
+        const ext = soVideo && !EXT_VIDEO.test(`x.${extBruta}`) ? "mp4" : extBruta;
         const path = `casos/${caseData.id}/${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage
           .from("agente-uploads")
-          .upload(path, file, { upsert: false, contentType: file.type });
+          .upload(path, file, { upsert: false, contentType: file.type || (soVideo ? "video/mp4" : undefined) });
         if (error) throw error;
         novos.push(path);
       }
-      const atual = substituirTudo || tipo === "video" ? [] : arquivosDe(respostas[perguntaId]);
+      const existentes = arquivosDe(respostas[perguntaId]);
+      const partes = separarMidias(existentes);
+      const atual =
+        tipo === "foto"
+          ? soVideo ? partes.imagens : substituirTudo ? partes.videos : existentes
+          : substituirTudo || tipo === "video" ? [] : existentes;
       const lista = [...atual, ...novos];
       const { data: signed } = await supabase.storage
         .from("agente-uploads")
@@ -675,7 +694,9 @@ function ReviewCasePage() {
                       )}
 
                       {p.tipo === "foto" && (() => {
-                        const fotoList: string[] = arquivosDe(r);
+                        const midias = separarMidias(arquivosDe(r));
+                        const fotoList: string[] = midias.imagens;
+                        const videoFoto: string | undefined = midias.videos[0];
                         const busy = !!uploading[p.id];
                         return (
                           <div className="mt-2 grid gap-3 md:grid-cols-[220px_1fr]">
@@ -748,6 +769,44 @@ function ReviewCasePage() {
                                     }}
                                   />
                                 </label>
+                              )}
+                              {fotoList.length > 0 && (
+                                <div className="space-y-1.5 rounded-md border border-dashed border-border p-2">
+                                  <p className="text-[11px] font-medium text-muted-foreground">Vídeo (opcional)</p>
+                                  {videoFoto ? (
+                                    fotoUrls[videoFoto] ? (
+                                      <video controls preload="metadata" src={fotoUrls[videoFoto]} className="w-full rounded-md border border-border" />
+                                    ) : (
+                                      <p className="text-[11px] text-muted-foreground">Vídeo anexado.</p>
+                                    )
+                                  ) : (
+                                    <p className="text-[11px] text-muted-foreground">Sem vídeo.</p>
+                                  )}
+                                  <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-foreground hover:bg-muted">
+                                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                    {videoFoto ? "Substituir vídeo" : "Anexar vídeo"}
+                                    <input
+                                      type="file"
+                                      accept="video/*"
+                                      className="hidden"
+                                      disabled={busy}
+                                      onChange={(e) => {
+                                        void adicionarArquivos(p.id, p.tipo, e.target.files, false, true);
+                                        e.target.value = "";
+                                      }}
+                                    />
+                                  </label>
+                                  {videoFoto && (
+                                    <button
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => removerArquivo(p.id, p.tipo, videoFoto)}
+                                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-destructive hover:bg-muted disabled:opacity-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" /> Remover vídeo
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
 

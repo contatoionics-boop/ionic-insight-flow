@@ -1,3 +1,4 @@
+import { separarMidias } from "@/lib/midia-arquivos";
 import { useMemo, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui-bits";
 import { ImagemLightbox } from "@/components/revisao/ImagemLightbox";
@@ -128,15 +129,17 @@ function Resposta({
   const texto = bruto && !ehCaminhoArquivo(bruto) ? bruto : "";
 
   if (p.tipo === "foto") {
+    // pergunta de foto: a grade mostra só imagens; o vídeo opcional da mesma pergunta fica num player abaixo
+    const { imagens, videos } = separarMidias(arquivos);
     return (
       <div className="mt-2 space-y-2">
-        {arquivos.length === 0 ? (
+        {imagens.length === 0 ? (
           <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground">
             <ImageOff className="mr-2 h-5 w-5" /> Sem imagem enviada
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-            {arquivos.map((path, i) => {
+            {imagens.map((path, i) => {
               const url = urls[path];
               return url ? (
                 <button
@@ -163,6 +166,13 @@ function Resposta({
               );
             })}
           </div>
+        )}
+        {videos.map((v) =>
+          urls[v] ? (
+            <video key={v} controls preload="metadata" src={urls[v]} className="w-full max-w-2xl rounded-lg border border-border" />
+          ) : (
+            <p key={v} className="text-xs text-muted-foreground">Vídeo anexado.</p>
+          ),
         )}
         {texto && (
           <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-foreground">{texto}</p>

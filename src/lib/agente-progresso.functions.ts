@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { resumoMidias } from "@/lib/midia-arquivos";
 
 export type ProgressoCaso = {
   casoId: string;
@@ -139,12 +140,13 @@ export const getResumoRespostas = createServerFn({ method: "POST" })
     const visiveis = perguntasVisiveis(ctx);
     const itens: ResumoItem[] = visiveis.map((p) => {
       const r = ctx.state[p.id];
-      const arquivos =
-        (r?.arquivos_paths?.length ?? 0) || (r?.arquivo_path ? 1 : 0);
+      const caminhos = r?.arquivos_paths?.length ? r.arquivos_paths : r?.arquivo_path ? [r.arquivo_path] : [];
+      const arquivos = caminhos.length;
       const texto =
         (r?.valor_texto && r.valor_texto.trim()) ||
         (r?.transcricao && r.transcricao.trim()) ||
-        (arquivos > 0 ? `${arquivos} arquivo(s) enviado(s)` : null);
+        // pergunta de foto: "2 fotos + 1 vídeo"; os demais tipos seguem a contagem simples
+        (arquivos > 0 ? (p.tipo === "foto" ? `${resumoMidias(caminhos)} enviado(s)` : `${arquivos} arquivo(s) enviado(s)`) : null);
       return {
         perguntaId: p.id,
         secao: p.secao_titulo,

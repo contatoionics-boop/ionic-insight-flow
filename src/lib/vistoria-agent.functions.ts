@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { ConfigEscopo } from "@/lib/escopo/tipos";
+import { resumoMidias } from "@/lib/midia-arquivos";
 
 const EstadoInput = z.object({
   token: z.string().min(1).optional(),
@@ -179,7 +180,7 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
         ? {
             perguntaId: ultima.pergunta_id,
             perguntaTexto: (ultima.pergunta as { texto?: string } | null)?.texto ?? "Resposta anterior",
-            valor: ultima.valor_texto || ultima.transcricao || (ultima.arquivos_paths?.length ? `${ultima.arquivos_paths.length} anexo(s)` : ultima.arquivo_path ? "Anexo enviado" : "Registrada"),
+            valor: ultima.valor_texto || ultima.transcricao || (ultima.arquivos_paths?.length ? (ultima.tipo === "foto" ? resumoMidias(ultima.arquivos_paths) : `${ultima.arquivos_paths.length} anexo(s)`) : ultima.arquivo_path ? "Anexo enviado" : "Registrada"),
             tipo: ultima.tipo,
             criadoEm: ultima.criado_em,
           }
@@ -348,6 +349,8 @@ const SalvarBlocoInput = z.object({
         valorTexto: z.string().optional(),
         transcricao: z.string().optional(),
         arquivosPaths: z.array(z.string()).optional(),
+        /** pergunta de foto: remove o vídeo anexado */
+        removerVideo: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -382,7 +385,7 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
         continue;
       }
       const temConteudo =
-        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length;
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo;
       if (!temConteudo) continue;
 
       const res = await execSalvarResposta(casoId, ctx, {
@@ -390,6 +393,7 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
         ...(r.valorTexto?.trim() ? { valor_texto: r.valorTexto.trim() } : {}),
         ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
         ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
+        ...(r.removerVideo ? { remover_video: true } : {}),
       });
       if (!res.ok) {
         erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });
@@ -678,6 +682,8 @@ const SalvarEtapaInput = z.object({
         valorTexto: z.string().optional(),
         transcricao: z.string().optional(),
         arquivosPaths: z.array(z.string()).optional(),
+        /** pergunta de foto: remove o vídeo anexado */
+        removerVideo: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -708,7 +714,7 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
         continue;
       }
       const temConteudo =
-        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length;
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo;
       if (!temConteudo) continue;
 
       const res = await execSalvarResposta(casoId, ctx, {
@@ -716,6 +722,7 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
         ...(r.valorTexto?.trim() ? { valor_texto: r.valorTexto.trim() } : {}),
         ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
         ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
+        ...(r.removerVideo ? { remover_video: true } : {}),
       });
       if (!res.ok) {
         erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });

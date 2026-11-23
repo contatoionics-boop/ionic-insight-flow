@@ -57,7 +57,7 @@ const TIPOS: { value: TipoPergunta; label: string }[] = [
   { value: "multipla_escolha", label: "Múltipla escolha" },
   { value: "toggle", label: "Sim / Não" },
   { value: "checkbox", label: "Confirmação" },
-  { value: "foto", label: "Foto (com IA)" },
+  { value: "foto", label: "Foto (com IA, vídeo opcional)" },
   { value: "video", label: "Vídeo" },
   { value: "audio", label: "Áudio (transcrição)" },
 ];

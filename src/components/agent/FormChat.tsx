@@ -424,6 +424,7 @@ function ResumoResposta({ pergunta, resposta }: { pergunta: Pergunta; resposta: 
             : resposta.ia?.status === "parcial"
             ? "Foto enviada (revisar)"
             : "Foto enviada"}
+          {resposta.videoPath ? " + vídeo" : ""}
         </span>
       </div>
     );

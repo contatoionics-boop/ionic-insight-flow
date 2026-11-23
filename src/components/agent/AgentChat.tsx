@@ -9,7 +9,8 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui-bits";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { supabase } from "@/integrations/supabase/client";
-import { descartarArquivo, enviarArquivo, prepararImagem, traduzirErroRede } from "@/lib/midia-upload";
+import { LIMITE_VIDEO_BYTES, descartarArquivo, enviarArquivo, prepararImagem, traduzirErroRede } from "@/lib/midia-upload";
+import { EXT_VIDEO } from "@/lib/midia-arquivos";
 import { useGravacaoVoz } from "@/components/agent/use-gravacao-voz";
 import { useConfiguracoesEmpresa } from "@/hooks/use-configuracoes-empresa";
 import { BlocoResposta } from "@/components/agent/BlocoResposta";
@@ -214,6 +215,8 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   // Buffer de fotos para a pergunta atual (multi-foto). Permanece local até o
   // usuário clicar em "Não, continuar" — só então enviamos ao agente.
   const [fotosBuffer, setFotosBuffer] = useState<string[]>([]);
+  // Vídeo opcional da mesma pergunta de foto (um só): segue junto das fotos quando o usuário continua.
+  const [videoFotoBuffer, setVideoFotoBuffer] = useState<string | null>(null);
   const isFotoPergunta = estado?.proximaPerguntaTipo === "foto";
   const isVideoPergunta = estado?.proximaPerguntaTipo === "video";
   const aguardandoMaisFotos = isFotoPergunta && fotosBuffer.length > 0;
@@ -258,20 +261,59 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const enviarFotosBuffer = async () => {
     if (fotosBuffer.length === 0 || !estado) return;
     const paths = fotosBuffer;
+    const video = videoFotoBuffer;
     setFotosBuffer([]);
+    setVideoFotoBuffer(null);
+    // o vídeo é salvo pelo sistema junto das fotos (rota do chat); o agente de IA não precisa tratá-lo
+    const sufixoVideo = video
+      ? ` [ANEXO_VIDEO_FOTO arquivo_path=${video}] O vídeo desta pergunta já foi salvo pelo sistema junto da(s) foto(s): não o inclua em salvar_resposta.`
+      : "";
     const fotoText =
-      paths.length === 1
+      (paths.length === 1
         ? `[ANEXO_FOTO arquivo_path=${paths[0]}] Anexei 1 foto para a pergunta atual. Salve com salvar_resposta e avance para a próxima pergunta.`
-        : `[ANEXO_FOTOS arquivos_paths=${paths.join(",")}] Anexei ${paths.length} fotos para a pergunta atual. Salve TODAS no mesmo item chamando salvar_resposta uma única vez com arquivos_paths=[${paths.map((p) => `"${p}"`).join(",")}], confirme brevemente ("Fotos salvas. Vamos continuar.") e avance para a próxima pergunta.`;
+        : `[ANEXO_FOTOS arquivos_paths=${paths.join(",")}] Anexei ${paths.length} fotos para a pergunta atual. Salve TODAS no mesmo item chamando salvar_resposta uma única vez com arquivos_paths=[${paths.map((p) => `"${p}"`).join(",")}], confirme brevemente ("Fotos salvas. Vamos continuar.") e avance para a próxima pergunta.`) +
+      sufixoVideo;
     void salvarMensagem({
       data: { token, casoId, role: "user", parts: [{ type: "text", text: fotoText }] },
     }).catch(() => undefined);
     await sendMessage({ text: fotoText });
   };
 
-  const descartarFotosBuffer = () => setFotosBuffer([]);
+  const descartarFotosBuffer = () => {
+    setFotosBuffer([]);
+    if (videoFotoBuffer) void descartarArquivo(videoFotoBuffer);
+    setVideoFotoBuffer(null);
+  };
+
+  /** Vídeo opcional da pergunta de foto: guarda no buffer, junto das fotos. */
+  const onVideoDaFoto = async (file: File) => {
+    if (!estado) return;
+    if (!file.size) return alert("O vídeo selecionado está vazio.");
+    if (file.size > LIMITE_VIDEO_BYTES) return alert(`O vídeo deve ter no máximo ${LIMITE_VIDEO_BYTES / 1024 / 1024} MB.`);
+    if (!file.type.startsWith("video/") && !EXT_VIDEO.test(file.name)) return alert("Formato não aceito. Envie um arquivo de vídeo (MP4, WebM, MOV ou 3GP).");
+    setUploadingFoto(true);
+    try {
+      const extBruta = file.name.split(".").pop()?.toLowerCase() || "mp4";
+      const ext = EXT_VIDEO.test(`x.${extBruta}`) ? extBruta : "mp4";
+      const path = `casos/${estado.casoId}/${crypto.randomUUID()}.${ext}`;
+      const resultado = await enviarArquivo({ path, blob: file, contentType: file.type || "video/mp4" });
+      if (resultado === "enfileirado") {
+        await descartarArquivo(path);
+        alert("Sem conexão para enviar o vídeo. Tente novamente quando o sinal voltar ou use o modo checklist, que guarda tudo no aparelho.");
+        return;
+      }
+      const antigo = videoFotoBuffer;
+      setVideoFotoBuffer(path);
+      if (antigo) void descartarArquivo(antigo);
+    } catch (e: any) {
+      alert("Falha ao enviar vídeo: " + traduzirErroRede(e, "Tente novamente."));
+    } finally {
+      setUploadingFoto(false);
+    }
+  };
 
   const onVideoSelecionado = async (file: File) => {
+    if (estado && isFotoPergunta) return onVideoDaFoto(file);
     if (!estado || !isVideoPergunta) return;
     if (!file.size) return alert("O vídeo selecionado está vazio.");
     if (file.size > 100 * 1024 * 1024) return alert("O vídeo deve ter no máximo 100 MB.");
@@ -565,6 +607,32 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
                 <p className="mt-1 text-center text-sm text-muted-foreground">
                   Deseja anexar mais fotos para este item?
                 </p>
+                <div className="mt-3 rounded-lg border border-dashed border-border p-3 text-center">
+                  {videoFotoBuffer ? (
+                    <>
+                      <p className="text-sm text-foreground">1 vídeo pronto para envio junto das fotos.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void descartarArquivo(videoFotoBuffer);
+                          setVideoFotoBuffer(null);
+                        }}
+                        className="mt-1 text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Remover vídeo
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => videoInputRef.current?.click()}
+                      disabled={uploadingFoto}
+                      className="text-sm font-medium text-foreground underline disabled:opacity-50"
+                    >
+                      Gravar vídeo (opcional)
+                    </button>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
@@ -674,7 +742,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
             >
               <Camera className="h-5 w-5" />
             </button>
-            {isVideoPergunta && (
+            {(isVideoPergunta || aguardandoMaisFotos) && (
               <button type="button" onClick={() => videoInputRef.current?.click()} disabled={busy || uploadingFoto} title="Gravar ou anexar vídeo" aria-label="Gravar ou anexar vídeo" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50">
                 <Video className="h-5 w-5" />
               </button>

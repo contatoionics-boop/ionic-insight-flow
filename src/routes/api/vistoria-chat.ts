@@ -83,8 +83,16 @@ export const Route = createFileRoute("/api/vistoria-chat")({
         if (!ehMensagemBloco && body.perguntaAtualId && pendenciaAtual?.id === body.perguntaAtualId && textoAtual) {
           const videoMatch = textoAtual.match(/\[ANEXO_VIDEO arquivo_path=([^\]\s]+)/);
           const tipo = pendenciaAtual.tipo;
+          const videoFotoMatch = textoAtual.match(/\[ANEXO_VIDEO_FOTO arquivo_path=([^\]\s]+)/);
           if (videoMatch && tipo === "video") {
             await execSalvarResposta(casoId, ctx, { pergunta_id: pendenciaAtual.id, arquivo_path: videoMatch[1] });
+          } else if (videoFotoMatch && tipo === "foto") {
+            // Vídeo opcional da pergunta de foto: salvo aqui, junto das fotos (imagens primeiro), sem depender do modelo.
+            const unica = textoAtual.match(/\[ANEXO_FOTO arquivo_path=([^\]\s]+)/)?.[1];
+            const varias = textoAtual.match(/\[ANEXO_FOTOS arquivos_paths=([^\]\s]+)/)?.[1]?.split(",") ?? [];
+            const permitido = (p: string) => p.startsWith(`casos/${casoId}/`) && !p.includes("..");
+            const arquivos = [...(unica ? [unica] : []), ...varias, videoFotoMatch[1]].filter(permitido);
+            if (arquivos.length) await execSalvarResposta(casoId, ctx, { pergunta_id: pendenciaAtual.id, arquivos_paths: arquivos });
           } else if (!["foto", "video"].includes(tipo) && !textoAtual.startsWith("[ANEXO_")) {
             await execSalvarResposta(casoId, ctx, {
               pergunta_id: pendenciaAtual.id,

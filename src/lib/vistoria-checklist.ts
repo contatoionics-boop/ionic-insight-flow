@@ -1,6 +1,7 @@
 // Cálculo puro (client-safe) de visibilidade, status de etapa e pendências
 // para o modo Checklist Guiado. Espelha as regras do servidor.
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
+import { separarMidias } from "@/lib/midia-arquivos";
 import { isComplete, type Pergunta, type Resposta, type TipoPergunta } from "@/components/agent/FormFields";
 import type {
   ChecklistEtapaDTO,
@@ -38,7 +39,12 @@ export function estadoInicial(dados: ChecklistVistoriaDTO): Record<string, Respo
       if (r.texto) resposta.text = r.texto;
       if (r.arquivos.length) {
         if (p.tipo === "audio") resposta.audioPath = r.arquivos[0];
-        else resposta.filePath = r.arquivos[0];
+        else if (p.tipo === "foto") {
+          // pergunta de foto: a primeira imagem é a foto; o vídeo opcional da mesma pergunta vem junto em `arquivos`
+          const { imagens, videos } = separarMidias(r.arquivos);
+          if (imagens[0]) resposta.filePath = imagens[0];
+          if (videos[0]) resposta.videoPath = videos[0];
+        } else resposta.filePath = r.arquivos[0];
       }
       if (r.transcricao) {
         resposta.transcription = r.transcricao;

@@ -114,15 +114,17 @@ export function BlocoResposta({
       const respostas = perguntas
         .map((p) => {
           const r = state[p.id] ?? {};
-          const arquivos = [r.filePath, r.audioPath].filter(Boolean) as string[];
+          const arquivos = [r.filePath, r.videoPath, r.audioPath].filter(Boolean) as string[];
+          const removerVideo = !!r.removerVideo && !r.videoPath;
           return {
             perguntaId: p.id,
             ...(r.text?.trim() ? { valorTexto: r.text.trim() } : {}),
             ...(r.transcription?.trim() ? { transcricao: r.transcription.trim() } : {}),
             ...(arquivos.length ? { arquivosPaths: arquivos } : {}),
+            ...(removerVideo ? { removerVideo: true } : {}),
           };
         })
-        .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths);
+        .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths || r.removerVideo);
 
       if (respostas.length === 0) {
         setErro("Preencha ao menos um campo antes de salvar.");

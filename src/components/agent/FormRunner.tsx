@@ -316,6 +316,7 @@ function renderResumo(p: Pergunta, r: Resposta) {
         {r.filePreview && (
           <img src={r.filePreview} alt="" className="h-12 w-12 rounded object-cover" />
         )}
+        {r.videoPath && <span className="rounded bg-muted px-2 py-0.5 text-xs">+ vídeo</span>}
         {r.ia && (
           <span
             className={`rounded px-2 py-0.5 text-xs ${
