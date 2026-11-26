@@ -293,3 +293,55 @@ describe("Etapa 2: campos por texto e posição dos blocos adicionais", () => {
     expect(i("Texto fim")).toBeGreaterThan(b.findIndex((x) => x.chave === "instrucoes:3"));
   });
 });
+
+// ------------------------------------------------------------------ formatação e imagens da biblioteca
+import { renderizarCampos as renderCampos } from "./textos-padrao";
+
+const versaoDeItens = (id: string, slot: any, itens: any[], extra: Record<string, any> = {}): VersaoTexto => ({
+  id, nome: id, ordem: 0, escopo: escopoDaVersao(slot, extra.padrao ?? true, { solucao: [], nivel: [], exige: [] }), blocos: itensParaBlocos(itens),
+});
+
+describe("texto com formatação nas versões", () => {
+  it("formatação e alinhamento sobrevivem ao salvar e ao gerar o documento", () => {
+    const itens = [
+      { tipo: "paragraph" as const, texto: "Para **{{cliente}}**, em *{{modalidade}}*", rico: true, alinhamento: "centro" as const, caixaAlta: true },
+      { tipo: "bullets" as const, itens: ["item **forte**"], rico: true },
+    ];
+    expect(blocosParaItens(itensParaBlocos(itens))).toEqual(itens);
+    const b = montar2({ textosPadrao: [versaoDeItens("fm", "introducao", itens)] });
+    const p = b.find((x) => x.chave === "texto:introducao:fm:0");
+    expect(p).toMatchObject({ tipo: "paragraph", rico: true, alinhamento: "centro", caixaAlta: true });
+    expect(p.texto).toBe("Para **Destilaria Seis Lagoas**, em *[CONFIRMAR: modalidade]*");
+    expect(b.find((x) => x.chave === "texto:introducao:fm:1")).toMatchObject({ tipo: "bullets", rico: true });
+  });
+  it("valor de campo com asterisco ou mais não vira formatação por acaso", () => {
+    expect(renderCampos("Cliente: {{c}}", { c: "A*B ++C++" }, { escapar: true })).toBe("Cliente: A\\*B \\+\\+C\\+\\+");
+    expect(renderCampos("Cliente: {{c}}", { c: "A*B" })).toBe("Cliente: A*B");
+  });
+  it("parágrafo comum continua sem as chaves novas (documento idêntico)", () => {
+    const b = montar2({ textosPadrao: [versaoDeItens("simples", "introducao", [{ tipo: "paragraph", texto: "Texto simples." }])] });
+    const p = b.find((x) => x.chave === "texto:introducao:simples:0");
+    expect(p).not.toHaveProperty("rico");
+    expect(p).not.toHaveProperty("alinhamento");
+    expect(p).not.toHaveProperty("caixaAlta");
+  });
+});
+
+describe("imagens da biblioteca nos textos", () => {
+  const imagens = { img1: { id: "img1", nome: "Esquema do painel", url: "https://x/painel.png", alt: "Painel", legenda: "Esquema do painel elétrico", larguraMax: 420 } };
+  it("[imagem:id] ida e volta e vira bloco de imagem com Figura N e a referência", () => {
+    expect(corpoParaItens("[imagem:img1]")).toEqual([{ tipo: "imagem", id: "img1" }]);
+    expect(itensParaCorpo([{ tipo: "imagem", id: "img1" }])).toBe("[imagem:img1]");
+    expect(blocosParaItens(itensParaBlocos([{ tipo: "imagem", id: "img1" }]))).toEqual([{ tipo: "imagem", id: "img1" }]);
+    const b = montar2({ textosPadrao: [versaoDeItens("im", "introducao", [{ tipo: "paragraph", texto: "Veja:" }, { tipo: "imagem", id: "img1" }])], imagensBiblioteca: imagens });
+    const img = b.find((x) => x.chave === "texto:introducao:im:1");
+    expect(img).toMatchObject({ tipo: "image", url: "https://x/painel.png", larguraMax: 420, bibliotecaId: "img1" });
+    expect(img.legenda).toMatch(/^Figura \d+ — Esquema do painel elétrico$/);
+  });
+  it("imagem apagada da biblioteca vira pendência visível, nunca some", () => {
+    const b = montar2({ textosPadrao: [versaoDeItens("im", "introducao", [{ tipo: "imagem", id: "sumiu" }])], imagensBiblioteca: imagens });
+    const x = b.find((y) => y.chave === "texto:introducao:im:0");
+    expect(x.tipo).toBe("paragraph");
+    expect(x.texto).toContain("[CONFIRMAR: imagem removida da biblioteca");
+  });
+});

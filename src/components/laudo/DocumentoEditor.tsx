@@ -29,6 +29,8 @@ import {
   salvarDocumentoLaudo,
 } from "@/lib/laudo.functions";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
+import { CampoFormatavel, TextoFormatado, type EstadoTexto } from "@/components/laudo/TextoFormatado";
+import { classeAlinhamento, usaTextoRico } from "@/lib/laudo/texto-formatado";
 import { EditorMarcacao } from "@/components/marcacao/EditorMarcacao";
 import { BuscaProdutoModal } from "@/components/laudo/BuscaProdutoModal";
 import { CelulaComBusca } from "@/components/laudo/CelulaComBusca";
@@ -150,6 +152,12 @@ const NAVY = "#1F3864";
 const TINTA = "#1F2124";
 
 /** Campo de texto que se comporta como o próprio texto do documento (WYSIWYG). */
+/** Aplica o texto e a formatação do campo ao parágrafo, sem deixar chaves vazias no bloco. */
+function comFormatacao(bloco: BlocoLaudo, v: EstadoTexto): BlocoLaudo {
+  const { rico: _r, alinhamento: _a, caixaAlta: _c, ...resto } = bloco as BlocoLaudo & { rico?: boolean; alinhamento?: string; caixaAlta?: boolean };
+  return { ...resto, texto: v.texto, ...(v.rico ? { rico: true } : {}), ...(v.alinhamento ? { alinhamento: v.alinhamento } : {}), ...(v.caixaAlta ? { caixaAlta: true } : {}) } as BlocoLaudo;
+}
+
 function CampoInline({
   valor,
   onChange,
@@ -216,17 +224,19 @@ function Visual({
       return (
         <p
           id={`bloco-${bloco.id}`}
-          className={`mt-2 indent-8 text-justify text-[12.5px] leading-[1.7] ${editavel && bloco.destaque === "editavel" ? "rounded-sm bg-yellow-100/80 ring-1 ring-yellow-300" : ""}`}
+          className={`mt-2 text-[12.5px] leading-[1.7] ${classeAlinhamento(bloco.alinhamento)} ${editavel && bloco.destaque === "editavel" ? "rounded-sm bg-yellow-100/80 ring-1 ring-yellow-300" : ""}`}
           style={{ color: TINTA }}
           title={editavel && bloco.destaque === "editavel" ? "Campo de revisão: confira e ajuste se preciso (no PDF sai sem destaque)" : undefined}
         >
           {editavel ? (
-            <CampoInline
-              valor={bloco.texto}
-              onChange={(v) => onChange!({ ...bloco, texto: v })}
-              className="indent-8 text-justify"
+            <CampoFormatavel
+              modo="folha"
+              valor={{ texto: bloco.texto, rico: bloco.rico, alinhamento: bloco.alinhamento, caixaAlta: bloco.caixaAlta }}
+              onChange={(v) => onChange!(comFormatacao(bloco, v))}
               placeholder="Digite o parágrafo…"
             />
+          ) : usaTextoRico(bloco) ? (
+            <TextoFormatado texto={bloco.texto} rico={bloco.rico} caixaAlta={bloco.caixaAlta} />
           ) : (
             <Pendencia texto={bloco.texto} />
           )}
@@ -242,14 +252,19 @@ function Visual({
           {bloco.itens.map((item, k) => (
             <li key={k}>
               {editavel ? (
-                <CampoInline
-                  valor={item}
+                <CampoFormatavel
+                  modo="folha"
+                  comAlinhamento={false}
+                  comCaixaAlta={false}
+                  valor={{ texto: item, rico: bloco.rico }}
                   onChange={(v) => {
                     const itens = [...bloco.itens];
-                    itens[k] = v;
-                    onChange!({ ...bloco, itens });
+                    itens[k] = v.texto;
+                    onChange!({ ...bloco, itens, ...(v.rico ? { rico: true } : {}) });
                   }}
                 />
+              ) : bloco.rico ? (
+                <TextoFormatado texto={item} rico />
               ) : (
                 <Pendencia texto={item} />
               )}
@@ -550,10 +565,13 @@ function EditorBloco({
   bloco,
   onChange,
   casoId,
+  onRemoverBloco,
 }: {
   bloco: BlocoLaudo;
   onChange: (b: BlocoLaudo) => void;
   casoId: string;
+  /** remove o bloco da imagem do documento (dá para restaurar); sem ele, "Remover imagem" só esvazia o bloco */
+  onRemoverBloco?: () => void;
 }) {
   const [enviando, setEnviando] = useState(false);
   const [desenhando, setDesenhando] = useState(false);
@@ -864,7 +882,11 @@ function EditorBloco({
               <PencilRuler className="mr-2 h-4 w-4" />
               {bloco.desenho ? "Editar desenho técnico" : "Criar desenho técnico"}
             </Button>
-            {bloco.url ? (
+            {onRemoverBloco ? (
+              <Button variant="secondary" onClick={onRemoverBloco}>
+                <Trash2 className="mr-2 h-4 w-4" /> Remover imagem do documento
+              </Button>
+            ) : bloco.url ? (
               <Button variant="secondary" onClick={() => onChange({ ...bloco, url: "", desenho: undefined })}>
                 <Trash2 className="mr-2 h-4 w-4" /> Remover imagem
               </Button>
@@ -959,6 +981,7 @@ function MenuAdicionar({
   onAdd,
   onBlocoPadrao,
   onFoto,
+  onImagem,
   onNivel2,
 }: {
   onAdd: (
@@ -968,6 +991,7 @@ function MenuAdicionar({
   ) => void;
   onBlocoPadrao?: () => void;
   onFoto?: () => void;
+  onImagem?: () => void;
   onNivel2?: (tipo: "secao" | "2.4" | "2.4.1") => void;
 }) {
 
@@ -1186,6 +1210,19 @@ function MenuAdicionar({
               Inserir foto do mapeamento…
             </button>
           )}
+
+          {onImagem && (
+            <button
+              type="button"
+              className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium hover:bg-muted"
+              onClick={() => {
+                onImagem();
+                fechar();
+              }}
+            >
+              Inserir imagem da biblioteca…
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1245,7 +1282,7 @@ export function DocumentoEditor({
   }, [sujo, onDirtyChange]);
   const [salvando, setSalvando] = useState(false);
   const arrastando = useRef<number | null>(null);
-  const [biblioteca, setBiblioteca] = useState<"padrao" | "foto" | null>(null);
+  const [biblioteca, setBiblioteca] = useState<"padrao" | "foto" | "imagem" | null>(null);
   const [alvoInsercao, setAlvoInsercao] = useState(0);
   const idAtual = useRef(conteudo?.gerado_em ?? "");
 
@@ -1581,6 +1618,10 @@ export function DocumentoEditor({
                 setAlvoInsercao(0);
                 setBiblioteca("foto");
               }}
+              onImagem={() => {
+                setAlvoInsercao(0);
+                setBiblioteca("imagem");
+              }}
             />
           )}
           {blocos.map((b, i) => {
@@ -1678,6 +1719,10 @@ export function DocumentoEditor({
                         bloco={b}
                         casoId={casoId}
                         onChange={(novo) => editarBloco(i, novo)}
+                        onRemoverBloco={() => {
+                          setEditando(null);
+                          remover(i);
+                        }}
                       />
                     </div>
                   ) : (
@@ -1697,6 +1742,10 @@ export function DocumentoEditor({
                   onFoto={() => {
                     setAlvoInsercao(i + 1);
                     setBiblioteca("foto");
+                  }}
+                  onImagem={() => {
+                    setAlvoInsercao(i + 1);
+                    setBiblioteca("imagem");
                   }}
                 />
               </div>

@@ -318,15 +318,21 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   let blocosPadrao: import("@/lib/laudo/blocos-padrao-regras").BlocoPadraoAuto[] = [];
   // versões dos textos do documento (Introdução, Instruções gerais…): ficam na mesma tabela, identificadas pelo `slot`
   let textosPadrao: import("@/lib/laudo/textos-padrao").VersaoTexto[] = [];
+  const imagensBiblioteca: import("@/lib/laudo/textos-padrao").ImagensBiblioteca = {};
   try {
     const { data: padroes } = await supabase
       .from("blocos_padrao")
-      .select("id, nome, escopo, blocos, ordem")
+      .select("id, nome, categoria, escopo, blocos, ordem")
       .eq("ativo", true);
     const { lerSlot } = await import("@/lib/laudo/textos-padrao");
     const lista = (padroes ?? []) as any[];
     textosPadrao = lista.filter((p) => lerSlot(p?.escopo).slot);
-    blocosPadrao = lista.filter((p) => p?.escopo?.automatico === true && !lerSlot(p?.escopo).slot);
+    blocosPadrao = lista.filter((p) => p?.escopo?.automatico === true && !lerSlot(p?.escopo).slot && p?.categoria !== "imagem");
+    // biblioteca de imagens: cada linha (categoria "imagem") guarda um bloco de imagem; o texto referencia por `[imagem:<id>]`
+    for (const l of lista.filter((p) => p?.categoria === "imagem")) {
+      const bloco = (l.blocos ?? []).find((b: any) => b?.tipo === "image" && b.url);
+      if (bloco) imagensBiblioteca[l.id] = { id: l.id, nome: l.nome, url: bloco.url, alt: bloco.alt ?? "", legenda: bloco.legenda ?? "", larguraMax: bloco.larguraMax ?? 360 };
+    }
   } catch {
     // sem blocos padrão automáticos
   }
@@ -342,6 +348,7 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { blocos, achados } = montarBlocosEAnalise({
     fotosTransferencia,
     textosPadrao,
+    imagensBiblioteca,
     textosEscolhidos,
     blocosPadrao,
     achadosDescartados: descartados,

@@ -56,8 +56,12 @@ type Heading = {
   texto: string;
   nivel: 1 | 2 | 3 | 4;
 };
-type Paragraph = { id: string; tipo: "paragraph"; texto: string };
-type Bullets = { id: string; tipo: "bullets"; itens: string[] };
+/**
+ * `rico`: o texto traz marcas de formatação (`**negrito**`, `*itálico*`, `++sublinhado++`; ver texto-formatado.ts).
+ * `alinhamento` (padrão justificado) e `caixaAlta` valem para o parágrafo todo.
+ */
+type Paragraph = { id: string; tipo: "paragraph"; texto: string; rico?: boolean; alinhamento?: "esquerda" | "centro" | "direita" | "justificado"; caixaAlta?: boolean };
+type Bullets = { id: string; tipo: "bullets"; itens: string[]; rico?: boolean };
 type Tabela = {
   id: string;
   tipo: "table";
@@ -83,6 +87,8 @@ type Imagem = {
   larguraMax?: number;
   /** projeto do desenho técnico sobre foto (para reabrir e editar); a imagem final fica em `url` */
   desenho?: DesenhoProjeto;
+  /** imagem da biblioteca (Configurações) que este bloco referencia, quando vem de um texto padrão */
+  bibliotecaId?: string;
 };
 /** caixa padronizada "OBSERVAÇÃO TÉCNICA" */
 type Observacao = { id: string; tipo: "observacao"; titulo?: string | null; texto: string };

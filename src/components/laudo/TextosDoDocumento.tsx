@@ -1,28 +1,42 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
-import { Badge, Button, Card, Input, Modal, Textarea } from "@/components/ui-bits";
+import { Badge, Button, Card, Input, Modal } from "@/components/ui-bits";
+import { EditorBlocos } from "@/components/laudo/EditorBlocos";
+import { semMarcas } from "@/lib/laudo/texto-formatado";
 import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { EXIGENCIAS, NIVEIS_REGRA, ROTULO_EXIGENCIA, SOLUCOES_REGRA, lerRegra, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
 import {
-  FIGURAS_TEXTO,
   INFO_SLOT,
   SLOTS_TEXTO,
   TEXTO_ORIGINAL,
   blocosParaItens,
-  camposDoSlot,
   itensParaCorpo,
   lerSlot,
   nomeDaNovaVersao,
+  type ImagemBiblioteca,
+  type ItemTexto,
   type SlotTexto,
 } from "@/lib/laudo/textos-padrao";
+
+/** O texto de uma versão em linhas simples (sem as marcas de formatação), para a lista. */
+function resumoItens(itens: ItemTexto[]): string {
+  return itens
+    .map((i) => (i.tipo === "paragraph" ? (i.rico ? semMarcas(i.texto) : i.texto) : i.tipo === "bullets" ? i.itens.map((x) => `- ${i.rico ? semMarcas(x) : x}`).join("\n") : "[imagem]"))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Há algo para salvar? (parágrafo ou lista com texto, ou uma imagem) */
+const temConteudo = (itens: ItemTexto[]) =>
+  itens.some((i) => (i.tipo === "paragraph" ? !!i.texto.trim() : i.tipo === "bullets" ? i.itens.some((x) => x.trim()) : true));
 
 type Form = {
   id?: string;
   slot: SlotTexto;
   nome: string;
-  corpo: string;
+  itens: ItemTexto[];
   padrao: boolean;
   ativo: boolean;
   ordem: number;
@@ -50,17 +64,16 @@ function condicaoEmTexto(escopo: Record<string, any> | null): string {
 }
 
 /** Textos fixos do documento com versões: o especialista salva, duplica e define qual vale como padrão. */
-export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; onAlterou: () => void | Promise<void> }) {
+export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoPadrao[]; onAlterou: () => void | Promise<void>; imagens: ImagemBiblioteca[] }) {
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
   const [form, setForm] = useState<Form | null>(null);
   const [salvando, setSalvando] = useState(false);
-  const areaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const versoesDe = (slot: SlotTexto) => itens.filter((b) => lerSlot(b.escopo).slot === slot);
 
   function nova(slot: SlotTexto) {
-    setForm({ slot, nome: "", corpo: itensParaCorpo(TEXTO_ORIGINAL[slot]), padrao: false, ativo: true, ordem: 100, regra: SEM_CONDICAO });
+    setForm({ slot, nome: "", itens: JSON.parse(JSON.stringify(TEXTO_ORIGINAL[slot])) as ItemTexto[], padrao: false, ativo: true, ordem: 100, regra: SEM_CONDICAO });
   }
   function abrir(b: BlocoPadrao, duplicar = false) {
     const { slot, padrao } = lerSlot(b.escopo);
@@ -70,7 +83,7 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
       id: duplicar ? undefined : b.id,
       slot,
       nome: duplicar ? `${b.nome} (cópia)` : b.nome,
-      corpo: itensParaCorpo(blocosParaItens(b.blocos)),
+      itens: blocosParaItens(b.blocos),
       // a cópia nasce fora do padrão: o especialista decide quando passa a valer
       padrao: duplicar ? false : padrao,
       ativo: b.ativo,
@@ -91,7 +104,8 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
       const dados = {
         descricao: null,
         categoria: "texto",
-        corpo: form.corpo,
+        corpo: "",
+        itens: form.itens,
         ativo: form.ativo,
         ordem: Number(form.ordem) || 0,
         slot: form.slot,
@@ -107,7 +121,7 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
           const r = lerRegra(anterior.escopo);
           await fnSalvar({
             data: {
-              id: anterior.id, nome: anterior.nome, descricao: anterior.descricao, categoria: "texto", corpo: itensParaCorpo(blocosParaItens(anterior.blocos)),
+              id: anterior.id, nome: anterior.nome, descricao: anterior.descricao, categoria: "texto", corpo: "", itens: blocosParaItens(anterior.blocos),
               ativo: anterior.ativo, ordem: anterior.ordem, slot: form.slot, padrao: false, regra: { automatico: false, solucao: r.solucao, nivel: r.nivel, exige: r.exige },
             },
           });
@@ -137,21 +151,6 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao excluir.");
     }
-  }
-
-  function inserirCampo(chave: string) {
-    if (!form) return;
-    const area = areaRef.current;
-    const marcador = `{{${chave}}}`;
-    if (!area) return setForm({ ...form, corpo: `${form.corpo}${marcador}` });
-    const ini = area.selectionStart ?? form.corpo.length;
-    const fim = area.selectionEnd ?? ini;
-    const corpo = `${form.corpo.slice(0, ini)}${marcador}${form.corpo.slice(fim)}`;
-    setForm({ ...form, corpo });
-    requestAnimationFrame(() => {
-      area.focus();
-      area.setSelectionRange(ini + marcador.length, ini + marcador.length);
-    });
   }
 
   const marcar = (grupo: keyof Form["regra"], valor: string, ligado: boolean) => {
@@ -202,7 +201,7 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
                           {!padrao && <Badge className="bg-muted text-muted-foreground">Só por escolha no mapeamento</Badge>}
                           {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativa</Badge>}
                         </p>
-                        <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{itensParaCorpo(blocosParaItens(b.blocos))}</p>
+                        <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{resumoItens(blocosParaItens(b.blocos))}</p>
                       </div>
                       <div className="flex shrink-0 flex-wrap justify-end gap-1">
                         <Button variant="secondary" onClick={() => abrir(b)} aria-label="Editar versão">
@@ -250,45 +249,9 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
             <div>
               <label className="text-xs font-medium">Texto</label>
               <p className="mb-1 text-[11px] text-muted-foreground">
-                Uma linha em branco separa os parágrafos. “- ” no começo da linha cria item de lista. “!” no começo do parágrafo o marca como campo de revisão
-                (amarelo só na tela; o PDF sai normal).
+                O texto é uma lista de blocos: parágrafos (com negrito, itálico, sublinhado, caixa alta e alinhamento), listas e imagens. Cada bloco tem seus botões.
               </p>
-              <Textarea
-                {...({ ref: areaRef } as object)}
-                rows={12}
-                value={form.corpo}
-                onChange={(e) => setForm({ ...form, corpo: e.currentTarget.value })}
-              />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="text-[11px] text-muted-foreground">Inserir campo automático:</span>
-                {camposDoSlot(form.slot).map((c) => (
-                  <button
-                    key={c.chave}
-                    type="button"
-                    title={c.rotulo}
-                    onClick={() => inserirCampo(c.chave)}
-                    className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
-                  >
-                    {`{{${c.chave}}}`}
-                  </button>
-                ))}
-              </div>
-              {form.slot === "nivel2" && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="text-[11px] text-muted-foreground">Inserir desenho padrão (linha sozinha):</span>
-                  {(Object.keys(FIGURAS_TEXTO) as (keyof typeof FIGURAS_TEXTO)[]).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      title={FIGURAS_TEXTO[n].legendaBase}
-                      onClick={() => setForm({ ...form, corpo: `${form.corpo.replace(/\s+$/, "")}\n\n[figura:${n}]` })}
-                      className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
-                    >
-                      {`[figura:${n}]`}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <EditorBlocos slot={form.slot} itens={form.itens} onChange={(novos) => setForm({ ...form, itens: novos })} imagens={imagens} />
             </div>
 
             <div className="space-y-2 rounded-md border border-border p-3 text-xs">
@@ -323,11 +286,11 @@ export function TextosDoDocumento({ itens, onAlterou }: { itens: BlocoPadrao[]; 
                 Cancelar
               </Button>
               {form.origem && (
-                <Button variant="secondary" onClick={() => salvar(true)} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
+                <Button variant="secondary" onClick={() => salvar(true)} disabled={salvando || !form.nome.trim() || !temConteudo(form.itens)}>
                   Salvar como nova versão
                 </Button>
               )}
-              <Button onClick={() => salvar(false)} disabled={salvando || !form.nome.trim() || !form.corpo.trim()}>
+              <Button onClick={() => salvar(false)} disabled={salvando || !form.nome.trim() || !temConteudo(form.itens)}>
                 {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {form.origem ? "Salvar alterações" : "Salvar"}
               </Button>
             </div>

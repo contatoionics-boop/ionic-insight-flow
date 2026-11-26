@@ -6,6 +6,7 @@ import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Card, Button, Input, Textarea, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
+import { BibliotecaImagens, imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 import { lerSlot } from "@/lib/laudo/textos-padrao";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
@@ -108,7 +109,7 @@ function BlocosPadraoPage() {
   }, [carregar]);
 
   // versões dos textos do documento têm tela própria (acima); aqui ficam só os blocos adicionais
-  const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot);
+  const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot && b.categoria !== "imagem");
 
   function editar(b: BlocoPadrao, duplicar = false) {
     const titulo = (b.blocos ?? []).find((x: any) => x.tipo === "heading") as any;
@@ -183,7 +184,13 @@ function BlocosPadraoPage() {
       />
       <ConfiguracoesNav />
 
-      {!carregando && <TextosDoDocumento itens={itens} onAlterou={carregar} />}
+      {!carregando && <BibliotecaImagens lista={itens} onAlterou={carregar} />}
+
+      {!carregando && (
+        <div className="mt-8">
+          <TextosDoDocumento itens={itens} onAlterou={carregar} imagens={imagensDaLista(itens)} />
+        </div>
+      )}
 
       <div className="mb-2 mt-8">
         <h2 className="text-sm font-semibold">Blocos adicionais</h2>

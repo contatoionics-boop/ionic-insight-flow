@@ -21,7 +21,7 @@ import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./bl
 import { blocosPista } from "./secoes/pista";
 import { ajustarAplicacao, blocoCondicoesWifi, blocosFotosTransferencia, blocoVelocidades, mostrarGsm, mostrarWifi, nomeDaAplicacao, usaWifi, type FotoTransferencia } from "./secoes/transferencia";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "./tipos";
-import { blocosDaVersao, blocosDoSlot, escolherVersao, type CamposTexto, type EscolhasTexto, type SlotTexto, type VersaoTexto } from "./textos-padrao";
+import { blocosDaVersao, blocosDoSlot, escolherVersao, type CamposTexto, type EscolhasTexto, type ImagensBiblioteca, type SlotTexto, type VersaoTexto } from "./textos-padrao";
 import { limparTexto, objetosValidos, pareceLixo } from "@/lib/texto";
 
 export type CabecalhoLaudo = {
@@ -47,6 +47,8 @@ export type EntradaTemplate = {
   blocosPadrao?: BlocoPadraoAuto[];
   /** versões cadastradas dos textos do documento (Configurações › Textos do documento) */
   textosPadrao?: VersaoTexto[];
+  /** imagens da biblioteca (Configurações), pelo id usado em `[imagem:<id>]` */
+  imagensBiblioteca?: ImagensBiblioteca;
   /** versão escolhida para ESTE mapeamento, por slot (`"sistema"` = texto original) */
   textosEscolhidos?: EscolhasTexto;
   /** prints do registro fotográfico de transferência de dados (Wi-Fi e sinal da operadora), já em URL pública */
@@ -183,11 +185,12 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     aplicacao: nomeDaAplicacao(entrada.contexto ?? null),
   };
   // texto de um slot a partir da versão aplicável (null = sem versão: vale o texto original/gerado)
-  const textoDoSlot = (slot: SlotTexto, extras: CamposTexto = {}, comFiguras = false): BlocoLaudo[] | null => {
+  const textoDoSlot = (slot: SlotTexto, extras: CamposTexto = {}): BlocoLaudo[] | null => {
     const versao = versaoDe(slot);
-    return versao ? blocosDaVersao({ slot, versao, campos: { ...campos, ...extras }, id: bid, proximaFigura: comFiguras ? proximaFigura : null }) : null;
+    // imagens da biblioteca (e desenhos) levam "Figura N": todo texto passa a numeração do documento
+    return versao ? blocosDaVersao({ slot, versao, campos: { ...campos, ...extras }, id: bid, proximaFigura, imagens: entrada.imagensBiblioteca }) : null;
   };
-  blocos.push(...blocosDoSlot({ slot: "introducao", versao: versaoDe("introducao"), campos, id: bid }));
+  blocos.push(...blocosDoSlot({ slot: "introducao", versao: versaoDe("introducao"), campos, id: bid, proximaFigura, imagens: entrada.imagensBiblioteca }));
   // blocos adicionais automáticos que pedem para entrar logo após a Introdução
   blocos.push(...blocosPadraoAutomaticos(entrada.blocosPadrao ?? [], avaliacaoTexto, bid, "apos_introducao"));
 
@@ -239,7 +242,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
       nivel: 2,
     });
     if (versaoTi) {
-      blocos.push(...blocosDaVersao({ slot: "ti_bd", versao: versaoTi, campos, id: bid }));
+      blocos.push(...blocosDaVersao({ slot: "ti_bd", versao: versaoTi, campos, id: bid, proximaFigura, imagens: entrada.imagensBiblioteca }));
     } else if (variante === "D") {
       blocos.push({
         id: bid("bl"),
@@ -525,7 +528,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   }
 
   // ---------- VII. Blocos padrão condicionais (Nível 2 / Comboio) ----------
-  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura, solucao: solucaoEscopo, comboioNoEscopo: !!entrada.contexto?.escopo.temComboio, texto: ehNivel2(nivel) ? textoDoSlot("nivel2", {}, true) : null }));
+  blocos.push(...blocosNivel2({ nivel, variaveis: vars, bid, proximaFigura, solucao: solucaoEscopo, comboioNoEscopo: !!entrada.contexto?.escopo.temComboio, texto: ehNivel2(nivel) ? textoDoSlot("nivel2") : null }));
   if (nivel2) {
     // conclusões da análise técnica sobre bicos seguem após a seção estrutural
     blocos.push(...secao("2.4"));
@@ -558,13 +561,13 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
     nivel: 1,
   });
   // texto oficial do Resultado de Mapeamento, ou a versão cadastrada em Configurações › Textos do documento
-  blocos.push(...blocosDoSlot({ slot: "instrucoes_gerais", versao: versaoDe("instrucoes_gerais"), campos, id: bid, chaveSistema: (i) => `instrucoes:${i + 1}` }));
+  blocos.push(...blocosDoSlot({ slot: "instrucoes_gerais", versao: versaoDe("instrucoes_gerais"), campos, id: bid, proximaFigura, imagens: entrada.imagensBiblioteca, chaveSistema: (i) => `instrucoes:${i + 1}` }));
 
   // ---------- Considerações finais: só existe quando há uma versão aplicável ----------
   const versaoFinal = versaoDe("consideracoes_finais");
   if (versaoFinal) {
     blocos.push({ id: bid("h"), chave: "consideracoes_finais:titulo", tipo: "heading", numero: "4", texto: "Considerações finais", nivel: 1, origem: "dynamic", editavel: true, removivel: true } as BlocoLaudo);
-    blocos.push(...blocosDaVersao({ slot: "consideracoes_finais", versao: versaoFinal, campos, id: bid }));
+    blocos.push(...blocosDaVersao({ slot: "consideracoes_finais", versao: versaoFinal, campos, id: bid, proximaFigura, imagens: entrada.imagensBiblioteca }));
   }
   // blocos adicionais automáticos que pedem para ficar no fim do documento
   blocos.push(...blocosPadraoAutomaticos(padroes, avaliacao, bid, "fim"));

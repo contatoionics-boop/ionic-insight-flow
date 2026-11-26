@@ -13,6 +13,7 @@ import { condicoesAtendidas, lerRegra, type AvaliacaoRegra, type BlocoPadraoAuto
 import { blocos24 } from "./blocos-nivel2";
 import { FIGURA_N2_BICO, FIGURA_N2_PONTEIRA, FIGURA_N2_SUPORTE, type FiguraLaudo } from "./figuras";
 import { pendencia, type BlocoLaudo } from "./tipos";
+import { escaparMarcas, type Alinhamento } from "./texto-formatado";
 
 /** Na ordem em que aparecem no documento. */
 export const SLOTS_TEXTO = ["introducao", "ti_bd", "wifi", "gsm", "radio", "nivel2", "rfid", "div", "tx", "instrucoes_gerais", "consideracoes_finais"] as const;
@@ -77,12 +78,13 @@ export const camposDoSlot = (slot: SlotTexto) => {
 export type CamposTexto = Record<string, string | null | undefined>;
 
 /** Troca `{{campo}}` pelo valor. Valor ausente (null) ou campo desconhecido vira [CONFIRMAR]; "" é válido (some). */
-export function renderizarCampos(texto: string, campos: CamposTexto): string {
+export function renderizarCampos(texto: string, campos: CamposTexto, opcoes: { escapar?: boolean } = {}): string {
   return texto.replace(/\{\{\s*([A-Za-z_]\w*)\s*\}\}/g, (_inteiro, chave: string) => {
     if (!(chave in campos)) return pendencia(chave, `campo desconhecido {{${chave}}}`);
     const valor = campos[chave];
     if (valor === null || valor === undefined) return pendencia(chave, CAMPOS_TEXTO.find((c) => c.chave === chave)?.rotulo ?? chave);
-    return valor;
+    // texto com formatação: um valor com "*" ou "+" (ex.: nome do cliente) não pode virar negrito/itálico por acaso
+    return opcoes.escapar ? escaparMarcas(valor) : valor;
   });
 }
 
@@ -93,11 +95,19 @@ export const FIGURAS_TEXTO = { bico: FIGURA_N2_BICO, ponteira: FIGURA_N2_PONTEIR
 export type NomeFigura = keyof typeof FIGURAS_TEXTO;
 const ehNomeFigura = (v: string): v is NomeFigura => Object.prototype.hasOwnProperty.call(FIGURAS_TEXTO, v);
 
-/** Conteúdo editável: parágrafo (com ou sem destaque de revisão), lista ou desenho padrão. */
+/** Imagem da biblioteca (Configurações › Blocos padrão › Biblioteca de imagens), referenciada por `[imagem:<id>]`. */
+export type ImagemBiblioteca = { id: string; nome: string; url: string; alt: string; legenda: string; larguraMax: number };
+export type ImagensBiblioteca = Record<string, ImagemBiblioteca>;
+
+/**
+ * Conteúdo editável: parágrafo (destaque de revisão, formatação e alinhamento), lista, desenho do sistema ou
+ * imagem da biblioteca. `rico` = o texto traz marcas `**negrito**`, `*itálico*`, `++sublinhado++`.
+ */
 export type ItemTexto =
-  | { tipo: "paragraph"; texto: string; destaque?: boolean }
-  | { tipo: "bullets"; itens: string[] }
-  | { tipo: "figura"; nome: NomeFigura };
+  | { tipo: "paragraph"; texto: string; destaque?: boolean; rico?: boolean; alinhamento?: Alinhamento; caixaAlta?: boolean }
+  | { tipo: "bullets"; itens: string[]; rico?: boolean }
+  | { tipo: "figura"; nome: NomeFigura }
+  | { tipo: "imagem"; id: string };
 
 /**
  * Corpo em texto → itens. Cada linha é um parágrafo; "- " ou "• " no começo vira item de lista;
@@ -127,6 +137,11 @@ export function corpoParaItens(corpo: string): ItemTexto[] {
       itens.push({ tipo: "figura", nome: fig[1].toLowerCase() as NomeFigura });
       continue;
     }
+    const img = l.match(/^\[imagem:\s*([\w-]+)\s*\]$/i);
+    if (img) {
+      itens.push({ tipo: "imagem", id: img[1] });
+      continue;
+    }
     if (l.startsWith("!")) itens.push({ tipo: "paragraph", texto: l.slice(1).trim(), destaque: true });
     else itens.push({ tipo: "paragraph", texto: l });
   }
@@ -137,7 +152,7 @@ export function corpoParaItens(corpo: string): ItemTexto[] {
 /** Itens → corpo em texto (inverso de `corpoParaItens`). */
 export function itensParaCorpo(itens: ItemTexto[]): string {
   return itens
-    .map((i) => (i.tipo === "bullets" ? i.itens.map((x) => `- ${x}`).join("\n") : i.tipo === "figura" ? `[figura:${i.nome}]` : `${i.destaque ? "!" : ""}${i.texto}`))
+    .map((i) => (i.tipo === "bullets" ? i.itens.map((x) => `- ${x}`).join("\n") : i.tipo === "figura" ? `[figura:${i.nome}]` : i.tipo === "imagem" ? `[imagem:${i.id}]` : `${i.destaque ? "!" : ""}${i.texto}`))
     .filter(Boolean)
     .join("\n\n");
 }
@@ -146,11 +161,22 @@ export function itensParaCorpo(itens: ItemTexto[]): string {
 export function blocosParaItens(blocos: BlocoLaudo[]): ItemTexto[] {
   const itens: ItemTexto[] = [];
   for (const b of blocos ?? []) {
-    if (b.tipo === "paragraph") itens.push({ tipo: "paragraph", texto: b.texto, ...(b.destaque ? { destaque: true } : {}) });
-    else if (b.tipo === "bullets") itens.push({ tipo: "bullets", itens: b.itens });
+    if (b.tipo === "paragraph")
+      itens.push({
+        tipo: "paragraph",
+        texto: b.texto,
+        ...(b.destaque ? { destaque: true } : {}),
+        ...(b.rico ? { rico: true } : {}),
+        ...(b.alinhamento ? { alinhamento: b.alinhamento } : {}),
+        ...(b.caixaAlta ? { caixaAlta: true } : {}),
+      });
+    else if (b.tipo === "bullets") itens.push({ tipo: "bullets", itens: b.itens, ...(b.rico ? { rico: true } : {}) });
     else if (b.tipo === "image") {
-      const nome = (Object.keys(FIGURAS_TEXTO) as NomeFigura[]).find((n) => FIGURAS_TEXTO[n].url === b.url);
-      if (nome) itens.push({ tipo: "figura", nome });
+      if (b.bibliotecaId) itens.push({ tipo: "imagem", id: b.bibliotecaId });
+      else {
+        const nome = (Object.keys(FIGURAS_TEXTO) as NomeFigura[]).find((n) => FIGURAS_TEXTO[n].url === b.url);
+        if (nome) itens.push({ tipo: "figura", nome });
+      }
     }
   }
   return itens;
@@ -160,12 +186,22 @@ export function blocosParaItens(blocos: BlocoLaudo[]): ItemTexto[] {
 export function itensParaBlocos(itens: ItemTexto[]): BlocoLaudo[] {
   const rnd = () => Math.random().toString(36).slice(2, 10);
   return itens.map((i) => {
-    if (i.tipo === "bullets") return { id: `tx-bl-${rnd()}`, tipo: "bullets", itens: i.itens } as BlocoLaudo;
+    if (i.tipo === "bullets") return { id: `tx-bl-${rnd()}`, tipo: "bullets", itens: i.itens, ...(i.rico ? { rico: true } : {}) } as BlocoLaudo;
     if (i.tipo === "figura") {
       const f = FIGURAS_TEXTO[i.nome];
       return { id: `tx-img-${rnd()}`, tipo: "image", url: f.url, alt: f.alt, legenda: f.legendaBase, larguraMax: f.larguraMax } as BlocoLaudo;
     }
-    return { id: `tx-p-${rnd()}`, tipo: "paragraph", ...(i.destaque ? { destaque: "editavel" } : {}), texto: i.texto } as BlocoLaudo;
+    // imagem da biblioteca: guarda só a referência (a URL vem da biblioteca na hora de gerar o documento)
+    if (i.tipo === "imagem") return { id: `tx-img-${rnd()}`, tipo: "image", url: "", alt: "", legenda: null, bibliotecaId: i.id } as BlocoLaudo;
+    return {
+      id: `tx-p-${rnd()}`,
+      tipo: "paragraph",
+      ...(i.destaque ? { destaque: "editavel" } : {}),
+      ...(i.rico ? { rico: true } : {}),
+      ...(i.alinhamento ? { alinhamento: i.alinhamento } : {}),
+      ...(i.caixaAlta ? { caixaAlta: true } : {}),
+      texto: i.texto,
+    } as BlocoLaudo;
   });
 }
 
@@ -304,17 +340,43 @@ export function escolherVersao(slot: SlotTexto, versoes: VersaoTexto[], escolhas
 
 type Meta = { chave?: string; origem?: "dynamic"; editavel?: true; removivel?: true };
 
-function blocoDoItem(item: ItemTexto, campos: CamposTexto, id: string, meta: Meta, proximaFigura?: (() => number) | null): BlocoLaudo {
+function blocoDoItem(
+  item: ItemTexto,
+  campos: CamposTexto,
+  id: string,
+  meta: Meta,
+  proximaFigura?: (() => number) | null,
+  imagens?: ImagensBiblioteca | null,
+): BlocoLaudo {
   if (item.tipo === "figura") {
     const f = FIGURAS_TEXTO[item.nome];
     const n = proximaFigura ? proximaFigura() : null;
     return { id, tipo: "image", url: f.url, alt: f.alt, legenda: n ? `Figura ${n} — ${f.legendaBase}` : f.legendaBase, larguraMax: f.larguraMax, ...meta } as BlocoLaudo;
   }
+  if (item.tipo === "imagem") {
+    const img = imagens?.[item.id];
+    // imagem apagada da biblioteca: nunca some em silêncio (o PDF fica bloqueado até o especialista resolver)
+    if (!img?.url) return { id, tipo: "paragraph", texto: pendencia("imagem_biblioteca", "imagem removida da biblioteca — escolha outra ou apague este item"), ...meta } as BlocoLaudo;
+    const n = proximaFigura ? proximaFigura() : null;
+    const legenda = img.legenda?.trim() || img.nome;
+    return { id, tipo: "image", url: img.url, alt: img.alt || img.nome, legenda: n ? `Figura ${n} — ${legenda}` : legenda, larguraMax: img.larguraMax, bibliotecaId: img.id, ...meta } as BlocoLaudo;
+  }
   // ordem dos campos preservada (a mescla compara o conteúdo gerado com o salvo)
-  if (item.tipo === "bullets") return { id, tipo: "bullets", itens: item.itens.map((x) => renderizarCampos(x, campos)), ...meta } as BlocoLaudo;
-  const texto = renderizarCampos(item.texto, campos);
-  return (item.destaque ? { id, tipo: "paragraph", destaque: "editavel", texto, ...meta } : { id, tipo: "paragraph", texto, ...meta }) as BlocoLaudo;
+  if (item.tipo === "bullets") return { id, tipo: "bullets", itens: item.itens.map((x) => renderizarCampos(x, campos, { escapar: !!item.rico })), ...(item.rico ? { rico: true } : {}), ...meta } as BlocoLaudo;
+  const texto = renderizarCampos(item.texto, campos, { escapar: !!item.rico });
+  return {
+    id,
+    tipo: "paragraph",
+    ...(item.destaque ? { destaque: "editavel" } : {}),
+    ...(item.rico ? { rico: true } : {}),
+    ...(item.alinhamento ? { alinhamento: item.alinhamento } : {}),
+    ...(item.caixaAlta ? { caixaAlta: true } : {}),
+    texto,
+    ...meta,
+  } as BlocoLaudo;
 }
+
+const prefixoId = (item: ItemTexto) => (item.tipo === "bullets" ? "bl" : item.tipo === "figura" || item.tipo === "imagem" ? "img" : "p");
 
 /** Blocos de uma versão cadastrada: chave estável `texto:<slot>:<versão>:<posição>` (a edição manual sobrevive ao regerar). */
 export function blocosDaVersao(entrada: {
@@ -322,12 +384,14 @@ export function blocosDaVersao(entrada: {
   versao: VersaoTexto;
   campos: CamposTexto;
   id: (prefixo: string) => string;
-  /** numeração das figuras do documento (desenhos `[figura:…]`) */
+  /** numeração das figuras do documento (desenhos `[figura:…]` e imagens `[imagem:…]`) */
   proximaFigura?: (() => number) | null;
+  /** biblioteca de imagens (para resolver `[imagem:<id>]`) */
+  imagens?: ImagensBiblioteca | null;
 }): BlocoLaudo[] {
-  const { slot, versao, campos, id, proximaFigura } = entrada;
+  const { slot, versao, campos, id, proximaFigura, imagens } = entrada;
   return blocosParaItens(versao.blocos).map((item, i) =>
-    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : item.tipo === "figura" ? "img" : "p"), { chave: `texto:${slot}:${versao.id}:${i}`, origem: "dynamic", editavel: true, removivel: true }, proximaFigura),
+    blocoDoItem(item, campos, id(prefixoId(item)), { chave: `texto:${slot}:${versao.id}:${i}`, origem: "dynamic", editavel: true, removivel: true }, proximaFigura, imagens),
   );
 }
 
@@ -341,11 +405,13 @@ export function blocosDoSlot(entrada: {
   campos: CamposTexto;
   id: (prefixo: string) => string;
   chaveSistema?: (posicao: number) => string;
+  proximaFigura?: (() => number) | null;
+  imagens?: ImagensBiblioteca | null;
 }): BlocoLaudo[] {
-  const { slot, versao, campos, id, chaveSistema } = entrada;
-  if (versao) return blocosDaVersao({ slot, versao, campos, id });
+  const { slot, versao, campos, id, chaveSistema, proximaFigura, imagens } = entrada;
+  if (versao) return blocosDaVersao({ slot, versao, campos, id, proximaFigura, imagens });
   return TEXTO_ORIGINAL[slot].map((item, i) =>
-    blocoDoItem(item, campos, id(item.tipo === "bullets" ? "bl" : item.tipo === "figura" ? "img" : "p"), chaveSistema ? { chave: chaveSistema(i), origem: "dynamic", editavel: true } : {}),
+    blocoDoItem(item, campos, id(prefixoId(item)), chaveSistema ? { chave: chaveSistema(i), origem: "dynamic", editavel: true } : {}),
   );
 }
 

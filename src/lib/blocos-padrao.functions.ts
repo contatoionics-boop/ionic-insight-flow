@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { EXIGENCIAS, POSICOES_BLOCO, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
-import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos } from "@/lib/laudo/textos-padrao";
+import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos, type ItemTexto } from "@/lib/laudo/textos-padrao";
 
 export type BlocoPadrao = {
   id: string;
@@ -28,13 +28,30 @@ export const listarBlocosPadrao = createServerFn({ method: "POST" })
     return (data ?? []) as unknown as BlocoPadrao[];
   });
 
+/** Conteúdo estruturado de uma versão de texto (parágrafos com formatação, listas, desenhos e imagens da biblioteca). */
+const ItemSchema = z.discriminatedUnion("tipo", [
+  z.object({
+    tipo: z.literal("paragraph"),
+    texto: z.string().max(20000),
+    destaque: z.boolean().optional(),
+    rico: z.boolean().optional(),
+    alinhamento: z.enum(["esquerda", "centro", "direita", "justificado"]).optional(),
+    caixaAlta: z.boolean().optional(),
+  }),
+  z.object({ tipo: z.literal("bullets"), itens: z.array(z.string().max(5000)).max(100), rico: z.boolean().optional() }),
+  z.object({ tipo: z.literal("figura"), nome: z.enum(["bico", "ponteira", "suporte"]) }),
+  z.object({ tipo: z.literal("imagem"), id: z.string().min(1).max(100) }),
+]);
+
 const SalvarInput = z.object({
   id: z.string().uuid().optional(),
   nome: z.string().min(2, "Informe o nome do bloco."),
   descricao: z.string().optional().nullable(),
   categoria: z.string().min(1).default("geral"),
   /** conteúdo em texto: cada linha vira parágrafo; linhas iniciadas por "- " viram lista */
-  corpo: z.string().min(1, "Informe o conteúdo do bloco."),
+  corpo: z.string().default(""),
+  /** versão de texto: conteúdo estruturado (tem prioridade sobre `corpo`) */
+  itens: z.array(ItemSchema).max(200).optional(),
   titulo_secao: z.string().optional().nullable(),
   ativo: z.boolean().default(true),
   ordem: z.number().int().default(0),
@@ -96,6 +113,7 @@ export const salvarBlocoPadrao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) => SalvarInput.parse(i))
   .handler(async ({ data, context }) => {
+    if (!data.itens?.length && !data.corpo.trim()) throw new Error("Informe o conteúdo do bloco.");
     const regra = data.regra ?? { automatico: false, solucao: [], nivel: [], exige: [], posicao: "antes_instrucoes" as const };
     const versaoDeTexto = !!data.slot;
     const payload = {
@@ -103,7 +121,7 @@ export const salvarBlocoPadrao = createServerFn({ method: "POST" })
       descricao: data.descricao?.trim() || null,
       categoria: versaoDeTexto ? "texto" : data.categoria,
       // versão de texto: só parágrafos e listas, com os {{campos}} (o título da seção é do documento)
-      blocos: (versaoDeTexto ? itensParaBlocos(corpoParaItens(data.corpo)) : corpoParaBlocos(data.corpo, data.titulo_secao)) as any,
+      blocos: (versaoDeTexto ? itensParaBlocos((data.itens as ItemTexto[] | undefined) ?? corpoParaItens(data.corpo)) : corpoParaBlocos(data.corpo, data.titulo_secao)) as any,
       escopo: (data.slot ? escopoDaVersao(data.slot, data.padrao ?? false, regra) : regraParaEscopo(regra)) as any,
       ativo: data.ativo,
       ordem: data.ordem,

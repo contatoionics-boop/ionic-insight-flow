@@ -6,7 +6,8 @@ import { Button, Card } from "@/components/ui-bits";
 import { listarBlocosPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { listarFotosLaudo } from "@/lib/laudo.functions";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
-import { lerSlot } from "@/lib/laudo/textos-padrao";
+import { lerSlot, type ImagemBiblioteca } from "@/lib/laudo/textos-padrao";
+import { imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 
 type Foto = { path: string; url: string; legenda: string };
 
@@ -17,7 +18,7 @@ export function BibliotecaModal({
   onInserir,
 }: {
   casoId: string;
-  tipo: "padrao" | "foto" | null;
+  tipo: "padrao" | "foto" | "imagem" | null;
   onClose: () => void;
   onInserir: (blocos: BlocoLaudo[]) => void;
 }) {
@@ -26,6 +27,7 @@ export function BibliotecaModal({
   const [carregando, setCarregando] = useState(false);
   const [padroes, setPadroes] = useState<BlocoPadrao[]>([]);
   const [fotos, setFotos] = useState<Foto[]>([]);
+  const [imagens, setImagens] = useState<ImagemBiblioteca[]>([]);
 
   useEffect(() => {
     if (!tipo) return;
@@ -33,9 +35,10 @@ export function BibliotecaModal({
     setCarregando(true);
     (async () => {
       try {
-        if (tipo === "padrao") {
+        if (tipo === "padrao" || tipo === "imagem") {
           const r = await fnBlocos({ data: {} as any });
-          if (vivo) setPadroes((r as BlocoPadrao[]).filter((b) => b.ativo && !lerSlot(b.escopo).slot));
+          if (vivo && tipo === "padrao") setPadroes((r as BlocoPadrao[]).filter((b) => b.ativo && !lerSlot(b.escopo).slot && b.categoria !== "imagem"));
+          if (vivo && tipo === "imagem") setImagens(imagensDaLista((r as BlocoPadrao[]).filter((b) => b.ativo)));
         } else {
           const r = await fnFotos({ data: { casoId } });
           if (vivo) setFotos(r as Foto[]);
@@ -58,7 +61,7 @@ export function BibliotecaModal({
       <Card className="mt-10 w-full max-w-2xl p-5">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-medium">
-            {tipo === "padrao" ? "Blocos padrão" : "Fotos do mapeamento"}
+            {tipo === "padrao" ? "Blocos padrão" : tipo === "imagem" ? "Biblioteca de imagens" : "Fotos do mapeamento"}
           </p>
           <button type="button" onClick={onClose} aria-label="Fechar">
             <X className="h-4 w-4" />
@@ -69,6 +72,39 @@ export function BibliotecaModal({
           <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
           </p>
+        ) : tipo === "imagem" ? (
+          imagens.length === 0 ? (
+            <p className="py-6 text-sm text-muted-foreground">
+              Nenhuma imagem na biblioteca. Envie imagens em Configurações › Blocos padrão › Biblioteca de imagens.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {imagens.map((im) => (
+                <button
+                  key={im.id}
+                  type="button"
+                  className="overflow-hidden rounded-lg border border-border text-left transition hover:border-primary"
+                  onClick={() =>
+                    onInserir([
+                      {
+                        id: `bib-${Math.random().toString(36).slice(2, 10)}`,
+                        tipo: "image",
+                        url: im.url,
+                        alt: im.alt || im.nome,
+                        // "Figura N —": o número acompanha a posição no documento
+                        legenda: `Figura 1 — ${im.legenda?.trim() || im.nome}`,
+                        larguraMax: im.larguraMax,
+                        bibliotecaId: im.id,
+                      } as BlocoLaudo,
+                    ])
+                  }
+                >
+                  <img src={im.url} alt={im.alt || im.nome} className="h-28 w-full bg-white object-contain" />
+                  <span className="block p-2 text-[11px] leading-tight text-muted-foreground">{im.nome}</span>
+                </button>
+              ))}
+            </div>
+          )
         ) : tipo === "padrao" ? (
           padroes.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">

@@ -13,6 +13,16 @@ import {
   REVISAO_FIXA,
 } from "@/lib/laudo/meta";
 import { dedupBlocos } from "@/lib/laudo/mesclar";
+import {
+  palavrasDe,
+  parseTexto,
+  posicionarLinha,
+  quebrarRico,
+  usaTextoRico,
+  type Alinhamento,
+  type Fonte,
+  type Medidor,
+} from "@/lib/laudo/texto-formatado";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
@@ -60,6 +70,9 @@ type Ctx = {
   y: number;
   font: PDFFont;
   bold: PDFFont;
+  /** itálico e negrito-itálico (só usados em texto com formatação) */
+  italic: PDFFont;
+  boldItalic: PDFFont;
   pages: PDFPage[];
   meta: LaudoPdfMeta;
   logo: { img: any; w: number; h: number } | null;
@@ -277,6 +290,52 @@ function paragraph(ctx: Ctx, text: string, size = 10, indent = 28) {
   ctx.y -= 8;
 }
 
+/** Desenha um texto com formatação (trechos em negrito/itálico/sublinhado, alinhamento, caixa alta). */
+function textoRico(
+  ctx: Ctx,
+  texto: string,
+  opcoes: { rico: boolean; alinhamento?: Alinhamento; caixaAlta?: boolean; size?: number; x0: number; largura: number; primeiraIndent?: number; folga?: number },
+) {
+  const size = opcoes.size ?? 10;
+  const alinhamento = opcoes.alinhamento ?? "justificado";
+  const fonteDe = (f: Fonte) => (f === "negritoItalico" ? ctx.boldItalic : f === "negrito" ? ctx.bold : f === "italico" ? ctx.italic : ctx.font);
+  const medir: Medidor = (t, f) => fonteDe(f).widthOfTextAtSize(t, size);
+  // limpa o texto inteiro ANTES de separar os trechos (limpar por trecho apararia os espaços entre eles)
+  const limpo = sanitize(texto);
+  const trechos = opcoes.rico ? parseTexto(limpo) : [{ texto: limpo }];
+  const palavras = palavrasDe(trechos, { caixaAlta: opcoes.caixaAlta });
+  // recuo da primeira linha só em texto à esquerda/justificado (como no formulário original)
+  const recuo = alinhamento === "esquerda" || alinhamento === "justificado" ? (opcoes.primeiraIndent ?? 0) : 0;
+  const linhas = quebrarRico(palavras, medir, opcoes.largura - recuo, opcoes.largura);
+  const leading = size + 4.5;
+  const espaco = medir(" ", "normal");
+  linhas.forEach((linha, i) => {
+    need(ctx, leading);
+    const x0 = opcoes.x0 + (i === 0 ? recuo : 0);
+    const disponivel = opcoes.largura - (i === 0 ? recuo : 0);
+    const pos = posicionarLinha(linha, alinhamento, x0, disponivel, espaco);
+    // linha com pendência a confirmar sai em âmbar, como no desenho de sempre
+    const cor = linha.palavras.some((pal) => pal.segmentos.some((sg) => sg.texto.includes("[CONFIRMAR:"))) ? AMBER : TINTA;
+    let x = pos.x;
+    linha.palavras.forEach((pal, k) => {
+      pal.segmentos.forEach((seg, j) => {
+        const w = medir(seg.texto, seg.fonte);
+        ctx.page.drawText(seg.texto, { x, y: ctx.y, size, font: fonteDe(seg.fonte), color: cor });
+        const proximo = j === pal.segmentos.length - 1 ? linha.palavras[k + 1]?.segmentos[0] : pal.segmentos[j + 1];
+        // sublinhado do segmento; atravessa o espaço quando a palavra seguinte também é sublinhada
+        if (seg.sublinhado) {
+          const fim = x + w + (j === pal.segmentos.length - 1 && proximo?.sublinhado ? pos.espaco : 0);
+          ctx.page.drawLine({ start: { x, y: ctx.y - 1.6 }, end: { x: fim, y: ctx.y - 1.6 }, thickness: 0.5, color: TINTA });
+        }
+        x += w;
+      });
+      x += pos.espaco;
+    });
+    ctx.y -= leading;
+  });
+  return linhas.length;
+}
+
 function heading(ctx: Ctx, numero: string | null, texto: string, nivelBruto: 1 | 2 | 3 | 4) {
   const nivel = (nivelBruto > 3 ? 3 : nivelBruto) as 1 | 2 | 3;
   const size = nivel === 1 ? 11.5 : nivel === 2 ? 9.5 : 9;
@@ -334,6 +393,18 @@ function bullets(ctx: Ctx, itens: string[]) {
 }
 
 
+
+function bulletsRicos(ctx: Ctx, itens: string[]) {
+  const indent = 56;
+  const maxW = CONTENT_W - indent - 6;
+  for (const it of itens) {
+    need(ctx, 15);
+    ctx.page.drawText("•", { x: MARGIN_X + indent - 14, y: ctx.y, size: 10, font: ctx.bold, color: TINTA });
+    textoRico(ctx, it, { rico: true, alinhamento: "justificado", size: 10, x0: MARGIN_X + indent, largura: maxW });
+    ctx.y -= 4;
+  }
+  ctx.y -= 6;
+}
 
 function table(
   ctx: Ctx,
@@ -652,6 +723,10 @@ export async function buildLaudoPdf(input: {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  // as fontes itálicas só entram no arquivo quando algum bloco usa formatação (documentos simples saem como sempre)
+  const comFormatacao = input.blocos.some((b) => (b.tipo === "paragraph" && usaTextoRico(b)) || (b.tipo === "bullets" && !!b.rico));
+  const italic = comFormatacao ? await pdf.embedFont(StandardFonts.HelveticaOblique) : font;
+  const boldItalic = comFormatacao ? await pdf.embedFont(StandardFonts.HelveticaBoldOblique) : bold;
   const logo = await loadLogo(pdf, input.meta);
 
   const ctx: Ctx = {
@@ -660,6 +735,8 @@ export async function buildLaudoPdf(input: {
     y: TOP,
     font,
     bold,
+    italic,
+    boldItalic,
     pages: [],
     meta: input.meta,
     logo,
@@ -677,10 +754,15 @@ export async function buildLaudoPdf(input: {
         heading(ctx, b.numero, b.texto, b.nivel);
         break;
       case "paragraph":
-        paragraph(ctx, b.texto);
+        if (usaTextoRico(b)) {
+          // formatação pedida (negrito/itálico/sublinhado, caixa alta ou alinhamento): desenho por trechos
+          textoRico(ctx, b.texto, { rico: !!b.rico, alinhamento: b.alinhamento, caixaAlta: b.caixaAlta, size: 10, x0: MARGIN_X + 28, largura: CONTENT_W - 28, primeiraIndent: 28 });
+          ctx.y -= 8;
+        } else paragraph(ctx, b.texto);
         break;
       case "bullets":
-        bullets(ctx, b.itens);
+        if (b.rico) bulletsRicos(ctx, b.itens);
+        else bullets(ctx, b.itens);
         break;
       case "table":
         table(ctx, b.titulo, b.colunas, b.linhas);
