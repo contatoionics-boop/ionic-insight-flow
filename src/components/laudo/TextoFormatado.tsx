@@ -132,7 +132,10 @@ export function CampoFormatavel({
   placeholder,
   className,
   registrarInserir,
+  comoLista = false,
 }: {
+  /** lista: a prévia mostra um marcador por linha (como sai no documento) em vez de um parágrafo corrido */
+  comoLista?: boolean;
   valor: EstadoTexto;
   onChange: (v: EstadoTexto) => void;
   modo?: "caixa" | "folha";
@@ -224,7 +227,19 @@ export function CampoFormatavel({
         onChange={(e) => onChange({ ...valor, texto: e.target.value })}
         className={`w-full resize-none overflow-hidden rounded-sm border border-border bg-background px-2 py-1.5 font-[inherit] text-[length:inherit] leading-[inherit] text-[inherit] outline-none focus:border-[#1F3864]/40 ${modo === "folha" ? "indent-0 text-left" : "text-sm"} ${className ?? ""}`}
       />
-      {modo === "caixa" && valor.texto.trim() && (
+      {modo === "caixa" && valor.texto.trim() && comoLista && (
+        <ul className="list-disc space-y-0.5 rounded-md bg-muted/40 py-2 pl-8 pr-3 text-xs leading-relaxed" aria-label="Prévia da lista">
+          {valor.texto
+            .split("\n")
+            .filter((l) => l.trim())
+            .map((l, k) => (
+              <li key={k}>
+                <TextoFormatado texto={l} rico={valor.rico} />
+              </li>
+            ))}
+        </ul>
+      )}
+      {modo === "caixa" && valor.texto.trim() && !comoLista && (
         <p className={`rounded-md bg-muted/40 px-3 py-2 text-xs leading-relaxed ${classeAlinhamento(valor.alinhamento)}`} aria-label="Prévia">
           <TextoFormatado texto={valor.texto} rico={valor.rico} caixaAlta={valor.caixaAlta} />
         </p>

@@ -30,7 +30,7 @@ import {
 /** O texto de uma versão em linhas simples (sem as marcas de formatação), para a lista. */
 function resumoItens(itens: ItemTexto[]): string {
   return itens
-    .map((i) => (i.tipo === "paragraph" ? (i.rico ? semMarcas(i.texto) : i.texto) : i.tipo === "bullets" ? i.itens.map((x) => `- ${i.rico ? semMarcas(x) : x}`).join("\n") : "[imagem]"))
+    .map((i) => (i.tipo === "paragraph" ? (i.rico ? semMarcas(i.texto) : i.texto) : i.tipo === "bullets" ? i.itens.map((x) => `- ${i.rico ? semMarcas(x) : x}`).join("\n") : i.tipo === "tabela" ? `[tabela${i.titulo ? `: ${i.titulo}` : ""}]` : "[imagem]"))
     .filter(Boolean)
     .join("\n\n");
 }

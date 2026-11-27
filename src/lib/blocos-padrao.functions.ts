@@ -43,6 +43,12 @@ const ItemSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("bullets"), itens: z.array(z.string().max(5000)).max(100), rico: z.boolean().optional() }),
   z.object({ tipo: z.literal("figura"), nome: z.enum(["bico", "ponteira", "suporte"]) }),
   z.object({ tipo: z.literal("imagem"), id: z.string().min(1).max(100) }),
+  z.object({
+    tipo: z.literal("tabela"),
+    titulo: z.string().max(200).optional(),
+    colunas: z.array(z.string().max(200)).min(1).max(8),
+    linhas: z.array(z.array(z.string().max(2000)).max(8)).max(200),
+  }),
 ]);
 
 const SalvarInput = z.object({

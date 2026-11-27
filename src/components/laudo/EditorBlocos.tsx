@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, List, Trash2, Type } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, List, Plus, Table2, Trash2, Type, X } from "lucide-react";
 import { Button } from "@/components/ui-bits";
 import { ListaOrdenavel } from "@/components/laudo/ListaOrdenavel";
 import { moverNaLista } from "@/lib/ordenar-blocos";
 import { CampoFormatavel, type EstadoTexto } from "@/components/laudo/TextoFormatado";
 import {
   FIGURAS_TEXTO,
+  MODELOS_TABELA,
   camposDoSlot,
+  novaTabela,
+  type ModeloTabela,
   type ImagemBiblioteca,
   type ItemTexto,
   type NomeFigura,
@@ -18,8 +21,73 @@ function limpar(i: ItemTexto): ItemTexto {
   return Object.fromEntries(Object.entries(i).filter(([, v]) => v !== undefined && v !== false)) as ItemTexto;
 }
 
+type Tabela = Extract<ItemTexto, { tipo: "tabela" }>;
+
+/** Editor de uma tabela: título, colunas e linhas (as células aceitam {{campos}}). */
+function EditorTabela({ item, onChange }: { item: Tabela; onChange: (t: Tabela) => void }) {
+  const n = item.colunas.length;
+  const celula = (r: number, c: number, v: string) => onChange({ ...item, linhas: item.linhas.map((l, i) => (i === r ? l.map((x, j) => (j === c ? v : x)) : l)) });
+  const cls = "w-full min-w-[6rem] rounded border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-primary";
+  return (
+    <div className="space-y-2">
+      <input className={cls} value={item.titulo ?? ""} placeholder="Título da tabela (opcional)" onChange={(e) => onChange({ ...item, titulo: e.target.value })} />
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              {item.colunas.map((c, j) => (
+                <th key={j} className="p-0.5 align-top">
+                  <div className="flex items-center gap-0.5">
+                    <input className={`${cls} font-semibold`} value={c} aria-label={`Nome da coluna ${j + 1}`} onChange={(e) => onChange({ ...item, colunas: item.colunas.map((x, k) => (k === j ? e.target.value : x)) })} />
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"
+                      title="Remover coluna"
+                      aria-label={`Remover coluna ${j + 1}`}
+                      disabled={n <= 1}
+                      onClick={() => onChange({ ...item, colunas: item.colunas.filter((_, k) => k !== j), linhas: item.linhas.map((l) => l.filter((_, k) => k !== j)) })}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                </th>
+              ))}
+              <th className="w-6" />
+            </tr>
+          </thead>
+          <tbody>
+            {item.linhas.map((l, r) => (
+              <tr key={r}>
+                {item.colunas.map((_, c) => (
+                  <td key={c} className="p-0.5">
+                    <input className={cls} value={l[c] ?? ""} aria-label={`Linha ${r + 1}, coluna ${c + 1}`} onChange={(e) => celula(r, c, e.target.value)} />
+                  </td>
+                ))}
+                <td className="p-0.5">
+                  <button type="button" className="rounded p-1 text-destructive hover:bg-muted" title="Remover linha" aria-label={`Remover linha ${r + 1}`} onClick={() => onChange({ ...item, linhas: item.linhas.filter((_, k) => k !== r) })}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40" disabled={item.linhas.length >= 100} onClick={() => onChange({ ...item, linhas: [...item.linhas, item.colunas.map(() => "")] })}>
+          <Plus className="h-3 w-3" /> Linha
+        </button>
+        <button type="button" className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40" disabled={n >= 8} onClick={() => onChange({ ...item, colunas: [...item.colunas, `Coluna ${n + 1}`], linhas: item.linhas.map((l) => [...l, ""]) })}>
+          <Plus className="h-3 w-3" /> Coluna
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">No documento a tabela nasce assim e o especialista completa ou ajusta as linhas na revisão.</p>
+    </div>
+  );
+}
+
 /**
- * Editor do conteúdo de uma versão de texto: lista de blocos (parágrafo, lista, imagem), cada um com a sua barra
+ * Editor do conteúdo de uma versão de texto: lista de blocos (parágrafo, lista, tabela, imagem), cada um com a sua barra
  * de formatação, subir/descer e remover, e botões para inserir campos `{{…}}` e imagens.
  */
 export function EditorBlocos({
@@ -35,6 +103,7 @@ export function EditorBlocos({
 }) {
   const inserirRef = useRef<((t: string) => void) | null>(null);
   const [escolhendoImagem, setEscolhendoImagem] = useState(false);
+  const [escolhendoTabela, setEscolhendoTabela] = useState(false);
   const chaves = useRef(new WeakMap<ItemTexto, string>());
   const proximaChave = useRef(0);
   function chaveDe(item: ItemTexto) {
@@ -76,14 +145,14 @@ export function EditorBlocos({
 
   return (
     <div className="space-y-2">
-      {itens.length === 0 && <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">Nenhum bloco. Use os botões abaixo para adicionar parágrafo, lista ou imagem.</p>}
+      {itens.length === 0 && <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">Nenhum bloco. Use os botões abaixo para adicionar parágrafo, lista, tabela ou imagem.</p>}
 
       <ListaOrdenavel itens={itens} idDe={chaveDe} onMover={(origem, destino) => onChange(moverNaLista(itens, origem, destino))} render={(item, i, alca) => (
         <div className="space-y-1.5 rounded-lg border border-border p-2">
           <div className="flex items-center justify-between gap-2">
             {alca}
             <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {item.tipo === "paragraph" ? "Parágrafo" : item.tipo === "bullets" ? "Lista (um item por linha)" : "Imagem"}
+              {item.tipo === "paragraph" ? "Parágrafo" : item.tipo === "bullets" ? "Lista (um item por linha)" : item.tipo === "tabela" ? "Tabela" : "Imagem"}
             </span>
             {acoes(i)}
           </div>
@@ -109,10 +178,13 @@ export function EditorBlocos({
               onChange={(v: EstadoTexto) => trocar(i, { ...item, itens: v.texto.split("\n").filter((l, k, todas) => l.trim() || k === todas.length - 1), rico: v.rico })}
               comAlinhamento={false}
               comCaixaAlta={false}
+              comoLista
               placeholder="Um item por linha"
               registrarInserir={(f) => (inserirRef.current = f)}
             />
           )}
+
+          {item.tipo === "tabela" && <EditorTabela item={item} onChange={(t) => trocar(i, t)} />}
 
           {item.tipo === "figura" && (
             <div className="flex items-center gap-3">
@@ -149,10 +221,35 @@ export function EditorBlocos({
         <Button variant="secondary" onClick={() => adicionar({ tipo: "bullets", itens: [""] })}>
           <List className="mr-1.5 h-4 w-4" /> Lista
         </Button>
+        <Button variant="secondary" onClick={() => setEscolhendoTabela((v) => !v)}>
+          <Table2 className="mr-1.5 h-4 w-4" /> Tabela
+        </Button>
         <Button variant="secondary" onClick={() => setEscolhendoImagem((v) => !v)}>
           <ImagePlus className="mr-1.5 h-4 w-4" /> Imagem
         </Button>
       </div>
+
+      {escolhendoTabela && (
+        <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+          <p className="text-xs font-medium">Qual tabela?</p>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(MODELOS_TABELA) as ModeloTabela[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className="rounded-md border border-border bg-background px-3 py-2 text-left text-xs hover:border-primary"
+                onClick={() => {
+                  adicionar(novaTabela(m));
+                  setEscolhendoTabela(false);
+                }}
+              >
+                <span className="block font-medium">{MODELOS_TABELA[m].rotulo}</span>
+                <span className="block text-[11px] text-muted-foreground">{MODELOS_TABELA[m].colunas.join(" · ")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {escolhendoImagem && (
         <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">

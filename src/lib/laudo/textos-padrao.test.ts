@@ -6,6 +6,7 @@ import { montarBlocos } from "@/lib/laudo/template";
 import type { VariaveisLaudo } from "@/lib/laudo/tipos";
 import {
   TEXTO_ORIGINAL,
+  blocosDaVersao,
   blocosParaItens,
   camposDoSlot,
   corpoParaItens,
@@ -15,6 +16,7 @@ import {
   itensParaCorpo,
   lerSlot,
   nomeDaNovaVersao,
+  novaTabela,
   renderizarCampos,
   type VersaoTexto,
 } from "./textos-padrao";
@@ -343,5 +345,35 @@ describe("imagens da biblioteca nos textos", () => {
     const x = b.find((y) => y.chave === "texto:introducao:im:0");
     expect(x.tipo).toBe("paragraph");
     expect(x.texto).toContain("[CONFIRMAR: imagem removida da biblioteca");
+  });
+});
+
+describe("tabelas nas versões de texto", () => {
+  it("modelos: colunas iguais às tabelas de produtos e de materiais do documento, 3 linhas em branco", () => {
+    const p = novaTabela("produtos");
+    expect(p.titulo).toBe("Produtos IONICS");
+    expect(p.colunas).toEqual(["Código", "Descrição", "Qtd."]);
+    expect(p.linhas).toEqual([["", "", ""], ["", "", ""], ["", "", ""]]);
+    expect(novaTabela("materiais").colunas).toEqual(["Código", "Descrição", "Aplicação", "Un.", "Qtd."]);
+    const livre = novaTabela("livre");
+    expect(livre.titulo).toBeUndefined();
+    expect(livre.colunas).toHaveLength(2);
+  });
+
+  it("ida e volta: item → bloco de tabela → item, sem perder título, colunas e células", () => {
+    const item = { tipo: "tabela" as const, titulo: "Itens da infra", colunas: ["Item", "Qtd."], linhas: [["Cabo", "2"], ["", ""]] };
+    const [bloco] = itensParaBlocos([item]);
+    expect(bloco).toMatchObject({ tipo: "table", titulo: "Itens da infra", colunas: ["Item", "Qtd."] });
+    expect((bloco as any).linhas.map((l: any) => l.celulas)).toEqual([["Cabo", "2"], ["", ""]]);
+    expect(blocosParaItens([bloco])).toEqual([item]);
+  });
+
+  it("no documento a tabela é editável e as células aceitam {{campos}}", () => {
+    const v = { id: "v1", nome: "v1", ordem: 0, escopo: escopoDaVersao("introducao", false, { solucao: [], nivel: [], exige: [] }), blocos: itensParaBlocos([{ tipo: "tabela", titulo: "Para {{cliente}}", colunas: ["A"], linhas: [["{{cliente}}"]] }]) };
+    const blocos = blocosDaVersao({ slot: "introducao", versao: v as never, campos: { cliente: "ACME" } as never, id: (p) => p });
+    expect(blocos).toHaveLength(1);
+    expect(blocos[0]).toMatchObject({ tipo: "table", titulo: "Para ACME", editavel: true, origem: "dynamic" });
+    expect((blocos[0] as any).linhas[0].celulas).toEqual(["ACME"]);
+    expect(itensParaCorpo([{ tipo: "tabela", colunas: ["A"], linhas: [] }])).toBe("[tabela]");
   });
 });
