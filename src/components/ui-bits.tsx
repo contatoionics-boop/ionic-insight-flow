@@ -82,6 +82,7 @@ export function Button({
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  ref?: React.Ref<HTMLButtonElement>;
   variant?: "primary" | "secondary" | "ghost" | "success" | "destructive" | "outline";
   size?: "sm" | "md";
 }) {

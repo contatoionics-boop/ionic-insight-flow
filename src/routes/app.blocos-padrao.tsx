@@ -12,10 +12,13 @@ import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { NumericInput } from "@/components/ui/numeric-input";
+import { ListaOrdenavel } from "@/components/laudo/ListaOrdenavel";
+import { aplicarOrdem, moverNaLista } from "@/lib/ordenar-blocos";
 import {
   excluirBlocoPadrao,
   listarBlocosPadrao,
   salvarBlocoPadrao,
+  ordenarBlocosPadrao,
   type BlocoPadrao,
 } from "@/lib/blocos-padrao.functions";
 import {
@@ -89,6 +92,8 @@ function BlocosPadraoPage() {
   const fnListar = useServerFn(listarBlocosPadrao);
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
+  const fnOrdenar = useServerFn(ordenarBlocosPadrao);
+  const [ordenando, setOrdenando] = useState(false);
 
   const [itens, setItens] = useState<BlocoPadrao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -113,6 +118,22 @@ function BlocosPadraoPage() {
 
   // versões dos textos do documento têm tela própria (acima); aqui ficam só os blocos adicionais
   const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot && b.categoria !== "imagem");
+
+  async function ordenar(origem: number, destino: number) {
+    if (ordenando) return;
+    const ids = moverNaLista(blocosAdicionais, origem, destino).map((b) => b.id);
+    setOrdenando(true);
+    setItens((atuais) => aplicarOrdem(atuais, ids));
+    try {
+      await fnOrdenar({ data: { ids } });
+      toast.success("Ordem dos blocos salva.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar a ordem.");
+      await carregar();
+    } finally {
+      setOrdenando(false);
+    }
+  }
 
   function editar(b: BlocoPadrao, duplicar = false) {
     const titulo = (b.blocos ?? []).find((x: any) => x.tipo === "heading") as any;
@@ -211,11 +232,11 @@ function BlocosPadraoPage() {
           Nenhum bloco padrão cadastrado ainda.
         </Card>
       ) : (
-        <div className="space-y-2">
-          {blocosAdicionais.map((b) => (
-            <Card key={b.id} className="flex items-start justify-between gap-3 p-4">
+        <ListaOrdenavel itens={blocosAdicionais} idDe={(b) => b.id} onMover={(origem, destino) => void ordenar(origem, destino)} disabled={ordenando} render={(b, _i, alca) => (
+            <Card className="flex flex-wrap items-start gap-3 p-4">
+              {alca}
               <button type="button" className="min-w-0 text-left" onClick={() => editar(b)}>
-                <p className="flex items-center gap-2 text-sm font-medium">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   {b.nome}
                   <Badge className="bg-muted text-muted-foreground">{b.categoria}</Badge>
                   {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativo</Badge>}
@@ -226,17 +247,16 @@ function BlocosPadraoPage() {
                   {corpoDosBlocos(b)}
                 </p>
               </button>
-              <div className="flex shrink-0 gap-1">
-                <Button variant="secondary" onClick={() => editar(b, true)} aria-label="Duplicar bloco e editar a cópia">
+              <div className="ml-auto flex shrink-0 gap-1">
+                <Button variant="secondary" disabled={ordenando} onClick={() => editar(b, true)} aria-label="Duplicar bloco e editar a cópia">
                   <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
                 </Button>
-                <Button variant="secondary" onClick={() => excluir(b.id)} aria-label="Excluir bloco">
+                <Button variant="secondary" disabled={ordenando} onClick={() => excluir(b.id)} aria-label="Excluir bloco">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </Card>
-          ))}
-        </div>
+          )} />
       )}
 
       <Modal

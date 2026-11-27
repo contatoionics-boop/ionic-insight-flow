@@ -146,3 +146,13 @@ export const excluirBlocoPadrao = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const ordenarBlocosPadrao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ ids: z.array(z.string().uuid()).min(1).max(1000).refine((ids) => new Set(ids).size === ids.length, "A lista contém blocos repetidos.") }).parse(i))
+  .handler(async ({ data, context }) => {
+    const resultados = await Promise.all(data.ids.map((id, ordem) => context.supabase.from("blocos_padrao").update({ ordem }).eq("id", id).select("id").single()));
+    const falha = resultados.find((resultado) => resultado.error);
+    if (falha?.error) throw new Error("Não foi possível salvar toda a ordem dos blocos. Recarregue a lista e tente novamente.");
+    return { ok: true };
+  });

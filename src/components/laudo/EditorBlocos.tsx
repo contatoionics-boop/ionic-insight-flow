@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ImagePlus, List, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui-bits";
+import { ListaOrdenavel } from "@/components/laudo/ListaOrdenavel";
+import { moverNaLista } from "@/lib/ordenar-blocos";
 import { CampoFormatavel, type EstadoTexto } from "@/components/laudo/TextoFormatado";
 import {
   FIGURAS_TEXTO,
@@ -33,14 +35,25 @@ export function EditorBlocos({
 }) {
   const inserirRef = useRef<((t: string) => void) | null>(null);
   const [escolhendoImagem, setEscolhendoImagem] = useState(false);
-
-  const trocar = (i: number, novo: ItemTexto) => onChange(itens.map((x, k) => (k === i ? limpar(novo) : x)));
+  const chaves = useRef(new WeakMap<ItemTexto, string>());
+  const proximaChave = useRef(0);
+  function chaveDe(item: ItemTexto) {
+    const atual = chaves.current.get(item);
+    if (atual) return atual;
+    const chave = `texto-${proximaChave.current++}`;
+    chaves.current.set(item, chave);
+    return chave;
+  }
+  const trocar = (i: number, novo: ItemTexto) => onChange(itens.map((x, k) => {
+    if (k !== i) return x;
+    const atualizado = limpar(novo);
+    chaves.current.set(atualizado, chaveDe(x));
+    return atualizado;
+  }));
   const mover = (i: number, d: -1 | 1) => {
     const j = i + d;
     if (j < 0 || j >= itens.length) return;
-    const c = [...itens];
-    [c[i], c[j]] = [c[j], c[i]];
-    onChange(c);
+    onChange(moverNaLista(itens, i, j));
   };
   const remover = (i: number) => onChange(itens.filter((_, k) => k !== i));
   const adicionar = (item: ItemTexto) => onChange([...itens, item]);
@@ -65,9 +78,10 @@ export function EditorBlocos({
     <div className="space-y-2">
       {itens.length === 0 && <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">Nenhum bloco. Use os botões abaixo para adicionar parágrafo, lista ou imagem.</p>}
 
-      {itens.map((item, i) => (
-        <div key={i} className="space-y-1.5 rounded-lg border border-border p-2">
+      <ListaOrdenavel itens={itens} idDe={chaveDe} onMover={(origem, destino) => onChange(moverNaLista(itens, origem, destino))} render={(item, i, alca) => (
+        <div className="space-y-1.5 rounded-lg border border-border p-2">
           <div className="flex items-center justify-between gap-2">
+            {alca}
             <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               {item.tipo === "paragraph" ? "Parágrafo" : item.tipo === "bullets" ? "Lista (um item por linha)" : "Imagem"}
             </span>
@@ -114,10 +128,10 @@ export function EditorBlocos({
             <div className="flex items-center gap-3">
               {imagemDe(item.id) ? (
                 <>
-                  <img src={imagemDe(item.id)!.url} alt={imagemDe(item.id)!.alt} className="h-16 w-24 rounded border border-border bg-white object-contain" />
+                  <img src={imagemDe(item.id)?.url} alt={imagemDe(item.id)?.alt} className="h-16 w-24 rounded border border-border bg-white object-contain" />
                   <div className="min-w-0 text-xs">
-                    <p className="font-medium">{imagemDe(item.id)!.nome}</p>
-                    <p className="text-muted-foreground">{imagemDe(item.id)!.legenda || "Sem legenda"} · Biblioteca de imagens</p>
+                    <p className="font-medium">{imagemDe(item.id)?.nome}</p>
+                    <p className="text-muted-foreground">{imagemDe(item.id)?.legenda || "Sem legenda"} · Biblioteca de imagens</p>
                   </div>
                 </>
               ) : (
@@ -126,7 +140,7 @@ export function EditorBlocos({
             </div>
           )}
         </div>
-      ))}
+      )} />
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <Button variant="secondary" onClick={() => adicionar({ tipo: "paragraph", texto: "" })}>
