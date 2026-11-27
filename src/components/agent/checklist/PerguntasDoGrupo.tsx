@@ -33,7 +33,7 @@ export function PerguntasDoGrupo({ etapa, perguntas, state, update, casoId, toke
   // linhas de conferência, não como campos em branco para digitar de novo.
   const [editandoCadastro, setEditandoCadastro] = useState<Record<string, boolean>>({});
   const ehDadoDoCadastro = (p: ChecklistPerguntaDTO) =>
-    !!p.resposta?.doCadastro && !["foto", "audio", "video"].includes(p.tipo);
+    !!p.resposta?.doCadastro && !["foto", "carrossel", "audio", "video"].includes(p.tipo);
 
   const formatarValor = (v: string) => {
     const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);

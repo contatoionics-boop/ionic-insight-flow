@@ -180,7 +180,7 @@ export const getEstadoVistoria = createServerFn({ method: "POST" })
         ? {
             perguntaId: ultima.pergunta_id,
             perguntaTexto: (ultima.pergunta as { texto?: string } | null)?.texto ?? "Resposta anterior",
-            valor: ultima.valor_texto || ultima.transcricao || (ultima.arquivos_paths?.length ? (ultima.tipo === "foto" ? resumoMidias(ultima.arquivos_paths) : `${ultima.arquivos_paths.length} anexo(s)`) : ultima.arquivo_path ? "Anexo enviado" : "Registrada"),
+            valor: ultima.valor_texto || ultima.transcricao || (ultima.arquivos_paths?.length ? (ultima.tipo === "foto" || (ultima.tipo as string) === "carrossel" ? resumoMidias(ultima.arquivos_paths) : `${ultima.arquivos_paths.length} anexo(s)`) : ultima.arquivo_path ? "Anexo enviado" : "Registrada"),
             tipo: ultima.tipo,
             criadoEm: ultima.criado_em,
           }
@@ -351,6 +351,8 @@ const SalvarBlocoInput = z.object({
         arquivosPaths: z.array(z.string()).optional(),
         /** pergunta de foto: remove o vídeo anexado */
         removerVideo: z.boolean().optional(),
+        /** carrossel: a lista enviada substitui as fotos salvas (permite remover) */
+        substituirArquivos: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -385,7 +387,7 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
         continue;
       }
       const temConteudo =
-        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo;
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo || !!r.substituirArquivos;
       if (!temConteudo) continue;
 
       const res = await execSalvarResposta(casoId, ctx, {
@@ -394,6 +396,7 @@ export const salvarRespostasBloco = createServerFn({ method: "POST" })
         ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
         ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
         ...(r.removerVideo ? { remover_video: true } : {}),
+        ...(r.substituirArquivos ? { substituir_arquivos: true } : {}),
       });
       if (!res.ok) {
         erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });
@@ -684,6 +687,8 @@ const SalvarEtapaInput = z.object({
         arquivosPaths: z.array(z.string()).optional(),
         /** pergunta de foto: remove o vídeo anexado */
         removerVideo: z.boolean().optional(),
+        /** carrossel: a lista enviada substitui as fotos salvas (permite remover) */
+        substituirArquivos: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -714,7 +719,7 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
         continue;
       }
       const temConteudo =
-        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo;
+        !!r.valorTexto?.trim() || !!r.transcricao?.trim() || !!r.arquivosPaths?.length || !!r.removerVideo || !!r.substituirArquivos;
       if (!temConteudo) continue;
 
       const res = await execSalvarResposta(casoId, ctx, {
@@ -723,6 +728,7 @@ export const salvarRespostasEtapa = createServerFn({ method: "POST" })
         ...(r.transcricao?.trim() ? { transcricao: r.transcricao.trim() } : {}),
         ...(r.arquivosPaths?.length ? { arquivos_paths: r.arquivosPaths } : {}),
         ...(r.removerVideo ? { remover_video: true } : {}),
+        ...(r.substituirArquivos ? { substituir_arquivos: true } : {}),
       });
       if (!res.ok) {
         erros.push({ perguntaId: r.perguntaId, motivo: res.motivo ?? "Falha ao salvar." });

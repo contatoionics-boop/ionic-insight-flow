@@ -93,7 +93,7 @@ export const extrairCamposDaFala = createServerFn({ method: "POST" })
     const model = createOpenAIProvider()("gpt-4o-mini");
 
     const lista = data.perguntas
-      .filter((p) => !["foto", "video", "audio"].includes(p.tipo))
+      .filter((p) => !["foto", "carrossel", "video", "audio"].includes(p.tipo))
       .map(
         (p) =>
           `- id=${p.id} | ${p.texto} | tipo=${p.tipo}${p.opcoes.length ? ` | opções: ${p.opcoes.join(" / ")}` : ""}`,

@@ -63,7 +63,8 @@ export const createFormFromDraft = createServerFn({ method: "POST" })
           .insert({
             secao_id: secao.id,
             texto: perg.texto,
-            tipo: perg.tipo,
+            // o enum gerado do banco ainda não lista 'carrossel' (migration 20261127200000)
+            tipo: perg.tipo as any,
             obrigatoria: perg.obrigatoria ?? true,
             ordem: pi,
             contexto_ia: perg.contexto_ia ?? null,

@@ -44,6 +44,12 @@ export function combinarArquivosFoto(
   return { arquivos: video ? [...imagens, video] : imagens, arquivoPath: imagens[0] ?? null, temImagem: imagens.length > 0 };
 }
 
+/** Carrossel de fotos: quantidade mínima de imagens para a pergunta valer como respondida. */
+export const MIN_FOTOS_CARROSSEL = 2;
+
+/** Tipos de pergunta que guardam imagens (foto avulsa e carrossel). */
+export const ehTipoDeFoto = (tipo: string | null | undefined) => tipo === "foto" || tipo === "carrossel";
+
 /** "3 fotos + 1 vídeo", "1 foto", "1 vídeo" (para resumos e contagens). */
 export function resumoMidias(paths: (string | null | undefined)[]): string {
   const { imagens, videos } = separarMidias(paths);

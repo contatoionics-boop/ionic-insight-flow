@@ -217,7 +217,7 @@ export function AgentChat({ token, casoId, onFinalized }: Props) {
   const [fotosBuffer, setFotosBuffer] = useState<string[]>([]);
   // Vídeo opcional da mesma pergunta de foto (um só): segue junto das fotos quando o usuário continua.
   const [videoFotoBuffer, setVideoFotoBuffer] = useState<string | null>(null);
-  const isFotoPergunta = estado?.proximaPerguntaTipo === "foto";
+  const isFotoPergunta = estado?.proximaPerguntaTipo === "foto" || estado?.proximaPerguntaTipo === "carrossel";
   const isVideoPergunta = estado?.proximaPerguntaTipo === "video";
   const aguardandoMaisFotos = isFotoPergunta && fotosBuffer.length > 0;
 

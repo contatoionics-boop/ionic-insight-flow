@@ -16,6 +16,7 @@ Estrutura do formulário:
   - "selecao_unica": uma alternativa dentre opções (deve ter campo "opcoes")
   - "toggle": Sim/Não
   - "checkbox": confirmação simples
+  - "carrossel": várias fotos na mesma pergunta (o agente envia no mínimo 2 imagens)
   - "foto": foto que será analisada por IA — use "contexto_ia" para descrever o que a IA deve verificar
   - "audio": áudio que será transcrito
 

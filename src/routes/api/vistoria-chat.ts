@@ -93,7 +93,7 @@ export const Route = createFileRoute("/api/vistoria-chat")({
             const permitido = (p: string) => p.startsWith(`casos/${casoId}/`) && !p.includes("..");
             const arquivos = [...(unica ? [unica] : []), ...varias, videoFotoMatch[1]].filter(permitido);
             if (arquivos.length) await execSalvarResposta(casoId, ctx, { pergunta_id: pendenciaAtual.id, arquivos_paths: arquivos });
-          } else if (!["foto", "video"].includes(tipo) && !textoAtual.startsWith("[ANEXO_")) {
+          } else if (!["foto", "carrossel", "video"].includes(tipo) && !textoAtual.startsWith("[ANEXO_")) {
             await execSalvarResposta(casoId, ctx, {
               pergunta_id: pendenciaAtual.id,
               ...(tipo === "audio" ? { transcricao: textoAtual } : { valor_texto: textoAtual }),

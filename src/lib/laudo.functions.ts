@@ -501,7 +501,7 @@ export const listarFotosLaudo = createServerFn({ method: "POST" })
       .from("respostas_agente")
       .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto), entidade:escopo_entidades(rotulo)")
       .eq("caso_id", data.casoId)
-      .in("tipo", ["foto", "video"]);
+      .in("tipo", ["foto", "carrossel", "video"]);
     if (error) throw new Error(error.message);
 
     const itens: { path: string; legenda: string }[] = [];

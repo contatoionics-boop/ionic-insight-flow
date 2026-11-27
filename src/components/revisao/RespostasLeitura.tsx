@@ -73,7 +73,7 @@ function valoresMultiplos(v: string): string[] {
 
 function respondida(p: LeituraPergunta, r?: LeituraResposta) {
   if (!r) return false;
-  if (["foto", "video", "audio"].includes(p.tipo)) {
+  if (["foto", "carrossel", "video", "audio"].includes(p.tipo)) {
     return arquivosDe(r).length > 0 || !!r.transcricao?.trim() || !!r.valor_texto?.trim();
   }
   return !!r.valor_texto?.trim();
@@ -89,7 +89,7 @@ function SemResposta() {
 
 /** true quando a pergunta precisa da largura total da grade */
 function larga(p: LeituraPergunta, r?: LeituraResposta) {
-  if (["foto", "video", "audio", "tabela", "table", "assinatura"].includes(p.tipo)) return true;
+  if (["foto", "carrossel", "video", "audio", "tabela", "table", "assinatura"].includes(p.tipo)) return true;
   const texto = (r?.valor_texto ?? "").trim();
   const transcricao = (r?.transcricao ?? "").trim();
   if (texto.length > 140 || transcricao.length > 140) return true;
@@ -130,8 +130,8 @@ function Resposta({
   const bruto = (r?.valor_texto ?? "").trim();
   const texto = bruto && !ehCaminhoArquivo(bruto) ? bruto : "";
 
-  if (p.tipo === "foto") {
-    // pergunta de foto: a grade mostra só imagens; o vídeo opcional da mesma pergunta fica num player abaixo
+  if (p.tipo === "foto" || p.tipo === "carrossel") {
+    // pergunta de foto ou carrossel: a grade mostra só imagens; o vídeo opcional da mesma pergunta fica num player abaixo
     const { imagens, videos } = separarMidias(arquivos);
     return (
       <div className="mt-2 space-y-2">

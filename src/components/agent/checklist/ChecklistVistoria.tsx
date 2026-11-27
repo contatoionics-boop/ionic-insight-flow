@@ -176,6 +176,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
             (r.transcription ?? "") !== (b?.transcription ?? "") ||
             (r.filePath ?? "") !== (b?.filePath ?? "") ||
             (r.videoPath ?? "") !== (b?.videoPath ?? "") ||
+            (r.fotos ?? []).map((f) => f.path).join("|") !== (b?.fotos ?? []).map((f) => f.path).join("|") ||
             !!r.removerVideo !== !!b?.removerVideo ||
             (r.audioPath ?? "") !== (b?.audioPath ?? "");
           if (mudou) sujosRef.current.add(id);
@@ -308,15 +309,19 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
           (p) => !caminhoPendente(p) && !(p === r.videoPath && fotoPendente),
         );
         const removerVideo = !!r.removerVideo && !r.videoPath && !fotoPendente;
+        // carrossel: a lista inteira substitui a salva (assim remover uma foto funciona)
+        const carrossel = r.fotos !== undefined;
+        if (carrossel) arquivos.push(...r.fotos!.map((f) => f.path).filter((p) => !caminhoPendente(p)));
         return {
           perguntaId: id,
+          ...(carrossel ? { substituirArquivos: true } : {}),
           ...(r.text?.trim() ? { valorTexto: r.text.trim() } : {}),
           ...(r.transcription?.trim() ? { transcricao: r.transcription.trim() } : {}),
           ...(arquivos.length ? { arquivosPaths: arquivos } : {}),
           ...(removerVideo ? { removerVideo: true } : {}),
         };
       })
-      .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths || r.removerVideo);
+      .filter((r) => r.valorTexto || r.transcricao || r.arquivosPaths || r.removerVideo || r.substituirArquivos);
     if (respostas.length === 0) {
       sujosRef.current.clear();
       return true;
@@ -356,7 +361,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     () =>
       aoUploadConcluir((path) => {
         for (const [id, r] of Object.entries(stateRef.current)) {
-          if (r.filePath === path || r.videoPath === path || r.audioPath === path) sujosRef.current.add(id);
+          if (r.filePath === path || r.videoPath === path || r.audioPath === path || r.fotos?.some((f) => f.path === path)) sujosRef.current.add(id);
         }
         void persistir();
       }),
@@ -491,7 +496,7 @@ export function ChecklistVistoria({ token, casoId, onFinalized, onTrocarModo }: 
     // Reenvia tudo que está preenchido localmente: garante que o servidor
     // enxergue exatamente o mesmo estado do checklist antes de validar.
     for (const [id, r] of Object.entries(stateRef.current)) {
-      if (r.text?.trim() || r.transcription?.trim() || r.filePath || r.audioPath) {
+      if (r.text?.trim() || r.transcription?.trim() || r.filePath || r.audioPath || r.fotos?.length) {
         sujosRef.current.add(id);
       }
     }

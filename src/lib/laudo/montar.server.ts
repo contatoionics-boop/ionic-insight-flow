@@ -169,7 +169,7 @@ export async function carregarFotosTransferencia(supabase: any, casoId: string):
     .from("respostas_agente")
     .select("arquivo_path, arquivos_paths, tipo, pergunta:perguntas(texto)")
     .eq("caso_id", casoId)
-    .eq("tipo", "foto");
+    .in("tipo", ["foto", "carrossel"]);
   if (error) return [];
   const escolhidas = new Map<import("@/lib/laudo/secoes/transferencia").TipoFotoTransferencia, string>();
   for (const r of (data ?? []) as any[]) {

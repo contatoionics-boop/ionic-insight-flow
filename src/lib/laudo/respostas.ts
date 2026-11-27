@@ -42,7 +42,7 @@ function formatarData(s: string): string {
   return s;
 }
 
-const TIPOS_ARQUIVO = new Set(["foto", "video"]);
+const TIPOS_ARQUIVO = new Set(["foto", "carrossel", "video"]);
 
 /** Texto utilizável de uma resposta, considerando o tipo da pergunta. */
 export function valorDaResposta(r: RespostaBrutaDb): string | null {

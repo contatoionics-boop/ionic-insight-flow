@@ -42,6 +42,7 @@ type TipoPergunta =
   | "texto"
   | "numero"
   | "foto"
+  | "carrossel"
   | "video"
   | "audio"
   | "checkbox"
@@ -59,6 +60,7 @@ const TIPOS: { value: TipoPergunta; label: string }[] = [
   { value: "toggle", label: "Sim / Não" },
   { value: "checkbox", label: "Confirmação" },
   { value: "foto", label: "Foto (com IA, vídeo opcional)" },
+  { value: "carrossel", label: "Carrossel de fotos (mínimo 2 imagens)" },
   { value: "video", label: "Vídeo" },
   { value: "audio", label: "Áudio (transcrição)" },
 ];
@@ -257,7 +259,7 @@ function FormBuilderPage() {
       .insert({
         secao_id: secaoId,
         texto: "Nova pergunta",
-        tipo: "texto" as TipoPergunta,
+        tipo: "texto" as any,
         obrigatoria: true,
         ordem,
       })
@@ -802,7 +804,7 @@ function PropertiesPanel({
     };
   }, [pergunta.id]);
 
-  const mostraContexto = tipo === "foto" || tipo === "video" || tipo === "audio";
+  const mostraContexto = tipo === "foto" || tipo === "carrossel" || tipo === "video" || tipo === "audio";
   const mostraOpcoes = tipo === "selecao_unica" || tipo === "multipla_escolha";
 
   const addOpcao = () =>
@@ -822,7 +824,7 @@ function PropertiesPanel({
       .from("perguntas")
       .update({
         texto,
-        tipo,
+        tipo: tipo as any,
         obrigatoria,
         contexto_ia: mostraContexto ? contextoIa || null : null,
         chave_laudo: chaveLaudo || null,

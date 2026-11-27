@@ -146,7 +146,7 @@ export const getResumoRespostas = createServerFn({ method: "POST" })
         (r?.valor_texto && r.valor_texto.trim()) ||
         (r?.transcricao && r.transcricao.trim()) ||
         // pergunta de foto: "2 fotos + 1 vídeo"; os demais tipos seguem a contagem simples
-        (arquivos > 0 ? (p.tipo === "foto" ? `${resumoMidias(caminhos)} enviado(s)` : `${arquivos} arquivo(s) enviado(s)`) : null);
+        (arquivos > 0 ? (p.tipo === "foto" || p.tipo === "carrossel" ? `${resumoMidias(caminhos)} enviado(s)` : `${arquivos} arquivo(s) enviado(s)`) : null);
       return {
         perguntaId: p.id,
         secao: p.secao_titulo,

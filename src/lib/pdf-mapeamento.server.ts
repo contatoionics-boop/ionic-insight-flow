@@ -929,7 +929,7 @@ export async function buildMapeamentoPdf(input: PdfBuildInput): Promise<Uint8Arr
     const grupos: Grupo[] = [];
     for (const p of perguntas) {
       const cat: Grupo["tipo"] =
-        p.tipo === "foto" ? "fotos" : p.tipo === "audio" ? "audio" : "campos";
+        p.tipo === "foto" || p.tipo === "carrossel" ? "fotos" : p.tipo === "audio" ? "audio" : "campos";
       if (!FIELD_TYPES.has(p.tipo) && cat === "campos") {
         // tipo desconhecido — trata como campo
       }

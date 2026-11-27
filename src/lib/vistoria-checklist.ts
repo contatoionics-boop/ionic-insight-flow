@@ -39,6 +39,10 @@ export function estadoInicial(dados: ChecklistVistoriaDTO): Record<string, Respo
       if (r.texto) resposta.text = r.texto;
       if (r.arquivos.length) {
         if (p.tipo === "audio") resposta.audioPath = r.arquivos[0];
+        else if (p.tipo === "carrossel") {
+          // carrossel: todas as imagens salvas, na ordem
+          resposta.fotos = separarMidias(r.arquivos).imagens.map((path, i) => ({ path, name: `foto-${i + 1}` }));
+        }
         else if (p.tipo === "foto") {
           // pergunta de foto: a primeira imagem é a foto; o vídeo opcional da mesma pergunta vem junto em `arquivos`
           const { imagens, videos } = separarMidias(r.arquivos);
@@ -87,6 +91,7 @@ export function respondida(p: ChecklistPerguntaDTO, r: Resposta | undefined): bo
   return !!(
     r.text?.trim() ||
     r.filePath ||
+    r.fotos?.length ||
     r.audioPath ||
     r.transcription?.trim()
   );

@@ -408,6 +408,10 @@ function ResumoResposta({ pergunta, resposta }: { pergunta: Pergunta; resposta: 
       </div>
     ) : <p className="text-sm">Sem vídeo</p>;
   }
+  if (pergunta.tipo === "carrossel") {
+    const n = (resposta.fotos ?? []).length;
+    return <p className="text-sm">{n} {n === 1 ? "foto" : "fotos"} no carrossel</p>;
+  }
   if (pergunta.tipo === "foto") {
     return (
       <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@
 // Loads form/state, builds system prompt, executes tools.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
-import { combinarArquivosFoto } from "@/lib/midia-arquivos";
+import { MIN_FOTOS_CARROSSEL, combinarArquivosFoto, separarMidias } from "@/lib/midia-arquivos";
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso, comTentativas, migrationAusente } from "@/lib/escopo/gerar.server";
@@ -451,7 +451,9 @@ export function perguntasVisiveis(ctx: AgentContext): AgentPergunta[] {
  * Fonte única da verdade: uma pergunta só é considerada respondida quando há
  * texto não vazio, arquivo, lista de arquivos ou transcrição.
  */
-export function estaRespondida(r: AgentResposta | undefined): boolean {
+export function estaRespondida(r: AgentResposta | undefined, tipo?: string): boolean {
+  // carrossel de fotos: só vale com o mínimo de imagens
+  if (tipo === "carrossel") return separarMidias(r?.arquivos_paths ?? (r?.arquivo_path ? [r.arquivo_path] : [])).imagens.length >= MIN_FOTOS_CARROSSEL;
   return !!(
     (r?.valor_texto && r.valor_texto.trim()) ||
     r?.arquivo_path ||
@@ -486,7 +488,7 @@ export type Pendencias = {
 /** Recalcula pendências a partir do estado atual do contexto. */
 export function calcularPendencias(ctx: AgentContext): Pendencias {
   const visiveis = perguntasVisiveis(ctx);
-  const resp = (p: AgentPergunta) => estaRespondida(ctx.state[p.id]);
+  const resp = (p: AgentPergunta) => estaRespondida(ctx.state[p.id], p.tipo);
   const obrigatorias = visiveis.filter((p) => p.obrigatoria);
   const pendentes = visiveis.filter((p) => !resp(p));
   const pendentesObrigatorias = pendentes.filter((p) => p.obrigatoria);
@@ -696,7 +698,7 @@ function chaveProposta(pergunta: AgentPergunta): string | null {
   return null;
 }
 
-const TIPOS_NAO_PREENCHIVEIS = new Set(["foto", "video", "audio", "checkbox"]);
+const TIPOS_NAO_PREENCHIVEIS = new Set(["foto", "carrossel", "video", "audio", "checkbox"]);
 
 /**
  * Persiste dados cadastrais inequívocos antes de iniciar a conversa.
@@ -711,7 +713,7 @@ export async function sincronizarCadastro(
 
   for (const pergunta of ctx.perguntas) {
     const atual = ctx.state[pergunta.id];
-    const jaRespondida = estaRespondida(atual);
+    const jaRespondida = estaRespondida(atual, pergunta.tipo);
 
     // Já preenchida antes pelo cadastro e ainda pendente de confirmação.
     if (jaRespondida && atual?.origem_cadastro) {
@@ -804,7 +806,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
   const visiveis = perguntasVisiveis(ctx);
   const flat = visiveis.map((p) => {
     const resp = ctx.state[p.id];
-    const respondida = estaRespondida(resp);
+    const respondida = estaRespondida(resp, p.tipo);
 
     return {
       pergunta_id: p.id,
@@ -930,6 +932,7 @@ export function buildSystemPrompt(ctx: AgentContext): string {
     `- Faça **uma pergunta por vez**, reformulando o texto cru de forma natural e clara. Não leia o texto da pergunta literalmente — explique o que precisa.`,
     `- **Blocos agrupados:** quando a próxima pendência pertence a um bloco (campo \`bloco\` no JSON abaixo), a interface exibe um cartão com TODOS os campos do bloco de uma vez e o agente técnico preenche tudo junto. Nesse caso, anuncie o bloco em uma frase curta (ex.: \"Vamos registrar os dados da Bomba.\") e NÃO repita as perguntas campo a campo nem chame \`salvar_resposta\` — o cartão salva sozinho. Quando receber a mensagem \"[BLOCO_SALVO ...]\", apenas confirme brevemente e siga para a próxima pendência.`,
     `- Para perguntas tipo "foto", peça que o agente técnico anexe a imagem pelo botão de câmera.`,
+    `- Perguntas tipo "carrossel" pedem VÁRIAS fotos (no mínimo 2): peça uma por vez pelo botão de câmera e só considere a pergunta respondida com 2 ou mais.`,
     `- Para perguntas tipo "audio", aceite a transcrição enviada como texto.`,
     `- Para perguntas com \`opcoes\`, apresente as opções numeradas.`,
     `- **Aceite respostas em batch:** se o usuário fornecer várias informações numa só mensagem, chame \`salvar_resposta\` várias vezes — uma por pergunta — antes de fazer a próxima.`,
@@ -972,6 +975,8 @@ export async function execSalvarResposta(
     transcricao?: string;
     /** pergunta de foto: apaga o vídeo anexado (o vídeo é um só e vive em `arquivos_paths`) */
     remover_video?: boolean;
+    /** carrossel: a lista enviada substitui as fotos salvas (o checklist envia a lista inteira) */
+    substituir_arquivos?: boolean;
   },
   opts?: { origemCadastro?: boolean; confirmadoCadastro?: boolean },
 ): Promise<{ ok: boolean; motivo?: string; estado_pos_salvamento?: { obrigatorias_faltando: number; total_obrigatorias: number; respondidas_obrigatorias: number; proxima_pergunta_id: string | null; pode_finalizar: boolean } }> {
@@ -993,6 +998,13 @@ export async function execSalvarResposta(
     const comb = combinarArquivosFoto(antes, [...incomingList, ...incomingSingle], { removerVideo: input.remover_video });
     arquivos_paths = comb.arquivos;
     arquivo_path = comb.arquivoPath;
+  } else if (p.tipo === "carrossel") {
+    // Carrossel: só imagens. Pelo checklist a lista enviada substitui a salva; pelo chat cada foto se soma às anteriores.
+    const antes = existente?.arquivos_paths?.length ? existente.arquivos_paths : existente?.arquivo_path ? [existente.arquivo_path] : [];
+    const novas = [...incomingList, ...incomingSingle];
+    const lista = input.substituir_arquivos ? novas : [...antes, ...novas];
+    arquivos_paths = [...new Set(separarMidias(lista).imagens)];
+    arquivo_path = arquivos_paths[0] ?? null;
   } else {
     arquivos_paths = [...incomingList, ...incomingSingle];
     arquivo_path = arquivos_paths[0] ?? input.arquivo_path ?? null;
@@ -1002,6 +1014,9 @@ export async function execSalvarResposta(
   // Type-specific validation
   if (p.tipo === "foto" && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo foto exige ao menos uma foto (o vídeo só pode ser anexado depois da foto)." };
+  }
+  if (p.tipo === "carrossel" && !arquivo_path && !input.substituir_arquivos) {
+    return { ok: false, motivo: `Pergunta tipo carrossel exige fotos (no mínimo ${MIN_FOTOS_CARROSSEL}).` };
   }
   if (p.tipo === "video" && !arquivo_path) {
     return { ok: false, motivo: "Pergunta tipo vídeo exige arquivo_path." };

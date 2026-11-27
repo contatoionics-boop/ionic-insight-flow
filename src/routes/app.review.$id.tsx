@@ -369,7 +369,7 @@ function ReviewCasePage() {
     let lista = listaOriginal;
     if (!caseData) return;
     // pergunta de foto: imagens primeiro e depois o vídeo (um só); `arquivo_path` é a primeira imagem
-    lista = tipo === "foto" ? ordenarMidias(lista) : lista;
+    lista = tipo === "foto" || tipo === "carrossel" ? ordenarMidias(lista) : lista;
     const patch = {
       arquivos_paths: lista,
       arquivo_path: lista[0] ?? null,
@@ -435,7 +435,7 @@ function ReviewCasePage() {
       const existentes = arquivosDe(respostas[perguntaId]);
       const partes = separarMidias(existentes);
       const atual =
-        tipo === "foto"
+        tipo === "foto" || tipo === "carrossel"
           ? soVideo ? partes.imagens : substituirTudo ? partes.videos : existentes
           : substituirTudo || tipo === "video" ? [] : existentes;
       const lista = [...atual, ...novos];
@@ -693,7 +693,7 @@ function ReviewCasePage() {
                         </div>
                       )}
 
-                      {p.tipo === "foto" && (() => {
+                      {(p.tipo === "foto" || p.tipo === "carrossel") && (() => {
                         const midias = separarMidias(arquivosDe(r));
                         const fotoList: string[] = midias.imagens;
                         const videoFoto: string | undefined = midias.videos[0];
@@ -863,7 +863,7 @@ function ReviewCasePage() {
                       )}
 
 
-                      {!["texto", "selecao_unica", "audio", "foto", "video"].includes(p.tipo) && (
+                      {!["texto", "selecao_unica", "audio", "foto", "carrossel", "video"].includes(p.tipo) && (
                         <div className="mt-2 space-y-2">
                           <Input
                             value={r?.valor_texto ?? ""}

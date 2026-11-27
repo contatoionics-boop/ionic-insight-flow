@@ -140,7 +140,7 @@ export const gerarPdfMapeamento = createServerFn({ method: "POST" })
     // 8) Baixar fotos do bucket privado (signed URLs)
     const arquivoPaths: string[] = [];
     for (const p of perguntasExp) {
-      if (p.tipo === "foto") {
+      if (p.tipo === "foto" || p.tipo === "carrossel") {
         const r = respostasMap.get(p.id);
         const paths: string[] = Array.isArray(r?.arquivos_paths) && r.arquivos_paths.length
           ? r.arquivos_paths

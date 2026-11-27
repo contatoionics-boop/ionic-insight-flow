@@ -225,6 +225,8 @@ export function FormRunner({
 
 function motivoPendencia(p: Pergunta, r: Resposta, mode: RendererMode, validarImagensIa: boolean = true): string {
   switch (p.tipo) {
+    case "carrossel":
+      return `envie no mínimo 2 fotos (há ${(r.fotos ?? []).length})`;
     case "foto":
       if (!r.filePath && !r.filePreview) return "envie uma foto";
       if (mode === "live" && validarImagensIa && !r.ia) return "aguardando validação da IA";
@@ -309,6 +311,10 @@ function renderResumo(p: Pergunta, r: Resposta) {
         <span>Vídeo enviado</span>
       </div>
     ) : <span className="text-xs text-muted-foreground">Sem vídeo.</span>;
+  }
+  if (p.tipo === "carrossel") {
+    const n = (r.fotos ?? []).length;
+    return n ? <span className="text-sm">{n} {n === 1 ? "foto" : "fotos"}</span> : <span className="text-xs text-muted-foreground">Sem fotos.</span>;
   }
   if (p.tipo === "foto") {
     return r.filePath ? (

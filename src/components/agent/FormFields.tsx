@@ -39,7 +39,7 @@ import {
   traduzirErroRede,
   useFilaUploads,
 } from "@/lib/midia-upload";
-import { EXT_VIDEO } from "@/lib/midia-arquivos";
+import { EXT_VIDEO, MIN_FOTOS_CARROSSEL } from "@/lib/midia-arquivos";
 import { fetchUFs, fetchMunicipios, type UF, type Municipio } from "@/lib/ibge";
 import { detectarCampo, valorParaCampo, type CampoMapeado } from "@/lib/perguntas-mapeamento";
 import { buscarPorCnpj, type BuscarPorCnpjResult } from "@/lib/cnpj-cache.functions";
@@ -148,6 +148,7 @@ export type TipoPergunta =
   | "texto"
   | "numero"
   | "foto"
+  | "carrossel"
   | "video"
   | "audio"
   | "checkbox"
@@ -185,6 +186,8 @@ export type Resposta = {
   filePath?: string;
   fileName?: string;
   filePreview?: string;
+  /** carrossel de fotos: as imagens enviadas, na ordem (no mínimo MIN_FOTOS_CARROSSEL) */
+  fotos?: { path: string; name: string; preview?: string }[];
   /** pergunta de foto: vídeo opcional da mesma pergunta (um só); vai junto da foto em `arquivos_paths` */
   videoPath?: string;
   videoName?: string;
@@ -231,6 +234,8 @@ export function isComplete(
       if (r.ia.status === "parcial" && !r.iaConfirmada) return false;
       return true;
 
+    case "carrossel":
+      return (r.fotos ?? []).length >= MIN_FOTOS_CARROSSEL;
     case "video":
       return mode === "preview" ? !!r.filePreview : !!r.filePath;
     case "audio":
@@ -283,7 +288,7 @@ export function PerguntaBloco({
       {pergunta.instrucao_agente && (
         <p className="mb-3 text-xs text-muted-foreground">{pergunta.instrucao_agente}</p>
       )}
-      {mode === "preview" && pergunta.contexto_ia && (pergunta.tipo === "foto" || pergunta.tipo === "audio") && (
+      {mode === "preview" && pergunta.contexto_ia && (pergunta.tipo === "foto" || pergunta.tipo === "carrossel" || pergunta.tipo === "audio") && (
         <p className="mb-3 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Contexto IA:</span> {pergunta.contexto_ia}
         </p>
@@ -414,6 +419,10 @@ export function PerguntaBloco({
 
       {pergunta.tipo === "foto" && (
         <CampoFoto pergunta={pergunta} casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} validarImagensIa={validarImagensIa} />
+      )}
+
+      {pergunta.tipo === "carrossel" && (
+        <CampoCarrossel casoId={casoId} token={token} resposta={resposta} update={update} mode={mode} />
       )}
 
       {pergunta.tipo === "video" && (
@@ -1054,6 +1063,190 @@ function CampoFoto({
           />
         </div>
       )}
+      {err && <p className="text-xs text-destructive">{err}</p>}
+      {oferecerNativa && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full"
+          onClick={() => {
+            setOferecerNativa(false);
+            setErr(null);
+            cameraRef.current?.click();
+          }}
+        >
+          <Camera className="h-4 w-4" /> Tentar a câmera do aparelho
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Uma foto do carrossel: miniatura com botão de remover. */
+function MiniaturaCarrossel({
+  foto,
+  indice,
+  casoId,
+  token,
+  mode,
+  aoRemover,
+  desabilitado,
+}: {
+  foto: { path: string; name: string; preview?: string };
+  indice: number;
+  casoId: string;
+  token: string;
+  mode: RendererMode;
+  aoRemover: () => void;
+  desabilitado: boolean;
+}) {
+  const url = useUrlArquivo(foto.path, foto.preview, casoId, token, mode);
+  const fila = useFilaUploads();
+  const pendente = fila.pendentes.includes(foto.path);
+  return (
+    <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted/30">
+      {url ? (
+        <img src={url} alt={`Foto ${indice + 1}`} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full items-center justify-center px-1 text-center text-[10px] text-muted-foreground">{pendente ? "Guardada no aparelho" : "Foto salva"}</div>
+      )}
+      <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-[10px] font-semibold">{indice + 1}</span>
+      <button
+        type="button"
+        onClick={aoRemover}
+        disabled={desabilitado}
+        aria-label={`Remover foto ${indice + 1}`}
+        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-destructive shadow disabled:opacity-50"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Carrossel de fotos: várias imagens na mesma pergunta (câmera ou galeria), cada uma removível.
+ * Só vale como respondido com no mínimo MIN_FOTOS_CARROSSEL imagens.
+ */
+function CampoCarrossel({
+  casoId,
+  token,
+  resposta,
+  update,
+  mode,
+}: {
+  casoId: string;
+  token: string;
+  resposta: Resposta;
+  update: (patch: Partial<Resposta>) => void;
+  mode: RendererMode;
+}) {
+  const fotos = resposta.fotos ?? [];
+  // lista mais recente (envios em sequência não podem usar a lista "congelada" do render)
+  const fotosRef = useRef(fotos);
+  fotosRef.current = fotos;
+  const [uploading, setUploading] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galeriaRef = useRef<HTMLInputElement>(null);
+  const [cameraAppAberta, setCameraAppAberta] = useState(false);
+  const [oferecerNativa, setOferecerNativa] = useState(false);
+
+  const gravar = (lista: { path: string; name: string; preview?: string }[]) => {
+    fotosRef.current = lista;
+    update({ fotos: lista });
+  };
+
+  const abrirCamera = () => {
+    setErr(null);
+    setOferecerNativa(false);
+    if (cameraDoAppDisponivel()) setCameraAppAberta(true);
+    else cameraRef.current?.click();
+  };
+
+  const enviar = async (file: File) => {
+    if (!file.size) return setErr("A foto selecionada está vazia. Tente novamente.");
+    if (file.size > LIMITE_FOTO_BYTES) return setErr("A foto deve ter no máximo 25 MB.");
+    if (file.type && !file.type.startsWith("image/")) return setErr("Selecione um arquivo de imagem.");
+    if (mode === "preview") {
+      gravar([...fotosRef.current, { path: `preview-${crypto.randomUUID()}`, name: file.name, preview: URL.createObjectURL(file) }]);
+      return;
+    }
+    setUploading(true);
+    setProgresso(0);
+    try {
+      const prep = await prepararImagem(file);
+      const ext = prep.tipo === "image/jpeg" ? "jpg" : prep.nome.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `casos/${casoId}/${crypto.randomUUID()}.${ext}`;
+      await enviarArquivo({ path, blob: prep.blob, contentType: prep.tipo, onProgress: setProgresso });
+      gravar([...fotosRef.current, { path, name: prep.nome, preview: URL.createObjectURL(prep.blob) }]);
+    } catch (e) {
+      setErr(traduzirErroRede(e, "Erro ao processar a foto."));
+    } finally {
+      setUploading(false);
+      setProgresso(0);
+    }
+  };
+
+  const aoEscolher = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivos = [...(e.target.files ?? [])];
+    e.target.value = "";
+    setErr(null);
+    for (const f of arquivos) await enviar(f);
+  };
+
+  const remover = (i: number) => {
+    const f = fotosRef.current[i];
+    if (!f) return;
+    if (f.preview?.startsWith("blob:")) URL.revokeObjectURL(f.preview);
+    void descartarArquivo(f.path);
+    gravar(fotosRef.current.filter((_, k) => k !== i));
+  };
+
+  const faltam = Math.max(0, MIN_FOTOS_CARROSSEL - fotos.length);
+  return (
+    <div className="space-y-3">
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={aoEscolher} />
+      <input ref={galeriaRef} type="file" accept="image/*" multiple className="hidden" onChange={aoEscolher} />
+      {cameraAppAberta && (
+        <CameraCaptura
+          onFechar={() => setCameraAppAberta(false)}
+          onCapturar={(arquivo) => {
+            setCameraAppAberta(false);
+            void enviar(arquivo);
+          }}
+          onErro={(motivo) => {
+            setCameraAppAberta(false);
+            setErr(motivo);
+            setOferecerNativa(true);
+          }}
+        />
+      )}
+
+      <p className={`text-sm ${faltam ? "text-warning-foreground" : "text-muted-foreground"}`}>
+        {fotos.length} {fotos.length === 1 ? "foto" : "fotos"} no carrossel
+        {faltam ? ` — adicione mais ${faltam} (mínimo de ${MIN_FOTOS_CARROSSEL} imagens)` : ""}
+      </p>
+
+      {fotos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {fotos.map((f, i) => (
+            <MiniaturaCarrossel key={f.path} foto={f} indice={i} casoId={casoId} token={token} mode={mode} desabilitado={uploading} aoRemover={() => remover(i)} />
+          ))}
+        </div>
+      )}
+
+      {uploading && <BarraProgresso pct={progresso} rotulo={progresso === 0 ? "Preparando foto…" : "Enviando foto…"} />}
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" onClick={abrirCamera} className="h-12" disabled={uploading}>
+          <Camera className="h-4 w-4" /> Tirar foto
+        </Button>
+        <Button type="button" variant="outline" onClick={() => galeriaRef.current?.click()} className="h-12" disabled={uploading}>
+          <Images className="h-4 w-4" /> Galeria
+        </Button>
+      </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
       {oferecerNativa && (
         <Button
