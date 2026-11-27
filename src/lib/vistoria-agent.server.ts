@@ -6,6 +6,7 @@ import { MIN_FOTOS_CARROSSEL, combinarArquivosFoto, separarMidias } from "@/lib/
 import { registrarEvento } from "@/lib/eventos.server";
 import { expandirPerguntas, idInstancia } from "@/lib/escopo/expandir";
 import { carregarEstruturaDoCaso, comTentativas, migrationAusente } from "@/lib/escopo/gerar.server";
+import { rotuloDeQualquerOpcao } from "@/lib/opcoes-agendamento";
 import { resumoRfid, rotuloSolucao, type ConfigEscopo, type EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type BlocoLayout = "cartao" | "matriz" | "fotos";
@@ -144,6 +145,9 @@ export async function validarExecutorCaso(casoId: string, userId: string): Promi
 }
 
 export async function loadAgentContext(casoId: string): Promise<AgentContext> {
+  // nomes configurados em Opções do agendamento (tipo de solicitação, modalidade, nível, solução)
+  const { carregarOpcoesAgendamento } = await import("@/lib/opcoes-agendamento.server");
+  await carregarOpcoesAgendamento();
   const { data: caso, error: cErr } = await supabaseAdmin
     .from("casos")
     .select(
@@ -219,15 +223,8 @@ export async function loadAgentContext(casoId: string): Promise<AgentContext> {
     });
   }
 
-  const rotulosEnum: Record<string, string> = {
-    instalacao: "Instalação",
-    upgrade: "Upgrade",
-    presencial: "Presencial",
-    remoto: "Remoto",
-    nivel_1: "Nível 1",
-    nivel_2: "Nível 2",
-    nivel_3: "Nível 3",
-  };
+  // o nome configurado vale; valor desconhecido segue como veio
+  const rotulosEnum = new Proxy({} as Record<string, string>, { get: (_, valor: string) => rotuloDeQualquerOpcao(valor) ?? undefined });
   const tipoSolicitacao = (caso as any).tipo_solicitacao as string | null;
   const modalidade = (caso as any).modalidade as string | null;
   const nivel = (caso as any).nivel as string | null;
@@ -751,7 +748,7 @@ export async function sincronizarCadastro(
         return kp ? ctx.proposta?.[kp] : undefined;
       })();
     if (!bruto) continue;
-    const valor = ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
+    const valor = rotuloDeQualquerOpcao(bruto) ?? ROTULOS_ENUM_LAUDO[bruto] ?? bruto;
 
 
 

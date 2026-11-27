@@ -32,6 +32,7 @@ import { Route as AppFormsAssistantRouteImport } from './routes/app.forms-assist
 import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppMinhasVistoriasRouteImport } from './routes/app.minhas-vistorias'
 import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
+import { Route as AppOpcoesAgendamentoRouteImport } from './routes/app.opcoes-agendamento'
 import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppPromptsRouteImport } from './routes/app.prompts'
 import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
@@ -165,6 +166,11 @@ const AppNewCaseRoute = AppNewCaseRouteImport.update({
   path: '/new-case',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOpcoesAgendamentoRoute = AppOpcoesAgendamentoRouteImport.update({
+  id: '/opcoes-agendamento',
+  path: '/opcoes-agendamento',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOutputsRoute = AppOutputsRouteImport.update({
   id: '/outputs',
   path: '/outputs',
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
+  '/app/opcoes-agendamento': typeof AppOpcoesAgendamentoRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
@@ -316,6 +323,7 @@ export interface FileRoutesByTo {
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
+  '/app/opcoes-agendamento': typeof AppOpcoesAgendamentoRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/app/history': typeof AppHistoryRoute
   '/app/minhas-vistorias': typeof AppMinhasVistoriasRoute
   '/app/new-case': typeof AppNewCaseRoute
+  '/app/opcoes-agendamento': typeof AppOpcoesAgendamentoRoute
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
@@ -403,6 +412,7 @@ export interface FileRouteTypes {
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
+    | '/app/opcoes-agendamento'
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
+    | '/app/opcoes-agendamento'
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
@@ -485,6 +496,7 @@ export interface FileRouteTypes {
     | '/app/history'
     | '/app/minhas-vistorias'
     | '/app/new-case'
+    | '/app/opcoes-agendamento'
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
@@ -679,6 +691,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNewCaseRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/opcoes-agendamento': {
+      id: '/app/opcoes-agendamento'
+      path: '/opcoes-agendamento'
+      fullPath: '/app/opcoes-agendamento'
+      preLoaderRoute: typeof AppOpcoesAgendamentoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/outputs': {
       id: '/app/outputs'
       path: '/outputs'
@@ -848,6 +867,7 @@ interface AppRouteChildren {
   AppHistoryRoute: typeof AppHistoryRoute
   AppMinhasVistoriasRoute: typeof AppMinhasVistoriasRoute
   AppNewCaseRoute: typeof AppNewCaseRoute
+  AppOpcoesAgendamentoRoute: typeof AppOpcoesAgendamentoRoute
   AppOutputsRoute: typeof AppOutputsRoute
   AppPromptsRoute: typeof AppPromptsRoute
   AppReviewQueueRoute: typeof AppReviewQueueRoute
@@ -877,6 +897,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppHistoryRoute: AppHistoryRoute,
   AppMinhasVistoriasRoute: AppMinhasVistoriasRoute,
   AppNewCaseRoute: AppNewCaseRoute,
+  AppOpcoesAgendamentoRoute: AppOpcoesAgendamentoRoute,
   AppOutputsRoute: AppOutputsRoute,
   AppPromptsRoute: AppPromptsRoute,
   AppReviewQueueRoute: AppReviewQueueRoute,

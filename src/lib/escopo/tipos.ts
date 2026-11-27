@@ -1,6 +1,7 @@
 // Modelo da estrutura física do Escopo. Código puro (client-safe): a interface
 // (accordion hoje, wizard no futuro) só produz/edita uma `ArvoreEscopo`; o motor
 // de geração e o banco nunca conhecem a interface.
+import { rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { CATALOGO_PADRAO, SLUG_TIPO, ehChaveValida, rotuloDoTipo, type TipoCatalogo } from "./catalogo-tipos";
 
 export type TipoEntidade =
@@ -79,7 +80,8 @@ export type FrotaItemArvore = { modelo: string; quantidade: number; info?: strin
 export type ItemEscopo = { nome?: string; filhos?: FilhosArvore };
 
 /** Solução contratada escolhida no agendamento. */
-export type SolucaoEscopo = "ssg_frota" | "on_premise";
+export type SolucaoEscopo = string;
+/** Soluções padrão; as opções reais (nomes, ocultas, novas) vêm de Configurações › Opções do agendamento. */
 export const SOLUCOES_ESCOPO: { value: SolucaoEscopo; label: string }[] = [
   { value: "ssg_frota", label: "SSGFROTA" },
   { value: "on_premise", label: "On-premise" },
@@ -221,7 +223,7 @@ export function configTemDados(c: ConfigEscopo | null | undefined): boolean {
 
 export function rotuloSolucao(s: string | null | undefined): string | null {
   if (!s) return null;
-  return SOLUCOES_ESCOPO.find((x) => x.value === s)?.label ?? s;
+  return rotuloOpcao("solucao", s) ?? s;
 }
 
 /** Comboio com seus tanques e bicos (como a bomba tem bicos). */

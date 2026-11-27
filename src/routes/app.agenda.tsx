@@ -1,3 +1,4 @@
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -77,6 +78,7 @@ function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours
 function endOfMonth(d: Date) { const x = new Date(d); x.setMonth(x.getMonth() + 1, 0); x.setHours(23, 59, 59, 999); return x; }
 
 function AgendaPage() {
+  useOpcoesAgendamento(); // nomes configurados no resumo do atendimento
   const carregar = useServerFn(listarAgendaAdmin);
   const carregarAgentes = useServerFn(listTechnicalAgents);
   const cancelar = useServerFn(cancelarVistoria);

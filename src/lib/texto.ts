@@ -1,3 +1,4 @@
+import { rotuloOpcao } from "@/lib/opcoes-agendamento";
 // Helpers puros de saneamento de texto usados na proposta e no laudo.
 
 // MacRoman 0x80..0xFF — usado para desfazer mojibake de PDFs cujo texto foi
@@ -75,7 +76,10 @@ const ROTULO_MODALIDADE: Record<string, string> = {
 
 export function rotuloTipoAcao(v: string | null | undefined): string | null {
   const s = limparTexto(v).toLowerCase();
-  return s ? (ROTULO_TIPO_ACAO[s] ?? s) : null;
+  if (!s) return null;
+  // nome configurado em Opções do agendamento (em minúsculas, como o texto corrido do documento)
+  const cfg = rotuloOpcao("tipo_solicitacao", s);
+  return ROTULO_TIPO_ACAO[s] && cfg === s ? ROTULO_TIPO_ACAO[s] : cfg ? cfg.toLocaleLowerCase("pt-BR") : (ROTULO_TIPO_ACAO[s] ?? s);
 }
 
 /** Nome oficial da solução: "SSGFROTA" (tudo junto, maiúsculo), qualquer que seja a grafia de origem. */
@@ -85,7 +89,9 @@ export function padronizarSolucao(texto: string): string {
 
 export function rotuloModalidade(v: string | null | undefined): string | null {
   const s = limparTexto(v).toLowerCase();
-  return s ? (ROTULO_MODALIDADE[s] ?? s) : null;
+  if (!s) return null;
+  const cfg = rotuloOpcao("modalidade", s);
+  return cfg ? cfg.toLocaleLowerCase("pt-BR") : (ROTULO_MODALIDADE[s] ?? s);
 }
 
 const PALAVRAS_CATALOGO =

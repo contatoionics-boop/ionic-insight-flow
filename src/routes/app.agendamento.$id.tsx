@@ -1,3 +1,4 @@
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -54,6 +55,7 @@ function fmtData(iso: string | null) {
 
 
 function AgendamentoDetalhe() {
+  useOpcoesAgendamento(); // nomes configurados no resumo do atendimento
   const { id } = Route.useParams();
   const obter = useServerFn(obterAgendamento);
   const adicionar = useServerFn(adicionarFormularioAoAgendamento);

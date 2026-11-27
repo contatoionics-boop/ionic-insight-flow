@@ -4,7 +4,7 @@
 // Tabelas AUTOMÁTICAS: 1 linha por entidade, sem linhas em branco; cada linha guarda o `entidadeId`
 // (a identidade da linha é a entidade, nunca o texto gerado). Dado ausente vira [CONFIRMAR], nunca é inventado.
 
-import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
+import { rotuloSolucao } from "@/lib/escopo/tipos";
 import type { BombaCtx, ComboioCtx, ContextoLaudo } from "@/lib/laudo/contexto";
 import { pendencia, type BlocoLaudo, type VariaveisLaudo } from "@/lib/laudo/tipos";
 
@@ -138,7 +138,7 @@ export function blocosProjeto(entrada: {
   const e = contexto.escopo;
   const blocos: BlocoLaudo[] = [{ id: id("h"), chave: "projeto:titulo", tipo: "heading", numero: "2", texto: "Projeto", nivel: 1, ...CHAVE_TABELA } as BlocoLaudo];
 
-  const solucao = e.solucao ? (SOLUCOES_ESCOPO.find((s) => s.value === e.solucao)?.label ?? e.solucao) : pendencia("solucao", "solução contratada (SSGFrota ou On-premise)");
+  const solucao = e.solucao ? (rotuloSolucao(e.solucao) ?? e.solucao) : pendencia("solucao", "solução contratada (SSGFrota ou On-premise)");
   blocos.push(tabela(id("t"), "projeto:solucao", "SOLUÇÃO", ["Solução"], [{ celulas: [solucao] } as Linha]));
 
   if (e.temPista) {

@@ -26,6 +26,8 @@ import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -64,9 +66,9 @@ type AgendamentoDraft = {
   formQtd?: Record<string, number>;
   agentId: string;
   agenteNomeManual: string;
-  tipoSolicitacao: "instalacao" | "upgrade";
-  modalidade: "presencial" | "remoto";
-  nivel: "nivel_1" | "nivel_2" | "nivel_3";
+  tipoSolicitacao: string;
+  modalidade: string;
+  nivel: string;
   data: string;
   hora: string;
   endereco: string;
@@ -180,9 +182,10 @@ function NewCasePage() {
   const [mostrarOutrosClientes, setMostrarOutrosClientes] = useState(false);
   const [agentId, setAgentId] = useState("");
   const [agenteNomeManual, setAgenteNomeManual] = useState("");
-  const [tipoSolicitacao, setTipoSolicitacao] = useState<"instalacao" | "upgrade">("instalacao");
-  const [modalidade, setModalidade] = useState<"presencial" | "remoto">("presencial");
-  const [nivel, setNivel] = useState<"nivel_1" | "nivel_2" | "nivel_3">("nivel_1");
+  const [tipoSolicitacao, setTipoSolicitacao] = useState<string>("instalacao");
+  const [modalidade, setModalidade] = useState<string>("presencial");
+  const [nivel, setNivel] = useState<string>("nivel_1");
+  const opcoesAg = useOpcoesAgendamento();
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
   const [endereco, setEndereco] = useState("");
@@ -808,8 +811,11 @@ function NewCasePage() {
             <div>
               <Label>Tipo de solicitação</Label>
               <Select value={tipoSolicitacao} onChange={(e) => setTipoSolicitacao(e.target.value as any)} required>
-                <option value="instalacao">Instalação</option>
-                <option value="upgrade">Upgrade</option>
+                {opcoesDoCampo("tipo_solicitacao", { todas: opcoesAg, incluir: [tipoSolicitacao] }).map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.rotulo}
+                  </option>
+                ))}
               </Select>
             </div>
             <div>
@@ -817,22 +823,27 @@ function NewCasePage() {
               <Select
                 value={modalidade}
                 onChange={(e) => {
-                  const v = e.target.value as "presencial" | "remoto";
+                  const v = e.target.value;
                   setModalidade(v);
                   if (v === "presencial") setAgenteNomeManual("");
                 }}
                 required
               >
-                <option value="presencial">Presencial</option>
-                <option value="remoto">Remoto</option>
+                {opcoesDoCampo("modalidade", { todas: opcoesAg, incluir: [modalidade] }).map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.rotulo}
+                  </option>
+                ))}
               </Select>
             </div>
             <div>
               <Label>Nível do mapeamento</Label>
               <Select value={nivel} onChange={(e) => setNivel(e.target.value as any)} required>
-                <option value="nivel_1">Nível 1</option>
-                <option value="nivel_2">Nível 2</option>
-                <option value="nivel_3">Nível 3</option>
+                {opcoesDoCampo("nivel", { todas: opcoesAg, incluir: [nivel] }).map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.rotulo}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>

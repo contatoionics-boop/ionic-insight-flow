@@ -6,8 +6,10 @@ import { Badge, Button, Card, Input, Modal } from "@/components/ui-bits";
 import { EditorBlocos } from "@/components/laudo/EditorBlocos";
 import { semMarcas } from "@/lib/laudo/texto-formatado";
 import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
-import { NIVEIS_REGRA, SOLUCOES_REGRA, lerRegra, opcoesExigencia, rotuloExigencia, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
+import { lerRegra, opcoesExigencia, rotuloExigencia, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import type { TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import {
   INFO_SLOT,
@@ -59,8 +61,8 @@ const SEM_ORIGINAL: Partial<Record<SlotTexto, string>> = {
 function condicaoEmTexto(escopo: Record<string, any> | null, catalogo?: TipoCatalogo[]): string {
   const r = lerRegra(escopo);
   const partes: string[] = [];
-  if (r.solucao.length) partes.push(r.solucao.map((s) => SOLUCOES_REGRA.find((x) => x.valor === s)?.rotulo ?? s).join(" ou "));
-  if (r.nivel.length) partes.push(r.nivel.map((n) => NIVEIS_REGRA.find((x) => x.valor === n)?.rotulo ?? n).join(" ou "));
+  if (r.solucao.length) partes.push(r.solucao.map((s) => rotuloOpcao("solucao", s) ?? s).join(" ou "));
+  if (r.nivel.length) partes.push(r.nivel.map((n) => rotuloOpcao("nivel", n) ?? n).join(" ou "));
   if (r.exige.length) partes.push(`com ${r.exige.map((x) => rotuloExigencia(x, catalogo)).join(" e ")}`);
   return partes.length ? partes.join(" · ") : "qualquer mapeamento";
 }
@@ -68,6 +70,7 @@ function condicaoEmTexto(escopo: Record<string, any> | null, catalogo?: TipoCata
 /** Textos fixos do documento com versões: o especialista salva, duplica e define qual vale como padrão. */
 export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoPadrao[]; onAlterou: () => void | Promise<void>; imagens: ImagemBiblioteca[] }) {
   const catalogoTipos = useTiposEscopo();
+  const opcoesAg = useOpcoesAgendamento();
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
   const [form, setForm] = useState<Form | null>(null);
@@ -268,8 +271,8 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
               </p>
               {form.padrao && (
                 <>
-                  <Grupo titulo="Solução" opcoes={SOLUCOES_REGRA.map((o) => [o.valor, o.rotulo])} marcados={form.regra.solucao} onMarcar={(v, l) => marcar("solucao", v, l)} />
-                  <Grupo titulo="Nível de serviço" opcoes={NIVEIS_REGRA.map((o) => [o.valor, o.rotulo])} marcados={form.regra.nivel} onMarcar={(v, l) => marcar("nivel", v, l)} />
+                  <Grupo titulo="Solução" opcoes={opcoesDoCampo("solucao", { todas: opcoesAg, incluir: form.regra.solucao }).map((o) => [o.valor, o.rotulo])} marcados={form.regra.solucao} onMarcar={(v, l) => marcar("solucao", v, l)} />
+                  <Grupo titulo="Nível de serviço" opcoes={opcoesDoCampo("nivel", { todas: opcoesAg, incluir: form.regra.nivel }).map((o) => [o.valor, o.rotulo])} marcados={form.regra.nivel} onMarcar={(v, l) => marcar("nivel", v, l)} />
                   <Grupo
                     titulo="Só quando o Escopo tiver"
                     opcoes={opcoesExigencia(catalogoTipos, form.regra.exige).map((o) => [o.valor, o.rotulo])}

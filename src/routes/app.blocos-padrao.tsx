@@ -9,6 +9,8 @@ import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
 import { BibliotecaImagens, imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 import { lerSlot } from "@/lib/laudo/textos-padrao";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   excluirBlocoPadrao,
@@ -17,11 +19,9 @@ import {
   type BlocoPadrao,
 } from "@/lib/blocos-padrao.functions";
 import {
-  NIVEIS_REGRA,
   POSICOES_BLOCO,
   opcoesExigencia,
   ROTULO_POSICAO,
-  SOLUCOES_REGRA,
   lerRegra,
   resumoDaRegra,
   type RegraBlocoPadrao,
@@ -84,6 +84,7 @@ function corpoDosBlocos(b: BlocoPadrao): string {
 
 function BlocosPadraoPage() {
   const catalogoTipos = useTiposEscopo();
+  const opcoesAg = useOpcoesAgendamento();
   const fnListar = useServerFn(listarBlocosPadrao);
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
@@ -323,13 +324,13 @@ function BlocosPadraoPage() {
                 </div>
                 <GrupoMarcas
                   titulo="Solução"
-                  opcoes={SOLUCOES_REGRA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                  opcoes={opcoesDoCampo("solucao", { todas: opcoesAg, incluir: form.regra.solucao }).map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
                   marcados={form.regra.solucao}
                   onChange={(solucao) => setForm({ ...form, regra: { ...form.regra, solucao } })}
                 />
                 <GrupoMarcas
                   titulo="Nível de serviço"
-                  opcoes={NIVEIS_REGRA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                  opcoes={opcoesDoCampo("nivel", { todas: opcoesAg, incluir: form.regra.nivel }).map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
                   marcados={form.regra.nivel}
                   onChange={(nivel) => setForm({ ...form, regra: { ...form.regra, nivel } })}
                 />

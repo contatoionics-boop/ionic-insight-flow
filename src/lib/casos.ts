@@ -33,21 +33,25 @@ export const statusTones: Record<CaseStatus, string> = {
   cancelado: "bg-destructive/15 text-destructive",
 };
 
-export type TipoSolicitacao = "instalacao" | "upgrade";
-export type ModalidadeAtendimento = "presencial" | "remoto";
-export type NivelMapeamento = "nivel_1" | "nivel_2" | "nivel_3";
+import { rotuloOpcao } from "@/lib/opcoes-agendamento";
 
-export const tipoSolicitacaoLabels: Record<TipoSolicitacao, string> = {
+// Os valores vêm de Configurações › Opções do agendamento (podem ser criados lá): são só texto.
+export type TipoSolicitacao = string;
+export type ModalidadeAtendimento = string;
+export type NivelMapeamento = string;
+
+/** Nomes padrão (valem quando a tabela de opções não está disponível). Os nomes configurados vêm de `rotuloOpcao`. */
+export const tipoSolicitacaoLabels: Record<string, string> = {
   instalacao: "Instalação",
   upgrade: "Upgrade",
 };
 
-export const modalidadeLabels: Record<ModalidadeAtendimento, string> = {
+export const modalidadeLabels: Record<string, string> = {
   presencial: "Presencial",
   remoto: "Remoto",
 };
 
-export const nivelLabels: Record<NivelMapeamento, string> = {
+export const nivelLabels: Record<string, string> = {
   nivel_1: "Nível 1",
   nivel_2: "Nível 2",
   nivel_3: "Nível 3",
@@ -59,9 +63,9 @@ export function resumoAtendimento(opts: {
   nivel?: string | null;
 }) {
   return [
-    opts.tipo_solicitacao ? tipoSolicitacaoLabels[opts.tipo_solicitacao as TipoSolicitacao] : null,
-    opts.modalidade ? modalidadeLabels[opts.modalidade as ModalidadeAtendimento] : null,
-    opts.nivel ? nivelLabels[opts.nivel as NivelMapeamento] : null,
+    rotuloOpcao("tipo_solicitacao", opts.tipo_solicitacao),
+    rotuloOpcao("modalidade", opts.modalidade),
+    rotuloOpcao("nivel", opts.nivel),
   ]
     .filter(Boolean)
     .join(" · ");

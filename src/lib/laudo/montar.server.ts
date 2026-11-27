@@ -57,6 +57,9 @@ export function resolverInstancias(linhas: LinhaResposta[]) {
 }
 
 export async function carregarContextoLaudo(supabase: any, casoId: string) {
+  // nomes configurados em Opções do agendamento (aparecem no documento: modalidade, tipo de ação, solução…)
+  const { carregarOpcoesAgendamento } = await import("@/lib/opcoes-agendamento.server");
+  await carregarOpcoesAgendamento();
   const { data: caso, error } = await supabase
     .from("casos")
     .select(

@@ -84,9 +84,10 @@ const AgendarInput = z
     ),
     agenteId: z.string().uuid({ message: "Selecione o responsável pelo mapeamento." }),
     agenteNomeManual: z.string().max(200).optional().nullable(),
-    tipoSolicitacao: z.enum(["instalacao", "upgrade"]),
-    modalidade: z.enum(["presencial", "remoto"]),
-    nivel: z.enum(["nivel_1", "nivel_2", "nivel_3"]),
+    // valores das opções do agendamento (Configurações › Opções do agendamento); o banco valida o tipo
+    tipoSolicitacao: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+    modalidade: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+    nivel: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
     agendadoEm: z.string().min(1),
     duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
     enderecoVistoria: z.string().max(500).optional().nullable(),
@@ -173,9 +174,9 @@ async function criarCaso(opts: {
   formId: string;
   agenteId: string | null;
   agenteNomeManual?: string | null;
-  tipoSolicitacao?: "instalacao" | "upgrade";
-  modalidade?: "presencial" | "remoto";
-  nivel?: "nivel_1" | "nivel_2" | "nivel_3";
+  tipoSolicitacao?: string;
+  modalidade?: string;
+  nivel?: string;
   criadoPor: string;
   agendadoEm: string;
   duracaoMin: number;
@@ -190,9 +191,9 @@ async function criarCaso(opts: {
       formulario_id: opts.formId,
       agente_id: opts.agenteId,
       agente_nome_manual: opts.agenteNomeManual ?? null,
-      tipo_solicitacao: opts.tipoSolicitacao ?? "instalacao",
-      modalidade: opts.modalidade ?? "presencial",
-      nivel: opts.nivel ?? "nivel_1",
+      tipo_solicitacao: (opts.tipoSolicitacao ?? "instalacao") as any,
+      modalidade: (opts.modalidade ?? "presencial") as any,
+      nivel: (opts.nivel ?? "nivel_1") as any,
       criado_por: opts.criadoPor,
       status: "agendado",
       agendado_em: opts.agendadoEm,

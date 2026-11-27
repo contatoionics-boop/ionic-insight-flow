@@ -12,7 +12,7 @@ import { blocosNivel2, ehNivel2 } from "./blocos-nivel2";
 import type { ContextoLaudo } from "./contexto";
 import { blocosProjeto } from "./secoes/projeto";
 import { solucaoContratada } from "./solucao";
-import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
+import { rotuloSolucao } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { blocosComboio } from "./secoes/comboio";
@@ -160,7 +160,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   const modalidadeTexto = raw(vars, "modalidade");
   // a solução do Escopo (dado estruturado) manda; o nome textual só vale quando o Escopo não a define
   const solucaoEscopo = entrada.contexto?.escopo.solucao
-    ? (SOLUCOES_ESCOPO.find((s) => s.value === entrada.contexto?.escopo.solucao)?.label ?? entrada.contexto.escopo.solucao)
+    ? (rotuloSolucao(entrada.contexto.escopo.solucao) ?? entrada.contexto.escopo.solucao)
     : null;
   const nomeSolucao = solucaoEscopo ?? v(vars, "nome_solucao", "nome da solução");
   const origemDados =

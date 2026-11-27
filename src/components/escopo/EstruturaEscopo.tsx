@@ -6,11 +6,12 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import { parsearItemProposta } from "@/lib/laudo/produtos-proposta";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { filhosDoTipo, pluralDoTipo, rotuloDoTipo, tipoVisivel, tiposNovos, tiposRaiz } from "@/lib/escopo/catalogo-tipos";
 import {
   CONEXOES_DADOS,
   LIMITES,
-  SOLUCOES_ESCOPO,
   pad2,
   resumoRfid,
   rotuloEntidade,
@@ -47,6 +48,7 @@ export function EstruturaEscopo({
   const set = (patch: Partial<ArvoreEscopo>) => onChange({ ...value, ...patch });
   // nomes dos tipos (configuráveis em Configurações › Tipos de item)
   const catalogo = useTiposEscopo();
+  const opcoesAg = useOpcoesAgendamento();
   const lab = (chave: string) => rotuloDoTipo(catalogo, chave);
   const plural = (chave: string) => pluralDoTipo(catalogo, chave).toLocaleLowerCase("pt-BR");
   // itens simples dos tipos novos que aparecem no escopo (ativos, ou que já têm itens cadastrados)
@@ -97,9 +99,9 @@ export function EstruturaEscopo({
                 className="h-9 w-56 rounded-md border border-border bg-background px-3 text-sm"
               >
                 <option value="">Não informada</option>
-                {SOLUCOES_ESCOPO.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
+                {opcoesDoCampo("solucao", { todas: opcoesAg, incluir: [config.solucao] }).map((s) => (
+                  <option key={s.valor} value={s.valor}>
+                    {s.rotulo}
                   </option>
                 ))}
               </select>
@@ -696,7 +698,7 @@ export function EstruturaEscopo({
           <p className="mb-2 font-medium text-foreground">Resumo da estrutura</p>
           {config.solucao && (
             <p className="mb-1 text-foreground">
-              Solução: {SOLUCOES_ESCOPO.find((s) => s.value === config.solucao)?.label ?? config.solucao}
+              Solução: {rotuloOpcao("solucao", config.solucao, opcoesAg) ?? config.solucao}
             </p>
           )}
           <p className="mb-2 text-muted-foreground">

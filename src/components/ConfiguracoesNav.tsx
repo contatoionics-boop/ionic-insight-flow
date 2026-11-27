@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Building2, Users, Sparkles, Send, BookOpen, Package, LayoutTemplate, Cpu, Layers } from "lucide-react";
+import { Building2, Users, Sparkles, Send, BookOpen, Package, LayoutTemplate, Cpu, Layers, ListChecks } from "lucide-react";
 
 const items = [
   { to: "/app/configuracoes", label: "Empresa", icon: Building2 },
@@ -10,6 +10,7 @@ const items = [
   { to: "/app/catalogo-equipamentos", label: "Catálogo de equipamentos", icon: Cpu },
   { to: "/app/blocos-padrao", label: "Blocos padrão", icon: LayoutTemplate },
   { to: "/app/tipos-escopo", label: "Tipos de item", icon: Layers },
+  { to: "/app/opcoes-agendamento", label: "Opções do agendamento", icon: ListChecks },
   { to: "/app/outputs", label: "Saídas", icon: Send },
 ];
 

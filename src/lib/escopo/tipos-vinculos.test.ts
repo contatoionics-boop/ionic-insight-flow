@@ -149,6 +149,10 @@ describe("blocos padrão: 'Só quando o Escopo tiver' com tipos novos", () => {
     const c = mesclarCatalogo([{ chave: "predio", rotulo: "Prédio" }, { chave: "oculto", rotulo: "Oculto", ativo: false }]);
     expect(opcoesExigencia(c).map((o) => o.valor)).toEqual(["pista", "comboio", "rfid", "tx", "frota", "predio"]);
     expect(opcoesExigencia(c, ["oculto"]).map((o) => o.valor)).toContain("oculto");
+    // tipo que fica dentro de outro não é opção (a menos que já esteja marcado)
+    const c2 = mesclarCatalogo([{ chave: "predio", rotulo: "Prédio" }, { chave: "andar", rotulo: "Andar", pai: "predio" }]);
+    expect(opcoesExigencia(c2).map((o) => o.valor)).toEqual(["pista", "comboio", "rfid", "tx", "frota", "predio"]);
+    expect(opcoesExigencia(c2, ["andar"]).map((o) => o.valor)).toContain("andar");
   });
 
   it("atende quando há item do tipo em qualquer nível; não atende sem ele", () => {

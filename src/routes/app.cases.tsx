@@ -1,3 +1,4 @@
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -29,6 +30,7 @@ const STATUS_OPCOES: CaseStatus[] = [
 ];
 
 function CasesPage() {
+  useOpcoesAgendamento(); // nomes configurados no resumo do atendimento
   const navigate = useNavigate();
   const listar = useServerFn(listarMapeamentosComProgresso);
   const loadAgents = useServerFn(listTechnicalAgents);

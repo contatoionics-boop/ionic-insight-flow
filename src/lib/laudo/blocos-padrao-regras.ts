@@ -6,6 +6,7 @@
 // Condição vazia em um campo = "qualquer". Todos os campos preenchidos precisam ser atendidos.
 
 import type { ContextoLaudo } from "./contexto";
+import { rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { SLUG_TIPO, rotuloDoTipo, tiposNovos, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import type { BlocoLaudo } from "./tipos";
 
@@ -36,7 +37,8 @@ export const rotuloExigencia = (x: Exigencia, catalogo?: TipoCatalogo[] | null):
 
 /** Opções de "Só quando o Escopo tiver": os itens fixos e os tipos novos (os ocultos só se já estiverem marcados). */
 export function opcoesExigencia(catalogo?: TipoCatalogo[] | null, marcados: string[] = []): { valor: string; rotulo: string }[] {
-  const novos = tiposNovos(catalogo).filter((t) => t.ativo || marcados.includes(t.chave));
+  // tipo que fica dentro de outro (tem pai) não vira opção: a condição vale pelo tipo de cima (a menos que já esteja marcado)
+  const novos = tiposNovos(catalogo).filter((t) => marcados.includes(t.chave) || (t.ativo && !t.pai));
   return [...EXIGENCIAS.map((x) => ({ valor: x as string, rotulo: ROTULO_EXIGENCIA[x] })), ...novos.map((t) => ({ valor: t.chave, rotulo: t.rotulo }))];
 }
 
@@ -89,8 +91,8 @@ export function regraParaEscopo(r: RegraBlocoPadrao): Record<string, any> {
 export function resumoDaRegra(r: RegraBlocoPadrao, catalogo?: TipoCatalogo[] | null): string {
   if (!r.automatico) return "Inserção manual";
   const partes: string[] = [];
-  if (r.solucao.length) partes.push(r.solucao.map((s) => SOLUCOES_REGRA.find((x) => x.valor === s)?.rotulo ?? s).join(" ou "));
-  if (r.nivel.length) partes.push(r.nivel.map((n) => NIVEIS_REGRA.find((x) => x.valor === n)?.rotulo ?? n).join(" ou "));
+  if (r.solucao.length) partes.push(r.solucao.map((s) => rotuloOpcao("solucao", s) ?? s).join(" ou "));
+  if (r.nivel.length) partes.push(r.nivel.map((n) => rotuloOpcao("nivel", n) ?? n).join(" ou "));
   if (r.exige.length) partes.push(`com ${r.exige.map((x) => rotuloExigencia(x, catalogo)).join(" e ")}`);
   if (r.posicao !== "antes_instrucoes") partes.push(r.posicao === "fim" ? "no fim" : "após a Introdução");
   return `Automático${partes.length ? `: ${partes.join(" · ")}` : ": em todos os documentos"}`;
