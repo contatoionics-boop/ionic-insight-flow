@@ -4,6 +4,7 @@ import { montarNavegacao, type ItemNav } from "./navegacao-entidades";
 import { arvoreDeEntidades, arvoreVazia, contarItensExtras, entidadesDesejadas, normalizarArvore, quantidadesDoEscopo, resumoArvore, type ArvoreEscopo, type EntidadeEscopo } from "./tipos";
 import { montarContextoLaudo } from "@/lib/laudo/contexto";
 import { blocosItensExtras } from "@/lib/laudo/secoes/itens-extras";
+import { lerRegra, opcoesExigencia, regraAtende, resumoDaRegra } from "@/lib/laudo/blocos-padrao-regras";
 
 const cat = mesclarCatalogo([
   { chave: "predio", rotulo: "Prédio", plural: "Prédios" },
@@ -136,5 +137,30 @@ describe("agente e documento com tipos dentro de outros", () => {
     const tabela = blocos.find((b: any) => b.chave === "extra:andar:tabela") as any;
     expect(tabela.colunas).toEqual(["Item", "Dentro de", "Área"]);
     expect(tabela.linhas[2].celulas).toEqual(["Andar 01", "Prédio 02", "12"]);
+  });
+});
+
+describe("blocos padrão: 'Só quando o Escopo tiver' com tipos novos", () => {
+  const ent2 = entidadesDaArvore(arvore());
+  const ctx = montarContextoLaudo({ entidades: ent2, arvore: arvore(), respostas: [], catalogo: cat });
+  const regra = (exige: string[]) => ({ automatico: true, solucao: [], nivel: [], exige, posicao: "antes_instrucoes" as const });
+
+  it("opções incluem os tipos novos; ocultos só se já marcados", () => {
+    const c = mesclarCatalogo([{ chave: "predio", rotulo: "Prédio" }, { chave: "oculto", rotulo: "Oculto", ativo: false }]);
+    expect(opcoesExigencia(c).map((o) => o.valor)).toEqual(["pista", "comboio", "rfid", "tx", "frota", "predio"]);
+    expect(opcoesExigencia(c, ["oculto"]).map((o) => o.valor)).toContain("oculto");
+  });
+
+  it("atende quando há item do tipo em qualquer nível; não atende sem ele", () => {
+    expect(regraAtende(regra(["sala"]), { nivel: null, contexto: ctx })).toBe(true);
+    expect(regraAtende(regra(["predio", "comboio"]), { nivel: null, contexto: ctx })).toBe(true);
+    expect(regraAtende(regra(["produto"]), { nivel: null, contexto: ctx })).toBe(false);
+    expect(regraAtende(regra(["sala"]), { nivel: null, contexto: null })).toBe(false);
+  });
+
+  it("lerRegra mantém tipo novo e resumo usa o nome do catálogo", () => {
+    const r = lerRegra({ automatico: true, exige: ["predio", "tx", "Inválido!"] });
+    expect(r.exige).toEqual(["predio", "tx"]);
+    expect(resumoDaRegra(r, cat)).toContain("Prédio e Telemetria TX");
   });
 });

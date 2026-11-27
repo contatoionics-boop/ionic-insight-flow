@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
-import { EXIGENCIAS, POSICOES_BLOCO, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
+import { POSICOES_BLOCO, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
 import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos, type ItemTexto } from "@/lib/laudo/textos-padrao";
 
 export type BlocoPadrao = {
@@ -65,7 +65,8 @@ const SalvarInput = z.object({
       automatico: z.boolean(),
       solucao: z.array(z.string()).default([]),
       nivel: z.array(z.string()).default([]),
-      exige: z.array(z.enum(EXIGENCIAS)).default([]),
+      /** itens fixos (pista, comboio, rfid, tx, frota) ou chave de um tipo novo do escopo */
+      exige: z.array(z.string().regex(/^[a-z][a-z0-9_]{1,40}$/)).default([]),
       /** onde o bloco adicional automático entra (padrão: antes das Instruções gerais) */
       posicao: z.enum(POSICOES_BLOCO).default("antes_instrucoes"),
     })

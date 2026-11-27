@@ -62,6 +62,8 @@ export type EscopoCtx = {
   qtdComboios: number;
   qtdTanquesLubrificante: number;
   qtdSondas: number;
+  /** quantos itens há de cada tipo novo (Prédio, Produto…), em qualquer nível; ausente em contextos antigos */
+  qtdPorTipo?: Record<string, number>;
   rfid: { ativo: boolean; quantidade: number; tecnologias: string[] };
   tx: { ativo: boolean; quantidade: number };
   frota: { ativa: boolean; tipos: { modelo: string; quantidade: number }[]; totalDiv: number };
@@ -189,6 +191,7 @@ export function montarContextoLaudo(entrada: {
     qtdComboios: comboios.length,
     qtdTanquesLubrificante: entrada.arvore.tanquesLubrificante.length,
     qtdSondas: entrada.arvore.sondas.length,
+    ...(novosEmOrdem.length ? { qtdPorTipo: novosEmOrdem.reduce<Record<string, number>>((m, e) => ({ ...m, [e.tipo]: (m[e.tipo] ?? 0) + 1 }), {}) } : {}),
     rfid: {
       ativo: !!cfg.rfid?.ativo || totalRfid(rfidItens) > 0,
       quantidade: totalRfid(rfidItens),
@@ -263,6 +266,9 @@ function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
     qtdComboios: comboios.length,
     qtdTanquesLubrificante: Math.max(ea.qtdTanquesLubrificante, eb.qtdTanquesLubrificante),
     qtdSondas: Math.max(ea.qtdSondas, eb.qtdSondas),
+    ...(ea.qtdPorTipo || eb.qtdPorTipo
+      ? { qtdPorTipo: Object.fromEntries([...new Set([...Object.keys(ea.qtdPorTipo ?? {}), ...Object.keys(eb.qtdPorTipo ?? {})])].map((k) => [k, Math.max(ea.qtdPorTipo?.[k] ?? 0, eb.qtdPorTipo?.[k] ?? 0)])) }
+      : {}),
     rfid: eb.rfid.quantidade > ea.rfid.quantidade ? eb.rfid : ea.rfid,
     tx: eb.tx.quantidade > ea.tx.quantidade ? eb.tx : ea.tx,
     frota: eb.frota.totalDiv > ea.frota.totalDiv ? eb.frota : ea.frota,

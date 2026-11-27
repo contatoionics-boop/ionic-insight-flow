@@ -8,6 +8,7 @@ import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
 import { BibliotecaImagens, imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 import { lerSlot } from "@/lib/laudo/textos-padrao";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   excluirBlocoPadrao,
@@ -16,10 +17,9 @@ import {
   type BlocoPadrao,
 } from "@/lib/blocos-padrao.functions";
 import {
-  EXIGENCIAS,
   NIVEIS_REGRA,
   POSICOES_BLOCO,
-  ROTULO_EXIGENCIA,
+  opcoesExigencia,
   ROTULO_POSICAO,
   SOLUCOES_REGRA,
   lerRegra,
@@ -83,6 +83,7 @@ function corpoDosBlocos(b: BlocoPadrao): string {
 }
 
 function BlocosPadraoPage() {
+  const catalogoTipos = useTiposEscopo();
   const fnListar = useServerFn(listarBlocosPadrao);
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
@@ -216,7 +217,7 @@ function BlocosPadraoPage() {
                   {b.nome}
                   <Badge className="bg-muted text-muted-foreground">{b.categoria}</Badge>
                   {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativo</Badge>}
-                  {lerRegra(b.escopo).automatico && <Badge className="bg-primary/10 text-primary">{resumoDaRegra(lerRegra(b.escopo))}</Badge>}
+                  {lerRegra(b.escopo).automatico && <Badge className="bg-primary/10 text-primary">{resumoDaRegra(lerRegra(b.escopo), catalogoTipos)}</Badge>}
                 </p>
                 {b.descricao && <p className="text-xs text-muted-foreground">{b.descricao}</p>}
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -334,7 +335,7 @@ function BlocosPadraoPage() {
                 />
                 <GrupoMarcas
                   titulo="Só quando o Escopo tiver"
-                  opcoes={EXIGENCIAS.map((x) => ({ valor: x, rotulo: ROTULO_EXIGENCIA[x] }))}
+                  opcoes={opcoesExigencia(catalogoTipos, form.regra.exige)}
                   marcados={form.regra.exige}
                   onChange={(exige) => setForm({ ...form, regra: { ...form.regra, exige: exige as RegraBlocoPadrao["exige"] } })}
                 />

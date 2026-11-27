@@ -6,12 +6,14 @@
 // Condição vazia em um campo = "qualquer". Todos os campos preenchidos precisam ser atendidos.
 
 import type { ContextoLaudo } from "./contexto";
+import { SLUG_TIPO, rotuloDoTipo, tiposNovos, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import type { BlocoLaudo } from "./tipos";
 
 export const EXIGENCIAS = ["pista", "comboio", "rfid", "tx", "frota"] as const;
-export type Exigencia = (typeof EXIGENCIAS)[number];
+/** Item do Escopo exigido: os fixos acima ou a chave de um tipo criado em Configurações › Tipos de item (ex.: "predio"). */
+export type Exigencia = (typeof EXIGENCIAS)[number] | (string & {});
 
-export const ROTULO_EXIGENCIA: Record<Exigencia, string> = {
+export const ROTULO_EXIGENCIA: Record<(typeof EXIGENCIAS)[number], string> = {
   pista: "Posto / pista",
   comboio: "Comboio",
   rfid: "Cartão RFID",
@@ -27,6 +29,16 @@ export const NIVEIS_REGRA = [
   { valor: "nivel_2", rotulo: "Nível 2" },
   { valor: "nivel_3", rotulo: "Nível 3" },
 ] as const;
+
+/** Nome da exigência: os fixos, ou o do tipo novo no catálogo. */
+export const rotuloExigencia = (x: Exigencia, catalogo?: TipoCatalogo[] | null): string =>
+  (ROTULO_EXIGENCIA as Record<string, string>)[x] ?? rotuloDoTipo(catalogo, x);
+
+/** Opções de "Só quando o Escopo tiver": os itens fixos e os tipos novos (os ocultos só se já estiverem marcados). */
+export function opcoesExigencia(catalogo?: TipoCatalogo[] | null, marcados: string[] = []): { valor: string; rotulo: string }[] {
+  const novos = tiposNovos(catalogo).filter((t) => t.ativo || marcados.includes(t.chave));
+  return [...EXIGENCIAS.map((x) => ({ valor: x as string, rotulo: ROTULO_EXIGENCIA[x] })), ...novos.map((t) => ({ valor: t.chave, rotulo: t.rotulo }))];
+}
 
 /** Onde o bloco adicional automático entra no documento. */
 export const POSICOES_BLOCO = ["apos_introducao", "antes_instrucoes", "fim"] as const;
@@ -56,7 +68,7 @@ export function lerRegra(escopo: Record<string, any> | null | undefined): RegraB
     automatico: e.automatico === true,
     solucao: lista(e.solucao),
     nivel: lista(e.nivel),
-    exige: lista(e.exige).filter((x): x is Exigencia => (EXIGENCIAS as readonly string[]).includes(x)),
+    exige: lista(e.exige).filter((x) => (EXIGENCIAS as readonly string[]).includes(x) || SLUG_TIPO.test(x)),
     posicao: (POSICOES_BLOCO as readonly string[]).includes(e.posicao) ? e.posicao : "antes_instrucoes",
   };
 }
@@ -74,12 +86,12 @@ export function regraParaEscopo(r: RegraBlocoPadrao): Record<string, any> {
 }
 
 /** Resumo legível da regra, para a lista de blocos padrão. */
-export function resumoDaRegra(r: RegraBlocoPadrao): string {
+export function resumoDaRegra(r: RegraBlocoPadrao, catalogo?: TipoCatalogo[] | null): string {
   if (!r.automatico) return "Inserção manual";
   const partes: string[] = [];
   if (r.solucao.length) partes.push(r.solucao.map((s) => SOLUCOES_REGRA.find((x) => x.valor === s)?.rotulo ?? s).join(" ou "));
   if (r.nivel.length) partes.push(r.nivel.map((n) => NIVEIS_REGRA.find((x) => x.valor === n)?.rotulo ?? n).join(" ou "));
-  if (r.exige.length) partes.push(`com ${r.exige.map((x) => ROTULO_EXIGENCIA[x]).join(" e ")}`);
+  if (r.exige.length) partes.push(`com ${r.exige.map((x) => rotuloExigencia(x, catalogo)).join(" e ")}`);
   if (r.posicao !== "antes_instrucoes") partes.push(r.posicao === "fim" ? "no fim" : "após a Introdução");
   return `Automático${partes.length ? `: ${partes.join(" · ")}` : ": em todos os documentos"}`;
 }
@@ -97,14 +109,15 @@ export function condicoesAtendidas(r: RegraBlocoPadrao, a: AvaliacaoRegra): bool
   const e = a.contexto?.escopo;
   if (r.solucao.length && (!e?.solucao || !r.solucao.includes(e.solucao))) return false;
   if (r.nivel.length && (!a.nivel || !r.nivel.includes(a.nivel))) return false;
-  const tem: Record<Exigencia, boolean> = {
+  const tem: Record<string, boolean> = {
     pista: !!e?.temPista,
     comboio: !!e?.temComboio,
     rfid: !!e?.rfid.ativo,
     tx: !!e?.tx.ativo,
     frota: !!e?.frota.ativa,
   };
-  return r.exige.every((x) => tem[x]);
+  // tipo novo (Prédio, Produto…): há ao menos um item dele no escopo, em qualquer nível
+  return r.exige.every((x) => (x in tem ? tem[x] : (e?.qtdPorTipo?.[x] ?? 0) > 0));
 }
 
 /**
