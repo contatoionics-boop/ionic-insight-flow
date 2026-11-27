@@ -14,6 +14,7 @@ import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
 import { avaliarCondicional } from "@/lib/perguntas-mapeamento";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { atribuirAgenteAgendamento } from "@/lib/casos.functions";
+import { progressoDoMapeamento } from "@/lib/mapeamento.functions";
 
 
 export const Route = createFileRoute("/app/vistorias/$id")({
@@ -99,6 +100,9 @@ function VistoriaDetalhesPage() {
   const auth = useAuth();
   const listarAgentes = useServerFn(listTechnicalAgents);
   const atribuirAgente = useServerFn(atribuirAgenteAgendamento);
+  const buscarProgresso = useServerFn(progressoDoMapeamento);
+  /** progresso com a pergunta repetida por item do escopo (bomba, pátio…); null = caso sem estrutura */
+  const [progressoEscopo, setProgressoEscopo] = useState<Awaited<ReturnType<typeof progressoDoMapeamento>>>(null);
   const [caso, setCaso] = useState<Caso | null>(null);
   const [secoes, setSecoes] = useState<Secao[]>([]);
   const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
@@ -185,6 +189,16 @@ function VistoriaDetalhesPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let ativo = true;
+    void buscarProgresso({ data: { casoId: id } })
+      .then((p) => ativo && setProgressoEscopo(p))
+      .catch(() => ativo && setProgressoEscopo(null));
+    return () => {
+      ativo = false;
+    };
+  }, [id, buscarProgresso]);
+
   const podeAtribuir = auth.role === "admin" || auth.role === "especialista" || auth.role === "super_admin";
 
   useEffect(() => {
@@ -251,10 +265,15 @@ function VistoriaDetalhesPage() {
     [perguntas, condicionalState],
   );
 
-  const total = perguntasVisiveis.length;
-  const respondidas = perguntasVisiveis.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
-  const obrigatorias = perguntasVisiveis.filter((p) => p.obrigatoria);
-  const respondidasObrig = obrigatorias.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
+  // Com estrutura de escopo, vale o cálculo do checklist do agente (uma pergunta por item); senão, o simples daqui.
+  const total = progressoEscopo?.total ?? perguntasVisiveis.length;
+  const respondidas = progressoEscopo?.respondidas ?? perguntasVisiveis.filter((p) => (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
+  const obrigatorias = progressoEscopo
+    ? { length: progressoEscopo.totalObrigatorias }
+    : perguntasVisiveis.filter((p) => p.obrigatoria);
+  const respondidasObrig =
+    progressoEscopo?.respondidasObrigatorias ??
+    perguntasVisiveis.filter((p) => p.obrigatoria && (respostasPorPergunta.get(p.id) ?? []).length > 0).length;
   const progresso = obrigatorias.length > 0
     ? Math.round((respondidasObrig / obrigatorias.length) * 100)
     : total > 0 ? Math.round((respondidas / total) * 100) : 0;

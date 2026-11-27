@@ -87,6 +87,21 @@ export type MapeamentoComProgresso = {
   atrasado: boolean;
 };
 
+/**
+ * Progresso de UM mapeamento no cálculo do checklist do agente (a pergunta de uma bomba, pátio… conta uma vez por item
+ * do escopo). Devolve null quando o caso não tem estrutura de escopo: a tela segue com o cálculo simples.
+ */
+export const progressoDoMapeamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ casoId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    // só quem enxerga o caso (RLS) vê o progresso
+    const { data: caso } = await context.supabase.from("casos").select("id").eq("id", data.casoId).maybeSingle();
+    if (!caso) return null;
+    const { progressoCasosComEscopo } = await import("@/lib/escopo/progresso.server");
+    return (await progressoCasosComEscopo([data.casoId])).get(data.casoId) ?? null;
+  });
+
 export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MapeamentoComProgresso[]> => {
