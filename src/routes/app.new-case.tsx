@@ -1,5 +1,5 @@
 import { formulariosVisiveis, qtdDeOutrosClientes } from "@/lib/formularios-visiveis";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader, Card, Label, Input, Select, Button, Modal } from "@/components/ui-bits";
@@ -28,11 +28,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
-import { camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { SLUG_CAMPO, camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
+  validateSearch: (search: Record<string, unknown>): { campo?: string } =>
+    typeof search.campo === "string" && SLUG_CAMPO.test(search.campo) ? { campo: search.campo } : {},
   head: () => ({
     meta: [
       { title: "Agendar mapeamento | Ionics" },
@@ -99,6 +101,7 @@ function temEndereco(e?: EnderecoBase | null) {
 }
 
 function NewCasePage() {
+  const { campo: campoAtalho } = Route.useSearch();
   const navigate = useNavigate();
   const { userId } = useAuth();
   const loadAgents = useServerFn(listTechnicalAgents);
@@ -190,6 +193,16 @@ function NewCasePage() {
   // campos criados em Configurações › Opções do agendamento (listas a mais), com a escolha de cada um
   const camposAg = useCamposAgendamento();
   const camposExtras = camposExtrasAtivos(camposAg).filter((c) => opcoesDoCampo(c.campo, { todas: opcoesAg }).length > 0);
+  const campoVisivel = campoAtalho !== undefined && (["tipo_solicitacao", "modalidade", "nivel", "solucao"].includes(campoAtalho) || camposExtras.some((c) => c.campo === campoAtalho));
+  useEffect(() => {
+    if (!campoAtalho || !campoVisivel) return;
+    const frame = window.requestAnimationFrame(() => {
+      const alvo = document.getElementById("campo-agendamento-" + campoAtalho);
+      alvo?.scrollIntoView({ block: "center" });
+      alvo?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [campoAtalho, campoVisivel]);
   const [escolhasExtras, setEscolhasExtras] = useState<Record<string, string>>({});
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
@@ -700,6 +713,11 @@ function NewCasePage() {
 
   return (
     <div>
+      {campoAtalho && (
+        <Link to="/app/opcoes-agendamento" search={{ campo: campoAtalho }} className="mb-4 inline-block rounded text-sm font-medium text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          Voltar às opções do agendamento
+        </Link>
+      )}
       <PageHeader
         title="Agendar mapeamento"
         description="Escolha a unidade do cliente, o agente técnico e a data."
@@ -811,8 +829,8 @@ function NewCasePage() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <Label>Tipo de solicitação</Label>
-              <Select value={tipoSolicitacao} onChange={(e) => setTipoSolicitacao(e.target.value as any)} required>
+              <Label htmlFor="campo-agendamento-tipo_solicitacao">Tipo de solicitação</Label>
+              <Select id="campo-agendamento-tipo_solicitacao" value={tipoSolicitacao} onChange={(e) => setTipoSolicitacao(e.target.value as any)} required>
                 {opcoesDoCampo("tipo_solicitacao", { todas: opcoesAg, incluir: [tipoSolicitacao] }).map((o) => (
                   <option key={o.valor} value={o.valor}>
                     {o.rotulo}
@@ -821,8 +839,9 @@ function NewCasePage() {
               </Select>
             </div>
             <div>
-              <Label>Modalidade</Label>
+              <Label htmlFor="campo-agendamento-modalidade">Modalidade</Label>
               <Select
+                id="campo-agendamento-modalidade"
                 value={modalidade}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -839,8 +858,8 @@ function NewCasePage() {
               </Select>
             </div>
             <div>
-              <Label>Nível do mapeamento</Label>
-              <Select value={nivel} onChange={(e) => setNivel(e.target.value as any)} required>
+              <Label htmlFor="campo-agendamento-nivel">Nível do mapeamento</Label>
+              <Select id="campo-agendamento-nivel" value={nivel} onChange={(e) => setNivel(e.target.value as any)} required>
                 {opcoesDoCampo("nivel", { todas: opcoesAg, incluir: [nivel] }).map((o) => (
                   <option key={o.valor} value={o.valor}>
                     {o.rotulo}
@@ -854,8 +873,9 @@ function NewCasePage() {
             <div className="grid gap-4 md:grid-cols-3">
               {camposExtras.map((c) => (
                 <div key={c.campo}>
-                  <Label>{c.titulo}</Label>
+                  <Label htmlFor={"campo-agendamento-" + c.campo}>{c.titulo}</Label>
                   <Select
+                    id={"campo-agendamento-" + c.campo}
                     value={escolhasExtras[c.campo] ?? ""}
                     onChange={(e) => setEscolhasExtras((cur) => ({ ...cur, [c.campo]: e.target.value }))}
                     required={c.obrigatorio}
@@ -1001,6 +1021,7 @@ function NewCasePage() {
               onChange={editarEstrutura}
               disabled={working}
               itensDaProposta={escopoPrevia?.itens_previstos?.valor ?? []}
+              idCampoSolucao="campo-agendamento-solucao"
             />
           </div>
 

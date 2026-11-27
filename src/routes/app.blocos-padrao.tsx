@@ -1,8 +1,11 @@
+import { IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { useTempoDeConteudo } from "@/hooks/use-tempo-de-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { Copy, Loader2, Plus } from "lucide-react";
 import { PageHeader, Card, Button, Input, Textarea, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
@@ -11,6 +14,7 @@ import { lerSlot } from "@/lib/laudo/textos-padrao";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ListaOrdenavel } from "@/components/laudo/ListaOrdenavel";
 import { aplicarOrdem, moverNaLista } from "@/lib/ordenar-blocos";
@@ -30,8 +34,14 @@ import {
   type RegraBlocoPadrao,
 } from "@/lib/laudo/blocos-padrao-regras";
 
+function abaValida(aba: unknown) {
+  if (aba === "adicionais" || aba === "imagens") return aba;
+  return "textos";
+}
+
 export const Route = createFileRoute("/app/blocos-padrao")({
   component: BlocosPadraoPage,
+  validateSearch: (search: Record<string, unknown>) => ({ aba: abaValida(search.aba) }),
   head: () => ({
     meta: [
       { title: "Blocos padrão do laudo | Ionics" },
@@ -86,6 +96,8 @@ function corpoDosBlocos(b: BlocoPadrao): string {
 }
 
 function BlocosPadraoPage() {
+  const { aba } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const catalogoTipos = useTiposEscopo();
   const opcoesAg = useOpcoesAgendamento();
   const camposAg = useCamposAgendamento();
@@ -97,12 +109,12 @@ function BlocosPadraoPage() {
 
   const [itens, setItens] = useState<BlocoPadrao[]>([]);
   const [carregando, setCarregando] = useState(true);
+  useTempoDeConteudo("blocos-padrao", carregando);
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState<Form>(VAZIO);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
-    setCarregando(true);
     try {
       setItens((await fnListar({ data: {} as any })) as BlocoPadrao[]);
     } catch (e: any) {
@@ -116,7 +128,7 @@ function BlocosPadraoPage() {
     void carregar();
   }, [carregar]);
 
-  // versões dos textos do documento têm tela própria (acima); aqui ficam só os blocos adicionais
+  // Textos versionados e imagens têm abas próprias.
   const blocosAdicionais = itens.filter((b) => !lerSlot(b.escopo).slot && b.categoria !== "imagem");
 
   async function ordenar(origem: number, destino: number) {
@@ -195,69 +207,71 @@ function BlocosPadraoPage() {
       <PageHeader
         title="Blocos padrão"
         description="Textos do documento com versões (Introdução, Instruções gerais…) e blocos técnicos reutilizáveis do laudo FR-31-10."
-        actions={
-          <Button
-            onClick={() => {
-              setForm(VAZIO);
-              setAberto(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Novo bloco
-          </Button>
-        }
       />
       <ConfiguracoesNav />
 
-      {!carregando && <BibliotecaImagens lista={itens} onAlterou={carregar} />}
+      <Tabs value={aba} onValueChange={(value) => void navigate({ search: { aba: abaValida(value) }, resetScroll: false })}>
+        <TabsList aria-label="Conteúdo do laudo" className="h-auto w-full flex-wrap justify-start sm:w-auto">
+          <TabsTrigger value="textos" className="py-2">Textos do documento</TabsTrigger>
+          <TabsTrigger value="adicionais" className="py-2">Blocos adicionais</TabsTrigger>
+          <TabsTrigger value="imagens" className="py-2">Biblioteca de imagens</TabsTrigger>
+        </TabsList>
 
-      {!carregando && (
-        <div className="mt-8">
-          <TextosDoDocumento itens={itens} onAlterou={carregar} imagens={imagensDaLista(itens)} />
-        </div>
-      )}
-
-      <div className="mb-2 mt-8">
-        <h2 className="text-sm font-semibold">Blocos adicionais</h2>
-        <p className="text-xs text-muted-foreground">
-          Textos extras que se somam ao documento (antes das Instruções gerais, quando automáticos) ou que o especialista insere à mão na revisão.
-        </p>
-      </div>
-
-      {carregando ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
-        </p>
-      ) : blocosAdicionais.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">
-          Nenhum bloco padrão cadastrado ainda.
-        </Card>
-      ) : (
-        <ListaOrdenavel itens={blocosAdicionais} idDe={(b) => b.id} onMover={(origem, destino) => void ordenar(origem, destino)} disabled={ordenando} render={(b, _i, alca) => (
-            <Card className="flex flex-wrap items-start gap-3 p-4">
-              {alca}
-              <button type="button" className="min-w-0 text-left" onClick={() => editar(b)}>
-                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {b.nome}
-                  <Badge className="bg-muted text-muted-foreground">{b.categoria}</Badge>
-                  {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativo</Badge>}
-                  {lerRegra(b.escopo).automatico && <Badge className="bg-primary/10 text-primary">{resumoDaRegra(lerRegra(b.escopo), catalogoTipos)}</Badge>}
-                </p>
-                {b.descricao && <p className="text-xs text-muted-foreground">{b.descricao}</p>}
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {corpoDosBlocos(b)}
-                </p>
-              </button>
-              <div className="ml-auto flex shrink-0 gap-1">
-                <Button variant="secondary" disabled={ordenando} onClick={() => editar(b, true)} aria-label="Duplicar bloco e editar a cópia">
-                  <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
-                </Button>
-                <Button variant="secondary" disabled={ordenando} onClick={() => excluir(b.id)} aria-label="Excluir bloco">
-                  <Trash2 className="h-4 w-4" />
+        {carregando ? (
+          <CarregandoConteudo className="mt-5" />
+        ) : (
+          <>
+            <TabsContent value="textos" className="mt-5">
+              <TextosDoDocumento itens={itens} onAlterou={carregar} imagens={imagensDaLista(itens)} />
+            </TabsContent>
+            <TabsContent value="imagens" className="mt-5">
+              <BibliotecaImagens lista={itens} onAlterou={carregar} />
+            </TabsContent>
+            <TabsContent value="adicionais" className="mt-5">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Blocos adicionais</h2>
+                  <p className="text-xs text-muted-foreground">Textos extras inseridos automaticamente no laudo ou pelo especialista durante a revisão.</p>
+                </div>
+                <Button onClick={() => { setForm(VAZIO); setAberto(true); }}>
+                  <Plus className="mr-2 h-4 w-4" /> Novo bloco
                 </Button>
               </div>
-            </Card>
-          )} />
-      )}
+              {blocosAdicionais.length === 0 ? (
+                <Card className="p-6 text-sm text-muted-foreground">
+                  Nenhum bloco padrão cadastrado ainda.
+                </Card>
+              ) : (
+                <ListaOrdenavel itens={blocosAdicionais} idDe={(b) => b.id} onMover={(origem, destino) => void ordenar(origem, destino)} disabled={ordenando} render={(b, _i, alca) => (
+                    <Card className="flex flex-wrap items-start gap-3 p-4">
+                      {alca}
+                      <button type="button" className="min-w-0 text-left" onClick={() => editar(b)}>
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                          {b.nome}
+                          <Badge className="bg-muted text-muted-foreground">{b.categoria}</Badge>
+                          {!b.ativo && <Badge className="bg-muted text-muted-foreground">inativo</Badge>}
+                          {lerRegra(b.escopo).automatico && <Badge className="bg-primary/10 text-primary">{resumoDaRegra(lerRegra(b.escopo), catalogoTipos)}</Badge>}
+                        </p>
+                        {b.descricao && <p className="text-xs text-muted-foreground">{b.descricao}</p>}
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {corpoDosBlocos(b)}
+                        </p>
+                      </button>
+                      <div className="ml-auto flex shrink-0 gap-1">
+                        <Button variant="secondary" disabled={ordenando} onClick={() => editar(b, true)} aria-label="Duplicar bloco e editar a cópia">
+                          <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
+                        </Button>
+                        <Button variant="secondary" disabled={ordenando} onClick={() => excluir(b.id)} aria-label="Excluir bloco">
+                          <IconeExcluir />
+                        </Button>
+                      </div>
+                    </Card>
+                  )} />
+              )}
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
 
       <Modal
         open={aberto}

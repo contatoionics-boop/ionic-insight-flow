@@ -1,6 +1,9 @@
+import { IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { useTempoDeConteudo } from "@/hooks/use-tempo-de-conteudo";
 import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { PageHeader, Table, Th, Td, Badge, Card, Input, Select, Label, Button, Modal } from "@/components/ui-bits";
@@ -11,7 +14,8 @@ import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { reagendarAposRecusa } from "@/lib/agendamentos.functions";
 import { excluirMapeamento } from "@/lib/casos.functions";
 import { AcoesPdfResultado } from "@/components/mapeamento/AcoesPdfResultado";
-import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, Trash2, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronDown, ChevronRight, Download, X } from "lucide-react";
+import { cliqueNaMesmaAba } from "@/components/mapeamento/VoltarMapeamento";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 
 export const Route = createFileRoute("/app/cases")({
@@ -29,16 +33,49 @@ const STATUS_OPCOES: CaseStatus[] = [
   "rascunho", "agendado", "em_andamento", "aguardando_revisao", "aprovado", "concluido", "cancelado",
 ];
 
+type EstadoResultados = {
+  agente: string;
+  cliente: string;
+  inicio: string;
+  fim: string;
+  status: string;
+  expandidos: string[];
+  topo: number;
+  esquerda: number;
+};
+
+const CHAVE_RESULTADOS = "ionics.resultados.retorno";
+
+function lerEstadoResultados(entrada: string | undefined): EstadoResultados | undefined {
+  if (!entrada || typeof window === "undefined") return;
+  try {
+    const salvo = window.sessionStorage.getItem(CHAVE_RESULTADOS);
+    if (salvo) {
+      const { chave, estado } = JSON.parse(salvo) as { chave: string; estado: EstadoResultados };
+      if (chave === entrada) return estado;
+    }
+  } catch {
+    // A lista continua navegável quando o navegador bloqueia o armazenamento da sessão.
+  }
+}
+
 function CasesPage() {
   useOpcoesAgendamento(); // nomes configurados no resumo do atendimento
   const navigate = useNavigate();
+  const entrada = useLocation({ select: (location) => location.state.__TSR_key });
+  const [retorno] = useState(() => lerEstadoResultados(entrada));
+  const tabela = useRef<HTMLDivElement>(null);
+  const restaurado = useRef(false);
   const listar = useServerFn(listarMapeamentosComProgresso);
   const loadAgents = useServerFn(listTechnicalAgents);
   const [rows, setRows] = useState<MapeamentoComProgresso[]>([]);
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  useTempoDeConteudo("resultados", loading);
+  const [falha, setFalha] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
   const [reagendarCaso, setReagendarCaso] = useState<MapeamentoComProgresso | null>(null);
-  const [expandido, setExpandido] = useState<Set<string>>(new Set());
+  const [expandido, setExpandido] = useState<Set<string>>(() => new Set(retorno?.expandidos));
   const reagendar = useServerFn(reagendarAposRecusa);
   const excluir = useServerFn(excluirMapeamento);
   const [excluindo, setExcluindo] = useState<string | null>(null);
@@ -67,23 +104,54 @@ function CasesPage() {
   };
 
 
-  const [fAgente, setFAgente] = useState("");
-  const [fCliente, setFCliente] = useState("");
-  const [fInicio, setFInicio] = useState("");
-  const [fFim, setFFim] = useState("");
-  const [fStatus, setFStatus] = useState("");
+  const [fAgente, setFAgente] = useState(retorno?.agente ?? "");
+  const [fCliente, setFCliente] = useState(retorno?.cliente ?? "");
+  const [fInicio, setFInicio] = useState(retorno?.inicio ?? "");
+  const [fFim, setFFim] = useState(retorno?.fim ?? "");
+  const [fStatus, setFStatus] = useState(retorno?.status ?? "");
+
+  function guardarRetorno() {
+    if (!entrada) return;
+    const estado: EstadoResultados = {
+      agente: fAgente,
+      cliente: fCliente,
+      inicio: fInicio,
+      fim: fFim,
+      status: fStatus,
+      expandidos: [...expandido],
+      topo: window.scrollY,
+      esquerda: tabela.current?.scrollLeft ?? 0,
+    };
+    try {
+      window.sessionStorage.setItem(CHAVE_RESULTADOS, JSON.stringify({ chave: entrada, estado }));
+    } catch {
+      // A abertura do mapeamento segue mesmo sem armazenamento de sessão.
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [data, ags] = await Promise.all([listar(), loadAgents()]);
-        setRows(data);
-        setAgentes(((ags ?? []) as any[]).map((a) => ({ id: a.user_id ?? a.id, nome: a.nome })));
-      } finally {
-        setLoading(false);
+    if (loading || falha || !retorno || restaurado.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      restaurado.current = true;
+      window.scrollTo({ top: retorno.topo, behavior: "instant" });
+      if (tabela.current) tabela.current.scrollLeft = retorno.esquerda;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, falha, retorno]);
+
+  useEffect(() => {
+    let ativa = true;
+    void Promise.allSettled([listar(), loadAgents()]).then(([resultados, pessoas]) => {
+      if (!ativa) return;
+      if (resultados.status === "fulfilled") setRows(resultados.value);
+      else setFalha(true);
+      if (pessoas.status === "fulfilled") {
+        setAgentes((pessoas.value ?? []).map((a) => ({ id: a.user_id, nome: a.nome })));
       }
-    })();
-  }, [listar, loadAgents]);
+      setLoading(false);
+    });
+    return () => { ativa = false; };
+  }, [listar, loadAgents, tentativa]);
 
   const filtradas = useMemo(() => {
     const cliBusca = fCliente.trim().toLowerCase();
@@ -155,27 +223,27 @@ function CasesPage() {
       <Card className="mb-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <div>
-            <Label>Agente técnico</Label>
-            <Select value={fAgente} onChange={(e) => setFAgente(e.target.value)}>
+            <Label htmlFor="resultado-agente">Agente técnico</Label>
+            <Select id="resultado-agente" value={fAgente} onChange={(e) => setFAgente(e.target.value)}>
               <option value="">Todos</option>
               {agentes.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
             </Select>
           </div>
           <div className="md:col-span-2">
-            <Label>Cliente (nome ou código IONICS)</Label>
-            <Input value={fCliente} onChange={(e) => setFCliente(e.target.value)} placeholder="Ex: BP Bio ou ION-00001" />
+            <Label htmlFor="resultado-cliente">Cliente (nome ou código IONICS)</Label>
+            <Input id="resultado-cliente" value={fCliente} onChange={(e) => setFCliente(e.target.value)} placeholder="Ex: BP Bio ou ION-00001" />
           </div>
           <div>
-            <Label>De</Label>
-            <Input type="date" value={fInicio} onChange={(e) => setFInicio(e.target.value)} />
+            <Label htmlFor="resultado-de">De</Label>
+            <Input type="date" id="resultado-de" value={fInicio} onChange={(e) => setFInicio(e.target.value)} />
           </div>
           <div>
-            <Label>Até</Label>
-            <Input type="date" value={fFim} onChange={(e) => setFFim(e.target.value)} />
+            <Label htmlFor="resultado-ate">Até</Label>
+            <Input type="date" id="resultado-ate" value={fFim} onChange={(e) => setFFim(e.target.value)} />
           </div>
           <div className="md:col-span-5">
-            <Label>Status</Label>
-            <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+            <Label htmlFor="resultado-status">Status</Label>
+            <Select id="resultado-status" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
               <option value="">Todos</option>
               {STATUS_OPCOES.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
             </Select>
@@ -196,7 +264,7 @@ function CasesPage() {
         )}
       </Card>
 
-      <Table>
+      <Table containerRef={tabela}>
         <thead>
           <tr>
             <th className="w-8 border-b border-border bg-muted/50 px-2 py-2.5"></th>
@@ -211,7 +279,18 @@ function CasesPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+            <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground"><CarregandoConteudo className="justify-center" /></td></tr>
+          ) : falha ? (
+            <tr>
+              <td colSpan={8} className="space-y-2 px-4 py-6 text-center text-sm">
+                <p role="alert">Não foi possível carregar os mapeamentos.</p>
+                <Button size="sm" variant="outline" onClick={() => {
+                  setFalha(false);
+                  setLoading(true);
+                  setTentativa((atual) => atual + 1);
+                }}>Tentar novamente</Button>
+              </td>
+            </tr>
           ) : filtradas.length === 0 ? (
             <tr><td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum mapeamento encontrado.</td></tr>
           ) : (
@@ -224,20 +303,40 @@ function CasesPage() {
               return (
                 <Fragment key={c.id}>
                 <tr
-                  onClick={() => navigate({ to: "/app/vistorias/$id", params: { id: c.id } })}
+                  onClick={() => {
+                    guardarRetorno();
+                    void navigate({ to: "/app/vistorias/$id", params: { id: c.id }, state: { origemMapeamento: "resultados" } });
+                  }}
                   className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                     recusado ? "border-l-4 border-l-destructive bg-destructive/5" : ""
                   }`}
                 >
-                  <td
-                    onClick={(e) => { e.stopPropagation(); toggleExpandir(c.id); }}
-                    className="cursor-pointer border-b border-border px-2 py-3 text-foreground"
-                  >
-                    {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <td className="border-b border-border px-1 py-3">
+                    <button
+                      type="button"
+                      aria-label={(isOpen ? "Recolher histórico de " : "Expandir histórico de ") + c.codigo}
+                      aria-expanded={isOpen}
+                      onClick={(event) => { event.stopPropagation(); toggleExpandir(c.id); }}
+                      className="rounded p-1.5 text-muted-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
                   </td>
                   <Td className="font-mono text-xs">
                     <div className="flex items-center gap-1">
-                      {c.codigo}
+                      <Link
+                        to="/app/vistorias/$id"
+                        params={{ id: c.id }}
+                        state={{ origemMapeamento: "resultados" }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (cliqueNaMesmaAba(event)) guardarRetorno();
+                        }}
+                        aria-label={"Abrir mapeamento " + c.codigo}
+                        className="rounded font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        {c.codigo}
+                      </Link>
                       {c.atrasado && (
                         <Badge className="bg-destructive/15 text-destructive">Aguardando agente</Badge>
                       )}
@@ -315,7 +414,10 @@ function CasesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate({ to: "/app/review/$id", params: { id: c.id } })}
+                          onClick={() => {
+                            guardarRetorno();
+                            void navigate({ to: "/app/review/$id", params: { id: c.id }, state: { origemMapeamento: "resultados" } });
+                          }}
                         >
                           Revisar
                         </Button>
@@ -347,7 +449,7 @@ function CasesPage() {
                         className="text-destructive hover:bg-destructive/10"
                         title="Excluir mapeamento"
                       >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Excluir
+                        <IconeExcluir className="mr-1" /> Excluir
                       </Button>
                     </div>
                   </Td>

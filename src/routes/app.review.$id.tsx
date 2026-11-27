@@ -1,4 +1,6 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { IconeVisualizar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -9,17 +11,14 @@ import {
   Modal,
 } from "@/components/ui-bits";
 import {
-  ArrowLeft,
   Check,
   AlertCircle,
   ChevronDown,
-  Eye,
   FileDown,
   Loader2,
   Save,
   ImageOff,
   Sparkles,
-  Trash2,
   Upload,
   RefreshCw,
   X,
@@ -29,6 +28,7 @@ import { LIMITE_VIDEO_BYTES } from "@/lib/midia-upload";
 import { MicButton } from "@/components/MicButton";
 import { supabase } from "@/integrations/supabase/client";
 import { carregarLaudo, gerarPdfLaudo } from "@/lib/laudo.functions";
+import { VoltarMapeamento } from "@/components/mapeamento/VoltarMapeamento";
 import { LaudoPanel, type EstadoDocumento } from "@/components/laudo/LaudoPanel";
 import { ConferenciaProposta } from "@/components/revisao/ConferenciaProposta";
 import { ProntidaoRevisao, pendenciasDeRevisao } from "@/components/revisao/ProntidaoRevisao";
@@ -593,14 +593,12 @@ function ReviewCasePage() {
   };
 
 
-  if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+  if (loading) return <CarregandoConteudo />;
   if (!caseData) {
     return (
       <div>
         <p className="text-sm text-muted-foreground">Mapeamento não encontrado.</p>
-        <Link to="/app/review-queue" className="mt-2 inline-block text-sm text-primary hover:underline">
-          Voltar para mapeamentos
-        </Link>
+        <div className="mt-2"><VoltarMapeamento revisaoId={id} /></div>
       </div>
     );
   }
@@ -727,10 +725,10 @@ function ReviewCasePage() {
                                         type="button"
                                         disabled={busy}
                                         onClick={() => removerArquivo(p.id, p.tipo, pth)}
-                                        title="Remover imagem"
+                                        title="Remover imagem" aria-label="Remover imagem"
                                         className="absolute right-1 top-1 rounded-md bg-destructive/90 p-1 text-destructive-foreground opacity-90 hover:opacity-100 disabled:opacity-50"
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <IconeExcluir />
                                       </button>
                                     </div>
                                   ))}
@@ -803,7 +801,7 @@ function ReviewCasePage() {
                                       onClick={() => removerArquivo(p.id, p.tipo, videoFoto)}
                                       className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-2 py-2 text-xs text-destructive hover:bg-muted disabled:opacity-50"
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" /> Remover vídeo
+                                      <IconeExcluir /> Remover vídeo
                                     </button>
                                   )}
                                 </div>
@@ -855,7 +853,7 @@ function ReviewCasePage() {
                                 onClick={() => removerArquivo(p.id, p.tipo, r.arquivo_path!)}
                                 disabled={!!uploading[p.id]}
                               >
-                                <Trash2 className="h-3.5 w-3.5" /> Remover
+                                <IconeExcluir /> Remover
                               </Button>
                             )}
                           </div>
@@ -919,12 +917,7 @@ function ReviewCasePage() {
 
   return (
     <div className="pb-4">
-      <Link
-        to="/app/review-queue"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar para mapeamentos
-      </Link>
+      <div className="mb-4"><VoltarMapeamento revisaoId={id} /></div>
 
       {/* resumo do mapeamento */}
       <Card className="mb-3">
@@ -1026,7 +1019,7 @@ function ReviewCasePage() {
                     void previewPdf();
                   }}
                 >
-                  <Eye className="h-4 w-4" /> Pré-visualizar PDF
+                  <IconeVisualizar /> Pré-visualizar PDF
                 </button>
                 <button
                   type="button"

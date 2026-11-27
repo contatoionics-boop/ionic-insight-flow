@@ -1,5 +1,6 @@
+import { IconeEditar } from "@/components/ui/icones-de-acao";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Check, Loader2, Pencil, Send } from "lucide-react";
+import { ArrowDown, Check, Loader2, Send } from "lucide-react";
 
 import { Button, Card } from "@/components/ui-bits";
 import {
@@ -210,7 +211,7 @@ export function FormChat({
                     onClick={() => setEditing(idx)}
                     className="ml-2 inline-flex items-center gap-1 text-primary hover:underline"
                   >
-                    <Pencil className="h-3 w-3" /> Corrigir
+                    <IconeEditar /> Corrigir
                   </button>
                 </div>
                 {isLastOfSecao && idx < cursor - 1 && (
@@ -482,7 +483,7 @@ function ReviewCards({
                         onClick={() => onEditar(idx)}
                         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                       >
-                        <Pencil className="h-3 w-3" /> Editar
+                        <IconeEditar /> Editar
                       </button>
                     </div>
                   </li>

@@ -1,6 +1,7 @@
+import { IconeVisualizar } from "@/components/ui/icones-de-acao";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Eye, FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button, Modal } from "@/components/ui-bits";
@@ -64,7 +65,7 @@ export function AcoesPdfResultado({
     <>
       <div className="inline-flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
         <Button size={tamanho} variant="outline" onClick={() => void executar("visualizar")} disabled={ocupado !== null} title="Ver o PDF antes de baixar">
-          {ocupado === "visualizar" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Eye className="mr-1 h-3.5 w-3.5" />} Pré-visualizar
+          {ocupado === "visualizar" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <IconeVisualizar className="mr-1" />} Pré-visualizar
         </Button>
         <Button size={tamanho} variant="outline" onClick={() => void executar("baixar")} disabled={ocupado !== null} title="Gerar e baixar o PDF do resultado">
           {ocupado === "baixar" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1 h-3.5 w-3.5" />} Gerar PDF

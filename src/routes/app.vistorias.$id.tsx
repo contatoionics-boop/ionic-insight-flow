@@ -1,13 +1,15 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ResumoEscopoCaso } from "@/components/escopo/ResumoEscopoCaso";
-import { ArrowLeft, CalendarDays, MapPin, FileText, User, Building2, CheckCircle2, XCircle, ExternalLink, UserPlus } from "lucide-react";
+import { CalendarDays, MapPin, FileText, User, Building2, CheckCircle2, XCircle, ExternalLink, UserPlus } from "lucide-react";
 import { PageHeader, Card, Badge, Button, Label, Select } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
 import { statusLabels, statusTones, type CaseStatus } from "@/lib/casos";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { VoltarMapeamento } from "@/components/mapeamento/VoltarMapeamento";
 import { HistoricoEventos } from "@/components/mapeamento/HistoricoEventos";
 import { AcoesPdfResultado } from "@/components/mapeamento/AcoesPdfResultado";
 import { ObservacoesPanel } from "@/components/mapeamento/ObservacoesPanel";
@@ -96,7 +98,6 @@ function fmtData(iso: string | null) {
 
 function VistoriaDetalhesPage() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const auth = useAuth();
   const listarAgentes = useServerFn(listTechnicalAgents);
   const atribuirAgente = useServerFn(atribuirAgenteAgendamento);
@@ -286,14 +287,12 @@ function VistoriaDetalhesPage() {
     (caso.status === "aguardando_revisao" || caso.status === "aprovado" || caso.status === "em_analise");
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Carregando...</p>;
+    return <CarregandoConteudo />;
   }
   if (!caso) {
     return (
       <div>
-        <Button variant="ghost" onClick={() => navigate({ to: "/app/cases" })}>
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </Button>
+        <VoltarMapeamento />
         <p className="mt-4 text-sm text-muted-foreground">Mapeamento não encontrado.</p>
       </div>
     );
@@ -302,9 +301,7 @@ function VistoriaDetalhesPage() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/app/cases" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Voltar para resultado de mapeamentos
-        </Link>
+        <VoltarMapeamento />
       </div>
 
       <PageHeader
@@ -316,7 +313,7 @@ function VistoriaDetalhesPage() {
               <AcoesPdfResultado casoId={caso.id} codigo={caso.codigo} tamanho="md" />
             )}
             {podeAbrirRevisao ? (
-              <Link to="/app/review/$id" params={{ id: caso.id }}>
+              <Link to="/app/review/$id" params={{ id: caso.id }} state={{ origemMapeamento: "detalhe" }}>
                 <Button>
                   <ExternalLink className="h-4 w-4" />
                   Abrir na revisão

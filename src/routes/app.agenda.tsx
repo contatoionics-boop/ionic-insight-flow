@@ -1,3 +1,5 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -8,7 +10,7 @@ import { PageHeader, Card, Badge, Button, Select, Label } from "@/components/ui-
 import { statusLabels, statusTones, resumoAtendimento, type CaseStatus } from "@/lib/casos";
 import { listarAgendaAdmin, cancelarVistoria, deletarVistoria } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, Pencil, Trash2, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, PlusCircle, User2, X } from "lucide-react";
 
 export const Route = createFileRoute("/app/agenda")({
   component: AgendaPage,
@@ -257,7 +259,7 @@ function AgendaPage() {
             );
           })}
         </div>
-        {loading && <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>}
+        {loading && <CarregandoConteudo className="mt-3" />}
       </Card>
 
         {diaAberto && (() => {
@@ -378,13 +380,13 @@ function AgendaPage() {
                 {sel.status !== "cancelado" && sel.status !== "aprovado" && sel.status !== "concluido" && (
                   <>
                     <Button variant="outline" onClick={() => openEdit(sel)}>
-                      <Pencil className="mr-1 h-3 w-3" /> Editar
+                      <IconeEditar className="mr-1" /> Editar
                     </Button>
                     <Button variant="outline" onClick={() => handleCancelar(sel.id)}>Cancelar mapeamento</Button>
                   </>
                 )}
                 <Button variant="destructive" onClick={() => setToDelete(sel)}>
-                  <Trash2 className="mr-1 h-3 w-3" /> Excluir
+                  <IconeExcluir className="mr-1" /> Excluir
                 </Button>
               </div>
             </div>

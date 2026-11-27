@@ -1,15 +1,19 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { PageHeader, Card, Button, Input, Select, Modal, Badge } from "@/components/ui-bits";
+import { AcoesCatalogo, DetalhesCatalogoMobile, FiltrosCatalogo, PreviaRegraCatalogo } from "@/components/laudo/CatalogoControles";
+import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import {
   excluirMaterial,
   listarMateriais,
   salvarMaterial,
 } from "@/lib/catalogo-materiais.functions";
+import { descricaoRegraCatalogo, materialCorrespondeABusca, regraDeCampos } from "@/lib/laudo/catalogos-apresentacao";
 import type { MaterialCatalogo } from "@/lib/laudo/regras";
 import { NumericInput } from "@/components/ui/numeric-input";
 
@@ -63,13 +67,10 @@ const VAZIO: Form = {
   area_classificada: false,
 };
 
-const lista = (s: string) =>
-  s
-    .split(",")
-    .map((v) => v.trim())
-    .filter(Boolean);
-
 function CatalogoMateriaisPage() {
+  const opcoes = useOpcoesAgendamento();
+  const [busca, setBusca] = useState("");
+  const [ativo, setAtivo] = useState<boolean>();
   const fnListar = useServerFn(listarMateriais);
   const fnSalvar = useServerFn(salvarMaterial);
   const fnExcluir = useServerFn(excluirMaterial);
@@ -127,12 +128,7 @@ function CatalogoMateriaisPage() {
           quantidade_padrao: Number(form.quantidade_padrao) || 1,
           ativo: form.ativo,
           ordem: Number(form.ordem) || 100,
-          regra: {
-            ...(form.nivel ? { nivel: lista(form.nivel) } : {}),
-            ...(form.bitola ? { bitola: lista(form.bitola) } : {}),
-            ...(form.tipo_objeto ? { tipo_objeto: lista(form.tipo_objeto) } : {}),
-            ...(form.area_classificada ? { area_classificada: true } : {}),
-          },
+          regra: regraDeCampos(form),
         },
       });
       setOpen(false);
@@ -156,11 +152,13 @@ function CatalogoMateriaisPage() {
     }
   }
 
+  const filtrados = itens.filter((item) => (ativo === undefined || item.ativo === ativo) && materialCorrespondeABusca(item.codigo, item.descricao, busca));
+
   return (
     <div>
       <PageHeader
         title="Catálogo de materiais"
-        description="Materiais de infraestrutura usados nas tabelas dinâmicas do laudo. As regras definem em quais mapeamentos cada item aparece."
+        description="Gerencie os materiais de infraestrutura sugeridos nas tabelas do laudo."
         actions={
           <Button
             onClick={() => {
@@ -173,83 +171,60 @@ function CatalogoMateriaisPage() {
         }
       />
       <ConfiguracoesNav />
+      <FiltrosCatalogo busca={busca} onBusca={setBusca} ativo={ativo} onAtivo={setAtivo} />
 
       {loading ? (
-        <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-        </div>
+        <CarregandoConteudo className="p-6" />
       ) : (
-        <Card className="overflow-x-auto p-0">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-muted/30 text-xs text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 text-left">Código</th>
+                <th className="hidden px-3 py-2 text-left lg:table-cell">Código</th>
                 <th className="px-3 py-2 text-left">Descrição</th>
-                <th className="px-3 py-2 text-left">Aplicação</th>
-                <th className="px-3 py-2 text-left">Un.</th>
-                <th className="px-3 py-2 text-left">Qtd.</th>
-                <th className="px-3 py-2 text-left">Regras</th>
-                <th className="px-3 py-2" />
+                <th className="hidden px-3 py-2 text-left lg:table-cell">Aplicação</th>
+                <th className="hidden px-3 py-2 text-left lg:table-cell">Un.</th>
+                <th className="hidden px-3 py-2 text-left lg:table-cell">Qtd.</th>
+                <th className="hidden px-3 py-2 text-left lg:table-cell">Quando é sugerido no laudo</th>
+                <th className="px-3 py-2 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {itens.map((m) => {
-                const r = m.regra ?? {};
-                const tags = [
-                  ...(r.nivel ?? []),
-                  ...(r.bitola ?? []),
-                  ...(r.tipo_objeto ?? []),
-                  ...(r.area_classificada ? ["área classificada"] : []),
-                ];
+              {filtrados.map((m) => {
+                const resumo = descricaoRegraCatalogo(m.regra, m.ativo, true, opcoes);
                 return (
                   <tr key={m.id} className="border-t border-border">
-                    <td className="px-3 py-2 font-mono text-xs">{m.codigo}</td>
+                    <td className="hidden px-3 py-2 font-mono text-xs lg:table-cell">{m.codigo}</td>
                     <td className="px-3 py-2">
-                      <button
-                        className="text-left hover:underline"
-                        onClick={() => editar(m)}
-                        type="button"
-                      >
-                        {m.descricao}
-                      </button>
-                      {!m.ativo && (
-                        <Badge className="ml-2 bg-muted text-muted-foreground">inativo</Badge>
-                      )}
+                      {m.descricao}
+                      {!m.ativo && <Badge className="ml-2 bg-muted text-muted-foreground">Inativo</Badge>}
+                      <DetalhesCatalogoMobile codigo={m.codigo} resumo={resumo}>
+                        {m.aplicacao && <p>{m.aplicacao}</p>}
+                        <p>{m.quantidade_padrao} {m.unidade}</p>
+                      </DetalhesCatalogoMobile>
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{m.aplicacao ?? "—"}</td>
-                    <td className="px-3 py-2">{m.unidade}</td>
-                    <td className="px-3 py-2">{m.quantidade_padrao}</td>
+                    <td className="hidden px-3 py-2 text-muted-foreground lg:table-cell">{m.aplicacao ?? "—"}</td>
+                    <td className="hidden px-3 py-2 lg:table-cell">{m.unidade}</td>
+                    <td className="hidden px-3 py-2 lg:table-cell">{m.quantidade_padrao}</td>
+                    <td className="hidden min-w-44 px-3 py-2 text-xs text-muted-foreground lg:table-cell">
+                      {resumo}
+                    </td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {tags.length ? (
-                          tags.map((t) => (
-                            <Badge key={t} className="bg-primary/10 text-primary">
-                              {t}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">sempre</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => excluir(m.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <AcoesCatalogo nome={m.descricao} onEditar={() => editar(m)} onExcluir={() => void excluir(m.id)} />
                     </td>
                   </tr>
                 );
               })}
-              {itens.length === 0 && (
+              {filtrados.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
-                    Nenhum material cadastrado.
+                    {busca.trim() || ativo !== undefined ? "Nenhum material corresponde aos filtros." : "Nenhum material cadastrado."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
 
       <Modal
@@ -259,76 +234,76 @@ function CatalogoMateriaisPage() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-medium">Código</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-codigo">Código</label>
+            <Input id="material-codigo"
               value={form.codigo}
               onChange={(e) => setForm({ ...form, codigo: e.currentTarget.value })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Unidade</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-unidade">Unidade</label>
+            <Input id="material-unidade"
               value={form.unidade}
               onChange={(e) => setForm({ ...form, unidade: e.currentTarget.value })}
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="text-xs font-medium">Descrição</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-descricao">Descrição</label>
+            <Input id="material-descricao"
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.currentTarget.value })}
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="text-xs font-medium">Aplicação</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-aplicacao">Aplicação</label>
+            <Input id="material-aplicacao"
               value={form.aplicacao}
               onChange={(e) => setForm({ ...form, aplicacao: e.currentTarget.value })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Quantidade padrão</label>
-            <NumericInput
+            <label className="text-xs font-medium" htmlFor="material-quantidade_padrao">Quantidade padrão</label>
+            <NumericInput id="material-quantidade_padrao"
               min={0}
               value={form.quantidade_padrao}
               onValueChange={(v) => setForm({ ...form, quantidade_padrao: Number(v) })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Ordem</label>
-            <NumericInput
+            <label className="text-xs font-medium" htmlFor="material-ordem">Ordem</label>
+            <NumericInput id="material-ordem"
               min={0}
               value={form.ordem}
               onValueChange={(v) => setForm({ ...form, ordem: Number(v) })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Níveis (separados por vírgula)</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-nivel">Níveis (separados por vírgula)</label>
+            <Input id="material-nivel"
               placeholder="nivel_2, nivel_3"
               value={form.nivel}
               onChange={(e) => setForm({ ...form, nivel: e.currentTarget.value })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Bitolas</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-bitola">Bitolas</label>
+            <Input id="material-bitola"
               placeholder='1/2", 3/4"'
               value={form.bitola}
               onChange={(e) => setForm({ ...form, bitola: e.currentTarget.value })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Tipos de objeto</label>
-            <Input
+            <label className="text-xs font-medium" htmlFor="material-tipo_objeto">Tipos de objeto</label>
+            <Input id="material-tipo_objeto"
               placeholder="posto, comboio, veiculo"
               value={form.tipo_objeto}
               onChange={(e) => setForm({ ...form, tipo_objeto: e.currentTarget.value })}
             />
           </div>
           <div>
-            <label className="text-xs font-medium">Somente área classificada</label>
-            <Select
+            <label className="text-xs font-medium" htmlFor="material-area_classificada">Somente área classificada</label>
+            <Select id="material-area_classificada"
               value={form.area_classificada ? "sim" : "nao"}
               onChange={(e) =>
                 setForm({ ...form, area_classificada: e.currentTarget.value === "sim" })
@@ -339,8 +314,8 @@ function CatalogoMateriaisPage() {
             </Select>
           </div>
           <div>
-            <label className="text-xs font-medium">Ativo</label>
-            <Select
+            <label className="text-xs font-medium" htmlFor="material-ativo">Ativo</label>
+            <Select id="material-ativo"
               value={form.ativo ? "sim" : "nao"}
               onChange={(e) => setForm({ ...form, ativo: e.currentTarget.value === "sim" })}
             >
@@ -348,6 +323,9 @@ function CatalogoMateriaisPage() {
               <option value="nao">Não</option>
             </Select>
           </div>
+        </div>
+        <div className="mt-4">
+          <PreviaRegraCatalogo resumo={descricaoRegraCatalogo(regraDeCampos(form), form.ativo, true, opcoes)} />
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setOpen(false)}>

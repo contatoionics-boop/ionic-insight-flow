@@ -1,3 +1,4 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Card, Textarea, Button } from "@/components/ui-bits";
@@ -123,7 +124,7 @@ function PromptsPage() {
         </div>
       )}
       {loading ? (
-        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
+        <Card><CarregandoConteudo /></Card>
       ) : (
         <div className="space-y-6">
           {prompts.map((prompt) => (

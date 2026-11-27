@@ -1,8 +1,11 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Copy, ImagePlus, Loader2, Pencil, Trash2 } from "lucide-react";
-import { Badge, Button, Card, Input, Modal } from "@/components/ui-bits";
+import { Copy, ImagePlus, Loader2 } from "lucide-react";
+import { Button, Input, Modal } from "@/components/ui-bits";
+import { colecaoDeImagens, GaleriaImagensLaudo } from "@/components/laudo/GaleriaImagensLaudo";
+import { imagemAlternativaLaudo } from "@/lib/laudo/figuras";
 import type { BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { excluirImagemBiblioteca, salvarImagemBiblioteca } from "@/lib/biblioteca-imagens.functions";
 import { LIMITE_FOTO_BYTES, prepararImagem } from "@/lib/midia-upload";
@@ -40,10 +43,6 @@ const paraBase64 = (blob: Blob) =>
 
 type Form = { id?: string; nome: string; legenda: string; alt: string; larguraMax: number; arquivo?: File; previa?: string; urlAtual?: string };
 
-/**
- * Biblioteca de imagens dos textos do documento: envio, nome, legenda, largura, troca do arquivo e exclusão.
- * As imagens do sistema (bico, ponteira, suporte) ficam listadas à parte e podem ser copiadas para a biblioteca.
- */
 export function BibliotecaImagens({ lista, onAlterou }: { lista: BlocoPadrao[]; onAlterou: () => void | Promise<void> }) {
   const fnSalvar = useServerFn(salvarImagemBiblioteca);
   const fnExcluir = useServerFn(excluirImagemBiblioteca);
@@ -51,7 +50,7 @@ export function BibliotecaImagens({ lista, onAlterou }: { lista: BlocoPadrao[]; 
   const [salvando, setSalvando] = useState(false);
   const [copiando, setCopiando] = useState<string | null>(null);
   const arquivoRef = useRef<HTMLInputElement | null>(null);
-  const imagens = imagensDaLista(lista);
+  const imagens = colecaoDeImagens(imagensDaLista(lista));
 
   function nova() {
     setForm({ nome: "", legenda: "", alt: "", larguraMax: 360 });
@@ -116,9 +115,15 @@ export function BibliotecaImagens({ lista, onAlterou }: { lista: BlocoPadrao[]; 
     const fig = FIGURAS_TEXTO[nome];
     setCopiando(nome);
     try {
-      const resp = await fetch(fig.url);
-      if (!resp.ok) throw new Error("Não foi possível ler a imagem do sistema.");
-      const blob = await resp.blob();
+      const carregarImagem = async (url: string) => {
+        const resposta = await fetch(url).catch(() => null);
+        return resposta?.ok && resposta.headers.get("content-type")?.startsWith("image/")
+          ? resposta.blob()
+          : null;
+      };
+      const alternativa = imagemAlternativaLaudo(fig.url);
+      const blob = await carregarImagem(fig.url) ?? (alternativa ? await carregarImagem(alternativa) : null);
+      if (!blob) throw new Error("Não foi possível ler a imagem do sistema.");
       const arquivo = new File([blob], `${nome}.png`, { type: blob.type || "image/png" });
       await enviar({ nome: `${fig.legendaBase} (cópia)`, legenda: fig.legendaBase, alt: fig.alt, larguraMax: fig.larguraMax ?? 360 }, arquivo);
       toast.success("Copiada para a biblioteca. Agora você pode trocar o arquivo, mudar a legenda ou excluir.");
@@ -132,11 +137,11 @@ export function BibliotecaImagens({ lista, onAlterou }: { lista: BlocoPadrao[]; 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">Biblioteca de imagens</h2>
           <p className="text-xs text-muted-foreground">
-            Imagens que podem ser colocadas nos textos do documento (botão “Imagem” no editor do texto). Aqui você envia, renomeia, troca o arquivo e exclui.
+            Use estas imagens nos textos do documento e na revisão do laudo.
           </p>
         </div>
         <Button onClick={nova}>
@@ -144,55 +149,38 @@ export function BibliotecaImagens({ lista, onAlterou }: { lista: BlocoPadrao[]; 
         </Button>
       </div>
 
-      {imagens.length === 0 ? (
-        <Card className="p-4 text-xs text-muted-foreground">Nenhuma imagem na biblioteca ainda.</Card>
-      ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {imagens.map((im) => {
-            const usos = usosDaImagem(im.id, lista);
+      <GaleriaImagensLaudo
+        imagens={imagens}
+        acoes={(item) => {
+          if (item.origem === "sistema") {
             return (
-              <Card key={im.id} className="flex gap-3 p-3">
-                <img src={im.url} alt={im.alt} className="h-20 w-28 shrink-0 rounded border border-border bg-white object-contain" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{im.nome}</p>
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{im.legenda || "Sem legenda"}</p>
-                  <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-                    <Badge className="bg-muted text-muted-foreground">{LARGURAS.find((l) => l.valor === im.larguraMax)?.rotulo ?? `${im.larguraMax}px`}</Badge>
-                    {usos.length > 0 ? `Usada em ${usos.length} texto(s)` : "Não usada em nenhum texto"}
-                  </p>
-                  <div className="mt-2 flex gap-1">
-                    <Button variant="secondary" onClick={() => editar(im)} aria-label="Editar imagem">
-                      <Pencil className="mr-1.5 h-4 w-4" /> Editar
-                    </Button>
-                    <Button variant="secondary" onClick={() => excluir(im)} aria-label="Excluir imagem">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      <details className="rounded-lg border border-border p-3 text-xs">
-        <summary className="cursor-pointer font-medium">Imagens do sistema (bico, ponteira, suporte)</summary>
-        <p className="mt-2 text-muted-foreground">
-          Essas três ficam dentro do próprio aplicativo e não podem ser trocadas nem apagadas por aqui. Para usar uma versão sua, copie-a para a biblioteca: a cópia
-          é uma imagem normal, que você pode substituir, renomear e excluir.
-        </p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {(Object.keys(FIGURAS_TEXTO) as NomeFigura[]).map((n) => (
-            <div key={n} className="rounded-md border border-border p-2">
-              <img src={FIGURAS_TEXTO[n].url} alt={FIGURAS_TEXTO[n].alt} className="h-24 w-full rounded bg-white object-contain" />
-              <p className="mt-1 text-[11px] font-medium">{FIGURAS_TEXTO[n].legendaBase}</p>
-              <Button variant="secondary" className="mt-1" onClick={() => void copiarDoSistema(n)} disabled={copiando !== null}>
-                {copiando === n ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Copy className="mr-1.5 h-4 w-4" />} Copiar para a biblioteca
+              <Button variant="secondary" className="w-full" onClick={() => void copiarDoSistema(item.chave)} disabled={copiando !== null}>
+                {copiando === item.chave ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Copy className="mr-1.5 h-4 w-4" />}
+                Criar cópia editável
               </Button>
-            </div>
-          ))}
-        </div>
-      </details>
+            );
+          }
+          const im = item.imagem;
+          const usos = usosDaImagem(im.id, lista);
+          return (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {im.legenda && <span className="mb-1 block break-words">{im.legenda}</span>}
+                {LARGURAS.find((l) => l.valor === im.larguraMax)?.rotulo ?? im.larguraMax + " px"}
+                {" · "}{usos.length === 1 ? "Usada em 1 texto" : "Usada em " + usos.length + " textos"}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                <Button variant="secondary" onClick={() => editar(im)} aria-label={"Editar imagem: " + im.nome}>
+                  <IconeEditar className="mr-1.5" /> Editar
+                </Button>
+                <Button variant="secondary" onClick={() => excluir(im)} aria-label={"Excluir imagem: " + im.nome}>
+                  <IconeExcluir />
+                </Button>
+              </div>
+            </>
+          );
+        }}
+      />
 
       <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? "Editar imagem" : "Enviar imagem"}>
         {form && (

@@ -1,5 +1,6 @@
+import { IconeEditar, IconeVisualizar } from "@/components/ui/icones-de-acao";
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Eye, Loader2, Pencil, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Send } from "lucide-react";
 
 import { Button, Card } from "@/components/ui-bits";
 import {
@@ -101,7 +102,7 @@ export function FormRunner({
 
         {mode === "preview" && (
           <div className="bg-warning/10 px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-warning-foreground">
-            <Eye className="mr-1 inline h-3 w-3" /> Preview — nenhum dado será salvo
+            <IconeVisualizar className="mr-1 inline" /> Preview — nenhum dado será salvo
           </div>
         )}
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
@@ -281,7 +282,7 @@ function ReviewStep({
                   onClick={() => onEditar(i)}
                   className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                 >
-                  <Pencil className="h-3 w-3" /> Editar
+                  <IconeEditar /> Editar
                 </button>
               </div>
               <ul className="divide-y divide-border">

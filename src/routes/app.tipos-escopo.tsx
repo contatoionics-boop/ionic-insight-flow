@@ -1,22 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, EyeOff, Plus } from "lucide-react";
 import { PageHeader, Card, Button, Input, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import {
   contarPerguntasPorTipo,
   excluirTipoEscopo,
   listarTiposEscopo,
+  listarUsosTipoEscopo,
+  type UsoTipoEscopo,
   salvarTipoEscopo,
   type CatalogoTipos,
 } from "@/lib/escopo-tipos.functions";
-import { paisPossiveis, podeOcultarTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
+import { ehChaveValida, ehTipoDoSistema, paisPossiveis, podeOcultarTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import { recarregarTiposEscopo } from "@/hooks/use-tipos-escopo";
 
 export const Route = createFileRoute("/app/tipos-escopo")({
   component: TiposEscopoPage,
+  validateSearch: (search: Record<string, unknown>): { uso?: string } => {
+    const uso = search.uso;
+    return typeof uso === "string" && (ehTipoDoSistema(uso) || ehChaveValida(uso)) ? { uso } : {};
+  },
   head: () => ({
     meta: [
       { title: "Tipos de item do escopo | Ionics" },
@@ -29,6 +37,8 @@ type Form = { chave?: string; rotulo: string; plural: string; ativo: boolean; si
 const VAZIO: Form = { rotulo: "", plural: "", ativo: true, sistema: false, pai: "" };
 
 function TiposEscopoPage() {
+  const { uso: chaveUso } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const fnListar = useServerFn(listarTiposEscopo);
   const fnSalvar = useServerFn(salvarTipoEscopo);
   const fnExcluir = useServerFn(excluirTipoEscopo);
@@ -101,6 +111,7 @@ function TiposEscopoPage() {
   };
 
   const sistema = (dados?.catalogo ?? []).filter((t) => t.sistema);
+  const tipoEmUso = dados?.catalogo.find((tipo) => tipo.chave === chaveUso);
   const novos = (dados?.catalogo ?? []).filter((t) => !t.sistema);
 
   return (
@@ -123,9 +134,7 @@ function TiposEscopoPage() {
       <ConfiguracoesNav />
 
       {!dados ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
-        </p>
+        <CarregandoConteudo />
       ) : (
         <div className="space-y-8">
           {dados.migracaoPendente && (
@@ -168,6 +177,10 @@ function TiposEscopoPage() {
             </div>
           </section>
         </div>
+      )}
+
+      {tipoEmUso && (
+        <UsosTipo key={tipoEmUso.chave} tipo={tipoEmUso} onClose={() => void navigate({ search: {}, replace: true, resetScroll: false })} />
       )}
 
       <Modal open={aberto} onClose={() => setAberto(false)} title={form.chave ? "Editar tipo de item" : "Novo tipo de item"}>
@@ -256,9 +269,15 @@ function Linha({
         </p>
         {perguntas !== null &&
           (perguntas > 0 ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {perguntas} {perguntas === 1 ? "pergunta usa" : "perguntas usam"} este tipo em "Aplica-se a".
-            </p>
+            <Link
+              to="/app/tipos-escopo"
+              search={{ uso: t.chave }}
+              resetScroll={false}
+              className="mt-1 inline-block rounded py-1 text-xs font-medium text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              aria-label={"Ver perguntas que usam " + t.rotulo}
+            >
+              {perguntas === 1 ? "Ver 1 pergunta que usa este tipo" : "Ver " + perguntas + " perguntas que usam este tipo"}
+            </Link>
           ) : !t.sistema ? (
             <p className="mt-1 flex items-start gap-1 text-[11px] text-amber-700">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
@@ -271,7 +290,7 @@ function Linha({
       </div>
       <div className="flex shrink-0 gap-1">
         <Button variant="secondary" onClick={onEditar} aria-label={`Editar ${t.rotulo}`}>
-          <Pencil className="mr-1.5 h-4 w-4" /> Editar
+          <IconeEditar className="mr-1.5" /> Editar
         </Button>
         {onVisibilidade && (
           <Button variant="secondary" onClick={onVisibilidade}>
@@ -280,10 +299,59 @@ function Linha({
         )}
         {onExcluir && (
           <Button variant="secondary" onClick={onExcluir} aria-label={`Excluir ${t.rotulo}`}>
-            <Trash2 className="h-4 w-4" />
+            <IconeExcluir />
           </Button>
         )}
       </div>
     </Card>
+  );
+}
+
+function UsosTipo({ tipo, onClose }: { tipo: TipoCatalogo; onClose: () => void }) {
+  const listar = useServerFn(listarUsosTipoEscopo);
+  const [usos, setUsos] = useState<UsoTipoEscopo[] | null>(null);
+  const [erro, setErro] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
+
+  useEffect(() => {
+    let atual = true;
+    void listar({ data: { chave: tipo.chave } })
+      .then((lista) => { if (atual) setUsos(lista); })
+      .catch(() => { if (atual) setErro(true); });
+    return () => { atual = false; };
+  }, [listar, tipo.chave, tentativa]);
+
+  return (
+    <Modal open onClose={onClose} title={"Perguntas que usam " + tipo.rotulo}>
+      {erro ? (
+        <div className="space-y-3">
+          <p role="alert" className="text-sm">Não foi possível carregar as perguntas.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => {
+            setErro(false);
+            setTentativa((n) => n + 1);
+          }}>Tentar novamente</Button>
+        </div>
+      ) : usos === null ? (
+        <p role="status" className="text-sm text-muted-foreground">Carregando perguntas…</p>
+      ) : usos.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma pergunta disponível usa este tipo.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {usos.map(({ id, texto, secao }) => (
+            <li key={id}>
+              <Link
+                to="/app/forms/$id"
+                params={{ id: secao.formulario.id }}
+                search={{ pergunta: id, tipoOrigem: tipo.chave }}
+                className="block rounded px-2 py-3 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <span className="block text-sm font-medium text-primary">{texto || "Pergunta sem título"}</span>
+                <span className="block text-xs text-muted-foreground">{secao.formulario.nome} · {secao.titulo}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   );
 }

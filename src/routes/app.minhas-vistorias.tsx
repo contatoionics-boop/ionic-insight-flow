@@ -1,3 +1,4 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -82,7 +83,7 @@ function MinhasVistoriasPage() {
   const irPara = (a?: "aceitar") => navigate({ to: "/app/minhas-vistorias", search: a ? { aba: a } : {} });
 
   if (loading) {
-    return <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Carregando…</div>;
+    return <CarregandoConteudo className="rounded-xl border border-border bg-card p-4" />;
   }
 
   if (aba === "aceitar") {

@@ -56,3 +56,9 @@ export const FIGURA_N2_SUPORTE: FiguraLaudo = {
  * Compatibilidade: a seção 2.4 do template principal usava esta constante.
  */
 export const FIGURA_SUPORTE_BICO = FIGURA_BICO_NLDIV;
+
+/** Desenhos que também acompanham o aplicativo para ambientes sem os assets da CDN. */
+export function imagemAlternativaLaudo(url: string): string | undefined {
+  if (url === bicoNldiv.url) return "/laudo/nivel2-bico-wireless.png";
+  if (url === ponteiraNldiv.url) return "/laudo/nivel2-nldiv-ponteira.png";
+}

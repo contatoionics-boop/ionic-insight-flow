@@ -1,11 +1,11 @@
+import { IconeEditar, IconeVisualizar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { useTempoDeConteudo } from "@/hooks/use-tempo-de-conteudo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader, Button, Card, Modal, Input, Label, Select } from "@/components/ui-bits";
 import {
   Plus,
-  Pencil,
-  Trash2,
-  Eye,
   Copy,
   ExternalLink,
   Sparkles,
@@ -76,6 +76,7 @@ function FormsPage() {
   const [forms, setForms] = useState<Form[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
+  useTempoDeConteudo("formularios", loading);
   const [error, setError] = useState<string | null>(null);
 
   const [view, setView] = useState<ViewMode>(() => {
@@ -362,10 +363,10 @@ function FormsPage() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenuItem onClick={() => goEditar(f.id)}>
-          <Pencil className="mr-2 h-4 w-4" /> Editar formulário
+          <IconeEditar className="mr-2" /> Editar formulário
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => goView(f.id)}>
-          <Eye className="mr-2 h-4 w-4" /> Testar preenchimento
+          <IconeVisualizar className="mr-2" /> Testar preenchimento
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href={`/preview/forms/${f.id}`} target="_blank" rel="noopener noreferrer">
@@ -373,7 +374,7 @@ function FormsPage() {
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openEditForm(f)}>
-          <Pencil className="mr-2 h-4 w-4" /> Editar info
+          <IconeEditar className="mr-2" /> Editar info
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => duplicarForm(f)}>
           <Copy className="mr-2 h-4 w-4" /> Duplicar
@@ -383,7 +384,7 @@ function FormsPage() {
           onClick={() => setToDelForm(f)}
           className="text-destructive focus:text-destructive"
         >
-          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+          <IconeExcluir className="mr-2" /> Excluir
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -517,7 +518,7 @@ function FormsPage() {
 
       {loading ? (
         <Card>
-          <p className="text-sm text-muted-foreground">Carregando...</p>
+          <CarregandoConteudo />
         </Card>
       ) : filtered.length === 0 ? (
         <Card>

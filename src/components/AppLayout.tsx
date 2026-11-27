@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Building2,
-  FolderKanban,
+  Files,
   FileText,
   PlusCircle,
   ListChecks,
@@ -26,6 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ehSecaoConfiguracoes } from "@/components/ConfiguracoesNav";
+import { ConteudoDaRota } from "@/components/ConteudoDaRota";
 import { AgentMobileLayout } from "@/components/AgentMobileLayout";
 
 import { roleLabels, type Role } from "@/lib/auth";
@@ -43,9 +45,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/clients", label: "Clientes", icon: Building2 },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
     { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
-    { to: "/app/cases", label: "Resultado de mapeamentos", icon: FolderKanban },
+    { to: "/app/cases", label: "Resultado de mapeamentos", icon: Files },
     { to: "/app/forms", label: "Formulários", icon: FileText },
-    { to: "/app/review-queue", label: "Mapeamentos", icon: ClipboardCheck },
+    { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/agente-ia", label: "Agente de IA", icon: Bot },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ],
@@ -53,13 +55,13 @@ const navByRole: Record<Role, NavItem[]> = {
     { to: "/app/clients", label: "Clientes", icon: Building2 },
     { to: "/app/new-case", label: "Agendar mapeamento", icon: PlusCircle },
     { to: "/app/agenda", label: "Agenda", icon: CalendarDays },
-    { to: "/app/cases", label: "Resultado de mapeamentos", icon: FolderKanban },
-    { to: "/app/review-queue", label: "Mapeamentos", icon: ClipboardCheck },
+    { to: "/app/cases", label: "Resultado de mapeamentos", icon: Files },
+    { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/tracking", label: "Acompanhamento", icon: ListChecks },
   ],
   especialista: [
     { to: "/app/minhas-vistorias", label: "Meus mapeamentos", icon: ClipboardList },
-    { to: "/app/review-queue", label: "Mapeamentos", icon: ClipboardCheck },
+    { to: "/app/review-queue", label: "Fila de revisão", icon: ClipboardCheck },
     { to: "/app/history", label: "Histórico", icon: History },
   ],
   agente_tecnico: [
@@ -86,6 +88,12 @@ export function AppLayout() {
   }, [collapsed]);
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const origemMapeamento = useRouterState({ select: (s) => s.location.state.origemMapeamento });
+  const secaoAtual = pathname.startsWith("/app/vistorias/")
+    ? "/app/cases"
+    : pathname.startsWith("/app/review/")
+      ? (origemMapeamento ? "/app/cases" : "/app/review-queue")
+      : ehSecaoConfiguracoes(pathname) ? "/app/configuracoes" : pathname;
   const nomeEmpresa = config?.nome_empresa || "Ionics";
 
   useEffect(() => {
@@ -127,7 +135,7 @@ export function AppLayout() {
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen bg-background">
         <aside
-          className={`fixed inset-y-0 left-0 z-40 flex transform flex-col bg-sidebar text-sidebar-foreground transition-[width,transform] duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:self-start md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-40 flex transform flex-col bg-sidebar text-sidebar-foreground transition-[width,transform] duration-200 ease-in-out motion-reduce:transition-none md:sticky md:top-0 md:h-screen md:self-start md:translate-x-0 ${
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           } ${collapsed ? "w-16" : "w-64"}`}
         >
@@ -167,7 +175,7 @@ export function AppLayout() {
 
           <nav className={`flex flex-1 flex-col gap-0.5 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
             {nav.map((item) => {
-              const active = pathname.startsWith(item.to);
+              const active = secaoAtual === item.to || secaoAtual.startsWith(item.to + "/");
               const Icon = item.icon;
               const linkClass = `group relative flex items-center rounded-md text-sm font-medium transition-all ${
                 collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
@@ -177,7 +185,7 @@ export function AppLayout() {
                   : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               }`;
               const linkNode = (
-                <Link key={item.to} to={item.to} className={linkClass}>
+                <Link key={item.to} to={item.to} preload="intent" className={linkClass} aria-label={collapsed ? item.label : undefined} aria-current={active ? "page" : undefined}>
                   <span
                     className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-sidebar-active transition-opacity ${
                       active ? "opacity-100" : "opacity-0"
@@ -286,7 +294,7 @@ export function AppLayout() {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-8">
-            <Outlet />
+            <ConteudoDaRota />
           </main>
         </div>
 

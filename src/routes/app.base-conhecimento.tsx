@@ -1,16 +1,15 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Loader2,
   Upload,
-  Trash2,
   FileText,
   RefreshCw,
   BookOpen,
   Plus,
   Download,
-  Pencil,
   X,
 } from "lucide-react";
 
@@ -274,9 +273,9 @@ function DocumentosTab() {
                         type="button"
                         onClick={() => onDelete(d.id)}
                         className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-                        title="Excluir"
+                        title="Excluir" aria-label="Excluir da base de conhecimento"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <IconeExcluir />
                       </button>
                     </td>
                   </tr>
@@ -639,17 +638,17 @@ function RegistrosTab() {
                         type="button"
                         onClick={() => setEditing(r)}
                         className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-                        title="Editar"
+                        title="Editar" aria-label="Editar registro"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <IconeEditar />
                       </button>
                       <button
                         type="button"
                         onClick={() => onDelete(r.id)}
                         className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-                        title="Excluir"
+                        title="Excluir" aria-label="Excluir da base de conhecimento"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <IconeExcluir />
                       </button>
                     </td>
                   </tr>
@@ -1053,9 +1052,9 @@ function ImportacoesTab() {
                         type="button"
                         onClick={() => onDelete(it.id)}
                         className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-                        title="Remover importação"
+                        title="Remover importação" aria-label="Remover importação"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <IconeExcluir />
                       </button>
                     </td>
                   </tr>

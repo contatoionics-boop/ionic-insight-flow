@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode, type Ref } from "react";
 
 export function PageHeader({
   title,
@@ -218,9 +218,9 @@ export function Modal({
   );
 }
 
-export function Table({ children }: { children: ReactNode }) {
+export function Table({ children, containerRef }: { children: ReactNode; containerRef?: Ref<HTMLDivElement> }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div ref={containerRef} className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">{children}</table>
     </div>
   );

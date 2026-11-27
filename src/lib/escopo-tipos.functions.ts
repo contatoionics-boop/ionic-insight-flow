@@ -60,6 +60,41 @@ export const contarPerguntasPorTipo = createServerFn({ method: "POST" })
     return contagem;
   });
 
+export type UsoTipoEscopo = {
+  id: string;
+  texto: string;
+  secao: { titulo: string; formulario: { id: string; nome: string } };
+};
+
+/** Usa a sessão do usuário, assim como a contagem e o editor de formulários. */
+export const listarUsosTipoEscopo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ chave: z.string().refine(ehTipoDoSistemaOuValido) }).parse(input))
+  .handler(async ({ context, data }): Promise<UsoTipoEscopo[]> => {
+    const tipos = data.chave === "frota" ? ["frota", "div"] : [data.chave];
+    const usos: UsoTipoEscopo[] = [];
+    const pagina = 1000;
+    for (let inicio = 0; ; inicio += pagina) {
+      const { data: linhas, error } = await context.supabase
+        .from("perguntas")
+        .select("id, texto, secao:secoes!inner(titulo, formulario:formularios!inner(id, nome))")
+        .in("entidade_tipo", tipos)
+        .order("id")
+        .range(inicio, inicio + pagina - 1);
+      if (error) throw new Error(error.message);
+      usos.push(...linhas);
+      if (linhas.length < pagina) break;
+    }
+    return usos.sort((a, b) =>
+      a.secao.formulario.nome.localeCompare(b.secao.formulario.nome, "pt-BR") ||
+      a.secao.titulo.localeCompare(b.secao.titulo, "pt-BR") || a.texto.localeCompare(b.texto, "pt-BR"),
+    );
+  });
+
+function ehTipoDoSistemaOuValido(chave: string) {
+  return ehTipoDoSistema(chave) || ehChaveValida(chave);
+}
+
 const SalvarInput = z.object({
   /** tipo existente (renomear/ocultar); vazio cria um tipo novo */
   chave: z.string().max(41).optional(),

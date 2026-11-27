@@ -1,3 +1,4 @@
+import { IconeEditar, IconeVisualizar } from "@/components/ui/icones-de-acao";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -6,9 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Eye,
   Loader2,
-  Pencil,
   ShieldCheck,
   Type,
 } from "lucide-react";
@@ -331,7 +330,7 @@ export function LaudoPanel({
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              <Eye className="h-3.5 w-3.5" /> Visualizar
+              <IconeVisualizar /> Visualizar
             </button>
             <button
               type="button"
@@ -342,7 +341,7 @@ export function LaudoPanel({
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              <Pencil className="h-3.5 w-3.5" /> Editar
+              <IconeEditar /> Editar
             </button>
           </div>
 

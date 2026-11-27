@@ -1,5 +1,6 @@
+import { IconeEditar } from "@/components/ui/icones-de-acao";
 import { useState } from "react";
-import { AlertTriangle, Pencil } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { PerguntaBloco, type Pergunta, type Resposta } from "@/components/agent/FormFields";
 import { toPerguntaUI } from "@/lib/vistoria-checklist";
@@ -56,7 +57,7 @@ export function PerguntasDoGrupo({ etapa, perguntas, state, update, casoId, toke
           className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
           aria-label={`Editar ${p.texto}`}
         >
-          <Pencil className="h-3 w-3" /> Editar
+          <IconeEditar /> Editar
         </button>
       </div>
     );

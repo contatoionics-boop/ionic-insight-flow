@@ -1,6 +1,8 @@
+import { IconeExcluir } from "@/components/ui/icones-de-acao";
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, List, Plus, Table2, Trash2, Type, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, List, Plus, Table2, Type, X } from "lucide-react";
 import { Button } from "@/components/ui-bits";
+import { colecaoDeImagens, GaleriaImagensLaudo, ImagemLaudo } from "@/components/laudo/GaleriaImagensLaudo";
 import { ListaOrdenavel } from "@/components/laudo/ListaOrdenavel";
 import { moverNaLista } from "@/lib/ordenar-blocos";
 import { CampoFormatavel, type EstadoTexto } from "@/components/laudo/TextoFormatado";
@@ -12,7 +14,6 @@ import {
   type ModeloTabela,
   type ImagemBiblioteca,
   type ItemTexto,
-  type NomeFigura,
   type SlotTexto,
 } from "@/lib/laudo/textos-padrao";
 
@@ -136,7 +137,7 @@ export function EditorBlocos({
         <ArrowDown className="h-3.5 w-3.5" />
       </button>
       <button type="button" className="rounded border border-border p-1 text-destructive hover:bg-muted" title="Remover bloco" aria-label="Remover bloco" onClick={() => remover(i)}>
-        <Trash2 className="h-3.5 w-3.5" />
+        <IconeExcluir />
       </button>
     </div>
   );
@@ -188,10 +189,10 @@ export function EditorBlocos({
 
           {item.tipo === "figura" && (
             <div className="flex items-center gap-3">
-              <img src={FIGURAS_TEXTO[item.nome].url} alt={FIGURAS_TEXTO[item.nome].alt} className="h-16 w-24 rounded border border-border bg-white object-contain" />
+              <ImagemLaudo src={FIGURAS_TEXTO[item.nome].url} alt={FIGURAS_TEXTO[item.nome].alt} className="h-16 w-24 rounded border border-border bg-white object-contain" />
               <div className="min-w-0 text-xs">
                 <p className="font-medium">{FIGURAS_TEXTO[item.nome].legendaBase}</p>
-                <p className="text-muted-foreground">Desenho do sistema (arquivo do próprio aplicativo; para trocar, copie-o para a biblioteca de imagens).</p>
+                <p className="text-muted-foreground">Padrão do sistema</p>
               </div>
             </div>
           )}
@@ -254,21 +255,13 @@ export function EditorBlocos({
       {escolhendoImagem && (
         <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
           <p className="text-xs font-medium">Escolha a imagem</p>
-          <p className="text-[11px] text-muted-foreground">Imagens novas são enviadas na ficha “Biblioteca de imagens”, nesta mesma tela.</p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {(Object.keys(FIGURAS_TEXTO) as NomeFigura[]).map((n) => (
-              <button key={n} type="button" className="overflow-hidden rounded-md border border-border bg-background text-left hover:border-primary" onClick={() => { adicionar({ tipo: "figura", nome: n }); setEscolhendoImagem(false); }}>
-                <img src={FIGURAS_TEXTO[n].url} alt={FIGURAS_TEXTO[n].alt} className="h-20 w-full bg-white object-contain" />
-                <span className="block p-1.5 text-[10px] leading-tight text-muted-foreground">{FIGURAS_TEXTO[n].legendaBase} <i>(sistema)</i></span>
-              </button>
-            ))}
-            {imagens.map((im) => (
-              <button key={im.id} type="button" className="overflow-hidden rounded-md border border-border bg-background text-left hover:border-primary" onClick={() => { adicionar({ tipo: "imagem", id: im.id }); setEscolhendoImagem(false); }}>
-                <img src={im.url} alt={im.alt} className="h-20 w-full bg-white object-contain" />
-                <span className="block p-1.5 text-[10px] leading-tight text-muted-foreground">{im.nome}</span>
-              </button>
-            ))}
-          </div>
+          <GaleriaImagensLaudo
+            imagens={colecaoDeImagens(imagens)}
+            onInserir={(item) => {
+              adicionar(item.origem === "sistema" ? { tipo: "figura", nome: item.chave } : { tipo: "imagem", id: item.chave });
+              setEscolhendoImagem(false);
+            }}
+          />
         </div>
       )}
 

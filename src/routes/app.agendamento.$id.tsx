@@ -1,3 +1,4 @@
+import { IconeExcluir } from "@/components/ui/icones-de-acao";
 import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
@@ -12,7 +13,7 @@ import {
 } from "@/lib/casos.functions";
 import { listTechnicalAgents } from "@/lib/admin-users.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, MapPin, Plus, Trash2, ArrowLeft, UserPlus } from "lucide-react";
+import { CalendarDays, MapPin, Plus, ArrowLeft, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/app/agendamento/$id")({
   component: AgendamentoDetalhe,
@@ -224,9 +225,10 @@ function AgendamentoDetalhe() {
                   variant="outline"
                   onClick={() => removeCaso(c.id)}
                   disabled={!podeRemover || working}
+                  aria-label="Remover formulário do agendamento"
                   title={podeRemover ? "Remover" : "Já iniciado; não pode ser removido"}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <IconeExcluir />
                 </Button>
               </div>
             );

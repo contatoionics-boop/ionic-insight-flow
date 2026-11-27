@@ -1,5 +1,6 @@
+import { ConteudoDaRota } from "@/components/ConteudoDaRota";
 import { useCallback, useEffect, useState } from "react";
-import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, BellRing, LogOut, Route as RouteIcon, User } from "lucide-react";
 
 import { NotificacoesBell } from "@/components/NotificacoesBell";
@@ -127,7 +128,7 @@ export function AgentMobileLayout() {
             : "calc(env(safe-area-inset-bottom) + 5.5rem)",
         }}
       >
-        <Outlet />
+        <ConteudoDaRota />
       </main>
 
       {!emVistoria && (
@@ -144,6 +145,7 @@ export function AgentMobileLayout() {
                 key={t.label}
                 to={t.to}
                 search={t.search as never}
+                aria-current={active ? "page" : undefined}
                 className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}

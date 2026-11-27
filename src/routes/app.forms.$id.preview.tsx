@@ -91,7 +91,7 @@ function FormPreviewPage() {
   }, [id]);
 
   if (loading) {
-    return <BicoLoading tela />;
+    return <BicoLoading />;
   }
 
   if (error || !ctx) {

@@ -1,3 +1,4 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Toggle, Input, Label, Button, Badge } from "@/components/ui-bits";
@@ -51,7 +52,7 @@ function OutputsPage() {
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
       )}
       {loading ? (
-        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
+        <Card><CarregandoConteudo /></Card>
       ) : (
         <>
           <div className="space-y-3">

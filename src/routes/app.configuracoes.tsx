@@ -1,6 +1,9 @@
+import { IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { useTempoDeConteudo } from "@/hooks/use-tempo-de-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, Save, Upload, Trash2 } from "lucide-react";
+import { Loader2, Save, Upload } from "lucide-react";
 
 import { Button, Card, Input, Label } from "@/components/ui-bits";
 import { useAuth } from "@/hooks/use-auth";
@@ -41,6 +44,7 @@ function ConfiguracoesPage() {
   const auth = useAuth();
   const [c, setC] = useState<Config>(empty);
   const [loading, setLoading] = useState(true);
+  useTempoDeConteudo("configuracoes", loading);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -128,14 +132,6 @@ function ConfiguracoesPage() {
     setSaving(false);
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </Card>
-    );
-  }
-
   return (
     <div className="max-w-3xl">
       <ConfiguracoesNav />
@@ -146,91 +142,95 @@ function ConfiguracoesPage() {
         </p>
       </div>
 
-      <Card>
-        <div className="space-y-6">
-          <div>
-            <Label>Logo da empresa</Label>
-            <div className="mt-2 flex items-center gap-4">
-              {c.logo_url ? (
-                <img src={c.logo_url} alt="Logo" className="h-16 w-16 rounded border border-border object-contain bg-white" />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
-                  sem logo
-                </div>
+      {loading ? (
+        <Card><CarregandoConteudo /></Card>
+      ) : (
+        <Card>
+          <div className="space-y-6">
+            <div>
+              <Label>Logo da empresa</Label>
+              <div className="mt-2 flex items-center gap-4">
+                {c.logo_url ? (
+                  <img src={c.logo_url} alt="Logo" className="h-16 w-16 rounded border border-border object-contain bg-white" />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
+                    sem logo
+                  </div>
+                )}
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploading ? "Enviando…" : c.logo_url ? "Trocar logo" : "Enviar logo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
+                  />
+                </label>
+                {c.logo_url && (
+                  <button
+                    type="button"
+                    onClick={() => set("logo_url", "")}
+                    className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+                    title="Remover logo"
+                  >
+                    <IconeExcluir />
+                    Remover
+                  </button>
+                )}
+              </div>
+              {c.logo_url === "" && (
+                <p className="mt-1 text-xs text-muted-foreground">Clique em "Salvar configurações" para confirmar a remoção.</p>
               )}
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Enviando…" : c.logo_url ? "Trocar logo" : "Enviar logo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
-                />
-              </label>
-              {c.logo_url && (
-                <button
-                  type="button"
-                  onClick={() => set("logo_url", "")}
-                  className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
-                  title="Remover logo"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remover
-                </button>
-              )}
             </div>
-            {c.logo_url === "" && (
-              <p className="mt-1 text-xs text-muted-foreground">Clique em "Salvar configurações" para confirmar a remoção.</p>
-            )}
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Nome da empresa</Label>
-              <Input value={c.nome_empresa} onChange={(e) => set("nome_empresa", e.target.value)} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Nome da empresa</Label>
+                <Input value={c.nome_empresa} onChange={(e) => set("nome_empresa", e.target.value)} />
+              </div>
+              <div>
+                <Label>CNPJ</Label>
+                <Input value={c.cnpj} onChange={(e) => set("cnpj", e.target.value)} />
+              </div>
+              <div>
+                <Label>Telefone</Label>
+                <Input value={c.telefone} onChange={(e) => set("telefone", e.target.value)} />
+              </div>
+              <div>
+                <Label>E-mail de contato</Label>
+                <Input type="email" value={c.email_contato} onChange={(e) => set("email_contato", e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Endereço</Label>
+                <Input value={c.endereco} onChange={(e) => set("endereco", e.target.value)} />
+              </div>
+              <div>
+                <Label>Cidade / Estado</Label>
+                <Input value={c.cidade_estado} onChange={(e) => set("cidade_estado", e.target.value)} />
+              </div>
+              <div>
+                <Label>Site</Label>
+                <Input value={c.site} onChange={(e) => set("site", e.target.value)} placeholder="https://" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Texto de rodapé</Label>
+                <Input value={c.texto_rodape} onChange={(e) => set("texto_rodape", e.target.value)} />
+              </div>
             </div>
-            <div>
-              <Label>CNPJ</Label>
-              <Input value={c.cnpj} onChange={(e) => set("cnpj", e.target.value)} />
-            </div>
-            <div>
-              <Label>Telefone</Label>
-              <Input value={c.telefone} onChange={(e) => set("telefone", e.target.value)} />
-            </div>
-            <div>
-              <Label>E-mail de contato</Label>
-              <Input type="email" value={c.email_contato} onChange={(e) => set("email_contato", e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Endereço</Label>
-              <Input value={c.endereco} onChange={(e) => set("endereco", e.target.value)} />
-            </div>
-            <div>
-              <Label>Cidade / Estado</Label>
-              <Input value={c.cidade_estado} onChange={(e) => set("cidade_estado", e.target.value)} />
-            </div>
-            <div>
-              <Label>Site</Label>
-              <Input value={c.site} onChange={(e) => set("site", e.target.value)} placeholder="https://" />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Texto de rodapé</Label>
-              <Input value={c.texto_rodape} onChange={(e) => set("texto_rodape", e.target.value)} />
+
+            {err && <p className="text-sm text-destructive">{err}</p>}
+            {msg && <p className="text-sm text-success">{msg}</p>}
+
+            <div className="flex justify-end">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? "Salvando…" : "Salvar configurações"}
+              </Button>
             </div>
           </div>
-
-          {err && <p className="text-sm text-destructive">{err}</p>}
-          {msg && <p className="text-sm text-success">{msg}</p>}
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Salvando…" : "Salvar configurações"}
-            </Button>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }

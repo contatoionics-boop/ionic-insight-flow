@@ -1,8 +1,10 @@
+import { IconeEditar, IconeVisualizar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
-import { opcoesAplicaA, opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
+import { ehChaveValida, ehTipoDoSistema, opcoesAplicaA, opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -21,11 +23,8 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
   ExternalLink,
-  Eye,
   GripVertical,
-  Pencil,
   Plus,
-  Trash2,
   X,
   Layers,
 } from "lucide-react";
@@ -36,6 +35,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/forms/$id/")({
   component: FormBuilderPage,
+  validateSearch: (search: Record<string, unknown>): { pergunta?: string; tipoOrigem?: string } => {
+    const { pergunta, tipoOrigem } = search;
+    return {
+      pergunta: typeof pergunta === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(pergunta) ? pergunta : undefined,
+      tipoOrigem: typeof tipoOrigem === "string" && (ehTipoDoSistema(tipoOrigem) || ehChaveValida(tipoOrigem)) ? tipoOrigem : undefined,
+    };
+  },
 });
 
 type TipoPergunta =
@@ -99,6 +105,9 @@ type Opcao = { id: string; texto: string; ordem: number };
 
 function FormBuilderPage() {
   const { id } = Route.useParams();
+  const { pergunta: atalhoPergunta, tipoOrigem } = Route.useSearch();
+  const primeiraSelecao = useRef<string | undefined>(undefined);
+  const painelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const [form, setForm] = useState<Form | null>(null);
@@ -316,8 +325,26 @@ function FormBuilderPage() {
     [perguntas, selectedId],
   );
 
+  useEffect(() => {
+    if (!atalhoPergunta) {
+      primeiraSelecao.current = undefined;
+      return;
+    }
+    if (loading || primeiraSelecao.current === atalhoPergunta || !perguntas.some((p) => p.id === atalhoPergunta)) return;
+    if (selectedId !== atalhoPergunta) {
+      setSelectedId(atalhoPergunta);
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      primeiraSelecao.current = atalhoPergunta;
+      painelRef.current?.scrollIntoView({ block: "start" });
+      painelRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [atalhoPergunta, loading, perguntas, selectedId]);
+
   if (loading) {
-    return <Card><p className="text-sm text-muted-foreground">Carregando…</p></Card>;
+    return <Card><CarregandoConteudo /></Card>;
   }
   if (error || !form) {
     return <Card><p className="text-sm text-destructive">{error ?? "Formulário não encontrado"}</p></Card>;
@@ -325,12 +352,18 @@ function FormBuilderPage() {
 
   return (
     <div>
-      <button
-        onClick={() => navigate({ to: "/app/forms" })}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Formulários
-      </button>
+      {tipoOrigem ? (
+        <Link to="/app/tipos-escopo" search={{ uso: tipoOrigem }} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Voltar às perguntas do tipo de item
+        </Link>
+      ) : (
+        <Link to="/app/forms" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Formulários
+        </Link>
+      )}
+      {atalhoPergunta && !perguntas.some((p) => p.id === atalhoPergunta) && (
+        <p className="mb-4 text-sm text-muted-foreground">A pergunta indicada pelo atalho não está mais disponível neste formulário.</p>
+      )}
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -360,14 +393,14 @@ function FormBuilderPage() {
             title="Nome, descrição, empresa, código, revisão e responsáveis do documento"
             onClick={openInfo}
           >
-            <Pencil className="h-4 w-4" /> Dados do formulário
+            <IconeEditar /> Dados do formulário
           </Button>
           <Button
             variant="outline"
             title="Preencha o formulário aqui mesmo, como o agente faria. Nada é salvo."
             onClick={() => navigate({ to: "/app/forms/$id/preview", params: { id } })}
           >
-            <Eye className="h-4 w-4" /> Testar preenchimento
+            <IconeVisualizar /> Testar preenchimento
           </Button>
           <a
             href={`/preview/forms/${id}`}
@@ -422,7 +455,7 @@ function FormBuilderPage() {
         </div>
 
         {/* Painel */}
-        <div className="lg:sticky lg:top-4 lg:self-start">
+        <div ref={painelRef} tabIndex={-1} aria-label="Propriedades da pergunta" className="scroll-mt-20 lg:sticky lg:top-4 lg:self-start">
           {selected ? (
             <PropertiesPanel
               key={selected.id}
@@ -623,7 +656,7 @@ function SortableSection({
             className="text-muted-foreground hover:text-destructive"
             aria-label="Excluir seção"
           >
-            <Trash2 className="h-4 w-4" />
+            <IconeExcluir />
           </button>
         </div>
 
@@ -704,7 +737,7 @@ function SortableQuestion({
         className="text-muted-foreground hover:text-destructive"
         aria-label="Excluir campo"
       >
-        <Trash2 className="h-4 w-4" />
+        <IconeExcluir />
       </button>
     </li>
   );
@@ -1038,7 +1071,7 @@ function PropertiesPanel({
                     className="text-muted-foreground hover:text-destructive"
                     aria-label="Remover opção"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <IconeExcluir />
                   </button>
                 </li>
               ))}

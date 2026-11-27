@@ -1,5 +1,6 @@
+import { IconeEditar } from "@/components/ui/icones-de-acao";
 import { useState } from "react";
-import { Check, Loader2, Pencil } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -108,7 +109,7 @@ export function ConfirmacaoCadastro({ estado, token, casoId, onConfirmado }: Pro
                     onClick={() => setEditando((s) => ({ ...s, [c.perguntaId]: true }))}
                     className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"
                   >
-                    <Pencil className="h-3 w-3" /> Corrigir
+                    <IconeEditar /> Corrigir
                   </button>
                 </div>
               )}

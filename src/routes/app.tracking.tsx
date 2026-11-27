@@ -1,3 +1,4 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, Table, Th, Td, Badge } from "@/components/ui-bits";
@@ -54,7 +55,7 @@ function TrackingPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+            <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground"><CarregandoConteudo className="justify-center" /></td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Você ainda não criou nenhum mapeamento.</td></tr>
           ) : (

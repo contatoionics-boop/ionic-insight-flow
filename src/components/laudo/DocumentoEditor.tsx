@@ -1,3 +1,4 @@
+import { IconeEditar, IconeVisualizar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -6,11 +7,9 @@ import {
   ArrowDown,
   ArrowUp,
   Copy,
-  Eye,
   GripVertical,
   ImagePlus,
   Loader2,
-  Pencil,
   PencilRuler,
   Plus,
   RotateCcw,
@@ -18,7 +17,6 @@ import {
   Search,
   Sparkles,
   Table as TableIcon,
-  Trash2,
 } from "lucide-react";
 import { Badge, Button, Card, Input, Textarea } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +26,7 @@ import {
   salvarCabecalhoLaudo,
   salvarDocumentoLaudo,
 } from "@/lib/laudo.functions";
+import { ImagemLaudo } from "@/components/laudo/GaleriaImagensLaudo";
 import { BibliotecaModal } from "@/components/laudo/BibliotecaModal";
 import { CampoFormatavel, TextoFormatado, type EstadoTexto } from "@/components/laudo/TextoFormatado";
 import { classeAlinhamento, usaTextoRico } from "@/lib/laudo/texto-formatado";
@@ -421,7 +420,7 @@ function Visual({
       return (
         <figure className="mt-4 flex flex-col items-center gap-2">
           {bloco.url ? (
-            <img
+            <ImagemLaudo
               src={bloco.url}
               alt={bloco.alt}
               loading="lazy"
@@ -683,7 +682,7 @@ function EditorBloco({
                 variant="secondary"
                 onClick={() => onChange({ ...bloco, itens: bloco.itens.filter((_, k) => k !== i) })}
               >
-                <Trash2 className="h-4 w-4" />
+                <IconeExcluir />
               </Button>
             </div>
           ))}
@@ -777,12 +776,12 @@ function EditorBloco({
                     <td className="p-1">
                       <Button
                         variant="secondary"
-                        title="Excluir esta linha"
+                        title="Excluir esta linha" aria-label="Excluir linha"
                         onClick={() =>
                           onChange({ ...bloco, linhas: bloco.linhas.filter((_, k) => k !== i) })
                         }
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <IconeExcluir />
                       </Button>
                     </td>
                   </tr>
@@ -852,7 +851,7 @@ function EditorBloco({
       return (
         <div className="space-y-2">
           {bloco.url ? (
-            <img
+            <ImagemLaudo
               src={bloco.url}
               alt={bloco.alt}
               className="max-h-48 rounded-lg border border-border object-contain p-2"
@@ -884,11 +883,11 @@ function EditorBloco({
             </Button>
             {onRemoverBloco ? (
               <Button variant="secondary" onClick={onRemoverBloco}>
-                <Trash2 className="mr-2 h-4 w-4" /> Remover imagem do documento
+                <IconeExcluir className="mr-2" /> Remover imagem do documento
               </Button>
             ) : bloco.url ? (
               <Button variant="secondary" onClick={() => onChange({ ...bloco, url: "", desenho: undefined })}>
-                <Trash2 className="mr-2 h-4 w-4" /> Remover imagem
+                <IconeExcluir className="mr-2" /> Remover imagem
               </Button>
             ) : null}
             <select
@@ -1523,7 +1522,7 @@ export function DocumentoEditor({
                 variant={modo === "editar" ? "primary" : "secondary"}
                 onClick={() => setModo("editar")}
               >
-                <Pencil className="mr-2 h-4 w-4" /> Editar documento
+                <IconeEditar className="mr-2" /> Editar documento
               </Button>
               <Button
                 variant={modo === "visualizar" ? "primary" : "secondary"}
@@ -1532,7 +1531,7 @@ export function DocumentoEditor({
                   setEditando(null);
                 }}
               >
-                <Eye className="mr-2 h-4 w-4" /> Visualizar
+                <IconeVisualizar className="mr-2" /> Visualizar
               </Button>
             </div>
             <div className="flex items-center gap-2">
@@ -1661,10 +1660,10 @@ export function DocumentoEditor({
                     <button
                       type="button"
                       className="rounded border border-border bg-background p-1 text-muted-foreground"
-                      title="Editar"
+                      title="Editar" aria-label="Editar bloco"
                       onClick={() => setEditando(editando === b.id ? null : b.id)}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <IconeEditar />
                     </button>
                     <button
                       type="button"
@@ -1693,10 +1692,10 @@ export function DocumentoEditor({
                     <button
                       type="button"
                       className="rounded border border-border bg-background p-1 text-destructive"
-                      title="Excluir bloco"
+                      title="Excluir bloco" aria-label="Excluir bloco"
                       onClick={() => remover(i)}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <IconeExcluir />
                     </button>
 
                   </div>
@@ -1755,15 +1754,17 @@ export function DocumentoEditor({
         </div>
       </div>
 
-      <BibliotecaModal
-        casoId={casoId}
-        tipo={biblioteca}
-        onClose={() => setBiblioteca(null)}
-        onInserir={(novos: BlocoLaudo[]) => {
-          inserirBlocos(alvoInsercao, novos);
-          setBiblioteca(null);
-        }}
-      />
+      {biblioteca && (
+        <BibliotecaModal
+          casoId={casoId}
+          tipo={biblioteca}
+          onClose={() => setBiblioteca(null)}
+          onInserir={(novos: BlocoLaudo[]) => {
+            inserirBlocos(alvoInsercao, novos);
+            setBiblioteca(null);
+          }}
+        />
+      )}
     </div>
   );
 }

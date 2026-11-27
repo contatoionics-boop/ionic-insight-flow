@@ -1,3 +1,4 @@
+import { IconeEditar } from "@/components/ui/icones-de-acao";
 import { separarMidias } from "@/lib/midia-arquivos";
 import { useMemo, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui-bits";
@@ -10,7 +11,6 @@ import {
   FileText,
   ImageOff,
   Minus,
-  Pencil,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -505,7 +505,7 @@ export function RespostasLeitura({
                             aria-label={`Editar resposta: ${p.texto}`}
                             className="shrink-0 rounded-md border border-border p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <IconeEditar />
                           </button>
                         )}
                       </div>

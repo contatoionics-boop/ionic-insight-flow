@@ -22,7 +22,7 @@ const RegraSchema = z.object({
 });
 
 const limparTermo = (t: string) =>
-  t.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[%*,()\\"']/g, " ").trim();
+  t.normalize("NFC").replace(/[%*,()\\"']/g, " ").trim();
 
 const FALTA_MIGRATION = "O catálogo de equipamentos ainda não foi atualizado no banco (falta aplicar a migration 20261105120000_equipamentos_catalogo).";
 const faltaColuna = (msg: string) => /(column|schema cache)/i.test(msg) && /(sugerir|regra|categoria|quantidade_padrao|unidade)/.test(msg);
@@ -31,16 +31,19 @@ const faltaColuna = (msg: string) => /(column|schema cache)/i.test(msg) && /(sug
 export const listarEquipamentos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) =>
-    z.object({ q: z.string().max(80).default(""), somenteManuais: z.boolean().default(false) }).parse(i),
+    z.object({ q: z.string().max(80).default(""), somenteManuais: z.boolean().default(false), ativo: z.boolean().optional() }).parse(i),
   )
   .handler(async ({ data, context }) => {
     let q = (context.supabase as any)
       .from("produtos_catalogo")
       .select("codigo, nome, ativo, origem, categoria, unidade, quantidade_padrao, sugerir, regra");
     for (const termo of limparTermo(data.q).split(/\s+/).filter(Boolean)) {
-      q = q.or(`codigo.ilike.%${termo}%,nome.ilike.%${termo}%`);
+      const semAcentos = termo.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+      const variantes = [...new Set([termo, semAcentos])];
+      q = q.or(variantes.flatMap((valor) => [`codigo.ilike.%${valor}%`, `nome.ilike.%${valor}%`]).join(","));
     }
     if (data.somenteManuais) q = q.eq("origem", "manual");
+    if (data.ativo !== undefined) q = q.eq("ativo", data.ativo);
     const { data: linhas, error } = await q.order("origem", { ascending: true }).order("nome", { ascending: true }).limit(100);
     if (error) throw new Error(faltaColuna(error.message) ? FALTA_MIGRATION : error.message);
     return ((linhas ?? []) as any[]).map((l) => ({ ...l, quantidade_padrao: Number(l.quantidade_padrao ?? 1) })) as EquipamentoCatalogo[];

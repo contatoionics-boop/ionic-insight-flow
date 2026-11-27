@@ -1,3 +1,5 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { useTempoDeConteudo } from "@/hooks/use-tempo-de-conteudo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -53,6 +55,7 @@ function DashboardPage() {
   const [rows, setRows] = useState<MapeamentoComProgresso[]>([]);
   const [agentes, setAgentes] = useState<Agente[]>([]);
   const [loading, setLoading] = useState(true);
+  useTempoDeConteudo("dashboard", loading);
 
   useEffect(() => {
     (async () => {
@@ -141,7 +144,7 @@ function DashboardPage() {
         <Card>
           <h3 className="mb-4 text-sm font-semibold text-foreground">Agentes técnicos</h3>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
+            <CarregandoConteudo />
           ) : resumoAgentes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum agente técnico cadastrado.</p>
           ) : (
@@ -188,7 +191,7 @@ function DashboardPage() {
         <Card>
           <h3 className="mb-4 text-sm font-semibold text-foreground">Mapeamentos recentes</h3>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
+            <CarregandoConteudo />
           ) : recentes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum mapeamento registrado ainda.</p>
           ) : (

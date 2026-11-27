@@ -1,3 +1,5 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -8,7 +10,7 @@ import {
   Input,
   Label,
 } from "@/components/ui-bits";
-import { ArrowLeft, Plus, Pencil, Trash2, Building2, MapPin, Search, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Building2, MapPin, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { consultarCep, maskCep } from "@/lib/cep";
@@ -358,7 +360,7 @@ function EmpresaDetailPage() {
     setToDelU(null);
   };
 
-  if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+  if (loading) return <CarregandoConteudo />;
   if (!empresa) {
     return (
       <div>
@@ -393,7 +395,7 @@ function EmpresaDetailPage() {
             <div className="flex gap-2">
               {matrizes.length === 1 && (
                 <Button variant="outline" onClick={() => openEditMatriz(matrizes[0])}>
-                  <Pencil className="h-4 w-4" /> Editar dados
+                  <IconeEditar /> Editar dados
                 </Button>
               )}
               <Button onClick={openCreateMatriz}>
@@ -454,13 +456,13 @@ function EmpresaDetailPage() {
                         onClick={() => openEditMatriz(m)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
                       >
-                        <Pencil className="h-3 w-3" /> Editar
+                        <IconeEditar /> Editar
                       </button>
                       <button
                         onClick={() => setToDelM(m)}
                         className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-3 w-3" /> Excluir
+                        <IconeExcluir /> Excluir
                       </button>
                     </div>
                   )}
@@ -518,13 +520,13 @@ function EmpresaDetailPage() {
                                 onClick={() => openEditUnidade(u)}
                                 className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
                               >
-                                <Pencil className="h-3 w-3" /> Editar
+                                <IconeEditar /> Editar
                               </button>
                               <button
                                 onClick={() => setToDelU(u)}
                                 className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                               >
-                                <Trash2 className="h-3 w-3" /> Excluir
+                                <IconeExcluir /> Excluir
                               </button>
                             </div>
                           )}

@@ -1,3 +1,4 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { CameraCaptura, cameraDoAppDisponivel } from "@/components/agent/CameraCaptura";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -10,9 +11,7 @@ import {
   Check,
   Loader2,
   Mic,
-  Pencil,
   Square,
-  Trash2,
   X,
 } from "lucide-react";
 
@@ -1118,7 +1117,7 @@ function MiniaturaCarrossel({
         aria-label={`Remover foto ${indice + 1}`}
         className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-destructive shadow disabled:opacity-50"
       >
-        <Trash2 className="h-4 w-4" />
+        <IconeExcluir />
       </button>
     </div>
   );
@@ -1390,7 +1389,7 @@ function SeletorVideo({
       </div>
       {aoRemover && caminho && (
         <Button type="button" variant="outline" onClick={aoRemover} disabled={ocupado} className="h-11 w-full">
-          <Trash2 className="h-4 w-4" /> Remover vídeo
+          <IconeExcluir /> Remover vídeo
         </Button>
       )}
       <p className="text-[11px] text-muted-foreground">Limite de {LIMITE_VIDEO_BYTES / 1024 / 1024} MB por vídeo.</p>
@@ -1504,7 +1503,7 @@ function CampoAudio({
             modo === "texto" ? "border-primary bg-primary/5 text-foreground" : "border-border text-muted-foreground"
           }`}
         >
-          <Pencil className="mr-1 inline h-3.5 w-3.5" /> Prefiro digitar
+          <IconeEditar className="mr-1 inline" /> Prefiro digitar
         </button>
       </div>
 

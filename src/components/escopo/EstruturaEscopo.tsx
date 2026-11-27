@@ -38,12 +38,14 @@ export function EstruturaEscopo({
   onChange,
   disabled,
   itensDaProposta,
+  idCampoSolucao,
 }: {
   value: ArvoreEscopo;
   onChange: (v: ArvoreEscopo) => void;
   disabled?: boolean;
   /** Itens textuais lidos da proposta (para "Importar da proposta"). */
   itensDaProposta?: string[];
+  idCampoSolucao?: string;
 }) {
   const set = (patch: Partial<ArvoreEscopo>) => onChange({ ...value, ...patch });
   // nomes dos tipos (configuráveis em Configurações › Tipos de item)
@@ -93,6 +95,7 @@ export function EstruturaEscopo({
             <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="font-medium">Solução</span>
               <select
+                id={idCampoSolucao}
                 value={config.solucao ?? ""}
                 disabled={disabled}
                 onChange={(e) => setConfig({ solucao: e.target.value || null })}

@@ -1,3 +1,4 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,7 +15,7 @@ import {
   Label,
 } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
-import { Plus, Lock, Pencil, Trash2 } from "lucide-react";
+import { Plus, Lock } from "lucide-react";
 import {
   adminCreateUser,
   adminListUsers,
@@ -245,7 +246,7 @@ function UsersPage() {
                       onClick={() => openEdit(u)}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                     >
-                      <Pencil className="h-3 w-3" /> Editar
+                      <IconeEditar /> Editar
                     </button>
                     <button
                       onClick={() => openSetPassword(u)}
@@ -264,7 +265,7 @@ function UsersPage() {
                         onClick={() => setToDelete(u)}
                         className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-3 w-3" /> Excluir
+                        <IconeExcluir /> Excluir
                       </button>
                     )}
                   </div>

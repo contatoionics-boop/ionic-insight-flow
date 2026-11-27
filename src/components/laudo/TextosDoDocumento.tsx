@@ -1,7 +1,8 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Copy, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Loader2 } from "lucide-react";
 import { ListaOrdenavel } from "./ListaOrdenavel";
 import { moverNaLista } from "@/lib/ordenar-blocos";
 import { normalizarOrdemSecoes } from "@/lib/laudo/ordem-secoes";
@@ -262,13 +263,13 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
                       </div>
                       <div className="flex shrink-0 flex-wrap justify-end gap-1">
                         <Button variant="secondary" onClick={() => abrir(b)} aria-label="Editar versão">
-                          <Pencil className="mr-1.5 h-4 w-4" /> Editar
+                          <IconeEditar className="mr-1.5" /> Editar
                         </Button>
                         <Button variant="secondary" onClick={() => abrir(b, true)} aria-label="Duplicar versão e editar a cópia">
                           <Copy className="mr-1.5 h-4 w-4" /> Duplicar e editar
                         </Button>
                         <Button variant="secondary" onClick={() => excluir(b)} aria-label="Excluir versão">
-                          <Trash2 className="h-4 w-4" />
+                          <IconeExcluir />
                         </Button>
                       </div>
                     </div>

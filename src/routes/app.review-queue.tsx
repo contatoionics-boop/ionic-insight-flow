@@ -1,3 +1,4 @@
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Button } from "@/components/ui-bits";
@@ -35,11 +36,11 @@ function ReviewQueuePage() {
   return (
     <div>
       <PageHeader
-        title="Mapeamentos"
+        title="Fila de revisão"
         description="Mapeamentos aguardando análise e aprovação."
       />
       {loading ? (
-        <Card><p className="text-sm text-muted-foreground">Carregando...</p></Card>
+        <Card><CarregandoConteudo /></Card>
       ) : queue.length === 0 ? (
         <Card><p className="text-sm text-muted-foreground">Nenhum mapeamento aguardando revisão.</p></Card>
       ) : (

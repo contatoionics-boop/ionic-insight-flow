@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { IconeEditar } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, EyeOff, Loader2, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, EyeOff, Plus } from "lucide-react";
 import { PageHeader, Card, Button, Input, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import {
@@ -12,11 +14,13 @@ import {
   salvarOpcaoAgendamento,
   type ListaOpcoes,
 } from "@/lib/opcoes-agendamento.functions";
-import type { CampoAgendamento, CampoOpcao, OpcaoAgendamento } from "@/lib/opcoes-agendamento";
+import { SLUG_CAMPO, type CampoAgendamento, type CampoOpcao, type OpcaoAgendamento } from "@/lib/opcoes-agendamento";
 import { recarregarOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 
 export const Route = createFileRoute("/app/opcoes-agendamento")({
   component: OpcoesAgendamentoPage,
+  validateSearch: (search: Record<string, unknown>): { campo?: string } =>
+    typeof search.campo === "string" && SLUG_CAMPO.test(search.campo) ? { campo: search.campo } : {},
   head: () => ({
     meta: [
       { title: "Opções do agendamento | Ionics" },
@@ -30,6 +34,7 @@ type Edicao = { campo: CampoOpcao; valor?: string; rotulo: string; ativo: boolea
 type EdicaoCampo = { chave?: string; titulo: string; obrigatorio: boolean; ativo: boolean };
 
 function OpcoesAgendamentoPage() {
+  const { campo } = Route.useSearch();
   const fnListar = useServerFn(listarOpcoesAgendamento);
   const fnSalvar = useServerFn(salvarOpcaoAgendamento);
   const fnAdicionar = useServerFn(adicionarOpcaoAgendamento);
@@ -51,6 +56,17 @@ function OpcoesAgendamentoPage() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  const campoExiste = dados?.campos.some((item) => item.campo === campo);
+  useEffect(() => {
+    if (!campo || !campoExiste) return;
+    const frame = window.requestAnimationFrame(() => {
+      const alvo = document.getElementById("opcao-agendamento-" + campo);
+      alvo?.scrollIntoView({ block: "start" });
+      alvo?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [campo, campoExiste]);
 
   const atualizar = () => Promise.all([carregar(), recarregarOpcoesAgendamento()]);
 
@@ -149,9 +165,7 @@ function OpcoesAgendamentoPage() {
       <ConfiguracoesNav />
 
       {!dados ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
-        </p>
+        <CarregandoConteudo />
       ) : (
         <div className="space-y-8">
           {dados.migracaoPendente && (
@@ -181,7 +195,7 @@ function OpcoesAgendamentoPage() {
           {dados.campos.map((c) => {
             const lista = dados.opcoes.filter((x) => x.campo === c.campo);
             return (
-              <section key={c.campo}>
+              <section key={c.campo} id={"opcao-agendamento-" + c.campo} tabIndex={-1} aria-label={c.titulo} className="scroll-mt-20 rounded-md">
                 <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
@@ -198,11 +212,16 @@ function OpcoesAgendamentoPage() {
                       {c.sistema ? c.descricao : "Aparece como uma lista a mais ao agendar um mapeamento e no resumo do atendimento."}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(c.sistema || (c.ativo && lista.some((opcao) => opcao.ativo))) && (
+                      <Link to="/app/new-case" search={{ campo: c.campo }} aria-label={"Ver " + c.titulo + " no agendamento"} className="rounded px-2 py-2 text-sm font-medium text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                        Ver no agendamento
+                      </Link>
+                    )}
                     {!c.sistema && (
                       <>
                         <Button variant="secondary" onClick={() => setCampoEdicao({ chave: c.campo, titulo: c.titulo, obrigatorio: c.obrigatorio, ativo: c.ativo })}>
-                          <Pencil className="mr-1.5 h-4 w-4" /> Editar campo
+                          <IconeEditar className="mr-1.5" /> Editar campo
                         </Button>
                         <Button variant="secondary" onClick={() => alternarCampo(c)}>
                           {c.ativo ? "Ocultar campo" : "Mostrar campo"}
@@ -238,7 +257,7 @@ function OpcoesAgendamentoPage() {
                           <ArrowDown className="h-4 w-4" />
                         </Button>
                         <Button variant="secondary" disabled={dados.migracaoPendente} onClick={() => setEdicao({ campo: o.campo, valor: o.valor, rotulo: o.rotulo, ativo: o.ativo, ordem: o.ordem })}>
-                          <Pencil className="mr-1.5 h-4 w-4" /> Editar
+                          <IconeEditar className="mr-1.5" /> Editar
                         </Button>
                         <Button variant="secondary" disabled={dados.migracaoPendente} onClick={() => alternar(o)}>
                           {o.ativo ? "Ocultar" : "Mostrar"}

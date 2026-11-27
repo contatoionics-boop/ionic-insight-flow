@@ -1,3 +1,5 @@
+import { IconeEditar, IconeExcluir } from "@/components/ui/icones-de-acao";
+import { CarregandoConteudo } from "@/components/ui/carregando-conteudo";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -10,7 +12,7 @@ import {
   Input,
   Label,
 } from "@/components/ui-bits";
-import { Plus, Pencil, Trash2, ChevronRight, Search, Loader2 } from "lucide-react";
+import { Plus, ChevronRight, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { consultarCnpj, maskCnpj } from "@/lib/cnpj";
@@ -330,7 +332,7 @@ function ClientsPage() {
               : rows;
             if (loading) {
               return (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">Carregando...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground"><CarregandoConteudo className="justify-center" /></td></tr>
               );
             }
             if (visiveis.length === 0) {
@@ -371,7 +373,7 @@ function ClientsPage() {
                         }
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
                       >
-                        <Pencil className="h-3 w-3" /> Editar dados
+                        <IconeEditar /> Editar dados
                       </button>
                       <button
                         onClick={() => {
@@ -386,7 +388,7 @@ function ClientsPage() {
                         onClick={() => setToDelete(e)}
                         className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-3 w-3" /> Excluir
+                        <IconeExcluir /> Excluir
                       </button>
                     </div>
                   </Td>

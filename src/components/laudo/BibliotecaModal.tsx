@@ -7,6 +7,7 @@ import { listarBlocosPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functi
 import { listarFotosLaudo } from "@/lib/laudo.functions";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { lerSlot, type ImagemBiblioteca } from "@/lib/laudo/textos-padrao";
+import { colecaoDeImagens, GaleriaImagensLaudo } from "@/components/laudo/GaleriaImagensLaudo";
 import { imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 
 type Foto = { path: string; url: string; legenda: string };
@@ -18,19 +19,18 @@ export function BibliotecaModal({
   onInserir,
 }: {
   casoId: string;
-  tipo: "padrao" | "foto" | "imagem" | null;
+  tipo: "padrao" | "foto" | "imagem";
   onClose: () => void;
   onInserir: (blocos: BlocoLaudo[]) => void;
 }) {
   const fnBlocos = useServerFn(listarBlocosPadrao);
   const fnFotos = useServerFn(listarFotosLaudo);
-  const [carregando, setCarregando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [padroes, setPadroes] = useState<BlocoPadrao[]>([]);
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [imagens, setImagens] = useState<ImagemBiblioteca[]>([]);
 
   useEffect(() => {
-    if (!tipo) return;
     let vivo = true;
     setCarregando(true);
     (async () => {
@@ -44,7 +44,7 @@ export function BibliotecaModal({
           if (vivo) setFotos(r as Foto[]);
         }
       } catch (e: any) {
-        toast.error(e?.message ?? "Falha ao carregar a biblioteca.");
+        if (vivo) toast.error(e?.message ?? "Falha ao carregar a biblioteca.");
       } finally {
         if (vivo) setCarregando(false);
       }
@@ -53,8 +53,6 @@ export function BibliotecaModal({
       vivo = false;
     };
   }, [tipo, casoId]);
-
-  if (!tipo) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
@@ -73,38 +71,18 @@ export function BibliotecaModal({
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
           </p>
         ) : tipo === "imagem" ? (
-          imagens.length === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">
-              Nenhuma imagem na biblioteca. Envie imagens em Configurações › Blocos padrão › Biblioteca de imagens.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {imagens.map((im) => (
-                <button
-                  key={im.id}
-                  type="button"
-                  className="overflow-hidden rounded-lg border border-border text-left transition hover:border-primary"
-                  onClick={() =>
-                    onInserir([
-                      {
-                        id: `bib-${Math.random().toString(36).slice(2, 10)}`,
-                        tipo: "image",
-                        url: im.url,
-                        alt: im.alt || im.nome,
-                        // "Figura N —": o número acompanha a posição no documento
-                        legenda: `Figura 1 — ${im.legenda?.trim() || im.nome}`,
-                        larguraMax: im.larguraMax,
-                        bibliotecaId: im.id,
-                      } as BlocoLaudo,
-                    ])
-                  }
-                >
-                  <img src={im.url} alt={im.alt || im.nome} className="h-28 w-full bg-white object-contain" />
-                  <span className="block p-2 text-[11px] leading-tight text-muted-foreground">{im.nome}</span>
-                </button>
-              ))}
-            </div>
-          )
+          <GaleriaImagensLaudo
+            imagens={colecaoDeImagens(imagens)}
+            onInserir={({ imagem, origem }) => onInserir([{
+              id: "bib-" + Math.random().toString(36).slice(2, 10),
+              tipo: "image",
+              url: imagem.url,
+              alt: imagem.alt || imagem.nome,
+              legenda: "Figura 1 — " + (imagem.legenda.trim() || imagem.nome),
+              larguraMax: imagem.larguraMax,
+              ...(origem === "enviada" ? { bibliotecaId: imagem.id } : {}),
+            }])}
+          />
         ) : tipo === "padrao" ? (
           padroes.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">
