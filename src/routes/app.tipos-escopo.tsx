@@ -6,6 +6,7 @@ import { AlertTriangle, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-rea
 import { PageHeader, Card, Button, Input, Modal, Badge } from "@/components/ui-bits";
 import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import {
+  contarPerguntasPorTipo,
   excluirTipoEscopo,
   listarTiposEscopo,
   salvarTipoEscopo,
@@ -31,6 +32,9 @@ function TiposEscopoPage() {
   const fnListar = useServerFn(listarTiposEscopo);
   const fnSalvar = useServerFn(salvarTipoEscopo);
   const fnExcluir = useServerFn(excluirTipoEscopo);
+  const fnUso = useServerFn(contarPerguntasPorTipo);
+  /** quantas perguntas de formulário usam cada tipo (null = ainda não carregou / indisponível) */
+  const [uso, setUso] = useState<Record<string, number> | null>(null);
 
   const [dados, setDados] = useState<CatalogoTipos | null>(null);
   const [aberto, setAberto] = useState(false);
@@ -47,7 +51,10 @@ function TiposEscopoPage() {
 
   useEffect(() => {
     void carregar();
-  }, [carregar]);
+    void fnUso({ data: undefined as never })
+      .then((u) => setUso(u))
+      .catch(() => setUso(null));
+  }, [carregar, fnUso]);
 
   async function gravar(f: Form) {
     setSalvando(true);
@@ -142,7 +149,7 @@ function TiposEscopoPage() {
             ) : (
               <div className="space-y-2">
                 {novos.map((t) => (
-                  <Linha key={t.chave} t={t} catalogo={dados.catalogo} onEditar={() => abrirEdicao(t)} onVisibilidade={() => alternarVisibilidade(t)} onExcluir={() => excluir(t)} />
+                  <Linha key={t.chave} t={t} catalogo={dados.catalogo} perguntas={uso ? (uso[t.chave] ?? 0) : null} onEditar={() => abrirEdicao(t)} onVisibilidade={() => alternarVisibilidade(t)} onExcluir={() => excluir(t)} />
                 ))}
               </div>
             )}
@@ -156,7 +163,7 @@ function TiposEscopoPage() {
             </p>
             <div className="space-y-2">
               {sistema.map((t) => (
-                <Linha key={t.chave} t={t} onEditar={() => abrirEdicao(t)} onVisibilidade={podeOcultarTipo(t.chave) ? () => alternarVisibilidade(t) : undefined} />
+                <Linha key={t.chave} t={t} perguntas={uso ? (uso[t.chave] ?? 0) : null} onEditar={() => abrirEdicao(t)} onVisibilidade={podeOcultarTipo(t.chave) ? () => alternarVisibilidade(t) : undefined} />
               ))}
             </div>
           </section>
@@ -217,12 +224,15 @@ function TiposEscopoPage() {
 function Linha({
   t,
   catalogo,
+  perguntas,
   onEditar,
   onVisibilidade,
   onExcluir,
 }: {
   t: TipoCatalogo;
   catalogo?: TipoCatalogo[];
+  /** perguntas de formulário que usam este tipo em "Aplica-se a"; null = não carregado */
+  perguntas: number | null;
   onEditar: () => void;
   onVisibilidade?: () => void;
   onExcluir?: () => void;
@@ -244,6 +254,20 @@ function Linha({
           chave: {t.chave}
           {t.pai ? ` · dentro de ${rotuloDoTipo(catalogo, t.pai)}` : ""}
         </p>
+        {perguntas !== null &&
+          (perguntas > 0 ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {perguntas} {perguntas === 1 ? "pergunta usa" : "perguntas usam"} este tipo em "Aplica-se a".
+            </p>
+          ) : !t.sistema ? (
+            <p className="mt-1 flex items-start gap-1 text-[11px] text-amber-700">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>
+                Nenhuma pergunta usa este tipo, então ele não gera perguntas para o agente. Em Formulários, abra a pergunta e escolha "Aplica-se a: {t.rotulo}"
+                (ou use "Aplicar em lote").
+              </span>
+            </p>
+          ) : null)}
       </div>
       <div className="flex shrink-0 gap-1">
         <Button variant="secondary" onClick={onEditar} aria-label={`Editar ${t.rotulo}`}>

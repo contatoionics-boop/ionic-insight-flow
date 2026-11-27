@@ -37,6 +37,29 @@ export const listarTiposEscopo = createServerFn({ method: "POST" })
     return { catalogo: mesclarCatalogo(data), migracaoPendente: false };
   });
 
+/**
+ * Quantas perguntas de formulário usam cada tipo em "Aplica-se a" (chave do tipo → quantidade).
+ * Um tipo sem perguntas não gera nada no formulário do agente: a tela de Tipos de item avisa.
+ */
+export const contarPerguntasPorTipo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<Record<string, number>> => {
+    const sb = context.supabase as any;
+    const contagem: Record<string, number> = {};
+    // pagina de 1000 em 1000 (limite padrão da API)
+    for (let de = 0; de < 20000; de += 1000) {
+      const { data, error } = await sb.from("perguntas").select("entidade_tipo").neq("entidade_tipo", "geral").range(de, de + 999);
+      if (error) throw new Error(error.message);
+      for (const r of data ?? []) {
+        // "div" é a frota aplicada por modelo de DIV: conta para a frota
+        const tipo = r.entidade_tipo === "div" ? "frota" : String(r.entidade_tipo);
+        contagem[tipo] = (contagem[tipo] ?? 0) + 1;
+      }
+      if ((data ?? []).length < 1000) break;
+    }
+    return contagem;
+  });
+
 const SalvarInput = z.object({
   /** tipo existente (renomear/ocultar); vazio cria um tipo novo */
   chave: z.string().max(41).optional(),
