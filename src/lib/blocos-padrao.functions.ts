@@ -67,6 +67,8 @@ const SalvarInput = z.object({
       nivel: z.array(z.string()).default([]),
       /** itens fixos (pista, comboio, rfid, tx, frota) ou chave de um tipo novo do escopo */
       exige: z.array(z.string().regex(/^[a-z][a-z0-9_]{1,40}$/)).default([]),
+      /** condições dos campos criados em Opções do agendamento: campo → opções aceitas */
+      extras: z.record(z.string().regex(/^[a-z][a-z0-9_]{1,39}$/), z.array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/))).default({}),
       /** onde o bloco adicional automático entra (padrão: antes das Instruções gerais) */
       posicao: z.enum(POSICOES_BLOCO).default("antes_instrucoes"),
     })

@@ -9,7 +9,7 @@
 // A versão fica em `blocos_padrao`: `escopo` = { slot, padrao, solucao?, nivel?, exige? } e `blocos` = parágrafos/listas
 // com campos `{{cliente}}`. Campo sem dado vira [CONFIRMAR]; o PDF continua bloqueado enquanto houver pendência.
 
-import { condicoesAtendidas, lerRegra, type AvaliacaoRegra, type BlocoPadraoAuto, type RegraBlocoPadrao } from "./blocos-padrao-regras";
+import { condicoesAtendidas, lerExtras, lerRegra, qtdCondicoesExtras, type AvaliacaoRegra, type BlocoPadraoAuto, type RegraBlocoPadrao } from "./blocos-padrao-regras";
 import { blocos24 } from "./blocos-nivel2";
 import { FIGURA_N2_BICO, FIGURA_N2_PONTEIRA, FIGURA_N2_SUPORTE, type FiguraLaudo } from "./figuras";
 import { pendencia, type BlocoLaudo } from "./tipos";
@@ -306,17 +306,18 @@ export function lerSlot(escopo: Record<string, any> | null | undefined): { slot:
 }
 
 /** Monta o `escopo` de uma versão de texto: slot, padrão e as condições (campos vazios não são gravados). */
-export function escopoDaVersao(slot: SlotTexto, padrao: boolean, regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige">): Record<string, any> {
+export function escopoDaVersao(slot: SlotTexto, padrao: boolean, regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige" | "extras">): Record<string, any> {
   return {
     slot,
     padrao,
     ...(regra.solucao.length ? { solucao: regra.solucao } : {}),
     ...(regra.nivel.length ? { nivel: regra.nivel } : {}),
     ...(regra.exige.length ? { exige: regra.exige } : {}),
+    ...(qtdCondicoesExtras(regra) ? { extras: lerExtras(regra.extras) } : {}),
   };
 }
 
-const especificidade = (r: RegraBlocoPadrao) => r.solucao.length + r.nivel.length + r.exige.length;
+const especificidade = (r: RegraBlocoPadrao) => r.solucao.length + r.nivel.length + r.exige.length + qtdCondicoesExtras(r);
 
 /**
  * Versão a usar no slot, ou null para o texto original do sistema.

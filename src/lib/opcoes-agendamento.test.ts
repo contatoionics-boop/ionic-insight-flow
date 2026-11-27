@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { camposExtrasAtivos, chaveDoCampo, definirCampos, definirOpcoes, mesclarCampos, mesclarOpcoes, opcoesDoCampo, resumoCamposExtras, rotuloDeQualquerOpcao, rotuloOpcao, valorDoNome } from "./opcoes-agendamento";
 import { resumoAtendimento } from "./casos";
+import { condicoesAtendidas, lerRegra, regraParaEscopo, resumoDaRegra } from "./laudo/blocos-padrao-regras";
+import { escolherVersao } from "./laudo/textos-padrao";
 import { rotuloModalidade, rotuloTipoAcao } from "./texto";
 import { rotuloSolucao } from "./escopo/tipos";
 
@@ -88,5 +90,39 @@ describe("campos novos do agendamento", () => {
     expect(resumoAtendimento({ tipo_solicitacao: "instalacao", campos_extras: { tipo_mapeamento: "completo" } })).toBe("Instalação · Completo");
     expect(resumoAtendimento({ tipo_solicitacao: "instalacao" })).toBe("Instalação");
     definirCampos();
+  });
+});
+
+describe("campos novos como condição dos textos e blocos padrão", () => {
+  const base = { automatico: true, solucao: [], nivel: [], exige: [], posicao: "antes_instrucoes" as const };
+  const ctx = { nivel: null, contexto: null };
+
+  it("a regra só atende quando a escolha do caso está entre as aceitas", () => {
+    const regra = { ...base, extras: { tipo_mapeamento: ["completo", "rapido"] } };
+    expect(condicoesAtendidas(regra, { ...ctx, camposExtras: { tipo_mapeamento: "completo" } })).toBe(true);
+    expect(condicoesAtendidas(regra, { ...ctx, camposExtras: { tipo_mapeamento: "outro" } })).toBe(false);
+    expect(condicoesAtendidas(regra, { ...ctx, camposExtras: {} })).toBe(false); // sem escolha não atende
+    expect(condicoesAtendidas(regra, ctx)).toBe(false);
+    // sem condição de campo novo, nada muda
+    expect(condicoesAtendidas({ ...base }, ctx)).toBe(true);
+    expect(condicoesAtendidas({ ...base, extras: {} }, ctx)).toBe(true);
+  });
+
+  it("lê e grava só chaves válidas e listas não vazias; resumo usa os nomes configurados", () => {
+    definirCampos([{ chave: "tipo_mapeamento", titulo: "Tipo de mapeamento" }] as never);
+    definirOpcoes([{ campo: "tipo_mapeamento", valor: "completo", rotulo: "Completo" }] as never);
+    const r = lerRegra({ automatico: true, extras: { tipo_mapeamento: ["completo"], "Ruim!": ["x"], vazio: [] } });
+    expect(r.extras).toEqual({ tipo_mapeamento: ["completo"] });
+    expect(regraParaEscopo(r)).toMatchObject({ extras: { tipo_mapeamento: ["completo"] } });
+    expect(regraParaEscopo({ ...r, extras: {} })).not.toHaveProperty("extras");
+    expect(resumoDaRegra(r)).toBe("Automático: Tipo de mapeamento: Completo");
+    definirCampos();
+  });
+
+  it("versão de texto com condição de campo novo vence a genérica (mais específica) e só entra quando bate", () => {
+    const v = (id: string, escopo: Record<string, unknown>) => ({ id, nome: id, escopo: { slot: "introducao", padrao: true, ...escopo }, blocos: [{ id: "b", tipo: "paragraph", texto: id }], ordem: 0 }) as never;
+    const versoes = [v("geral", {}), v("completo", { extras: { tipo_mapeamento: ["completo"] } })];
+    expect(escolherVersao("introducao", versoes, null, { ...ctx, camposExtras: { tipo_mapeamento: "completo" } })?.id).toBe("completo");
+    expect(escolherVersao("introducao", versoes, null, { ...ctx, camposExtras: { tipo_mapeamento: "rapido" } })?.id).toBe("geral");
   });
 });

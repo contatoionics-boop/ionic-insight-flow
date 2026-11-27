@@ -6,7 +6,7 @@
 // Condição vazia em um campo = "qualquer". Todos os campos preenchidos precisam ser atendidos.
 
 import type { ContextoLaudo } from "./contexto";
-import { rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { SLUG_CAMPO, SLUG_OPCAO, camposAtuais, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { SLUG_TIPO, rotuloDoTipo, tiposNovos, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import type { BlocoLaudo } from "./tipos";
 
@@ -56,12 +56,29 @@ export type RegraBlocoPadrao = {
   solucao: string[];
   nivel: string[];
   exige: Exigencia[];
+  /** campos criados em Opções do agendamento (ex.: "Tipo de mapeamento"): campo → opções aceitas (vazio = qualquer) */
+  extras?: Record<string, string[]>;
   posicao: PosicaoBloco;
 };
 
 export type BlocoPadraoAuto = { id: string; nome: string; escopo: Record<string, any> | null; blocos: BlocoLaudo[]; ordem?: number };
 
 const lista = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+/** Condições dos campos criados em Opções do agendamento: só chaves válidas e listas não vazias. */
+export function lerExtras(v: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    for (const [campo, valores] of Object.entries(v as Record<string, unknown>)) {
+      const l = lista(valores).filter((x) => SLUG_OPCAO.test(x));
+      if (SLUG_CAMPO.test(campo) && l.length) out[campo] = l;
+    }
+  }
+  return out;
+}
+
+/** Quantas condições de campos novos a regra tem (entra na "especificidade" de uma versão de texto). */
+export const qtdCondicoesExtras = (r: Pick<RegraBlocoPadrao, "extras">): number => Object.keys(lerExtras(r.extras)).length;
 
 /** Lê a regra gravada em `escopo`; qualquer coisa fora do formato vira "sem regra". */
 export function lerRegra(escopo: Record<string, any> | null | undefined): RegraBlocoPadrao {
@@ -70,6 +87,7 @@ export function lerRegra(escopo: Record<string, any> | null | undefined): RegraB
     automatico: e.automatico === true,
     solucao: lista(e.solucao),
     nivel: lista(e.nivel),
+    ...(Object.keys(lerExtras(e.extras)).length ? { extras: lerExtras(e.extras) } : {}),
     exige: lista(e.exige).filter((x) => (EXIGENCIAS as readonly string[]).includes(x) || SLUG_TIPO.test(x)),
     posicao: (POSICOES_BLOCO as readonly string[]).includes(e.posicao) ? e.posicao : "antes_instrucoes",
   };
@@ -83,6 +101,7 @@ export function regraParaEscopo(r: RegraBlocoPadrao): Record<string, any> {
     ...(r.solucao.length ? { solucao: r.solucao } : {}),
     ...(r.nivel.length ? { nivel: r.nivel } : {}),
     ...(r.exige.length ? { exige: r.exige } : {}),
+    ...(qtdCondicoesExtras(r) ? { extras: lerExtras(r.extras) } : {}),
     ...(r.posicao && r.posicao !== "antes_instrucoes" ? { posicao: r.posicao } : {}),
   };
 }
@@ -94,11 +113,20 @@ export function resumoDaRegra(r: RegraBlocoPadrao, catalogo?: TipoCatalogo[] | n
   if (r.solucao.length) partes.push(r.solucao.map((s) => rotuloOpcao("solucao", s) ?? s).join(" ou "));
   if (r.nivel.length) partes.push(r.nivel.map((n) => rotuloOpcao("nivel", n) ?? n).join(" ou "));
   if (r.exige.length) partes.push(`com ${r.exige.map((x) => rotuloExigencia(x, catalogo)).join(" e ")}`);
+  for (const [campo, valores] of Object.entries(lerExtras(r.extras))) {
+    const titulo = camposAtuais().find((c) => c.campo === campo)?.titulo ?? campo;
+    partes.push(`${titulo}: ${valores.map((v) => rotuloOpcao(campo, v) ?? v).join(" ou ")}`);
+  }
   if (r.posicao !== "antes_instrucoes") partes.push(r.posicao === "fim" ? "no fim" : "após a Introdução");
   return `Automático${partes.length ? `: ${partes.join(" · ")}` : ": em todos os documentos"}`;
 }
 
-export type AvaliacaoRegra = { nivel: string | null; contexto: ContextoLaudo | null };
+export type AvaliacaoRegra = {
+  nivel: string | null;
+  contexto: ContextoLaudo | null;
+  /** escolhas do caso nos campos criados em Opções do agendamento ({ campo: valor }) */
+  camposExtras?: Record<string, string> | null;
+};
 
 /** A regra é atendida pelo caso? Dado desconhecido nunca satisfaz uma condição (não inclui por engano). */
 export function regraAtende(r: RegraBlocoPadrao, a: AvaliacaoRegra): boolean {
@@ -111,6 +139,11 @@ export function condicoesAtendidas(r: RegraBlocoPadrao, a: AvaliacaoRegra): bool
   const e = a.contexto?.escopo;
   if (r.solucao.length && (!e?.solucao || !r.solucao.includes(e.solucao))) return false;
   if (r.nivel.length && (!a.nivel || !r.nivel.includes(a.nivel))) return false;
+  // campos novos do agendamento: o valor escolhido no caso precisa estar entre os aceitos (sem escolha não atende)
+  for (const [campo, aceitos] of Object.entries(lerExtras(r.extras))) {
+    const escolhido = a.camposExtras?.[campo];
+    if (!escolhido || !aceitos.includes(escolhido)) return false;
+  }
   const tem: Record<string, boolean> = {
     pista: !!e?.temPista,
     comboio: !!e?.temComboio,

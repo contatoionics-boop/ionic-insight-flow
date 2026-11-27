@@ -48,6 +48,8 @@ export type EntradaTemplate = {
   blocosPadrao?: BlocoPadraoAuto[];
   /** versões cadastradas dos textos do documento (Configurações › Textos do documento) */
   textosPadrao?: VersaoTexto[];
+  /** escolhas do caso nos campos criados em Opções do agendamento ({ campo: valor }): condições dos textos/blocos padrão */
+  camposExtras?: Record<string, string> | null;
   /** imagens da biblioteca (Configurações), pelo id usado em `[imagem:<id>]` */
   imagensBiblioteca?: ImagensBiblioteca;
   /** versão escolhida para ESTE mapeamento, por slot (`"sistema"` = texto original) */
@@ -169,7 +171,7 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
         `${modalidadeTexto ? ` no formulário de Mapeamento Técnico - ${modalidadeTexto.charAt(0).toUpperCase()}${modalidadeTexto.slice(1)}` : ""}.`
       : "";
   // Textos do documento com versões: a escolhida para o mapeamento, a padrão que o caso atende ou o original do sistema.
-  const avaliacaoTexto = { nivel: nivel ?? null, contexto: entrada.contexto ?? null };
+  const avaliacaoTexto = { nivel: nivel ?? null, contexto: entrada.contexto ?? null, camposExtras: entrada.camposExtras ?? null };
   const versaoDe = (slot: SlotTexto) => escolherVersao(slot, entrada.textosPadrao ?? [], entrada.textosEscolhidos, avaliacaoTexto);
   const nivelNumero = (nivel ?? "").match(/(\d)/)?.[1];
   const campos: CamposTexto = {

@@ -350,7 +350,12 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
     // sem os prints: o documento segue sem as imagens
   }
 
+  // escolhas do agendamento nos campos criados em Opções do agendamento: condições dos textos e blocos padrão
+  const { camposExtrasPorAgendamento } = await import("@/lib/campos-extras.server");
+  const camposExtras = (await camposExtrasPorAgendamento(supabase, [caso.agendamento_id])).get(caso.agendamento_id) ?? null;
+
   const { blocos, achados } = montarBlocosEAnalise({
+    camposExtras,
     fotosTransferencia,
     textosPadrao,
     imagensBiblioteca,

@@ -9,8 +9,8 @@ import { TextosDoDocumento } from "@/components/laudo/TextosDoDocumento";
 import { BibliotecaImagens, imagensDaLista } from "@/components/laudo/BibliotecaImagens";
 import { lerSlot } from "@/lib/laudo/textos-padrao";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
-import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
-import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   excluirBlocoPadrao,
@@ -68,7 +68,7 @@ const VAZIO: Form = {
   corpo: "",
   ativo: true,
   ordem: 100,
-  regra: { automatico: false, solucao: [], nivel: [], exige: [], posicao: "antes_instrucoes" },
+  regra: { automatico: false, solucao: [], nivel: [], exige: [], extras: {}, posicao: "antes_instrucoes" },
 };
 
 function corpoDosBlocos(b: BlocoPadrao): string {
@@ -85,6 +85,7 @@ function corpoDosBlocos(b: BlocoPadrao): string {
 function BlocosPadraoPage() {
   const catalogoTipos = useTiposEscopo();
   const opcoesAg = useOpcoesAgendamento();
+  const camposAg = useCamposAgendamento();
   const fnListar = useServerFn(listarBlocosPadrao);
   const fnSalvar = useServerFn(salvarBlocoPadrao);
   const fnExcluir = useServerFn(excluirBlocoPadrao);
@@ -334,6 +335,21 @@ function BlocosPadraoPage() {
                   marcados={form.regra.nivel}
                   onChange={(nivel) => setForm({ ...form, regra: { ...form.regra, nivel } })}
                 />
+                {camposExtrasAtivos(camposAg)
+                  .concat(camposAg.filter((c) => !c.sistema && !c.ativo && (form.regra.extras?.[c.campo]?.length ?? 0) > 0))
+                  .map((c) => (
+                    <GrupoMarcas
+                      key={c.campo}
+                      titulo={c.titulo}
+                      opcoes={opcoesDoCampo(c.campo, { todas: opcoesAg, incluir: form.regra.extras?.[c.campo] }).map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                      marcados={form.regra.extras?.[c.campo] ?? []}
+                      onChange={(valores) => {
+                        const extras = { ...(form.regra.extras ?? {}), [c.campo]: valores };
+                        if (!valores.length) delete extras[c.campo];
+                        setForm({ ...form, regra: { ...form.regra, extras } });
+                      }}
+                    />
+                  ))}
                 <GrupoMarcas
                   titulo="Só quando o Escopo tiver"
                   opcoes={opcoesExigencia(catalogoTipos, form.regra.exige)}

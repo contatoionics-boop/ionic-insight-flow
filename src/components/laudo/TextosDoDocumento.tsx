@@ -8,8 +8,8 @@ import { semMarcas } from "@/lib/laudo/texto-formatado";
 import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { lerRegra, opcoesExigencia, rotuloExigencia, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
-import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
-import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { camposAtuais, camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import type { TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import {
   INFO_SLOT,
@@ -44,12 +44,12 @@ type Form = {
   padrao: boolean;
   ativo: boolean;
   ordem: number;
-  regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige">;
+  regra: Pick<RegraBlocoPadrao, "solucao" | "nivel" | "exige" | "extras">;
   /** versão aberta para edição (permite "Salvar como nova versão" sem perder a original) */
   origem?: BlocoPadrao;
 };
 
-const SEM_CONDICAO = { solucao: [], nivel: [], exige: [] } as Form["regra"];
+const SEM_CONDICAO = { solucao: [], nivel: [], exige: [], extras: {} } as Form["regra"];
 
 /** O que vale quando não há versão cadastrada, para os textos que não têm um "original" em texto corrido. */
 const SEM_ORIGINAL: Partial<Record<SlotTexto, string>> = {
@@ -64,6 +64,9 @@ function condicaoEmTexto(escopo: Record<string, any> | null, catalogo?: TipoCata
   if (r.solucao.length) partes.push(r.solucao.map((s) => rotuloOpcao("solucao", s) ?? s).join(" ou "));
   if (r.nivel.length) partes.push(r.nivel.map((n) => rotuloOpcao("nivel", n) ?? n).join(" ou "));
   if (r.exige.length) partes.push(`com ${r.exige.map((x) => rotuloExigencia(x, catalogo)).join(" e ")}`);
+  for (const [campo, valores] of Object.entries(r.extras ?? {})) {
+    partes.push(`${camposAtuais().find((c) => c.campo === campo)?.titulo ?? campo}: ${valores.map((v) => rotuloOpcao(campo, v) ?? v).join(" ou ")}`);
+  }
   return partes.length ? partes.join(" · ") : "qualquer mapeamento";
 }
 
@@ -94,7 +97,7 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
       padrao: duplicar ? false : padrao,
       ativo: b.ativo,
       ordem: b.ordem,
-      regra: { solucao: r.solucao, nivel: r.nivel, exige: r.exige },
+      regra: { solucao: r.solucao, nivel: r.nivel, exige: r.exige, extras: r.extras ?? {} },
       origem: duplicar ? undefined : b,
     });
   }
@@ -128,7 +131,7 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
           await fnSalvar({
             data: {
               id: anterior.id, nome: anterior.nome, descricao: anterior.descricao, categoria: "texto", corpo: "", itens: blocosParaItens(anterior.blocos),
-              ativo: anterior.ativo, ordem: anterior.ordem, slot: form.slot, padrao: false, regra: { automatico: false, solucao: r.solucao, nivel: r.nivel, exige: r.exige },
+              ativo: anterior.ativo, ordem: anterior.ordem, slot: form.slot, padrao: false, regra: { automatico: false, solucao: r.solucao, nivel: r.nivel, exige: r.exige, extras: r.extras ?? {} },
             },
           });
           toast.success(`Nova versão "${nome}" salva como padrão. A anterior continua guardada (use-a escolhendo no mapeamento).`);
@@ -159,7 +162,17 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
     }
   }
 
-  const marcar = (grupo: keyof Form["regra"], valor: string, ligado: boolean) => {
+  // campos criados em Opções do agendamento: cada um vira um grupo de condições
+  const camposAg = useCamposAgendamento();
+  const marcarExtra = (campo: string, valor: string, ligado: boolean) => {
+    if (!form) return;
+    const atuais = form.regra.extras?.[campo] ?? [];
+    const novos = ligado ? [...atuais, valor] : atuais.filter((x) => x !== valor);
+    const extras = { ...(form.regra.extras ?? {}), [campo]: novos };
+    if (!novos.length) delete extras[campo];
+    setForm({ ...form, regra: { ...form.regra, extras } });
+  };
+  const marcar = (grupo: "solucao" | "nivel" | "exige", valor: string, ligado: boolean) => {
     if (!form) return;
     const atuais = form.regra[grupo] as string[];
     setForm({ ...form, regra: { ...form.regra, [grupo]: ligado ? [...atuais, valor] : atuais.filter((x) => x !== valor) } });
@@ -273,6 +286,17 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
                 <>
                   <Grupo titulo="Solução" opcoes={opcoesDoCampo("solucao", { todas: opcoesAg, incluir: form.regra.solucao }).map((o) => [o.valor, o.rotulo])} marcados={form.regra.solucao} onMarcar={(v, l) => marcar("solucao", v, l)} />
                   <Grupo titulo="Nível de serviço" opcoes={opcoesDoCampo("nivel", { todas: opcoesAg, incluir: form.regra.nivel }).map((o) => [o.valor, o.rotulo])} marcados={form.regra.nivel} onMarcar={(v, l) => marcar("nivel", v, l)} />
+                  {camposExtrasAtivos(camposAg)
+                    .concat(camposAg.filter((c) => !c.sistema && !c.ativo && (form.regra.extras?.[c.campo]?.length ?? 0) > 0))
+                    .map((c) => (
+                      <Grupo
+                        key={c.campo}
+                        titulo={c.titulo}
+                        opcoes={opcoesDoCampo(c.campo, { todas: opcoesAg, incluir: form.regra.extras?.[c.campo] }).map((o) => [o.valor, o.rotulo])}
+                        marcados={form.regra.extras?.[c.campo] ?? []}
+                        onMarcar={(v, l) => marcarExtra(c.campo, v, l)}
+                      />
+                    ))}
                   <Grupo
                     titulo="Só quando o Escopo tiver"
                     opcoes={opcoesExigencia(catalogoTipos, form.regra.exige).map((o) => [o.valor, o.rotulo])}
