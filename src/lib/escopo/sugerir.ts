@@ -1,6 +1,6 @@
 // Estrutura física sugerida a partir do escopo lido da proposta (client-safe, função pura).
 import type { EscopoProposta } from "@/lib/proposta/tipos";
-import { LIMITES, arvoreVazia, type ArvoreEscopo, type ConfigEscopo } from "./tipos";
+import { LIMITES, arvoreTemEstrutura, arvoreVazia, type ArvoreEscopo, type ConfigEscopo } from "./tipos";
 
 const num = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
 const qtd = (v: unknown, max: number) => Math.min(num(v), max);
@@ -26,5 +26,5 @@ export function estruturaDoEscopo(e: EscopoProposta | null | undefined, config: 
 
 /** true quando a estrutura ainda não tem nada definido (nada a perder ao preencher sozinho). */
 export function estruturaEhVazia(a: ArvoreEscopo): boolean {
-  return !a.postos.length && !a.comboios.length && !a.tanquesLubrificante.length && !a.sondas.length && !a.frota.ativo;
+  return !arvoreTemEstrutura(a);
 }

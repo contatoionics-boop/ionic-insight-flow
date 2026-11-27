@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { descendentesDoTipo, filhosDoTipo, mesclarCatalogo, paisPossiveis, tiposRaiz } from "./catalogo-tipos";
 import { montarNavegacao, type ItemNav } from "./navegacao-entidades";
-import { arvoreDeEntidades, arvoreVazia, contarItensExtras, entidadesDesejadas, normalizarArvore, quantidadesDoEscopo, resumoArvore, type ArvoreEscopo, type EntidadeEscopo } from "./tipos";
+import { estruturaEhVazia } from "./sugerir";
+import { arvoreDeEntidades, arvoreTemEstrutura, arvoreVazia, contarItensExtras, entidadesDesejadas, normalizarArvore, quantidadesDoEscopo, resumoArvore, type ArvoreEscopo, type EntidadeEscopo } from "./tipos";
 import { montarContextoLaudo } from "@/lib/laudo/contexto";
 import { blocosItensExtras } from "@/lib/laudo/secoes/itens-extras";
 import { lerRegra, opcoesExigencia, regraAtende, resumoDaRegra } from "@/lib/laudo/blocos-padrao-regras";
@@ -166,5 +167,16 @@ describe("blocos padrão: 'Só quando o Escopo tiver' com tipos novos", () => {
     const r = lerRegra({ automatico: true, exige: ["predio", "tx", "Inválido!"] });
     expect(r.exige).toEqual(["predio", "tx"]);
     expect(resumoDaRegra(r, cat)).toContain("Prédio e Telemetria TX");
+  });
+});
+
+describe("arvoreTemEstrutura / estruturaEhVazia com tipos novos", () => {
+  it("só Casa e Pátio já é estrutura (antes ela não era gravada no agendamento)", () => {
+    const a = normalizarArvore({ ...arvoreVazia(), extras: { casa: [{ filhos: { patio: Array.from({ length: 10 }, () => ({})) } }] } });
+    expect(arvoreTemEstrutura(a)).toBe(true);
+    expect(estruturaEhVazia(a)).toBe(false);
+    expect(arvoreTemEstrutura(arvoreVazia())).toBe(false);
+    expect(estruturaEhVazia(arvoreVazia())).toBe(true);
+    expect(contarItensExtras(a)).toEqual({ casa: 1, patio: 10 });
   });
 });

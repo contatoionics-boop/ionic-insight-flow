@@ -424,6 +424,18 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
   };
 }
 
+/** A árvore tem alguma estrutura física? (posto, comboio, tanque, sonda, frota ou item de tipo novo, como Casa/Pátio) */
+export function arvoreTemEstrutura(a: ArvoreEscopo): boolean {
+  return (
+    (a.postos?.length ?? 0) > 0 ||
+    (a.comboios?.length ?? 0) > 0 ||
+    (a.tanquesLubrificante?.length ?? 0) > 0 ||
+    (a.sondas?.length ?? 0) > 0 ||
+    !!a.frota?.ativo ||
+    Object.values(a.extras ?? {}).some((l) => l.length > 0)
+  );
+}
+
 /** Quantos itens há de cada tipo novo, em todos os níveis (raiz e dentro de outros itens). */
 export function contarItensExtras(a: ArvoreEscopo): Record<string, number> {
   const acc: Record<string, number> = {};

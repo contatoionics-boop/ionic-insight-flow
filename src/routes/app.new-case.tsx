@@ -15,6 +15,7 @@ import { estruturaDoEscopo, estruturaEhVazia } from "@/lib/escopo/sugerir";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
 import { montarOrientacoes } from "@/lib/escopo/orientacoes";
 import {
+  arvoreTemEstrutura,
   arvoreVazia,
   configTemDados,
   normalizarArvore,
@@ -290,11 +291,7 @@ function NewCasePage() {
     agentId ||
     data ||
     observacoes.trim() ||
-    estrutura.postos.length ||
-    estrutura.comboios.length ||
-    estrutura.tanquesLubrificante.length ||
-    estrutura.sondas.length ||
-    estrutura.frota.ativo ||
+    arvoreTemEstrutura(estrutura) ||
     configTemDados(estrutura.config)
   );
 
@@ -548,13 +545,8 @@ function NewCasePage() {
         }
       }
 
-      const temEstrutura =
-        estrutura.postos.length > 0 ||
-        estrutura.comboios.length > 0 ||
-        estrutura.tanquesLubrificante.length > 0 ||
-        estrutura.sondas.length > 0 ||
-        estrutura.frota.ativo ||
-        configTemDados(estrutura.config);
+      // inclui os tipos novos (Casa, Pátio…): sem isso a estrutura só com eles não era gravada
+      const temEstrutura = arvoreTemEstrutura(estrutura) || configTemDados(estrutura.config);
       if (temEstrutura && res?.casos?.length) {
         setProgresso("Gravando a estrutura do escopo…");
         try {
