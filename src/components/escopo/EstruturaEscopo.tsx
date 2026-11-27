@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import { parsearItemProposta } from "@/lib/laudo/produtos-proposta";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { pluralDoTipo, rotuloDoTipo, tipoVisivel, tiposNovos } from "@/lib/escopo/catalogo-tipos";
 import {
   CONEXOES_DADOS,
   LIMITES,
@@ -22,6 +24,7 @@ import {
   type ItemEscopo,
   type PostoArvore,
 } from "@/lib/escopo/tipos";
+import type { TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 
 /**
  * Editor da estrutura física do Escopo (Posto › Ilha › Bomba › Bico, comboios e
@@ -41,6 +44,12 @@ export function EstruturaEscopo({
   itensDaProposta?: string[];
 }) {
   const set = (patch: Partial<ArvoreEscopo>) => onChange({ ...value, ...patch });
+  // nomes dos tipos (configuráveis em Configurações › Tipos de item)
+  const catalogo = useTiposEscopo();
+  const lab = (chave: string) => rotuloDoTipo(catalogo, chave);
+  const plural = (chave: string) => pluralDoTipo(catalogo, chave).toLocaleLowerCase("pt-BR");
+  // itens simples dos tipos novos que aparecem no escopo (ativos, ou que já têm itens cadastrados)
+  const tiposExtras = tiposNovos(catalogo).filter((t) => tipoVisivel(catalogo, t.chave, (value.extras?.[t.chave] ?? []).length));
 
   const redimensionar = <T,>(lista: T[], n: number, novo: () => T, max: number): T[] => {
     const alvo = Math.max(0, Math.min(max, n));
@@ -171,9 +180,10 @@ export function EstruturaEscopo({
           </section>
 
           {/* Pista */}
+          <SeVisivel mostrar={tipoVisivel(catalogo, "posto", value.postos.length)}>
           <section className="rounded-md border border-border p-3">
             <QuantidadeField
-              label="Quantidade de postos"
+              label={`Quantidade de ${plural("posto")}`}
               value={value.postos.length}
               max={LIMITES.postos}
               disabled={disabled}
@@ -189,7 +199,7 @@ export function EstruturaEscopo({
                     <AccordionItem key={pi} value={`posto-${pi}`}>
                       <AccordionTrigger className="text-sm">
                         <span>
-                          Posto {pad2(pi + 1)}
+                          {lab("posto")} {pad2(pi + 1)}
                           <span className="ml-2 text-xs font-normal text-muted-foreground">
                             {r.ilhas} ilha(s) · {r.bombas} bomba(s) · {r.bicos} bico(s)
                           </span>
@@ -197,7 +207,7 @@ export function EstruturaEscopo({
                       </AccordionTrigger>
                       <AccordionContent className="space-y-3 pl-2">
                         <QuantidadeField
-                          label="Quantidade de ilhas"
+                          label={`Quantidade de ${plural("ilha")}`}
                           value={posto.ilhas.length}
                           max={LIMITES.ilhas}
                           disabled={disabled}
@@ -213,7 +223,7 @@ export function EstruturaEscopo({
                               <AccordionItem key={ii} value={`ilha-${pi}-${ii}`}>
                                 <AccordionTrigger className="text-sm">
                                   <span>
-                                    Ilha {pad2(ii + 1)}
+                                    {lab("ilha")} {pad2(ii + 1)}
                                     <span className="ml-2 text-xs font-normal text-muted-foreground">
                                       {ilha.bombas.length} bomba(s)
                                     </span>
@@ -242,11 +252,13 @@ export function EstruturaEscopo({
               </Accordion>
             )}
           </section>
+          </SeVisivel>
 
           {/* Comboios: cada um com seus tanques e bicos (como a bomba tem bicos) */}
+          <SeVisivel mostrar={tipoVisivel(catalogo, "comboio", value.comboios.length)}>
           <section className="rounded-md border border-border p-3">
             <QuantidadeField
-              label="Quantidade de comboios"
+              label={`Quantidade de ${plural("comboio")}`}
               value={value.comboios.length}
               max={LIMITES.comboios}
               disabled={disabled}
@@ -258,7 +270,7 @@ export function EstruturaEscopo({
               <div className="mt-3 space-y-2">
                 {value.comboios.map((c, ci) => (
                   <div key={ci} className="rounded border border-border px-3 py-2">
-                    <p className="mb-2 text-sm font-medium">Comboio {pad2(ci + 1)}</p>
+                    <p className="mb-2 text-sm font-medium">{lab("comboio")} {pad2(ci + 1)}</p>
                     <div className="mb-2 grid grid-cols-[110px_1fr] items-center gap-2">
                       <span className="text-xs text-muted-foreground">Identificação</span>
                       <Input
@@ -295,11 +307,14 @@ export function EstruturaEscopo({
               </div>
             )}
           </section>
+          </SeVisivel>
 
           {/* Tanques com lubrificante e Sondas: opcionais e independentes da pista */}
           <ColecaoNomeada
             titulo="tanque_lubrificante"
-            tituloPlural="Tanques com lubrificante"
+            tituloPlural={pluralDoTipo(catalogo, "tanque_lubrificante")}
+            catalogo={catalogo}
+            oculta={!tipoVisivel(catalogo, "tanque_lubrificante", value.tanquesLubrificante.length)}
             itens={value.tanquesLubrificante}
             max={LIMITES.tanques}
             disabled={disabled}
@@ -307,12 +322,27 @@ export function EstruturaEscopo({
           />
           <ColecaoNomeada
             titulo="sonda"
-            tituloPlural="Tanques com medidores"
+            tituloPlural={pluralDoTipo(catalogo, "sonda")}
+            catalogo={catalogo}
+            oculta={!tipoVisivel(catalogo, "sonda", value.sondas.length)}
             itens={value.sondas}
             max={LIMITES.sondas}
             disabled={disabled}
             onChange={(sondas) => set({ sondas })}
           />
+          {/* Tipos criados em Configurações › Tipos de item (Prédio, Produto…): itens simples */}
+          {tiposExtras.map((t) => (
+            <ColecaoNomeada
+              key={t.chave}
+              titulo={t.chave}
+              tituloPlural={t.plural}
+              catalogo={catalogo}
+              itens={value.extras?.[t.chave] ?? []}
+              max={LIMITES.extras}
+              disabled={disabled}
+              onChange={(itens) => set({ extras: { ...(value.extras ?? {}), [t.chave]: itens } })}
+            />
+          ))}
 
           {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
           <section className="rounded-md border border-border p-3">
@@ -339,7 +369,7 @@ export function EstruturaEscopo({
               )}
               {value.comboios.length > 0 && (
                 <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                  <span>Comboio</span>
+                  <span>{lab("comboio")}</span>
                   <select
                     value={config.comunicacao_comboio ?? config.comunicacao ?? ""}
                     disabled={disabled}
@@ -363,6 +393,7 @@ export function EstruturaEscopo({
           </section>
 
           {/* Frota / DIV */}
+          <SeVisivel mostrar={tipoVisivel(catalogo, "frota", value.frota.ativo ? 1 : 0)}>
           <section className="rounded-md border border-border p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium">Possui frota / DIV</span>
@@ -435,6 +466,7 @@ export function EstruturaEscopo({
               </div>
             )}
           </section>
+          </SeVisivel>
 
           {/* Cartão RFID: só a quantidade */}
           <section className="rounded-md border border-border p-3">
@@ -665,19 +697,23 @@ export function EstruturaEscopo({
             · {resumo.tanques} tanque(s) c/ lubrificante · {resumo.sondas} tanque(s) c/ medidor · {resumo.comboios} comboio(s)
             {resumo.comboios > 0 ? ` (${resumo.tanquesComboio} tanque(s), ${resumo.bicosComboio} bico(s))` : ""}
             {resumo.frota ? " · frota/DIV" : ""}
+            {tiposExtras
+              .filter((t) => (resumo.extras[t.chave] ?? 0) > 0)
+              .map((t) => ` · ${resumo.extras[t.chave]} ${t.plural.toLocaleLowerCase("pt-BR")}`)
+              .join("")}
           </p>
           <ul className="space-y-0.5 font-mono">
             {value.postos.map((p, pi) => (
               <li key={pi}>
-                Posto {pad2(pi + 1)}
+                {lab("posto")} {pad2(pi + 1)}
                 <ul className="ml-3 border-l border-border pl-2">
                   {p.ilhas.map((il, ii) => (
                     <li key={ii}>
-                      Ilha {pad2(ii + 1)}
+                      {lab("ilha")} {pad2(ii + 1)}
                       <ul className="ml-3 border-l border-border pl-2">
                         {il.bombas.map((b, bi) => (
                           <li key={bi}>
-                            Bomba {pad2(bi + 1)} — {b.bicos} bico(s)
+                            {lab("bomba")} {pad2(bi + 1)} — {b.bicos} bico(s)
                           </li>
                         ))}
                       </ul>
@@ -688,31 +724,43 @@ export function EstruturaEscopo({
             ))}
             {value.tanquesLubrificante.length > 0 && (
               <li>
-                Tanques com lubrificante
+                {pluralDoTipo(catalogo, "tanque_lubrificante")}
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.tanquesLubrificante.map((t, i) => (
-                    <li key={i}>{rotuloEntidade("tanque_lubrificante", i + 1, t.nome)}</li>
+                    <li key={i}>{rotuloEntidade("tanque_lubrificante", i + 1, t.nome, catalogo)}</li>
                   ))}
                 </ul>
               </li>
             )}
             {value.sondas.length > 0 && (
               <li>
-                Tanques com medidores
+                {pluralDoTipo(catalogo, "sonda")}
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.sondas.map((t, i) => (
-                    <li key={i}>{rotuloEntidade("sonda", i + 1, t.nome)}</li>
+                    <li key={i}>{rotuloEntidade("sonda", i + 1, t.nome, catalogo)}</li>
                   ))}
                 </ul>
               </li>
             )}
+            {tiposExtras.map((tp) =>
+              (value.extras?.[tp.chave] ?? []).length > 0 ? (
+                <li key={tp.chave}>
+                  {tp.plural}
+                  <ul className="ml-3 border-l border-border pl-2">
+                    {(value.extras?.[tp.chave] ?? []).map((t, i) => (
+                      <li key={i}>{rotuloEntidade(tp.chave, i + 1, t.nome, catalogo)}</li>
+                    ))}
+                  </ul>
+                </li>
+              ) : null,
+            )}
             {value.comboios.length > 0 && (
               <li>
-                Comboios
+                {pluralDoTipo(catalogo, "comboio")}
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.comboios.map((c, i) => (
                     <li key={i}>
-                      Comboio {pad2(i + 1)}
+                      {lab("comboio")} {pad2(i + 1)}
                       {c.nome?.trim() ? ` (${c.nome.trim()})` : ""} — {c.tanques} tanque(s), {c.bicos} bico(s)
                     </li>
                   ))}
@@ -760,18 +808,25 @@ export function EstruturaEscopo({
 function ColecaoNomeada({
   titulo,
   tituloPlural,
+  catalogo,
+  oculta,
   itens,
   max,
   onChange,
   disabled,
 }: {
-  titulo: "tanque_lubrificante" | "sonda";
+  /** chave do tipo (tanque_lubrificante, sonda ou um tipo novo) */
+  titulo: string;
   tituloPlural: string;
+  catalogo?: TipoCatalogo[];
+  /** tipo oculto em Configurações › Tipos de item e sem itens: não aparece */
+  oculta?: boolean;
   itens: ItemEscopo[];
   max: number;
   onChange: (itens: ItemEscopo[]) => void;
   disabled?: boolean;
 }) {
+  if (oculta) return null;
   const redimensionar = (n: number) => {
     const alvo = Math.max(0, Math.min(max, n));
     onChange(alvo <= itens.length ? itens.slice(0, alvo) : [...itens, ...Array.from({ length: alvo - itens.length }, () => ({}))]);
@@ -789,11 +844,11 @@ function ColecaoNomeada({
         <div className="mt-3 space-y-2">
           {itens.map((it, i) => (
             <div key={i} className="grid grid-cols-[110px_1fr] items-center gap-2">
-              <span className="text-sm">{rotuloEntidade(titulo, i + 1)}</span>
+              <span className="text-sm">{rotuloEntidade(titulo, i + 1, undefined, catalogo)}</span>
               <Input
                 value={it.nome ?? ""}
                 disabled={disabled}
-                placeholder="Identificação (opcional). Ex.: Diesel S10"
+                placeholder={titulo === "tanque_lubrificante" || titulo === "sonda" ? "Identificação (opcional). Ex.: Diesel S10" : "Identificação (opcional). Ex.: A"}
                 onChange={(e) => onChange(itens.map((x, k) => (k === i ? { nome: e.target.value } : x)))}
               />
             </div>
@@ -815,10 +870,11 @@ function IlhaEditor({
   disabled?: boolean;
   redimensionar: <T>(lista: T[], n: number, novo: () => T, max: number) => T[];
 }) {
+  const catalogo = useTiposEscopo();
   return (
     <>
       <QuantidadeField
-        label="Quantidade de bombas"
+        label={`Quantidade de ${pluralDoTipo(catalogo, "bomba").toLocaleLowerCase("pt-BR")}`}
         value={ilha.bombas.length}
         max={LIMITES.bombas}
         disabled={disabled}
@@ -828,7 +884,7 @@ function IlhaEditor({
       />
       {ilha.bombas.map((b, bi) => (
         <div key={bi} className="flex items-center justify-between gap-3 rounded border border-border px-3 py-2">
-          <span className="text-sm">Bomba {pad2(bi + 1)}</span>
+          <span className="text-sm">{rotuloDoTipo(catalogo, "bomba")} {pad2(bi + 1)}</span>
           <QuantidadeField
             inline
             label="Bicos"
@@ -843,6 +899,10 @@ function IlhaEditor({
       ))}
     </>
   );
+}
+
+function SeVisivel({ mostrar, children }: { mostrar: boolean; children: React.ReactNode }) {
+  return mostrar ? <>{children}</> : null;
 }
 
 function QuantidadeField({

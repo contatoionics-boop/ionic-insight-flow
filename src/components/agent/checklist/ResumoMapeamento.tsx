@@ -4,13 +4,15 @@ import { ChevronRight, ClipboardList } from "lucide-react";
 import { BadgeEstado, estadoDoGrupo } from "@/components/agent/checklist/BadgeEstado";
 import { IconeTipo, corDoTipo } from "@/components/escopo/ResumoEscopo";
 import { cn } from "@/lib/utils";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { pluralDoTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import { contarEstados, type ModeloNav, type Unidade } from "@/lib/escopo/navegacao-entidades";
 
 export type DestinoResumo =
   | { tipo: "geral" }
   | { tipo: "equip"; id: string }
   | { tipo: "ilha"; postoId: string; ilhaId: string }
-  | { tipo: "grupo"; grupo: "comboios" | "tanques" | "sondas" | "outros" };
+  | { tipo: "grupo"; grupo: "comboios" | "tanques" | "sondas" | "outros" | `extra:${string}` };
 
 function Linha({
   onClick,
@@ -53,7 +55,7 @@ function IconeEntidade({ tipo }: { tipo: string }) {
 const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios);
 
 /** "4 de 7 bombas concluídas" / "3 de 10 comboios concluídos". */
-export function frasesOperacionais(modelo: ModeloNav): string[] {
+export function frasesOperacionais(modelo: ModeloNav, catalogo?: TipoCatalogo[]): string[] {
   const frases: string[] = [];
   const linha = (unidades: Unidade[], um: string, varios: string, concluida: string, concluidas: string) => {
     if (!unidades.length) return;
@@ -64,6 +66,9 @@ export function frasesOperacionais(modelo: ModeloNav): string[] {
   linha(modelo.comboios, "comboio", "comboios", "concluído", "concluídos");
   linha(modelo.tanques, "tanque com lubrificante", "tanques com lubrificante", "concluído", "concluídos");
   linha(modelo.sondas, "sonda", "sondas", "concluída", "concluídas");
+  for (const g of modelo.extras ?? []) {
+    linha(g.unidades, rotuloDoTipo(catalogo, g.tipo).toLocaleLowerCase("pt-BR"), pluralDoTipo(catalogo, g.tipo).toLocaleLowerCase("pt-BR"), "concluído", "concluídos");
+  }
   return frases;
 }
 
@@ -75,9 +80,10 @@ export function ResumoMapeamento({
   modelo: ModeloNav;
   onAbrir: (destino: DestinoResumo) => void;
 }) {
-  const frases = frasesOperacionais(modelo);
+  const catalogo = useTiposEscopo();
+  const frases = frasesOperacionais(modelo, catalogo);
   const grupo = (
-    chave: "comboios" | "tanques" | "sondas" | "outros",
+    chave: "comboios" | "tanques" | "sondas" | "outros" | `extra:${string}`,
     titulo: string,
     tipo: string,
     unidades: Unidade[],
@@ -173,6 +179,9 @@ export function ResumoMapeamento({
         grupo("comboios", "Comboios", "comboio", modelo.comboios, "comboio"),
         grupo("tanques", "Tanques com lubrificante", "tanque_lubrificante", modelo.tanques, "tanque"),
         grupo("sondas", "Sondas", "sonda", modelo.sondas, "sonda"),
+        ...(modelo.extras ?? []).map((g) =>
+          grupo(`extra:${g.tipo}`, pluralDoTipo(catalogo, g.tipo), g.tipo, g.unidades, rotuloDoTipo(catalogo, g.tipo).toLocaleLowerCase("pt-BR")),
+        ),
         grupo("outros", "Outros", "frota", modelo.outros, "item"),
       ]}
 

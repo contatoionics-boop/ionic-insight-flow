@@ -1,5 +1,6 @@
 import { CHAVES_LAUDO } from "@/lib/laudo/chaves";
-import { APLICA_A_OPCOES, SUGERIR_QUANDO_OPCOES } from "@/lib/escopo/tipos";
+import { opcoesAplicaA, opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -120,6 +121,7 @@ function FormBuilderPage() {
   const [iAprovado, setIAprovado] = useState("");
   const [iValidarIa, setIValidarIa] = useState(true);
   const [iSugerir, setISugerir] = useState<string[]>([]);
+  const catalogoTipos = useTiposEscopo();
   const [sugerirErro, setSugerirErro] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -487,7 +489,7 @@ function FormBuilderPage() {
               Ao agendar, se o escopo tiver algum destes itens, este formulário é sugerido com a quantidade do escopo.
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {SUGERIR_QUANDO_OPCOES.map((o) => (
+              {opcoesSugerir(catalogoTipos, iSugerir).map((o) => (
                 <label key={o.value} className="flex cursor-pointer items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -726,6 +728,7 @@ function PropertiesPanel({
   const [contextoIa, setContextoIa] = useState(pergunta.contexto_ia ?? "");
   const [chaveLaudo, setChaveLaudo] = useState(pergunta.chave_laudo ?? "");
   const [aplicaA, setAplicaA] = useState(pergunta.entidade_tipo ?? "geral");
+  const catalogoTipos = useTiposEscopo();
   const [condRefId, setCondRefId] = useState<string>(pergunta.condicional_pergunta_id ?? "");
   const [condOp, setCondOp] = useState<string>(pergunta.condicional_operador ?? "igual");
   const [condVal, setCondVal] = useState<string>(pergunta.condicional_valor ?? "");
@@ -923,14 +926,14 @@ function PropertiesPanel({
         <div>
           <Label>Aplica-se a</Label>
           <Select value={aplicaA} onChange={(e) => setAplicaA(e.target.value)}>
-            {APLICA_A_OPCOES.map((o) => (
+            {opcoesAplicaA(catalogoTipos, [aplicaA]).map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">
-            Geral aparece uma vez. Posto, ilha, bomba, bico, comboio ou frota repetem a pergunta para cada item da estrutura do escopo, com respostas independentes. Se o escopo não tiver nenhum item daquele tipo (por exemplo, nenhuma sonda), a pergunta não aparece.
+            Geral aparece uma vez. Posto, ilha, bomba, bico, comboio, frota ou um tipo criado em Configurações › Tipos de item (ex.: Prédio) repetem a pergunta para cada item da estrutura do escopo, com respostas independentes. Se o escopo não tiver nenhum item daquele tipo (por exemplo, nenhuma sonda), a pergunta não aparece.
           </p>
         </div>
 

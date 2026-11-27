@@ -4,6 +4,8 @@ import type { Resposta } from "@/components/agent/FormFields";
 import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
 import { PerguntasDoGrupo } from "@/components/agent/checklist/PerguntasDoGrupo";
 import { montarArvore, type Contagem } from "@/lib/escopo/arvore-perguntas";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { titulosDosTipos } from "@/lib/escopo/catalogo-tipos";
 import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 import { toPerguntaUI } from "@/lib/vistoria-checklist";
 import type { ChecklistEtapaDTO, ChecklistPerguntaDTO } from "@/lib/vistoria-agent.functions";
@@ -58,9 +60,10 @@ export function EtapaPerguntas({
   );
 
   // Gerais no topo; depois a árvore de entidades (posto › ilha › bomba › bico, comboios, frota).
+  const catalogoTipos = useTiposEscopo();
   const { gerais, grupos } = useMemo(
-    () => montarArvore(entidades, visiveis, (p) => p.entidadeId, contagem),
-    [entidades, visiveis, contagem],
+    () => montarArvore(entidades, visiveis, (p) => p.entidadeId, contagem, titulosDosTipos(catalogoTipos)),
+    [entidades, visiveis, contagem, catalogoTipos],
   );
 
   return (

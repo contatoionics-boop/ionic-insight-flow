@@ -869,6 +869,12 @@ export function buildSystemPrompt(ctx: AgentContext): string {
   ]
     .map(([t, r]) => (contagemTipo(t) ? `${contagemTipo(t)} ${r}` : null))
     .filter(Boolean);
+  // tipos novos (Configurações › Tipos de item): "2 prédio(s)", pelo nome configurado
+  const tiposFixos = new Set(["posto", "ilha", "bomba", "bico", "tanque_lubrificante", "tanque", "sonda", "comboio", "frota"]);
+  for (const t of [...new Set(ctx.entidades.map((e) => e.tipo))].filter((t) => !tiposFixos.has(t))) {
+    const nome = ctx.entidades.find((e) => e.tipo === t)?.rotulo.replace(/\s+\d+(\s+—.*)?$/, "") || t;
+    estruturaPartes.push(`${contagemTipo(t)} ${nome.toLocaleLowerCase("pt-BR")}(s)`);
+  }
   if (contagemTipo("frota")) estruturaPartes.push("Frota/DIV");
   const cfg = ctx.escopoConfig ?? {};
   const extrasConfig = [

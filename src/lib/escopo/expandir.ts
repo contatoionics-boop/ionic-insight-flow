@@ -2,7 +2,7 @@
 // por entidade do Escopo. A pergunta continua sendo um único cadastro; a
 // instância ganha um id virtual `${perguntaId}::${entidadeId}` usado como chave
 // de estado (checklist, rascunho local, fila offline) e decodificado ao gravar.
-import { tipoEntidadeDaAplicacao, type EntidadeEscopo, type TipoEntidade } from "./tipos";
+import { tipoEntidadeDaAplicacao, type EntidadeEscopo, type TipoQualquer } from "./tipos";
 
 const SEP = "::";
 
@@ -24,7 +24,7 @@ export function chaveOrdemEntidades(entidades: EntidadeEscopo[]): Map<string, st
   const chave = (e: EntidadeEscopo): string => {
     const pai = e.parent_id ? porId.get(e.parent_id) : undefined;
     const seg = String(e.ordem).padStart(4, "0");
-    return pai ? chave(pai) + "." + seg : String(RANK[e.tipo] ?? 9) + "-" + seg;
+    return pai ? chave(pai) + "." + seg : String(RANK[e.tipo] ?? 5) + "-" + seg;
   };
   return new Map(entidades.map((e) => [e.id, chave(e)]));
 }
@@ -33,7 +33,7 @@ export type CamposInstancia = {
   base_id: string;
   entidade_id: string | null;
   entidade_rotulo: string | null;
-  entidade_tipo: TipoEntidade | null;
+  entidade_tipo: TipoQualquer | null;
   /** Condição que não pôde ser resolvida pela hierarquia: a pergunta aparece sem condição. */
   condicao_aviso: string | null;
 };
@@ -69,7 +69,7 @@ export function expandirPerguntas<P extends PerguntaBase>(
       .map((x) => String(x.ordem).padStart(4, "0"))
       .join(".");
 
-  const porTipo = new Map<TipoEntidade, EntidadeEscopo[]>();
+  const porTipo = new Map<TipoQualquer, EntidadeEscopo[]>();
   for (const e of entidades) {
     const arr = porTipo.get(e.tipo) ?? [];
     arr.push(e);

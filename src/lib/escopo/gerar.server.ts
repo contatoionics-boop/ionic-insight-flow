@@ -5,6 +5,7 @@
 //  - remover algo que já tem respostas exige confirmação explícita;
 //  - reexecutar com a mesma árvore não cria versão nem entidades (idempotente).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { CATALOGO_PADRAO, mesclarCatalogo, type TipoCatalogo } from "./catalogo-tipos";
 import {
   arvoreDeEntidades,
   entidadesDesejadas,
@@ -12,11 +13,23 @@ import {
   type ArvoreEscopo,
   type EntidadeEscopo,
   type FrotaItemArvore,
-  type TipoEntidade,
+  type TipoQualquer,
 } from "./tipos";
 
 // As tabelas do escopo ainda não estão no types.ts gerado.
 const db = supabaseAdmin as any;
+
+/** Catálogo de tipos de item (nomes configurados). Sem a tabela (migration pendente) vale o padrão. */
+export async function carregarCatalogoTipos(): Promise<TipoCatalogo[]> {
+  try {
+    const { data, error } = await db.from("escopo_tipos").select("chave, rotulo, plural, ativo, sistema, ordem");
+    if (error) throw error;
+    return mesclarCatalogo(data);
+  } catch (e) {
+    if (!migrationAusente(e)) console.warn("[escopo] catálogo de tipos indisponível:", (e as Error).message);
+    return CATALOGO_PADRAO;
+  }
+}
 
 type Dono = { unidadeId: string | null; casoOrigemId: string };
 
@@ -270,7 +283,7 @@ export type ResultadoAplicar =
     }
   | {
       status: "precisa_confirmacao";
-      comRespostas: { id: string; rotulo: string; tipo: TipoEntidade; respostas: number }[];
+      comRespostas: { id: string; rotulo: string; tipo: TipoQualquer; respostas: number }[];
     };
 
 /** Comparação profunda que ignora a ordem das chaves (jsonb do banco as reordena). */
@@ -312,7 +325,7 @@ export async function aplicarArvore(opts: {
   const ativas = atual ? entidadesNaVersao(todas, versoes, atual.id, eventos) : [];
   const frotaAtual = atual ? await carregarFrota(atual.id) : [];
 
-  const desejadas = entidadesDesejadas(arvore);
+  const desejadas = entidadesDesejadas(arvore, await carregarCatalogoTipos());
 
   // Mapeia cada entidade existente (qualquer estado) para a chave de caminho.
   const porId = new Map(todas.map((e) => [e.id, e]));

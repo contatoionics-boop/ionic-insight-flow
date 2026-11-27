@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
-import { APLICA_A_OPCOES } from "@/lib/escopo/tipos";
+import { opcoesAplicaA } from "@/lib/escopo/catalogo-tipos";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 
 type PerguntaLote = {
   id: string;
@@ -41,6 +42,7 @@ export function AcoesEmLoteModal({
   const [secaoId, setSecaoId] = useState("");
   const [marcadas, setMarcadas] = useState<Record<string, boolean>>({});
   const [aplicaA, setAplicaA] = useState("bomba");
+  const catalogoTipos = useTiposEscopo();
   const [gatilhoId, setGatilhoId] = useState("");
   const [operador, setOperador] = useState("igual");
   const [valor, setValor] = useState("");
@@ -150,7 +152,7 @@ export function AcoesEmLoteModal({
                 <span className="min-w-0 flex-1">
                   {p.texto || "(sem título)"}
                   <span className="ml-1 text-[11px] text-muted-foreground">
-                    · {APLICA_A_OPCOES.find((o) => o.value === (p.entidade_tipo ?? "geral"))?.label ?? "Geral"}
+                    · {opcoesAplicaA(catalogoTipos, [p.entidade_tipo ?? "geral"]).find((o) => o.value === (p.entidade_tipo ?? "geral"))?.label ?? "Geral"}
                     {p.condicional_pergunta_id ? " · com condição" : ""}
                   </span>
                 </span>
@@ -167,7 +169,7 @@ export function AcoesEmLoteModal({
           <div className="flex flex-wrap items-center gap-2">
             <div className="min-w-[12rem] flex-1">
               <Select value={aplicaA} onChange={(e) => setAplicaA(e.target.value)}>
-                {APLICA_A_OPCOES.map((o) => (
+                {opcoesAplicaA(catalogoTipos).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>

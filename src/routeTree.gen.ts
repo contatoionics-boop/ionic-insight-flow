@@ -35,6 +35,7 @@ import { Route as AppNewCaseRouteImport } from './routes/app.new-case'
 import { Route as AppOutputsRouteImport } from './routes/app.outputs'
 import { Route as AppPromptsRouteImport } from './routes/app.prompts'
 import { Route as AppReviewQueueRouteImport } from './routes/app.review-queue'
+import { Route as AppTiposEscopoRouteImport } from './routes/app.tipos-escopo'
 import { Route as AppTrackingRouteImport } from './routes/app.tracking'
 import { Route as AppUsersRouteImport } from './routes/app.users'
 import { Route as AppAgendamentoIdRouteImport } from './routes/app.agendamento.$id'
@@ -179,6 +180,11 @@ const AppReviewQueueRoute = AppReviewQueueRouteImport.update({
   path: '/review-queue',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTiposEscopoRoute = AppTiposEscopoRouteImport.update({
+  id: '/tipos-escopo',
+  path: '/tipos-escopo',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTrackingRoute = AppTrackingRouteImport.update({
   id: '/tracking',
   path: '/tracking',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tipos-escopo': typeof AppTiposEscopoRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/agendamento/$id': typeof AppAgendamentoIdRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tipos-escopo': typeof AppTiposEscopoRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/agendamento/$id': typeof AppAgendamentoIdRoute
@@ -354,6 +362,7 @@ export interface FileRoutesById {
   '/app/outputs': typeof AppOutputsRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/review-queue': typeof AppReviewQueueRoute
+  '/app/tipos-escopo': typeof AppTiposEscopoRoute
   '/app/tracking': typeof AppTrackingRoute
   '/app/users': typeof AppUsersRoute
   '/app/agendamento/$id': typeof AppAgendamentoIdRoute
@@ -397,6 +406,7 @@ export interface FileRouteTypes {
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
+    | '/app/tipos-escopo'
     | '/app/tracking'
     | '/app/users'
     | '/app/agendamento/$id'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
+    | '/app/tipos-escopo'
     | '/app/tracking'
     | '/app/users'
     | '/app/agendamento/$id'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/app/outputs'
     | '/app/prompts'
     | '/app/review-queue'
+    | '/app/tipos-escopo'
     | '/app/tracking'
     | '/app/users'
     | '/app/agendamento/$id'
@@ -688,6 +700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewQueueRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/tipos-escopo': {
+      id: '/app/tipos-escopo'
+      path: '/tipos-escopo'
+      fullPath: '/app/tipos-escopo'
+      preLoaderRoute: typeof AppTiposEscopoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/tracking': {
       id: '/app/tracking'
       path: '/tracking'
@@ -832,6 +851,7 @@ interface AppRouteChildren {
   AppOutputsRoute: typeof AppOutputsRoute
   AppPromptsRoute: typeof AppPromptsRoute
   AppReviewQueueRoute: typeof AppReviewQueueRoute
+  AppTiposEscopoRoute: typeof AppTiposEscopoRoute
   AppTrackingRoute: typeof AppTrackingRoute
   AppUsersRoute: typeof AppUsersRoute
   AppAgendamentoIdRoute: typeof AppAgendamentoIdRoute
@@ -860,6 +880,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOutputsRoute: AppOutputsRoute,
   AppPromptsRoute: AppPromptsRoute,
   AppReviewQueueRoute: AppReviewQueueRoute,
+  AppTiposEscopoRoute: AppTiposEscopoRoute,
   AppTrackingRoute: AppTrackingRoute,
   AppUsersRoute: AppUsersRoute,
   AppAgendamentoIdRoute: AppAgendamentoIdRoute,

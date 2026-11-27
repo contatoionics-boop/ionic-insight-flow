@@ -18,6 +18,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { padronizarSolucao } from "@/lib/texto";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { CATALOGO_PADRAO, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import { resumoRfid, rotuloSolucao, type ConfigEscopo, type TipoEntidade } from "@/lib/escopo/tipos";
 
 export type EntidadeResumo = {
@@ -40,6 +42,22 @@ const VISUAL: Record<string, { icone: LucideIcon; cor: string; um: string; vario
   comboio: { icone: Truck, cor: "text-orange-500 bg-orange-500/10 border-orange-500/30", um: "comboio", varios: "comboios" },
   frota: { icone: Car, cor: "text-indigo-500 bg-indigo-500/10 border-indigo-500/30", um: "Frota / DIV", varios: "Frota / DIV" },
 };
+
+/** Tipos criados em Configurações › Tipos de item: ícone e cor genéricos, nomes do catálogo. */
+const VISUAL_NOVO = { icone: Package, cor: "text-purple-600 bg-purple-500/10 border-purple-500/30" };
+
+type Visual = { icone: LucideIcon; cor: string; um: string; varios: string };
+
+/** Visual do tipo; nome renomeado em Tipos de item vale sobre o texto padrão. */
+export function visualDe(tipo: string, catalogo?: TipoCatalogo[] | null): Visual {
+  const cat = catalogo?.find((t) => t.chave === tipo);
+  const padrao = CATALOGO_PADRAO.find((t) => t.chave === tipo);
+  const base = VISUAL[tipo];
+  if (!base) return { ...VISUAL_NOVO, um: (cat?.rotulo ?? tipo).toLocaleLowerCase("pt-BR"), varios: (cat?.plural ?? tipo).toLocaleLowerCase("pt-BR") };
+  if (cat && padrao && (cat.rotulo !== padrao.rotulo || cat.plural !== padrao.plural))
+    return { ...base, um: cat.rotulo.toLocaleLowerCase("pt-BR"), varios: cat.plural.toLocaleLowerCase("pt-BR") };
+  return base;
+}
 
 const ORDEM_CHIPS = ["posto", "ilha", "bomba", "bico", "tanque_lubrificante", "sonda", "comboio", "tanque", "frota"];
 
@@ -67,27 +85,26 @@ export function contagensEscopo(entidades: EntidadeResumo[]) {
 }
 
 /** Tipos presentes com a contagem (só o que existe). */
-export function chipsEscopo(entidades: EntidadeResumo[]): { tipo: string; n: number; texto: string }[] {
+export function chipsEscopo(entidades: EntidadeResumo[], catalogo?: TipoCatalogo[] | null): { tipo: string; n: number; texto: string }[] {
   const out: { tipo: string; n: number; texto: string }[] = [];
-  for (const tipo of ORDEM_CHIPS) {
+  const novos = [...new Set(entidades.filter((e) => !ORDEM_CHIPS.includes(e.tipo)).map((e) => e.tipo))];
+  for (const tipo of [...ORDEM_CHIPS, ...novos]) {
     const n = entidades.filter((e) => e.tipo === tipo).length;
     if (!n) continue;
-    const v = VISUAL[tipo];
+    const v = visualDe(tipo, catalogo);
     out.push({ tipo, n, texto: tipo === "frota" ? v.um : `${n} ${n === 1 ? v.um : v.varios}` });
   }
   return out;
 }
 
 export function IconeTipo({ tipo, className = "h-3.5 w-3.5" }: { tipo: string; className?: string }) {
-  const v = VISUAL[tipo];
-  if (!v) return null;
-  const I = v.icone;
+  const I = (VISUAL[tipo] ?? VISUAL_NOVO).icone;
   return <I className={className} aria-hidden />;
 }
 
 /** Classes de cor (texto/fundo/borda) do tipo de entidade, para cartões e crachás. */
 export function corDoTipo(tipo: string): string {
-  return VISUAL[tipo]?.cor ?? "text-muted-foreground bg-muted border-border";
+  return (VISUAL[tipo] ?? VISUAL_NOVO).cor;
 }
 
 function Ramo({
@@ -101,7 +118,7 @@ function Ramo({
   // Bicos entram como contagem na bomba para não poluir a lista.
   const bicos = sub.filter((s) => s.tipo === "bico").length;
   const demais = sub.filter((s) => s.tipo !== "bico");
-  const v = VISUAL[no.tipo];
+  const v = VISUAL[no.tipo] ?? VISUAL_NOVO;
   return (
     <li>
       <div className="flex items-center gap-1.5">
@@ -182,7 +199,8 @@ export function ResumoEscopo({
   compacto?: boolean;
   className?: string;
 }) {
-  const chips = useMemo(() => chipsEscopo(entidades), [entidades]);
+  const catalogo = useTiposEscopo();
+  const chips = useMemo(() => chipsEscopo(entidades, catalogo), [entidades, catalogo]);
   const filhos = useMemo(() => {
     const m = new Map<string | null, EntidadeResumo[]>();
     for (const e of [...entidades].sort((a, b) => a.ordem - b.ordem)) {
@@ -244,7 +262,7 @@ export function ResumoEscopo({
           <>
             <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {chips.map((c) => {
-                const v = VISUAL[c.tipo];
+                const v = visualDe(c.tipo, catalogo);
                 return (
                   <div
                     key={c.tipo}
@@ -271,7 +289,13 @@ export function ResumoEscopo({
               <details className="mt-2 text-xs">
                 <summary className="cursor-pointer select-none text-primary">Ver estrutura detalhada</summary>
                 <div className="mt-2 space-y-3">
-                  {RAIZES.map((g) => {
+                  {[
+                    ...RAIZES,
+                    ...[...new Set(raizes.filter((r) => !RAIZES.some((g) => g.tipo === r.tipo)).map((r) => r.tipo))].map((t) => ({
+                      tipo: t,
+                      titulo: catalogo.find((x) => x.chave === t)?.plural ?? t,
+                    })),
+                  ].map((g) => {
                     const itens = raizes.filter((r) => r.tipo === g.tipo);
                     if (!itens.length) return null;
                     return (

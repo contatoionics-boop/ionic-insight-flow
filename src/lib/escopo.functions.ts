@@ -31,6 +31,10 @@ const ArvoreSchema = z.object({
   /** formato antigo (tanques da raiz) */
   tanques: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).optional(),
   sondas: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
+  /** itens simples dos tipos criados em Configurações › Tipos de item (chave do tipo → itens) */
+  extras: z
+    .record(z.string().regex(/^[a-z][a-z0-9_]{1,40}$/), z.array(z.object({ nome: z.string().max(120).optional() })).max(50))
+    .optional(),
   frota: z.object({
     ativo: z.boolean(),
     itens: z

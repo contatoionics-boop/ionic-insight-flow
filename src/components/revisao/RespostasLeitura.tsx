@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 import { ArvorePerguntas } from "@/components/escopo/ArvorePerguntas";
 import { contarPorEntidade, montarArvore } from "@/lib/escopo/arvore-perguntas";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { titulosDosTipos } from "@/lib/escopo/catalogo-tipos";
 import type { EntidadeEscopo } from "@/lib/escopo/tipos";
 
 export type LeituraSecao = { id: string; titulo: string; ordem: number };
@@ -313,6 +315,7 @@ export function RespostasLeitura({
   agente?: string | null;
   data?: string | null;
 }) {
+  const catalogoTipos = useTiposEscopo();
   const [lightbox, setLightbox] = useState<{ url: string; legenda: string } | null>(null);
   const [sumarioAberto, setSumarioAberto] = useState(false);
   const [soPendentes, setSoPendentes] = useState(false);
@@ -463,7 +466,7 @@ export function RespostasLeitura({
               ? psTodas.filter((p) => !respondida(p, respostas[p.id]) || editando[p.id])
               : psTodas;
             if (soPendentes && ps.length === 0) return null;
-            const arvore = montarArvore(entidades, ps, (p) => p.entidade_id, contagem);
+            const arvore = montarArvore(entidades, ps, (p) => p.entidade_id, contagem, titulosDosTipos(catalogoTipos));
             const artigo = (p: LeituraPergunta, pi: number) => {
               const r = respostas[p.id];
               if (renderEdicao && editando[p.id]) {

@@ -102,7 +102,7 @@ export async function carregarContextoLaudo(supabase: any, casoId: string) {
     caso,
     respostas: respostasLaudo,
     // respostas por unidade (bomba, bico, comboio), sem colapsar: base do contexto de composição
-    respostasPorEntidade: linhas.map((l: LinhaResposta) => ({ entidadeId: l.entidadeId, chave: l.chave_laudo, valor: l.valor })),
+    respostasPorEntidade: linhas.map((l: LinhaResposta) => ({ entidadeId: l.entidadeId, chave: l.chave_laudo, valor: l.valor, pergunta: l.pergunta })),
     instanciasAmbiguas: ambiguas,
     materiais: (materiais ?? []) as unknown as MaterialCatalogo[],
   };
@@ -123,15 +123,16 @@ async function carregarContextosIrmaos(supabase: any, caso: any, casoId: string)
     .neq("id", casoId)
     .neq("status", "cancelado")
     .order("codigo", { ascending: true });
-  const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
+  const { carregarEstruturaDoCaso, carregarCatalogoTipos } = await import("@/lib/escopo/gerar.server");
   const { montarContextoLaudo } = await import("@/lib/laudo/contexto");
+  const catalogo = await carregarCatalogoTipos();
   const saida = { ...vazio, contextos: [] as typeof vazio.contextos, codigos: [] as string[] };
   for (const irmao of irmaos ?? []) {
     try {
       const estrutura = await carregarEstruturaDoCaso(irmao.id);
       const { respostasPorEntidade } = await carregarRespostasPorEntidade(supabase, irmao.id);
       saida.contextos.push(
-        montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade }),
+        montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade, catalogo }),
       );
       saida.codigos.push(irmao.codigo);
     } catch {
@@ -144,13 +145,14 @@ async function carregarContextosIrmaos(supabase: any, caso: any, casoId: string)
 async function carregarRespostasPorEntidade(supabase: any, casoId: string) {
   const { data } = await (supabase as any)
     .from("respostas_agente")
-    .select("entidade_id, valor_texto, transcricao, tipo, pergunta:perguntas(chave_laudo, tipo)")
+    .select("entidade_id, valor_texto, transcricao, tipo, pergunta:perguntas(texto, chave_laudo, tipo)")
     .eq("caso_id", casoId);
   const { valorDaResposta } = await import("@/lib/laudo/respostas");
   return {
     respostasPorEntidade: (data ?? []).map((r: any) => ({
       entidadeId: (r.entidade_id ?? null) as string | null,
       chave: (r.pergunta?.chave_laudo ?? null) as string | null,
+      pergunta: (r.pergunta?.texto ?? null) as string | null,
       valor: valorDaResposta({ tipo: r.pergunta?.tipo ?? r.tipo ?? null, valor_texto: r.valor_texto, transcricao: r.transcricao }),
     })),
   };
@@ -288,10 +290,10 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   let contexto: import("@/lib/laudo/contexto").ContextoLaudo | null = null;
   let irmaosCodigos: string[] = [];
   try {
-    const { carregarEstruturaDoCaso } = await import("@/lib/escopo/gerar.server");
+    const { carregarEstruturaDoCaso, carregarCatalogoTipos } = await import("@/lib/escopo/gerar.server");
     const estrutura = await carregarEstruturaDoCaso(casoId);
     const { montarContextoLaudo } = await import("@/lib/laudo/contexto");
-    contexto = montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade });
+    contexto = montarContextoLaudo({ entidades: estrutura.entidades, arvore: estrutura.arvore, respostas: respostasPorEntidade, catalogo: await carregarCatalogoTipos() });
     // Mapeamentos do mesmo agendamento (ex.: formulário da pista e do comboio) compõem UM documento:
     // cada caso mantém seus dados e o contexto junta o que os demais informaram.
     const { mesclarContextos } = await import("@/lib/laudo/contexto");

@@ -2,7 +2,7 @@
 // Código puro (client-safe): recebe as entidades do Escopo e as perguntas visíveis
 // já avaliadas (condicionais, respondida, obrigatória atendida) e devolve as
 // "unidades de trabalho" com estado e progresso. Não conhece UI nem servidor.
-import type { EntidadeEscopo, TipoEntidade } from "./tipos";
+import type { EntidadeEscopo, TipoQualquer } from "./tipos";
 
 export type EstadoEquip = "nao_iniciada" | "em_andamento" | "concluida" | "com_pendencias";
 
@@ -73,10 +73,12 @@ export type ModeloNav = {
   tanques: Unidade[];
   sondas: Unidade[];
   frota: Unidade[];
+  /** Tipos novos (Configurações › Tipos de item): um grupo por tipo, na ordem do escopo. */
+  extras: { tipo: string; unidades: Unidade[] }[];
   outros: Unidade[];
   porId: Map<string, Unidade>;
   /** Sequência de navegação "próximo equipamento" de cada tipo (ex.: todas as bombas). */
-  sequencia: (tipo: TipoEntidade) => Unidade[];
+  sequencia: (tipo: TipoQualquer) => Unidade[];
   /** Próximo equipamento do mesmo tipo (segue para a próxima ilha), ou null no último. */
   proxima: (id: string) => Unidade | null;
 };
@@ -224,6 +226,7 @@ export function montarNavegacao(
   const sondas: Unidade[] = [];
   const frota: Unidade[] = [];
   const outros: Unidade[] = [];
+  const extras: { tipo: string; unidades: Unidade[] }[] = [];
 
   for (const raiz of raizes) {
     if (raiz.tipo === "posto") {
@@ -252,7 +255,11 @@ export function montarNavegacao(
     else if (raiz.tipo === "tanque_lubrificante") tanques.push(u);
     else if (raiz.tipo === "sonda") sondas.push(u);
     else if (raiz.tipo === "frota") frota.push(u);
-    else outros.push(u);
+    else {
+      const g = extras.find((x) => x.tipo === raiz.tipo);
+      if (g) g.unidades.push(u);
+      else extras.push({ tipo: raiz.tipo, unidades: [u] });
+    }
   }
 
   const geral: Geral | null = gerais.length
@@ -263,7 +270,7 @@ export function montarNavegacao(
     : null;
 
   // Sequência de "próximo equipamento": todas as bombas (posto › ilha › bomba), comboios etc.
-  const sequencias = new Map<TipoEntidade, Unidade[]>();
+  const sequencias = new Map<TipoQualquer, Unidade[]>();
   const empurrar = (u: Unidade) => {
     const arr = sequencias.get(u.entidade.tipo) ?? [];
     arr.push(u);
@@ -273,9 +280,9 @@ export function montarNavegacao(
     for (const u of no.diretos) empurrar(u);
     for (const il of no.ilhas) for (const u of il.equipamentos) empurrar(u);
   }
-  for (const grupo of [comboios, tanques, sondas, frota]) for (const u of grupo) empurrar(u);
+  for (const grupo of [comboios, tanques, sondas, frota, ...extras.map((x) => x.unidades)]) for (const u of grupo) empurrar(u);
 
-  const sequencia = (tipo: TipoEntidade) => sequencias.get(tipo) ?? [];
+  const sequencia = (tipo: TipoQualquer) => sequencias.get(tipo) ?? [];
   const proxima = (id: string) => {
     const u = unidades.get(id);
     if (!u) return null;
@@ -284,5 +291,5 @@ export function montarNavegacao(
     return idx >= 0 && idx < seq.length - 1 ? seq[idx + 1] : null;
   };
 
-  return { geral, pista, comboios, tanques, sondas, frota, outros, porId: unidades, sequencia, proxima };
+  return { geral, pista, comboios, tanques, sondas, frota, extras, outros, porId: unidades, sequencia, proxima };
 }

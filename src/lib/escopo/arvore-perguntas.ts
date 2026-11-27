@@ -1,7 +1,7 @@
 // Monta a árvore Posto › Ilha › Bomba › Bico (+ comboios, frota) com as perguntas
 // de cada entidade e o progresso por entidade. Código puro (client-safe), usado
 // pelo checklist do agente e pela tela de revisão.
-import type { EntidadeEscopo, TipoEntidade } from "./tipos";
+import type { EntidadeEscopo, TipoQualquer } from "./tipos";
 
 export type Contagem = { total: number; respondidas: number };
 
@@ -17,12 +17,13 @@ export type NoArvore<P> = {
 };
 
 export type GrupoArvore<P> = {
-  chave: "pista" | "tanques" | "sondas" | "comboios" | "frota" | "outros";
+  /** pista, tanques, sondas, comboios, frota, outros ou `tipo:<chave>` (tipo criado em Tipos de item) */
+  chave: "pista" | "tanques" | "sondas" | "comboios" | "frota" | "outros" | `tipo:${string}`;
   titulo: string;
   nos: NoArvore<P>[];
 };
 
-const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
+const TITULO_GRUPO: Record<string, string> = {
   pista: "Pista",
   tanques: "Tanques com lubrificante",
   sondas: "Sondas",
@@ -31,13 +32,15 @@ const TITULO_GRUPO: Record<GrupoArvore<unknown>["chave"], string> = {
   outros: "Outros",
 };
 
-function grupoDoTipo(tipo: TipoEntidade): GrupoArvore<unknown>["chave"] {
+function grupoDoTipo(tipo: TipoQualquer): GrupoArvore<unknown>["chave"] {
   if (tipo === "posto" || tipo === "ilha" || tipo === "bomba" || tipo === "bico") return "pista";
   if (tipo === "tanque_lubrificante") return "tanques";
   if (tipo === "sonda") return "sondas";
   if (tipo === "comboio") return "comboios";
   if (tipo === "frota") return "frota";
-  return "outros";
+  if (tipo === "ilha" || tipo === "bico" || tipo === "tanque") return "outros";
+  // tipo novo (Configurações › Tipos de item): um grupo por tipo
+  return `tipo:${tipo}`;
 }
 
 const porOrdem = (a: EntidadeEscopo, b: EntidadeEscopo) => a.ordem - b.ordem;
@@ -92,6 +95,8 @@ export function montarArvore<P>(
   perguntas: P[],
   entidadeId: (p: P) => string | null | undefined,
   contagem: Map<string, Contagem>,
+  /** título dos grupos de tipos novos (chave do tipo → plural configurado) */
+  titulos: Record<string, string> = {},
 ): { gerais: P[]; grupos: GrupoArvore<P>[] } {
   const gerais: P[] = [];
   const porEntidade = new Map<string, P[]>();
@@ -146,10 +151,18 @@ export function montarArvore<P>(
     const no = construir(raiz);
     if (!no) continue;
     const chave = grupoDoTipo(raiz.tipo);
-    const g = grupos.get(chave) ?? { chave, titulo: TITULO_GRUPO[chave], nos: [] };
+    const g = grupos.get(chave) ?? {
+      chave,
+      titulo: chave.startsWith("tipo:") ? (titulos[chave.slice(5)] ?? chave.slice(5)) : TITULO_GRUPO[chave],
+      nos: [],
+    };
     g.nos.push(no);
     grupos.set(chave, g);
   }
   const ordem: GrupoArvore<P>["chave"][] = ["pista", "tanques", "sondas", "comboios", "frota", "outros"];
-  return { gerais, grupos: ordem.map((k) => grupos.get(k)).filter((g): g is GrupoArvore<P> => !!g) };
+  const novos = [...grupos.keys()].filter((k) => !ordem.includes(k));
+  return {
+    gerais,
+    grupos: [...ordem.slice(0, 5), ...novos, ...ordem.slice(5)].map((k) => grupos.get(k)).filter((g): g is GrupoArvore<P> => !!g),
+  };
 }

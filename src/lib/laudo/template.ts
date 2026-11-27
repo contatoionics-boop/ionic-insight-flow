@@ -16,6 +16,7 @@ import { SOLUCOES_ESCOPO } from "@/lib/escopo/tipos";
 import { analisarMapeamento, achadosDaSecao, type Achado } from "./analise/achados";
 import { blocosDosAchados, resetSequenciaRedacao } from "./analise/redacao";
 import { blocosComboio } from "./secoes/comboio";
+import { blocosItensExtras } from "./secoes/itens-extras";
 import { blocosDiv, blocosRfid, blocosTx, camposDiv, camposRfid, camposTx } from "./secoes/extras";
 import { blocosPadraoAutomaticos, padraoCobre, type BlocoPadraoAuto } from "./blocos-padrao-regras";
 import { blocosPista } from "./secoes/pista";
@@ -487,6 +488,10 @@ export function montarBlocosEAnalise(entrada: EntradaTemplate): {
   // Caminhão comboio: um grupo por comboio do Escopo (só entra quando há comboios)
   const blocosDoComboio = blocosComboio({ contexto: entrada.contexto ?? null, id: bid, remoto: /remot/i.test(entrada.cabecalho.modalidade ?? ""), nivel2: ehNivel2(nivel), proximaFigura });
   if (blocosDoComboio) blocos.push(...blocosDoComboio);
+
+  // Tipos criados em Configurações › Tipos de item (Prédio, Produto…): uma seção por tipo, só quando há itens
+  const blocosExtras = blocosItensExtras({ contexto: entrada.contexto ?? null, id: bid });
+  if (blocosExtras) blocos.push(...blocosExtras);
 
   // 2.4 Bicos de abastecimento
   // No Nível 2 o conteúdo dos bicos é o bloco estrutural da seção VII

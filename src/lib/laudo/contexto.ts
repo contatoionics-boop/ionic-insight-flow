@@ -6,9 +6,11 @@
 // visível das perguntas.
 
 import type { ArvoreEscopo, EntidadeEscopo } from "@/lib/escopo/tipos";
-import { totalRfid } from "@/lib/escopo/tipos";
+import { ehTipoFixo, totalRfid } from "@/lib/escopo/tipos";
+import { pluralDoTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 
-export type RespostaDeEntidade = { entidadeId: string | null; chave: string | null; valor: string | null };
+/** `pergunta`: texto da pergunta (usado nos itens de tipos novos, que não têm chave do laudo). */
+export type RespostaDeEntidade = { entidadeId: string | null; chave: string | null; valor: string | null; pergunta?: string | null };
 export type Atributos = Record<string, string>;
 
 export type BicoCtx = { id: string; rotulo: string; ordem: number; atributos: Atributos };
@@ -36,6 +38,10 @@ export type ComboioCtx = {
   qtdBicos: number;
 };
 
+/** Um item de um tipo criado em Configurações › Tipos de item (ex.: "Prédio 01") com o que o agente respondeu. */
+export type ItemExtraCtx = { id: string; rotulo: string; nome: string | null; respostas: { pergunta: string; valor: string }[] };
+export type GrupoExtraCtx = { tipo: string; rotulo: string; plural: string; itens: ItemExtraCtx[] };
+
 export type EscopoCtx = {
   solucao: string | null;
   comunicacao: string | null;
@@ -58,6 +64,8 @@ export type ContextoLaudo = {
   escopo: EscopoCtx;
   bombas: BombaCtx[];
   comboios: ComboioCtx[];
+  /** itens dos tipos novos (Prédio, Produto…), um grupo por tipo; ausente em contextos antigos */
+  extras?: GrupoExtraCtx[];
   /** respostas gerais (sem entidade) pela chave semântica */
   gerais: Atributos;
 };
@@ -83,6 +91,8 @@ export function montarContextoLaudo(entrada: {
   entidades: EntidadeEscopo[];
   arvore: ArvoreEscopo;
   respostas: RespostaDeEntidade[];
+  /** nomes dos tipos novos; sem ele vale a chave do tipo */
+  catalogo?: TipoCatalogo[] | null;
 }): ContextoLaudo {
   const ativas = entrada.entidades.filter((e) => e.ativo !== false);
   const porId = new Map(ativas.map((e) => [e.id, e]));
@@ -125,6 +135,27 @@ export function montarContextoLaudo(entrada: {
       return { id: c.id, rotulo: c.rotulo, nome, identificacao: atributos.identificacao_comboio || nome || c.rotulo, atributos, bicos, qtdBicos: bicos.length };
     });
 
+  // tipos novos: um grupo por tipo, com as respostas (pergunta → valor) de cada item
+  const extras: GrupoExtraCtx[] = [];
+  for (const tipo of [...new Set(ativas.filter((e) => e.parent_id === null && !ehTipoFixo(e.tipo)).map((e) => e.tipo))]) {
+    const itens = ativas
+      .filter((e) => e.parent_id === null && e.tipo === tipo)
+      .sort(porOrdem)
+      .map((e): ItemExtraCtx => {
+        const respostas: { pergunta: string; valor: string }[] = [];
+        for (const r of entrada.respostas) {
+          if (r.entidadeId !== e.id || vazio(r.valor) || vazio(r.pergunta)) continue;
+          const pergunta = String(r.pergunta).trim();
+          const valor = String(r.valor).trim();
+          const i = respostas.findIndex((x) => x.pergunta === pergunta);
+          if (i >= 0) respostas[i] = { pergunta, valor };
+          else respostas.push({ pergunta, valor });
+        }
+        return { id: e.id, rotulo: e.rotulo, nome: e.dados?.nome?.trim() || null, respostas };
+      });
+    extras.push({ tipo, rotulo: rotuloDoTipo(entrada.catalogo, tipo), plural: pluralDoTipo(entrada.catalogo, tipo), itens });
+  }
+
   const cfg = entrada.arvore.config ?? {};
   const frotaItens = entrada.arvore.frota?.itens ?? [];
   const rfidItens = cfg.rfid?.itens ?? [];
@@ -155,7 +186,7 @@ export function montarContextoLaudo(entrada: {
     },
   };
 
-  return { escopo, bombas, comboios, gerais };
+  return { escopo, bombas, comboios, ...(extras.length ? { extras } : {}), gerais };
 }
 
 /** Preenche com o complemento só o que a base não tem (a base nunca é sobrescrita). */
@@ -220,7 +251,21 @@ function mesclarDois(a: ContextoLaudo, b: ContextoLaudo): ContextoLaudo {
     tx: eb.tx.quantidade > ea.tx.quantidade ? eb.tx : ea.tx,
     frota: eb.frota.totalDiv > ea.frota.totalDiv ? eb.frota : ea.frota,
   };
-  return { escopo, bombas, comboios, gerais: completar(a.gerais, b.gerais) };
+  // tipos novos: o principal manda; o outro só acrescenta itens que faltam e respostas não dadas (pela posição)
+  const extras: GrupoExtraCtx[] = (a.extras ?? []).map((g) => ({ ...g, itens: g.itens.map((i) => ({ ...i, respostas: [...i.respostas] })) }));
+  for (const gb of b.extras ?? []) {
+    const ga = extras.find((x) => x.tipo === gb.tipo);
+    if (!ga) {
+      extras.push(gb);
+      continue;
+    }
+    gb.itens.forEach((ib, i) => {
+      const ia = ga.itens[i];
+      if (!ia) return void ga.itens.push(ib);
+      for (const r of ib.respostas) if (!ia.respostas.some((x) => x.pergunta === r.pergunta)) ia.respostas.push(r);
+    });
+  }
+  return { escopo, bombas, comboios, ...(extras.length ? { extras } : {}), gerais: completar(a.gerais, b.gerais) };
 }
 
 /**

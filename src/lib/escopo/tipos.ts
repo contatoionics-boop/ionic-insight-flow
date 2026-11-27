@@ -1,6 +1,7 @@
 // Modelo da estrutura física do Escopo. Código puro (client-safe): a interface
 // (accordion hoje, wizard no futuro) só produz/edita uma `ArvoreEscopo`; o motor
 // de geração e o banco nunca conhecem a interface.
+import { CATALOGO_PADRAO, SLUG_TIPO, ehChaveValida, rotuloDoTipo, type TipoCatalogo } from "./catalogo-tipos";
 
 export type TipoEntidade =
   | "posto"
@@ -14,6 +15,9 @@ export type TipoEntidade =
   | "tanque"
   /** Tanque com lubrificante (raiz, independente da pista; tem formulário próprio). */
   | "tanque_lubrificante";
+
+/** Chave de um tipo do sistema ou de um tipo novo criado em Configurações › Tipos de item (ex.: "predio"). */
+export type TipoQualquer = TipoEntidade | (string & {});
 
 /** Valores de `perguntas.entidade_tipo` (aplicabilidade da pergunta). */
 export type AplicaA =
@@ -44,7 +48,7 @@ export const APLICA_A_OPCOES: { value: AplicaA; label: string }[] = [
 ];
 
 /** Tipo de entidade do Escopo em que cada aplicabilidade se repete. */
-export function tipoEntidadeDaAplicacao(a: string | null | undefined): TipoEntidade | null {
+export function tipoEntidadeDaAplicacao(a: string | null | undefined): TipoQualquer | null {
   switch (a) {
     case "posto":
     case "ilha":
@@ -59,7 +63,8 @@ export function tipoEntidadeDaAplicacao(a: string | null | undefined): TipoEntid
     case "div":
       return "frota";
     default:
-      return null;
+      // tipo novo (item simples criado em Tipos de item): a chave é o próprio valor
+      return a && a !== "geral" && SLUG_TIPO.test(a) ? a : null;
   }
 }
 
@@ -86,11 +91,14 @@ export const SUGERIR_QUANDO_OPCOES = [
   { value: "sonda", label: "Sonda" },
   { value: "frota", label: "Frota / DIV" },
 ] as const;
-export type ChaveSugestao = (typeof SUGERIR_QUANDO_OPCOES)[number]["value"];
+/** Chave de sugestão: as do sistema (pista, comboio…) ou a de um tipo novo. */
+export type ChaveSugestao = string;
 
-/** Quantidade de cada item do escopo (base para sugerir formulários e quantidades). */
+/** Quantidade de cada item do escopo (base para sugerir formulários e quantidades). Tipos novos entram pela própria chave. */
 export function quantidadesDoEscopo(a: ArvoreEscopo): Record<ChaveSugestao, number> {
+  const extras = Object.fromEntries(Object.entries(a.extras ?? {}).map(([k, v]) => [k, v.length]));
   return {
+    ...extras,
     pista: a.postos.length,
     comboio: a.comboios.length,
     tanque_lubrificante: (a.tanquesLubrificante ?? []).length,
@@ -225,6 +233,8 @@ export type ArvoreEscopo = {
   /** Opcionais e independentes da pista: podem existir sozinhos ou combinados. */
   tanquesLubrificante: ItemEscopo[];
   sondas: ItemEscopo[];
+  /** Itens simples dos tipos criados em Configurações › Tipos de item (chave do tipo → itens). Ausente em escopos antigos. */
+  extras?: Record<string, ItemEscopo[]>;
   frota: { ativo: boolean; itens: FrotaItemArvore[] };
   config: ConfigEscopo;
 };
@@ -238,6 +248,10 @@ export const arvoreVazia = (): ArvoreEscopo => ({
   config: {},
 });
 
+/** Tipos do sistema: tudo que não está aqui, na raiz do escopo, é um item simples de tipo novo. */
+const TIPOS_FIXOS = new Set(["posto", "ilha", "bomba", "bico", "comboio", "frota", "sonda", "tanque", "tanque_lubrificante"]);
+export const ehTipoFixo = (tipo: string) => TIPOS_FIXOS.has(tipo);
+
 export const LIMITES = {
   postos: 20,
   ilhas: 30,
@@ -249,6 +263,8 @@ export const LIMITES = {
   /** tanques com lubrificante */
   tanques: 50,
   sondas: 50,
+  /** itens de cada tipo novo (Prédio, Produto…) */
+  extras: 50,
 } as const;
 
 export function pad2(n: number) {
@@ -267,15 +283,17 @@ export const ROTULO_TIPO: Record<TipoEntidade, string> = {
   tanque_lubrificante: "Tanque lubrificante",
 };
 
-export function rotuloEntidade(tipo: TipoEntidade, ordem: number, nome?: string | null) {
-  const base = tipo === "frota" ? ROTULO_TIPO.frota : `${ROTULO_TIPO[tipo]} ${pad2(ordem)}`;
+/** "Comboio 01 — Frota 400". Com o catálogo, o nome do tipo é o configurado (ex.: "Prédio 02"). */
+export function rotuloEntidade(tipo: TipoQualquer, ordem: number, nome?: string | null, catalogo?: TipoCatalogo[] | null) {
+  const nomeDoTipo = catalogo ? rotuloDoTipo(catalogo, tipo) : (ROTULO_TIPO as Record<string, string>)[tipo] ?? rotuloDoTipo(CATALOGO_PADRAO, tipo);
+  const base = tipo === "frota" ? nomeDoTipo : `${nomeDoTipo} ${pad2(ordem)}`;
   const n = nome?.trim();
   return n ? `${base} — ${n}` : base;
 }
 
 export type EntidadeEscopo = {
   id: string;
-  tipo: TipoEntidade;
+  tipo: TipoQualquer;
   parent_id: string | null;
   ordem: number;
   rotulo: string;
@@ -290,7 +308,7 @@ export function arvoreDeEntidades(
   frotaItens: FrotaItemArvore[] = [],
   config: ConfigEscopo = {},
 ): ArvoreEscopo {
-  const filhos = (parent: string | null, tipo: TipoEntidade) =>
+  const filhos = (parent: string | null, tipo: TipoQualquer) =>
     entidades
       .filter((e) => e.tipo === tipo && e.parent_id === parent)
       .sort((a, b) => a.ordem - b.ordem);
@@ -299,8 +317,14 @@ export function arvoreDeEntidades(
       bombas: filhos(i.id, "bomba").map((b) => ({ bicos: filhos(b.id, "bico").length })),
     })),
   }));
-  const itens = (tipo: TipoEntidade): ItemEscopo[] =>
+  const itens = (tipo: TipoQualquer): ItemEscopo[] =>
     filhos(null, tipo).map((e) => (e.dados?.nome ? { nome: e.dados.nome } : {}));
+  // itens simples dos tipos novos (qualquer tipo da raiz que não é do sistema)
+  const extras: Record<string, ItemEscopo[]> = {};
+  for (const tipo of new Set(entidades.filter((e) => e.parent_id === null && !ehTipoFixo(e.tipo)).map((e) => e.tipo))) {
+    const lista = itens(tipo);
+    if (lista.length) extras[tipo] = lista;
+  }
   return {
     postos,
     comboios: filhos(null, "comboio").map((c) => ({
@@ -310,9 +334,20 @@ export function arvoreDeEntidades(
     })),
     tanquesLubrificante: itens("tanque_lubrificante"),
     sondas: itens("sonda"),
+    ...(Object.keys(extras).length ? { extras } : {}),
     frota: { ativo: entidades.some((e) => e.tipo === "frota"), itens: frotaItens },
     config,
   };
+}
+
+/** Itens dos tipos novos: só chaves válidas, listas vazias somem (a árvore lida do banco também não as tem). */
+function normalizarExtras(extras: ArvoreEscopo["extras"]): { extras?: Record<string, ItemEscopo[]> } {
+  const out: Record<string, ItemEscopo[]> = {};
+  for (const [chave, lista] of Object.entries(extras ?? {})) {
+    if (!ehChaveValida(chave) || !Array.isArray(lista) || !lista.length) continue;
+    out[chave] = lista.slice(0, LIMITES.extras).map((t) => ({ nome: t?.nome?.trim() || undefined }));
+  }
+  return Object.keys(out).length ? { extras: out } : {};
 }
 
 /** Normaliza (limites, inteiros ≥ 0) uma árvore vinda da interface. */
@@ -342,6 +377,7 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
     }),
     tanquesLubrificante: lub.slice(0, LIMITES.tanques).map((t) => ({ nome: t.nome?.trim() || undefined })),
     sondas: (a.sondas ?? []).slice(0, LIMITES.sondas).map((t) => ({ nome: t.nome?.trim() || undefined })),
+    ...normalizarExtras(a.extras),
     frota: {
       ativo: !!a.frota?.ativo,
       itens: (a.frota?.itens ?? [])
@@ -378,6 +414,8 @@ export function resumoArvore(a: ArvoreEscopo) {
     /** tanques com lubrificante */
     tanques: (a.tanquesLubrificante ?? []).length,
     sondas: (a.sondas ?? []).length,
+    /** quantidade de itens de cada tipo novo */
+    extras: Object.fromEntries(Object.entries(a.extras ?? {}).map(([k, v]) => [k, v.length])) as Record<string, number>,
     frota: a.frota.ativo,
   };
 }
@@ -385,19 +423,22 @@ export function resumoArvore(a: ArvoreEscopo) {
 /** Item "desejado" (nível plano) gerado a partir da árvore, com caminho por índices. */
 export type EntidadeDesejada = {
   chave: string; // ex.: "posto:1/ilha:2/bomba:1"
-  tipo: TipoEntidade;
+  tipo: TipoQualquer;
   paiChave: string | null;
   ordem: number;
   rotulo: string;
   nome?: string;
 };
 
-/** Achata a árvore em entidades desejadas (ordem de criação: pais antes dos filhos). */
-export function entidadesDesejadas(a: ArvoreEscopo): EntidadeDesejada[] {
+/**
+ * Achata a árvore em entidades desejadas (ordem de criação: pais antes dos filhos).
+ * Com o catálogo, os rótulos usam os nomes configurados (ex.: "Prédio 01").
+ */
+export function entidadesDesejadas(a: ArvoreEscopo, catalogo?: TipoCatalogo[] | null): EntidadeDesejada[] {
   const out: EntidadeDesejada[] = [];
-  const add = (tipo: TipoEntidade, paiChave: string | null, ordem: number, nome?: string) => {
+  const add = (tipo: TipoQualquer, paiChave: string | null, ordem: number, nome?: string) => {
     const chave = `${paiChave ? paiChave + "/" : ""}${tipo}:${ordem}`;
-    out.push({ chave, tipo, paiChave, ordem, rotulo: rotuloEntidade(tipo, ordem, nome), nome: nome?.trim() || undefined });
+    out.push({ chave, tipo, paiChave, ordem, rotulo: rotuloEntidade(tipo, ordem, nome, catalogo), nome: nome?.trim() || undefined });
     return chave;
   };
   a.postos.forEach((p, pi) => {
@@ -417,6 +458,7 @@ export function entidadesDesejadas(a: ArvoreEscopo): EntidadeDesejada[] {
   });
   (a.tanquesLubrificante ?? []).forEach((t, i) => add("tanque_lubrificante", null, i + 1, t.nome));
   (a.sondas ?? []).forEach((t, i) => add("sonda", null, i + 1, t.nome));
+  for (const [tipo, lista] of Object.entries(a.extras ?? {})) lista.forEach((t, i) => add(tipo, null, i + 1, t.nome));
   if (a.frota.ativo) add("frota", null, 1);
   return out;
 }

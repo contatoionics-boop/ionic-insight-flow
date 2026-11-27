@@ -2,6 +2,7 @@
 // agendador já informou. Código puro (client-safe).
 
 import type { EscopoProposta } from "@/lib/proposta/tipos";
+import { pluralDoTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import { resumoArvore, resumoRfid, rotuloSolucao, type ArvoreEscopo } from "@/lib/escopo/tipos";
 
 const COMUNICACAO: Record<string, string> = { wifi: "Wi-Fi", "4g": "4G", ambos: "Wi-Fi e 4G" };
@@ -14,6 +15,8 @@ export function montarOrientacoes(
   escopo: EscopoProposta | null,
   arvore: ArvoreEscopo,
   textoManual?: string,
+  /** nomes dos tipos novos (Configurações › Tipos de item) */
+  catalogo?: TipoCatalogo[] | null,
 ): string {
   const linhas: string[] = [];
 
@@ -55,6 +58,9 @@ export function montarOrientacoes(
       r.bicosComboio ? plural(r.bicosComboio, "bico", "bicos") : null,
     ].filter(Boolean);
     estrutura.push(plural(r.comboios, "comboio", "comboios") + (detalhe.length ? ` (${detalhe.join(", ")})` : ""));
+  }
+  for (const [chave, n] of Object.entries(r.extras)) {
+    if (n) estrutura.push(plural(n, rotuloDoTipo(catalogo, chave).toLocaleLowerCase("pt-BR"), pluralDoTipo(catalogo, chave).toLocaleLowerCase("pt-BR")));
   }
   if (r.frota) estrutura.push("Frota/DIV");
   if (estrutura.length) linhas.push(`Estrutura a mapear: ${estrutura.join(", ")}.`);

@@ -10,6 +10,8 @@ import {
 } from "@/components/agent/checklist/PreencherEquipamento";
 import { ResumoMapeamento, type DestinoResumo } from "@/components/agent/checklist/ResumoMapeamento";
 import { contarEstados, type ModeloNav, type Unidade } from "@/lib/escopo/navegacao-entidades";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { pluralDoTipo, rotuloDoTipo } from "@/lib/escopo/catalogo-tipos";
 import type { ChecklistPerguntaDTO } from "@/lib/vistoria-agent.functions";
 
 /** Onde o agente está: resumo → lista de equipamentos → preenchimento de um equipamento. */
@@ -89,6 +91,7 @@ export function VisaoEquipamentos({
   onIrParaPergunta,
 }: Props) {
   const [aviso, setAviso] = useState<string | null>(null);
+  const catalogo = useTiposEscopo();
 
   // O aviso vale só para a tela em que foi dado.
   useEffect(() => {
@@ -131,6 +134,16 @@ export function VisaoEquipamentos({
         };
       }
       return null;
+    }
+    if (chave.startsWith("extra:")) {
+      const tipo = chave.slice(6);
+      const unidades = modelo.extras.find((x) => x.tipo === tipo)?.unidades;
+      if (!unidades) return null;
+      return {
+        titulo: pluralDoTipo(catalogo, tipo),
+        unidades,
+        resumo: resumoGrupo(unidades, rotuloDoTipo(catalogo, tipo).toLocaleLowerCase("pt-BR"), pluralDoTipo(catalogo, tipo).toLocaleLowerCase("pt-BR"), ["concluído", "concluídos"]),
+      };
     }
     const g = NOMES_GRUPO[chave];
     const unidades = chave === "comboios" ? modelo.comboios : chave === "tanques" ? modelo.tanques : chave === "sondas" ? modelo.sondas : modelo.outros;
@@ -222,7 +235,7 @@ export function VisaoEquipamentos({
   if (u.proprias.length) {
     secoes.push({
       chave: "proprias",
-      titulo: u.subs.length > 0 ? `Dados ${DE[u.entidade.tipo] ?? ""}`.trim() : null,
+      titulo: u.subs.length > 0 ? `Dados ${DE[u.entidade.tipo] ?? `de ${rotuloDoTipo(catalogo, u.entidade.tipo).toLocaleLowerCase("pt-BR")}`}`.trim() : null,
       tipo: u.subs.length > 0 ? u.entidade.tipo : undefined,
       itens: u.proprias,
     });

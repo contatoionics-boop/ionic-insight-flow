@@ -15,7 +15,6 @@ import { estruturaDoEscopo, estruturaEhVazia } from "@/lib/escopo/sugerir";
 import { salvarEscopoEstrutura } from "@/lib/escopo.functions";
 import { montarOrientacoes } from "@/lib/escopo/orientacoes";
 import {
-  SUGERIR_QUANDO_OPCOES,
   arvoreVazia,
   configTemDados,
   normalizarArvore,
@@ -26,6 +25,8 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
+import { opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
 
 export const Route = createFileRoute("/app/new-case")({
   component: NewCasePage,
@@ -115,6 +116,7 @@ function NewCasePage() {
   const [erroManual, setErroManual] = useState<string | null>(null);
   const salvarEstrutura = useServerFn(salvarEscopoEstrutura);
   const [estrutura, setEstrutura] = useState<ArvoreEscopo>(arvoreVazia());
+  const catalogoTipos = useTiposEscopo();
 
   /** true enquanto a estrutura foi preenchida pelo sistema (a partir da proposta) e ninguém mexeu nela. */
   const estruturaAuto = useRef(false);
@@ -188,7 +190,7 @@ function NewCasePage() {
 
   /** Rascunho das orientações; se já houver texto digitado, pede confirmação antes de acrescentar. */
   function gerarOrientacoes() {
-    const rascunho = montarOrientacoes(escopoPrevia, estrutura, escopoModo === "manual" ? escopoManualTexto : "");
+    const rascunho = montarOrientacoes(escopoPrevia, estrutura, escopoModo === "manual" ? escopoManualTexto : "", catalogoTipos);
     if (!rascunho) {
       setError("Defina a estrutura ou o escopo antes de gerar o resumo.");
       return;
@@ -670,7 +672,7 @@ function NewCasePage() {
     const out: { form: Form; motivos: string[]; qtd: number }[] = [];
     for (const f of formsVisiveis) {
       const quando = formMeta[f.id]?.sugerirQuando ?? [];
-      const ativos = SUGERIR_QUANDO_OPCOES.filter((o) => quando.includes(o.value) && q[o.value] > 0);
+      const ativos = opcoesSugerir(catalogoTipos, quando).filter((o) => quando.includes(o.value) && (q[o.value] ?? 0) > 0);
       if (!ativos.length || formIds.includes(f.id)) continue;
       const base = Math.max(...ativos.map((o) => q[o.value]));
       out.push({
@@ -680,7 +682,7 @@ function NewCasePage() {
       });
     }
     return out;
-  }, [formsVisiveis, formMeta, estrutura, formIds]);
+  }, [formsVisiveis, formMeta, estrutura, formIds, catalogoTipos]);
 
   const adicionarSugestao = (id: string, qtd: number) => {
     setFormIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
