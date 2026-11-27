@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { BlocoLaudo } from "@/lib/laudo/tipos";
 import { POSICOES_BLOCO, regraParaEscopo } from "@/lib/laudo/blocos-padrao-regras";
 import { SLOTS_TEXTO, corpoParaItens, escopoDaVersao, itensParaBlocos, type ItemTexto } from "@/lib/laudo/textos-padrao";
+import { CONFIG_ORDEM_SECOES_ID, CATEGORIA_ORDEM_SECOES } from "@/lib/laudo/ordem-secoes";
 
 export type BlocoPadrao = {
   id: string;
@@ -22,6 +23,7 @@ export const listarBlocosPadrao = createServerFn({ method: "POST" })
     const { data, error } = await context.supabase
       .from("blocos_padrao")
       .select("id, nome, descricao, categoria, escopo, blocos, ativo, ordem")
+      .neq("categoria", CATEGORIA_ORDEM_SECOES)
       .order("ordem", { ascending: true })
       .order("nome", { ascending: true });
     if (error) throw new Error(error.message);
@@ -154,5 +156,24 @@ export const ordenarBlocosPadrao = createServerFn({ method: "POST" })
     const resultados = await Promise.all(data.ids.map((id, ordem) => context.supabase.from("blocos_padrao").update({ ordem }).eq("id", id).select("id").single()));
     const falha = resultados.find((resultado) => resultado.error);
     if (falha?.error) throw new Error("Não foi possível salvar toda a ordem dos blocos. Recarregue a lista e tente novamente.");
+    return { ok: true };
+  });
+
+export const carregarOrdemSecoes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { lerOrdemSecoes } = await import("@/lib/laudo/ordem-secoes.server");
+    return await lerOrdemSecoes(context.supabase);
+  });
+
+export const salvarOrdemSecoes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ slots: z.array(z.enum(SLOTS_TEXTO)).length(SLOTS_TEXTO.length).refine((slots) => new Set(slots).size === SLOTS_TEXTO.length, "Informe cada seção uma única vez.") }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("blocos_padrao").upsert({
+      id: CONFIG_ORDEM_SECOES_ID, nome: "Ordem das seções do documento", categoria: CATEGORIA_ORDEM_SECOES,
+      ativo: false, ordem: 0, blocos: [], escopo: { ordem_secoes: data.slots }, criado_por: context.userId,
+    }).select("id").single();
+    if (error) throw new Error("Não foi possível salvar a ordem das seções. Verifique seu acesso e tente novamente.");
     return { ok: true };
   });

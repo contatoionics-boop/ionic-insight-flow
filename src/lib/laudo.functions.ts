@@ -90,6 +90,11 @@ export const carregarLaudo = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     const conteudo = (caso?.laudo_conteudo ?? null) as LaudoConteudo | null;
+    if (conteudo) {
+      const { lerOrdemSecoes } = await import("@/lib/laudo/ordem-secoes.server");
+      const { ordenarSecoesDocumento } = await import("@/lib/laudo/ordem-secoes");
+      conteudo.blocos = ordenarSecoesDocumento(comChaves(conteudo.blocos), await lerOrdemSecoes(context.supabase));
+    }
     const { carregarMetaLaudoDoCaso } = await import("@/lib/laudo/meta.server");
     const { meta } = await carregarMetaLaudoDoCaso(context.supabase, data.casoId);
     return {
@@ -453,7 +458,9 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
       }
     }
 
-    const vars = (caso.laudo_variaveis ?? {}) as unknown as VariaveisLaudo;
+    const { lerOrdemSecoes } = await import("@/lib/laudo/ordem-secoes.server");
+    const { ordenarSecoesDocumento } = await import("@/lib/laudo/ordem-secoes");
+    const blocosOrdenados = ordenarSecoesDocumento(comChaves(conteudo.blocos as BlocoLaudo[]), await lerOrdemSecoes(supabase));
     const bytes = await buildLaudoPdf({
       meta: {
         titulo: meta.nomeDocumento,
@@ -475,7 +482,7 @@ export const gerarPdfLaudo = createServerFn({ method: "POST" })
         especialista: meta.especialista,
       },
 
-      blocos: renumerar(conteudo.blocos as BlocoLaudo[]).filter((b) => !b.oculto),
+      blocos: renumerar(blocosOrdenados).filter((b) => !b.oculto),
       baseUrl: (() => {
         try {
           return new URL(getRequest().url).origin;

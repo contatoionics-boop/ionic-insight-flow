@@ -1,6 +1,8 @@
 import { montarBlocosEAnalise } from "@/lib/laudo/template";
 import type { MaterialCatalogo } from "@/lib/laudo/regras";
 import type { LaudoConteudo, VariaveisLaudo } from "@/lib/laudo/tipos";
+import { lerOrdemSecoes } from "@/lib/laudo/ordem-secoes.server";
+import { ordenarSecoesDocumento } from "@/lib/laudo/ordem-secoes";
 
 type LinhaResposta = {
   perguntaId: string;
@@ -380,6 +382,7 @@ export async function montarESalvarLaudo(supabase: any, casoId: string) {
   const { mesclarDocumento } = await import("@/lib/laudo/mesclar");
   const salvos = ((caso.laudo_conteudo as any)?.blocos ?? []) as any[];
   const mescla = mesclarDocumento(salvos, blocos);
+  mescla.blocos = ordenarSecoesDocumento(mescla.blocos, await lerOrdemSecoes(supabase));
 
   const conteudo: LaudoConteudo = {
     gerado_em: new Date().toISOString(),

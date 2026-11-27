@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ListaOrdenavel } from "./ListaOrdenavel";
+import { moverNaLista } from "@/lib/ordenar-blocos";
+import { normalizarOrdemSecoes } from "@/lib/laudo/ordem-secoes";
 import { Badge, Button, Card, Input, Modal } from "@/components/ui-bits";
 import { EditorBlocos } from "@/components/laudo/EditorBlocos";
 import { semMarcas } from "@/lib/laudo/texto-formatado";
-import { excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
+import { carregarOrdemSecoes, salvarOrdemSecoes, excluirBlocoPadrao, salvarBlocoPadrao, type BlocoPadrao } from "@/lib/blocos-padrao.functions";
 import { lerRegra, opcoesExigencia, rotuloExigencia, type RegraBlocoPadrao } from "@/lib/laudo/blocos-padrao-regras";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
 import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
@@ -78,6 +81,36 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
   const fnExcluir = useServerFn(excluirBlocoPadrao);
   const [form, setForm] = useState<Form | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const fnCarregarOrdem = useServerFn(carregarOrdemSecoes);
+  const fnSalvarOrdem = useServerFn(salvarOrdemSecoes);
+  const [slots, setSlots] = useState<SlotTexto[]>([...SLOTS_TEXTO]);
+  const [ordenando, setOrdenando] = useState(false);
+  const [ordemPronta, setOrdemPronta] = useState(false);
+  useEffect(() => {
+    let ativo = true;
+    fnCarregarOrdem().then((ordem) => {
+      if (!ativo) return;
+      setSlots(normalizarOrdemSecoes(ordem));
+      setOrdemPronta(true);
+    }).catch(() => { if (ativo) toast.error("Não foi possível carregar a ordem. Recarregue esta tela para tentar novamente."); });
+    return () => { ativo = false; };
+  }, [fnCarregarOrdem]);
+
+  async function reposicionar(origem: number, destino: number) {
+    if (ordenando || !ordemPronta) return;
+    const anteriores = slots;
+    const novos = moverNaLista(slots, origem, destino);
+    if (novos === slots) return;
+    setOrdenando(true);
+    setSlots(novos);
+    try {
+      await fnSalvarOrdem({ data: { slots: novos } });
+      toast.success("Ordem das seções salva para o documento e PDF.");
+    } catch (e: any) {
+      setSlots(anteriores);
+      toast.error(e?.message ?? "Não foi possível salvar a ordem.");
+    } finally { setOrdenando(false); }
+  }
 
   const versoesDe = (slot: SlotTexto) => itens.filter((b) => lerSlot(b.escopo).slot === slot);
 
@@ -188,19 +221,24 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
         </p>
       </div>
 
-      {SLOTS_TEXTO.map((slot) => {
+      <ListaOrdenavel itens={slots} idDe={(slot) => slot} disabled={ordenando || !ordemPronta} onMover={(origem, destino) => void reposicionar(origem, destino)} render={(slot, indice, alca) => {
         const versoes = versoesDe(slot);
         const original = itensParaCorpo(TEXTO_ORIGINAL[slot]);
         return (
-          <Card key={slot} className="space-y-3 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+          <Card className="space-y-3 p-4">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 sm:flex">
+              {alca}
+              <div className="min-w-0 sm:flex-1">
                 <p className="text-sm font-medium">{INFO_SLOT[slot].rotulo}</p>
                 <p className="text-xs text-muted-foreground">{INFO_SLOT[slot].descricao}</p>
               </div>
-              <Button variant="secondary" onClick={() => nova(slot)}>
+              <div className="col-start-2 flex flex-wrap items-center gap-1 sm:shrink-0">
+                <Button type="button" variant="ghost" size="sm" title="Subir seção" aria-label={`Subir seção ${INFO_SLOT[slot].rotulo}`} disabled={ordenando || !ordemPronta || indice === 0} onClick={() => void reposicionar(indice, indice - 1)}><ArrowUp className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="sm" title="Descer seção" aria-label={`Descer seção ${INFO_SLOT[slot].rotulo}`} disabled={ordenando || !ordemPronta || indice === slots.length - 1} onClick={() => void reposicionar(indice, indice + 1)}><ArrowDown className="h-4 w-4" /></Button>
+              <Button variant="secondary" onClick={() => nova(slot)} disabled={ordenando}>
                 Nova versão
               </Button>
+              </div>
             </div>
 
             {versoes.length === 0 ? (
@@ -250,7 +288,7 @@ export function TextosDoDocumento({ itens, onAlterou, imagens }: { itens: BlocoP
             )}
           </Card>
         );
-      })}
+      }} />
 
       <Modal open={!!form} onClose={() => setForm(null)} title={form ? `${form.id ? "Editar" : "Nova"} versão — ${INFO_SLOT[form.slot].rotulo}` : ""}>
         {form && (
