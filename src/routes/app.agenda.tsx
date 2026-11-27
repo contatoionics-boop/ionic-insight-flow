@@ -30,7 +30,7 @@ type Evento = {
   unidade: { nome: string; matriz: { nome: string; empresa: { nome: string } | null } | null } | null;
   agente: { nome: string } | null;
   formulario: { nome: string } | null;
-  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null; agente_nome_manual: string | null; tipo_solicitacao: string | null; modalidade: string | null; nivel: string | null } | null;
+  agendamento: { aceite_status: string | null; data_aceite: string | null; motivo_recusa: string | null; agente_nome_manual: string | null; tipo_solicitacao: string | null; modalidade: string | null; nivel: string | null; campos_extras?: Record<string, string> | null } | null;
 };
 
 type ExecEstado = "nao_iniciado" | "em_campo" | "entregue" | "aprovado";

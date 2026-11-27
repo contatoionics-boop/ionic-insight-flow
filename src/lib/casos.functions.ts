@@ -88,6 +88,8 @@ const AgendarInput = z
     tipoSolicitacao: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
     modalidade: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
     nivel: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+    // escolhas dos campos criados em Opções do agendamento: { chave do campo: valor da opção }
+    camposExtras: z.record(z.string().regex(/^[a-z][a-z0-9_]{1,39}$/), z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)).optional(),
     agendadoEm: z.string().min(1),
     duracaoMin: z.number().int().min(15).max(8 * 60).default(60),
     enderecoVistoria: z.string().max(500).optional().nullable(),
@@ -249,6 +251,8 @@ export const agendarMapeamento = createServerFn({ method: "POST" })
         tipo_solicitacao: data.tipoSolicitacao,
         modalidade: data.modalidade,
         nivel: data.nivel,
+        // só grava quando há escolha (sem campos novos o insert segue igual ao de antes)
+        ...(data.camposExtras && Object.keys(data.camposExtras).length ? { campos_extras: data.camposExtras } : {}),
         criado_por: context.userId,
         agendado_em: data.agendadoEm,
         duracao_min: data.duracaoMin,
@@ -477,7 +481,10 @@ export const obterAgendamento = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!ag) throw new Error("Agendamento não encontrado.");
-    return ag;
+    // campos criados em Opções do agendamento (lidos à parte: tolera a migration pendente)
+    const { camposExtrasPorAgendamento } = await import("@/lib/campos-extras.server");
+    const extras = (await camposExtrasPorAgendamento(supabase, [data.agendamentoId])).get(data.agendamentoId);
+    return extras ? { ...ag, campos_extras: extras } : ag;
   });
 
 // Compat antigo (1 formulário). Usado por código legado.
@@ -757,7 +764,12 @@ export const listarAgendaAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     // A agenda mostra todos os agendamentos do período (aguardando aceite,
     // confirmados e recusados) — o status de aceite é sinalizado na UI.
-    return rows ?? [];
+    // Escolhas dos campos criados em Opções do agendamento entram no resumo do atendimento.
+    const { camposExtrasPorAgendamento } = await import("@/lib/campos-extras.server");
+    const extras = await camposExtrasPorAgendamento(supabaseAdmin, (rows ?? []).map((r: any) => r.agendamento_id));
+    return (rows ?? []).map((r: any) =>
+      extras.has(r.agendamento_id) && r.agendamento ? { ...r, agendamento: { ...r.agendamento, campos_extras: extras.get(r.agendamento_id) } } : r,
+    );
 
   });
 

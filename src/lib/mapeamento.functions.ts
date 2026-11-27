@@ -78,6 +78,8 @@ export type MapeamentoComProgresso = {
   tipo_solicitacao: string | null;
   modalidade: string | null;
   nivel: string | null;
+  /** escolhas dos campos criados em Opções do agendamento */
+  campos_extras: Record<string, string> | null;
   aceite_status: "aguardando_aceite" | "confirmado" | "recusado_pelo_agente" | null;
   data_aceite: string | null;
   motivo_recusa_agente: string | null;
@@ -109,12 +111,14 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
     const { data: casos, error } = await supabase
       .from("casos")
       .select(
-        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa, agente_nome_manual, tipo_solicitacao, modalidade, nivel), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
+        "id, codigo, status, criado_em, agendado_em, data_execucao, data_entrega_agente, data_aprovacao_pablo, formulario_id, agente_id, agendamento_id, agendamento:agendamentos!agendamento_id(aceite_status, data_aceite, motivo_recusa, agente_nome_manual, tipo_solicitacao, modalidade, nivel), unidade:unidades(nome, codigo_ionics, matriz:matrizes(nome, empresa:empresas(nome, codigo_ionics))), agente:profiles!agente_id(nome)" as any,
       )
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     const list = (casos ?? []) as any[];
     if (list.length === 0) return [];
+    // campos criados em Opções do agendamento (lidos à parte: tolera a migration pendente)
+    const extrasAgendamento = await (await import("@/lib/campos-extras.server")).camposExtrasPorAgendamento(supabase, list.map((c) => c.agendamento_id));
 
 
     const formIds = Array.from(new Set(list.map((c) => c.formulario_id).filter(Boolean)));
@@ -229,6 +233,7 @@ export const listarMapeamentosComProgresso = createServerFn({ method: "GET" })
         tipo_solicitacao: c.agendamento?.tipo_solicitacao ?? null,
         modalidade: c.agendamento?.modalidade ?? null,
         nivel: c.agendamento?.nivel ?? null,
+        campos_extras: extrasAgendamento.get(c.agendamento_id) ?? null,
         aceite_status: c.agendamento?.aceite_status ?? null,
         data_aceite: c.agendamento?.data_aceite ?? null,
         motivo_recusa_agente: c.agendamento?.motivo_recusa ?? null,

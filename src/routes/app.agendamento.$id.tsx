@@ -42,6 +42,7 @@ type Ag = {
   tipo_solicitacao: string | null;
   modalidade: string | null;
   nivel: string | null;
+  campos_extras?: Record<string, string> | null;
   unidade: { id: string; nome: string; matriz: { id: string; nome: string; empresa: { id: string; nome: string } | null } | null } | null;
   casos: Caso[];
 };

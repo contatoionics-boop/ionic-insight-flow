@@ -8,10 +8,11 @@ import { ConfiguracoesNav } from "@/components/ConfiguracoesNav";
 import {
   adicionarOpcaoAgendamento,
   listarOpcoesAgendamento,
+  salvarCampoAgendamento,
   salvarOpcaoAgendamento,
   type ListaOpcoes,
 } from "@/lib/opcoes-agendamento.functions";
-import { CAMPOS_OPCAO, type CampoOpcao, type OpcaoAgendamento } from "@/lib/opcoes-agendamento";
+import type { CampoAgendamento, CampoOpcao, OpcaoAgendamento } from "@/lib/opcoes-agendamento";
 import { recarregarOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
 
 export const Route = createFileRoute("/app/opcoes-agendamento")({
@@ -25,11 +26,15 @@ export const Route = createFileRoute("/app/opcoes-agendamento")({
 });
 
 type Edicao = { campo: CampoOpcao; valor?: string; rotulo: string; ativo: boolean; ordem: number };
+/** Campo novo do agendamento (ex.: "Tipo de mapeamento"): criar ou editar. */
+type EdicaoCampo = { chave?: string; titulo: string; obrigatorio: boolean; ativo: boolean };
 
 function OpcoesAgendamentoPage() {
   const fnListar = useServerFn(listarOpcoesAgendamento);
   const fnSalvar = useServerFn(salvarOpcaoAgendamento);
   const fnAdicionar = useServerFn(adicionarOpcaoAgendamento);
+  const fnSalvarCampo = useServerFn(salvarCampoAgendamento);
+  const [campoEdicao, setCampoEdicao] = useState<EdicaoCampo | null>(null);
 
   const [dados, setDados] = useState<ListaOpcoes | null>(null);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
@@ -74,6 +79,34 @@ function OpcoesAgendamentoPage() {
     }
   }
 
+  async function confirmarCampo() {
+    if (!campoEdicao) return;
+    setSalvando(true);
+    try {
+      const atual = campoEdicao.chave ? dados!.campos.find((c) => c.campo === campoEdicao.chave) : undefined;
+      await fnSalvarCampo({
+        data: { chave: campoEdicao.chave, titulo: campoEdicao.titulo, obrigatorio: campoEdicao.obrigatorio, ativo: campoEdicao.ativo, ordem: atual?.ordem },
+      });
+      toast.success(campoEdicao.chave ? "Campo atualizado." : "Campo criado. Agora crie as opções dele.");
+      setCampoEdicao(null);
+      await atualizar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar o campo.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function alternarCampo(c: CampoAgendamento) {
+    try {
+      await fnSalvarCampo({ data: { chave: c.campo, titulo: c.titulo, obrigatorio: c.obrigatorio, ativo: !c.ativo, ordem: c.ordem } });
+      await atualizar();
+      toast.success(c.ativo ? `"${c.titulo}" ocultado do agendamento.` : `"${c.titulo}" voltou ao agendamento.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar o campo.");
+    }
+  }
+
   async function alternar(o: OpcaoAgendamento) {
     try {
       await gravar(o, { ativo: !o.ativo });
@@ -107,6 +140,11 @@ function OpcoesAgendamentoPage() {
       <PageHeader
         title="Opções do agendamento"
         description="As listas usadas ao agendar um mapeamento. Renomeie, oculte, reordene ou crie opções novas sem depender de desenvolvimento."
+        actions={
+          <Button onClick={() => setCampoEdicao({ titulo: "", obrigatorio: false, ativo: true })} disabled={!dados || dados.camposPendentes}>
+            <Plus className="mr-2 h-4 w-4" /> Novo campo
+          </Button>
+        }
       />
       <ConfiguracoesNav />
 
@@ -126,25 +164,58 @@ function OpcoesAgendamentoPage() {
             </Card>
           )}
 
+          {!dados.migracaoPendente && dados.camposPendentes && (
+            <Card className="flex items-start gap-3 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Para criar <strong>campos novos</strong> (além dos quatro abaixo), execute no SQL Editor do Supabase a migration <code>20261128180000_campos_agendamento</code>.
+              </p>
+            </Card>
+          )}
+
           <p className="text-xs text-muted-foreground">
             Mudar o nome vale em todo o sistema (agenda, listas, documento, agente). O valor gravado nos mapeamentos antigos não muda. Uma opção criada aqui aparece nas listas e como
             condição nos textos padrão; o texto do documento para ela você ajusta em Blocos padrão. Opções já usadas só podem ser ocultadas, não excluídas.
           </p>
 
-          {CAMPOS_OPCAO.map((c) => {
+          {dados.campos.map((c) => {
             const lista = dados.opcoes.filter((x) => x.campo === c.campo);
             return (
               <section key={c.campo}>
                 <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-sm font-semibold">{c.titulo}</h2>
-                    <p className="text-xs text-muted-foreground">{c.descricao}</p>
+                    <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {c.titulo}
+                      {!c.sistema && <Badge className="bg-primary/10 text-primary">campo criado por você</Badge>}
+                      {!c.sistema && c.obrigatorio && <Badge className="bg-muted text-muted-foreground">obrigatório</Badge>}
+                      {!c.sistema && !c.ativo && (
+                        <Badge className="bg-muted text-muted-foreground">
+                          <EyeOff className="mr-1 h-3 w-3" /> oculto
+                        </Badge>
+                      )}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {c.sistema ? c.descricao : "Aparece como uma lista a mais ao agendar um mapeamento e no resumo do atendimento."}
+                    </p>
                   </div>
-                  <Button variant="secondary" disabled={dados.migracaoPendente} onClick={() => setEdicao({ campo: c.campo, rotulo: "", ativo: true, ordem: 0 })}>
-                    <Plus className="mr-1.5 h-4 w-4" /> Nova opção
-                  </Button>
+                  <div className="flex gap-1">
+                    {!c.sistema && (
+                      <>
+                        <Button variant="secondary" onClick={() => setCampoEdicao({ chave: c.campo, titulo: c.titulo, obrigatorio: c.obrigatorio, ativo: c.ativo })}>
+                          <Pencil className="mr-1.5 h-4 w-4" /> Editar campo
+                        </Button>
+                        <Button variant="secondary" onClick={() => alternarCampo(c)}>
+                          {c.ativo ? "Ocultar campo" : "Mostrar campo"}
+                        </Button>
+                      </>
+                    )}
+                    <Button variant="secondary" disabled={dados.migracaoPendente} onClick={() => setEdicao({ campo: c.campo, rotulo: "", ativo: true, ordem: 0 })}>
+                      <Plus className="mr-1.5 h-4 w-4" /> Nova opção
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
+                  {lista.length === 0 && <Card className="p-4 text-sm text-muted-foreground">Nenhuma opção ainda. Use "Nova opção" para criar a primeira.</Card>}
                   {lista.map((o, i) => (
                     <Card key={o.valor} className="flex flex-wrap items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
@@ -185,7 +256,7 @@ function OpcoesAgendamentoPage() {
       <Modal open={!!edicao} onClose={() => setEdicao(null)} title={edicao?.valor ? "Editar opção" : "Nova opção"}>
         {edicao && (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">{CAMPOS_OPCAO.find((c) => c.campo === edicao.campo)?.titulo}</p>
+            <p className="text-xs text-muted-foreground">{dados?.campos.find((c) => c.campo === edicao.campo)?.titulo}</p>
             <div>
               <label className="text-xs font-medium">Nome exibido</label>
               <Input value={edicao.rotulo} placeholder="Ex.: Nível 4" onChange={(e) => setEdicao({ ...edicao, rotulo: e.currentTarget.value })} />
@@ -201,6 +272,36 @@ function OpcoesAgendamentoPage() {
                 Cancelar
               </Button>
               <Button onClick={confirmar} disabled={salvando || !edicao.rotulo.trim()}>
+                {salvando ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={!!campoEdicao} onClose={() => setCampoEdicao(null)} title={campoEdicao?.chave ? "Editar campo" : "Novo campo"}>
+        {campoEdicao && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium">Nome do campo</label>
+              <Input value={campoEdicao.titulo} placeholder="Ex.: Tipo de mapeamento" onChange={(e) => setCampoEdicao({ ...campoEdicao, titulo: e.currentTarget.value })} />
+              <p className="mt-1 text-[11px] text-muted-foreground">Vira uma lista na tela de agendar mapeamento. As opções dela você cria em seguida, em "Nova opção".</p>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={campoEdicao.obrigatorio} onChange={(e) => setCampoEdicao({ ...campoEdicao, obrigatorio: e.currentTarget.checked })} />
+              Obrigatório ao agendar (sem marcar, pode ficar em branco)
+            </label>
+            {campoEdicao.chave && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={campoEdicao.ativo} onChange={(e) => setCampoEdicao({ ...campoEdicao, ativo: e.currentTarget.checked })} />
+                Disponível no agendamento
+              </label>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={() => setCampoEdicao(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={confirmarCampo} disabled={salvando || campoEdicao.titulo.trim().length < 2}>
                 {salvando ? "Salvando…" : "Salvar"}
               </Button>
             </div>

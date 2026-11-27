@@ -27,8 +27,8 @@ import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
-import { useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
-import { opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { useCamposAgendamento, useOpcoesAgendamento } from "@/hooks/use-opcoes-agendamento";
+import { camposExtrasAtivos, opcoesDoCampo, rotuloOpcao } from "@/lib/opcoes-agendamento";
 import { opcoesSugerir } from "@/lib/escopo/catalogo-tipos";
 
 export const Route = createFileRoute("/app/new-case")({
@@ -187,6 +187,10 @@ function NewCasePage() {
   const [modalidade, setModalidade] = useState<string>("presencial");
   const [nivel, setNivel] = useState<string>("nivel_1");
   const opcoesAg = useOpcoesAgendamento();
+  // campos criados em Configurações › Opções do agendamento (listas a mais), com a escolha de cada um
+  const camposAg = useCamposAgendamento();
+  const camposExtras = camposExtrasAtivos(camposAg).filter((c) => opcoesDoCampo(c.campo, { todas: opcoesAg }).length > 0);
+  const [escolhasExtras, setEscolhasExtras] = useState<Record<string, string>>({});
   const [data, setData] = useState("");
   const [hora, setHora] = useState("09:00");
   const [endereco, setEndereco] = useState("");
@@ -452,6 +456,11 @@ function NewCasePage() {
       setError("Selecione ao menos um formulário.");
       return;
     }
+    const faltaExtra = camposExtras.find((c) => c.obrigatorio && !escolhasExtras[c.campo]);
+    if (faltaExtra) {
+      setError(`Selecione "${faltaExtra.titulo}".`);
+      return;
+    }
     if (!agentId) {
       setError("Selecione o responsável pelo mapeamento.");
       return;
@@ -475,6 +484,7 @@ function NewCasePage() {
           tipoSolicitacao,
           modalidade,
           nivel,
+          ...(Object.keys(escolhasExtras).some((k) => escolhasExtras[k]) ? { camposExtras: Object.fromEntries(Object.entries(escolhasExtras).filter(([, v]) => v)) } : {}),
           agendadoEm,
           duracaoMin: 60,
           enderecoVistoria: endereco || null,
@@ -839,6 +849,28 @@ function NewCasePage() {
               </Select>
             </div>
           </div>
+
+          {camposExtras.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-3">
+              {camposExtras.map((c) => (
+                <div key={c.campo}>
+                  <Label>{c.titulo}</Label>
+                  <Select
+                    value={escolhasExtras[c.campo] ?? ""}
+                    onChange={(e) => setEscolhasExtras((cur) => ({ ...cur, [c.campo]: e.target.value }))}
+                    required={c.obrigatorio}
+                  >
+                    <option value="">{c.obrigatorio ? "Selecione" : "Não informado"}</option>
+                    {opcoesDoCampo(c.campo, { todas: opcoesAg }).map((o) => (
+                      <option key={o.valor} value={o.valor}>
+                        {o.rotulo}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="grid gap-4">
             <div className="md:col-span-2">

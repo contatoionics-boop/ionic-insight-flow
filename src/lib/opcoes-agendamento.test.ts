@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { definirOpcoes, mesclarOpcoes, opcoesDoCampo, rotuloDeQualquerOpcao, rotuloOpcao, valorDoNome } from "./opcoes-agendamento";
+import { camposExtrasAtivos, chaveDoCampo, definirCampos, definirOpcoes, mesclarCampos, mesclarOpcoes, opcoesDoCampo, resumoCamposExtras, rotuloDeQualquerOpcao, rotuloOpcao, valorDoNome } from "./opcoes-agendamento";
 import { resumoAtendimento } from "./casos";
 import { rotuloModalidade, rotuloTipoAcao } from "./texto";
 import { rotuloSolucao } from "./escopo/tipos";
@@ -19,13 +19,14 @@ describe("opções do agendamento", () => {
       { campo: "nivel", valor: "nivel_1", rotulo: "Básico", ordem: 30 },
       { campo: "nivel", valor: "nivel_3", rotulo: "Nível 3", ativo: false, ordem: 20 },
       { campo: "nivel", valor: "nivel_4", rotulo: "Nível 4", ordem: 40 },
-      { campo: "inexistente", valor: "x", rotulo: "X" },
+      { campo: "Campo Ruim", valor: "x", rotulo: "X" },
       { campo: "nivel", valor: "Inválido!", rotulo: "Y" },
     ] as never);
     expect(opcoesDoCampo("nivel", { todas }).map((o) => o.rotulo)).toEqual(["Nível 2", "Básico", "Nível 4"]);
     expect(opcoesDoCampo("nivel", { todas, incluir: ["nivel_3"] }).map((o) => o.valor)).toEqual(["nivel_2", "nivel_3", "nivel_1", "nivel_4"]);
     expect(todas.find((o) => o.valor === "nivel_4")?.sistema).toBe(false);
-    expect(todas.some((o) => o.campo === ("inexistente" as never))).toBe(false);
+    // campo com chave inválida é descartado (campo de chave válida é um campo criado pelo gestor)
+    expect(todas.some((o) => o.valor === "Inválido!")).toBe(false);
   });
 
   it("os rótulos configurados valem em resumo, documento e escopo (via registro)", () => {
@@ -53,5 +54,39 @@ describe("opções do agendamento", () => {
     expect(valorDoNome("Nível 4", [])).toBe("nivel_4");
     expect(valorDoNome("Nível 4", ["nivel_4"])).toBe("nivel_4_2");
     expect(valorDoNome("%%", [])).toBe("opcao");
+  });
+});
+
+describe("campos novos do agendamento", () => {
+  it("os quatro fixos sempre existem; campo novo precisa de chave válida e não colide com eles", () => {
+    const campos = mesclarCampos([
+      { chave: "tipo_mapeamento", titulo: "Tipo de mapeamento", obrigatorio: true },
+      { chave: "nivel", titulo: "Duplicado do fixo" },
+      { chave: "Ruim!", titulo: "Inválido" },
+      { chave: "sem_titulo", titulo: "" },
+      { chave: "oculto", titulo: "Oculto", ativo: false, ordem: 5 },
+    ] as never);
+    expect(campos.map((c) => c.campo)).toEqual(["tipo_solicitacao", "modalidade", "nivel", "solucao", "oculto", "tipo_mapeamento"]);
+    expect(campos.find((c) => c.campo === "tipo_mapeamento")).toMatchObject({ sistema: false, obrigatorio: true, ativo: true });
+    expect(camposExtrasAtivos(campos).map((c) => c.campo)).toEqual(["tipo_mapeamento"]);
+  });
+
+  it("chave do campo a partir do título, sem repetir nem usar a de um fixo", () => {
+    expect(chaveDoCampo("Tipo de mapeamento", [])).toBe("tipo_de_mapeamento");
+    expect(chaveDoCampo("Tipo de mapeamento", ["tipo_de_mapeamento"])).toBe("tipo_de_mapeamento_2");
+    expect(chaveDoCampo("Nível", [])).not.toBe("nivel");
+  });
+
+  it("opções de um campo novo e o resumo das escolhas", () => {
+    definirCampos([{ chave: "tipo_mapeamento", titulo: "Tipo de mapeamento" }] as never);
+    definirOpcoes([
+      { campo: "tipo_mapeamento", valor: "completo", rotulo: "Completo", ordem: 10 },
+      { campo: "tipo_mapeamento", valor: "rapido", rotulo: "Rápido", ordem: 20 },
+    ] as never);
+    expect(opcoesDoCampo("tipo_mapeamento").map((o) => o.rotulo)).toEqual(["Completo", "Rápido"]);
+    expect(resumoCamposExtras({ tipo_mapeamento: "rapido", campo_apagado: "x" })).toEqual(["Rápido"]);
+    expect(resumoAtendimento({ tipo_solicitacao: "instalacao", campos_extras: { tipo_mapeamento: "completo" } })).toBe("Instalação · Completo");
+    expect(resumoAtendimento({ tipo_solicitacao: "instalacao" })).toBe("Instalação");
+    definirCampos();
   });
 });

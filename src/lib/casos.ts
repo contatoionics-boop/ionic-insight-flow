@@ -33,7 +33,7 @@ export const statusTones: Record<CaseStatus, string> = {
   cancelado: "bg-destructive/15 text-destructive",
 };
 
-import { rotuloOpcao } from "@/lib/opcoes-agendamento";
+import { resumoCamposExtras, rotuloOpcao } from "@/lib/opcoes-agendamento";
 
 // Os valores vêm de Configurações › Opções do agendamento (podem ser criados lá): são só texto.
 export type TipoSolicitacao = string;
@@ -61,11 +61,14 @@ export function resumoAtendimento(opts: {
   tipo_solicitacao?: string | null;
   modalidade?: string | null;
   nivel?: string | null;
+  /** escolhas dos campos criados em Opções do agendamento ({ campo: valor }) */
+  campos_extras?: Record<string, unknown> | null;
 }) {
   return [
     rotuloOpcao("tipo_solicitacao", opts.tipo_solicitacao),
     rotuloOpcao("modalidade", opts.modalidade),
     rotuloOpcao("nivel", opts.nivel),
+    ...resumoCamposExtras(opts.campos_extras),
   ]
     .filter(Boolean)
     .join(" · ");
