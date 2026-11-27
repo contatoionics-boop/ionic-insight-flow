@@ -22,6 +22,7 @@ export type Database = {
           agente_id: string | null
           agente_nome_manual: string | null
           atualizado_em: string
+          campos_extras: Json
           criado_em: string
           criado_por: string
           data_aceite: string | null
@@ -43,6 +44,7 @@ export type Database = {
           agente_id?: string | null
           agente_nome_manual?: string | null
           atualizado_em?: string
+          campos_extras?: Json
           criado_em?: string
           criado_por: string
           data_aceite?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           agente_id?: string | null
           agente_nome_manual?: string | null
           atualizado_em?: string
+          campos_extras?: Json
           criado_em?: string
           criado_por?: string
           data_aceite?: string | null
@@ -217,6 +220,39 @@ export type Database = {
           id?: string
           nome?: string
           ordem?: number
+        }
+        Relationships: []
+      }
+      campos_agendamento: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          chave: string
+          criado_em: string
+          descricao: string | null
+          obrigatorio: boolean
+          ordem: number
+          titulo: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave: string
+          criado_em?: string
+          descricao?: string | null
+          obrigatorio?: boolean
+          ordem?: number
+          titulo: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave?: string
+          criado_em?: string
+          descricao?: string | null
+          obrigatorio?: boolean
+          ordem?: number
+          titulo?: string
         }
         Relationships: []
       }
@@ -696,6 +732,42 @@ export type Database = {
           },
         ]
       }
+      escopo_tipos: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          chave: string
+          criado_em: string
+          ordem: number
+          pai: string | null
+          plural: string
+          rotulo: string
+          sistema: boolean
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave: string
+          criado_em?: string
+          ordem?: number
+          pai?: string | null
+          plural: string
+          rotulo: string
+          sistema?: boolean
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave?: string
+          criado_em?: string
+          ordem?: number
+          pai?: string | null
+          plural?: string
+          rotulo?: string
+          sistema?: boolean
+        }
+        Relationships: []
+      }
       escopo_versoes: {
         Row: {
           base_versao_id: string | null
@@ -950,6 +1022,39 @@ export type Database = {
           },
         ]
       }
+      mapeamento_entidade_conclusao: {
+        Row: {
+          caso_id: string
+          concluida_em: string
+          entidade_id: string
+        }
+        Insert: {
+          caso_id: string
+          concluida_em?: string
+          entidade_id: string
+        }
+        Update: {
+          caso_id?: string
+          concluida_em?: string
+          entidade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapeamento_entidade_conclusao_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mapeamento_entidade_conclusao_entidade_id_fkey"
+            columns: ["entidade_id"]
+            isOneToOne: false
+            referencedRelation: "escopo_entidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mapeamento_eventos: {
         Row: {
           agendamento_id: string | null
@@ -1139,6 +1244,39 @@ export type Database = {
           },
         ]
       }
+      opcoes_agendamento: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          campo: string
+          criado_em: string
+          ordem: number
+          rotulo: string
+          sistema: boolean
+          valor: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          campo: string
+          criado_em?: string
+          ordem?: number
+          rotulo: string
+          sistema?: boolean
+          valor: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          campo?: string
+          criado_em?: string
+          ordem?: number
+          rotulo?: string
+          sistema?: boolean
+          valor?: string
+        }
+        Relationships: []
+      }
       opcoes_pergunta: {
         Row: {
           id: string
@@ -1290,6 +1428,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      produtos_catalogo: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          categoria: string | null
+          codigo: string
+          criado_por: string | null
+          nome: string
+          origem: string
+          quantidade_padrao: number
+          regra: Json
+          sugerir: boolean
+          unidade: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          codigo: string
+          criado_por?: string | null
+          nome: string
+          origem?: string
+          quantidade_padrao?: number
+          regra?: Json
+          sugerir?: boolean
+          unidade?: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          codigo?: string
+          criado_por?: string | null
+          nome?: string
+          origem?: string
+          quantidade_padrao?: number
+          regra?: Json
+          sugerir?: boolean
+          unidade?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1597,6 +1777,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adicionar_opcao_agendamento: {
+        Args: {
+          _campo: string
+          _ordem?: number
+          _rotulo: string
+          _valor: string
+        }
+        Returns: undefined
+      }
       admin_pode_editar_empresa: {
         Args: { _empresa_id: string; _user_id: string }
         Returns: boolean
@@ -1720,7 +1909,7 @@ export type Database = {
         | "proposta_extraida"
         | "divergencias_calculadas"
       modalidade_atendimento: "presencial" | "remoto"
-      nivel_mapeamento: "nivel_1" | "nivel_2" | "nivel_3"
+      nivel_mapeamento: "nivel_1" | "nivel_2" | "nivel_3" | "nivel_4_apagar"
       pergunta_tipo:
         | "texto"
         | "foto"
@@ -1734,7 +1923,8 @@ export type Database = {
         | "cnpj"
         | "video"
         | "multipla_escolha"
-      tipo_solicitacao: "instalacao" | "upgrade"
+        | "carrossel"
+      tipo_solicitacao: "instalacao" | "upgrade" | "teste_de_nivel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1911,7 +2101,7 @@ export const Constants = {
         "divergencias_calculadas",
       ],
       modalidade_atendimento: ["presencial", "remoto"],
-      nivel_mapeamento: ["nivel_1", "nivel_2", "nivel_3"],
+      nivel_mapeamento: ["nivel_1", "nivel_2", "nivel_3", "nivel_4_apagar"],
       pergunta_tipo: [
         "texto",
         "foto",
@@ -1925,8 +2115,9 @@ export const Constants = {
         "cnpj",
         "video",
         "multipla_escolha",
+        "carrossel",
       ],
-      tipo_solicitacao: ["instalacao", "upgrade"],
+      tipo_solicitacao: ["instalacao", "upgrade", "teste_de_nivel"],
     },
   },
 } as const
