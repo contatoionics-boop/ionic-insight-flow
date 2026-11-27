@@ -39,7 +39,14 @@ export type ComboioCtx = {
 };
 
 /** Um item de um tipo criado em Configurações › Tipos de item (ex.: "Prédio 01") com o que o agente respondeu. */
-export type ItemExtraCtx = { id: string; rotulo: string; nome: string | null; respostas: { pergunta: string; valor: string }[] };
+export type ItemExtraCtx = {
+  id: string;
+  rotulo: string;
+  nome: string | null;
+  /** rótulo do item em que este fica dentro (ex.: "Prédio 01" para um andar); null na raiz do escopo */
+  pai: string | null;
+  respostas: { pergunta: string; valor: string }[];
+};
 export type GrupoExtraCtx = { tipo: string; rotulo: string; plural: string; itens: ItemExtraCtx[] };
 
 export type EscopoCtx = {
@@ -135,12 +142,20 @@ export function montarContextoLaudo(entrada: {
       return { id: c.id, rotulo: c.rotulo, nome, identificacao: atributos.identificacao_comboio || nome || c.rotulo, atributos, bicos, qtdBicos: bicos.length };
     });
 
-  // tipos novos: um grupo por tipo, com as respostas (pergunta → valor) de cada item
+  // tipos novos (em qualquer nível, inclusive dentro de posto, comboio…): um grupo por tipo, na ordem em que
+  // aparecem percorrendo a estrutura (pai antes do filho), com as respostas (pergunta → valor) de cada item
+  const novosEmOrdem: EntidadeEscopo[] = [];
+  const percorrer = (paiId: string | null) => {
+    for (const e of ativas.filter((x) => x.parent_id === paiId).sort(porOrdem)) {
+      if (!ehTipoFixo(e.tipo)) novosEmOrdem.push(e);
+      percorrer(e.id);
+    }
+  };
+  percorrer(null);
   const extras: GrupoExtraCtx[] = [];
-  for (const tipo of [...new Set(ativas.filter((e) => e.parent_id === null && !ehTipoFixo(e.tipo)).map((e) => e.tipo))]) {
-    const itens = ativas
-      .filter((e) => e.parent_id === null && e.tipo === tipo)
-      .sort(porOrdem)
+  for (const tipo of [...new Set(novosEmOrdem.map((e) => e.tipo))]) {
+    const itens = novosEmOrdem
+      .filter((e) => e.tipo === tipo)
       .map((e): ItemExtraCtx => {
         const respostas: { pergunta: string; valor: string }[] = [];
         for (const r of entrada.respostas) {
@@ -151,7 +166,8 @@ export function montarContextoLaudo(entrada: {
           if (i >= 0) respostas[i] = { pergunta, valor };
           else respostas.push({ pergunta, valor });
         }
-        return { id: e.id, rotulo: e.rotulo, nome: e.dados?.nome?.trim() || null, respostas };
+        const pai = e.parent_id ? (porId.get(e.parent_id)?.rotulo ?? null) : null;
+        return { id: e.id, rotulo: e.rotulo, nome: e.dados?.nome?.trim() || null, pai, respostas };
       });
     extras.push({ tipo, rotulo: rotuloDoTipo(entrada.catalogo, tipo), plural: pluralDoTipo(entrada.catalogo, tipo), itens });
   }

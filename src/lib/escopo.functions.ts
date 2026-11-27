@@ -3,15 +3,25 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { ArvoreEscopo } from "@/lib/escopo/tipos";
 
+type ItemSchemaT = { nome?: string; filhos?: Record<string, ItemSchemaT[]> };
+const SLUG = /^[a-z][a-z0-9_]{1,40}$/;
+/** Itens de tipos novos, com outros itens dentro (recursivo). */
+const ItemSchema: z.ZodType<ItemSchemaT> = z.lazy(() =>
+  z.object({ nome: z.string().max(120).optional(), filhos: z.record(z.string().regex(SLUG), z.array(ItemSchema).max(50)).optional() }),
+);
+const FilhosSchema = z.record(z.string().regex(SLUG), z.array(ItemSchema).max(50)).optional();
+
 const ArvoreSchema = z.object({
   postos: z
     .array(
       z.object({
         ilhas: z.array(
           z.object({
-            bombas: z.array(z.object({ bicos: z.number().int().min(0).max(50) })).max(50),
+            bombas: z.array(z.object({ bicos: z.number().int().min(0).max(50), filhos: FilhosSchema })).max(50),
+            filhos: FilhosSchema,
           }),
         ).max(50),
+        filhos: FilhosSchema,
       }),
     )
     .max(50),
@@ -23,18 +33,18 @@ const ArvoreSchema = z.object({
         z.object({
           tanques: z.number().int().min(0).max(50),
           bicos: z.number().int().min(0).max(50),
+          nome: z.string().max(120).optional(),
+          filhos: FilhosSchema,
         }),
       )
       .max(100),
   ]),
-  tanquesLubrificante: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).optional(),
+  tanquesLubrificante: z.array(ItemSchema).max(50).optional(),
   /** formato antigo (tanques da raiz) */
   tanques: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).optional(),
-  sondas: z.array(z.object({ nome: z.string().max(120).optional() })).max(50).default([]),
+  sondas: z.array(ItemSchema).max(50).default([]),
   /** itens simples dos tipos criados em Configurações › Tipos de item (chave do tipo → itens) */
-  extras: z
-    .record(z.string().regex(/^[a-z][a-z0-9_]{1,40}$/), z.array(z.object({ nome: z.string().max(120).optional() })).max(50))
-    .optional(),
+  extras: FilhosSchema,
   frota: z.object({
     ativo: z.boolean(),
     itens: z

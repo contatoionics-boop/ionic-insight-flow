@@ -15,6 +15,8 @@ export type TipoCatalogo = {
   /** tipo que já vem com o sistema: não se exclui nem muda a chave */
   sistema: boolean;
   ordem: number;
+  /** só tipo novo: chave do tipo em que ele fica "dentro" (ex.: Andar dentro de Prédio); vazio = raiz do escopo */
+  pai?: string | null;
 };
 
 export const SLUG_TIPO = /^[a-z][a-z0-9_]{1,40}$/;
@@ -33,6 +35,9 @@ export const TIPOS_SISTEMA: TipoCatalogo[] = [
 
 /** Tipos do sistema que têm seção própria no Escopo (podem ser ocultados). Os demais são filhos (ilha, bomba, bico, tanque do comboio). */
 export const RAIZES_SISTEMA = ["posto", "comboio", "tanque_lubrificante", "sonda", "frota"] as const;
+
+/** Tipos do sistema que podem ter tipos novos dentro (o bico e o tanque do comboio são só contagem; a frota é única). */
+export const PAIS_SISTEMA = ["posto", "ilha", "bomba", "comboio", "tanque_lubrificante", "sonda"] as const;
 
 const CHAVES_SISTEMA = new Set(TIPOS_SISTEMA.map((t) => t.chave));
 /** Chaves que um tipo novo não pode usar (já têm outro significado no sistema). */
@@ -77,6 +82,19 @@ export function mesclarCatalogo(linhas?: Partial<TipoCatalogo>[] | null): TipoCa
       });
     }
   }
+  // vínculo: o pai é um tipo do sistema que aceita filhos ou outro tipo novo; sem ciclo (senão vira raiz)
+  const bruto = new Map((linhas ?? []).map((l) => [texto(l?.chave, 41), texto(l?.pai, 41) || null]));
+  for (const t of porChave.values()) {
+    if (t.sistema) continue;
+    const pai = bruto.get(t.chave) ?? null;
+    let ok = !!pai && pai !== t.chave && ((PAIS_SISTEMA as readonly string[]).includes(pai) || (porChave.has(pai) && !porChave.get(pai)!.sistema));
+    // sobe a cadeia de pais: voltar a este tipo é ciclo
+    for (let atual = ok ? pai : null, n = 0; atual && ok; n++) {
+      if (atual === t.chave || n > 20) ok = false;
+      atual = bruto.get(atual) ?? null;
+    }
+    t.pai = ok ? pai : null;
+  }
   return [...porChave.values()].sort((a, b) => a.ordem - b.ordem || a.rotulo.localeCompare(b.rotulo, "pt-BR"));
 }
 
@@ -98,6 +116,29 @@ export const tiposNovosAtivos = (cat: Cat): TipoCatalogo[] => (cat ?? CATALOGO_P
 
 /** Todos os tipos novos (inclusive ocultos): base para ler o que já está cadastrado. */
 export const tiposNovos = (cat: Cat): TipoCatalogo[] => (cat ?? CATALOGO_PADRAO).filter((t) => !t.sistema);
+
+/** Tipos novos que ficam direto no escopo (sem pai), inclusive ocultos. */
+export const tiposRaiz = (cat: Cat): TipoCatalogo[] => tiposNovos(cat).filter((t) => !t.pai);
+
+/** Tipos novos que ficam dentro do tipo `chave` (ordem do catálogo), inclusive ocultos. */
+export const filhosDoTipo = (cat: Cat, chave: string): TipoCatalogo[] => tiposNovos(cat).filter((t) => t.pai === chave);
+
+/** Todos os tipos novos abaixo de `chave`, em qualquer nível. */
+export function descendentesDoTipo(cat: Cat, chave: string): TipoCatalogo[] {
+  const out: TipoCatalogo[] = [];
+  for (const f of filhosDoTipo(cat, chave)) out.push(f, ...descendentesDoTipo(cat, f.chave));
+  return out;
+}
+
+/** Onde o tipo `chave` pode ficar: tipos do sistema que aceitam filhos e outros tipos novos (menos ele e os que ficam dentro dele). */
+export function paisPossiveis(cat: Cat, chave: string): { value: string; label: string }[] {
+  const c = cat ?? CATALOGO_PADRAO;
+  const proibidos = new Set([chave, ...descendentesDoTipo(c, chave).map((t) => t.chave)]);
+  return [
+    ...PAIS_SISTEMA.map((k) => ({ value: k as string, label: rotuloDoTipo(c, k) })),
+    ...tiposNovos(c).filter((t) => !proibidos.has(t.chave)).map((t) => ({ value: t.chave, label: t.rotulo })),
+  ];
+}
 
 /** A seção do tipo aparece no Escopo? (ativo, ou já tem itens cadastrados: nunca esconde dado existente). */
 export const tipoVisivel = (cat: Cat, chave: string, qtdAtual: number): boolean => qtdAtual > 0 || (achar(cat, chave)?.ativo ?? true);
@@ -164,4 +205,18 @@ export function opcoesSugerir(cat: Cat, manter: string[] = []): { value: string;
   ];
   const novas = tiposNovos(c).map((t) => ({ value: t.chave, label: t.rotulo, tipo: t.chave }));
   return [...base, ...novas].filter((o) => visivel(o.value === "pista" ? "posto" : o.tipo)).map(({ value, label }) => ({ value, label }));
+}
+
+/**
+ * Lê as linhas do catálogo com qualquer cliente Supabase. Sem a coluna `pai` (migration de vínculos pendente)
+ * relê sem ela; sem a tabela devolve o erro para o chamador decidir.
+ */
+export async function lerLinhasCatalogo(sb: any): Promise<{ data: Partial<TipoCatalogo>[] | null; error: any; semPai: boolean }> {
+  const r = await sb.from("escopo_tipos").select("chave, rotulo, plural, ativo, sistema, ordem, pai");
+  if (!r.error) return { data: r.data, error: null, semPai: false };
+  if (/\bpai\b/.test(String(r.error.message ?? "")) || r.error.code === "42703") {
+    const r2 = await sb.from("escopo_tipos").select("chave, rotulo, plural, ativo, sistema, ordem");
+    return { data: r2.data, error: r2.error, semPai: true };
+  }
+  return { data: null, error: r.error, semPai: false };
 }

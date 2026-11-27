@@ -11,7 +11,7 @@ import {
   salvarTipoEscopo,
   type CatalogoTipos,
 } from "@/lib/escopo-tipos.functions";
-import { podeOcultarTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
+import { paisPossiveis, podeOcultarTipo, rotuloDoTipo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 import { recarregarTiposEscopo } from "@/hooks/use-tipos-escopo";
 
 export const Route = createFileRoute("/app/tipos-escopo")({
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/app/tipos-escopo")({
   }),
 });
 
-type Form = { chave?: string; rotulo: string; plural: string; ativo: boolean; sistema: boolean };
-const VAZIO: Form = { rotulo: "", plural: "", ativo: true, sistema: false };
+type Form = { chave?: string; rotulo: string; plural: string; ativo: boolean; sistema: boolean; pai: string };
+const VAZIO: Form = { rotulo: "", plural: "", ativo: true, sistema: false, pai: "" };
 
 function TiposEscopoPage() {
   const fnListar = useServerFn(listarTiposEscopo);
@@ -52,7 +52,7 @@ function TiposEscopoPage() {
   async function gravar(f: Form) {
     setSalvando(true);
     try {
-      await fnSalvar({ data: { chave: f.chave, rotulo: f.rotulo, plural: f.plural || undefined, ativo: f.ativo } });
+      await fnSalvar({ data: { chave: f.chave, rotulo: f.rotulo, plural: f.plural || undefined, ativo: f.ativo, pai: f.sistema ? undefined : f.pai || null } });
       await Promise.all([carregar(), recarregarTiposEscopo()]);
       return true;
     } catch (e: any) {
@@ -72,7 +72,7 @@ function TiposEscopoPage() {
   }
 
   async function alternarVisibilidade(t: TipoCatalogo) {
-    if (await gravar({ chave: t.chave, rotulo: t.rotulo, plural: t.plural, ativo: !t.ativo, sistema: t.sistema })) {
+    if (await gravar({ chave: t.chave, rotulo: t.rotulo, plural: t.plural, ativo: !t.ativo, sistema: t.sistema, pai: t.pai ?? "" })) {
       toast.success(t.ativo ? `"${t.rotulo}" ocultado do escopo.` : `"${t.rotulo}" voltou ao escopo.`);
     }
   }
@@ -89,7 +89,7 @@ function TiposEscopoPage() {
   }
 
   const abrirEdicao = (t: TipoCatalogo) => {
-    setForm({ chave: t.chave, rotulo: t.rotulo, plural: t.plural, ativo: t.ativo, sistema: t.sistema });
+    setForm({ chave: t.chave, rotulo: t.rotulo, plural: t.plural, ativo: t.ativo, sistema: t.sistema, pai: t.pai ?? "" });
     setAberto(true);
   };
 
@@ -142,7 +142,7 @@ function TiposEscopoPage() {
             ) : (
               <div className="space-y-2">
                 {novos.map((t) => (
-                  <Linha key={t.chave} t={t} onEditar={() => abrirEdicao(t)} onVisibilidade={() => alternarVisibilidade(t)} onExcluir={() => excluir(t)} />
+                  <Linha key={t.chave} t={t} catalogo={dados.catalogo} onEditar={() => abrirEdicao(t)} onVisibilidade={() => alternarVisibilidade(t)} onExcluir={() => excluir(t)} />
                 ))}
               </div>
             )}
@@ -174,6 +174,26 @@ function TiposEscopoPage() {
             <Input value={form.plural} placeholder="Ex.: Prédios" onChange={(e) => setForm({ ...form, plural: e.currentTarget.value })} />
             <p className="mt-1 text-[11px] text-muted-foreground">Usado em títulos e no documento. Em branco, repete o singular.</p>
           </div>
+          {!form.sistema && (
+            <div>
+              <label className="text-xs font-medium">Fica dentro de</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                value={form.pai}
+                onChange={(e) => setForm({ ...form, pai: e.currentTarget.value })}
+              >
+                <option value="">Nenhum (direto no escopo)</option>
+                {paisPossiveis(dados?.catalogo, form.chave ?? "").map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Ex.: "Andar" dentro de "Prédio". No agendamento, cada prédio passa a ter "Quantidade de andares", como cada posto tem suas ilhas.
+              </p>
+            </div>
+          )}
           {(!form.chave || podeOcultarTipo(form.chave)) && (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.currentTarget.checked })} />
@@ -196,11 +216,13 @@ function TiposEscopoPage() {
 
 function Linha({
   t,
+  catalogo,
   onEditar,
   onVisibilidade,
   onExcluir,
 }: {
   t: TipoCatalogo;
+  catalogo?: TipoCatalogo[];
   onEditar: () => void;
   onVisibilidade?: () => void;
   onExcluir?: () => void;
@@ -218,7 +240,10 @@ function Linha({
             </Badge>
           )}
         </p>
-        <p className="text-[11px] text-muted-foreground">chave: {t.chave}</p>
+        <p className="text-[11px] text-muted-foreground">
+          chave: {t.chave}
+          {t.pai ? ` · dentro de ${rotuloDoTipo(catalogo, t.pai)}` : ""}
+        </p>
       </div>
       <div className="flex shrink-0 gap-1">
         <Button variant="secondary" onClick={onEditar} aria-label={`Editar ${t.rotulo}`}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CATALOGO_PADRAO, mesclarCatalogo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
+import { CATALOGO_PADRAO, lerLinhasCatalogo, mesclarCatalogo, type TipoCatalogo } from "@/lib/escopo/catalogo-tipos";
 
 /**
  * Catálogo de tipos de item do Escopo (nomes configurados, tipos novos). Lê direto do banco (leitura liberada
@@ -13,7 +13,7 @@ const ouvintes = new Set<(c: TipoCatalogo[]) => void>();
 
 async function ler(): Promise<TipoCatalogo[]> {
   try {
-    const { data, error } = await (supabase as any).from("escopo_tipos").select("chave, rotulo, plural, ativo, sistema, ordem");
+    const { data, error } = await lerLinhasCatalogo(supabase);
     if (error) return CATALOGO_PADRAO;
     return mesclarCatalogo(data);
   } catch {

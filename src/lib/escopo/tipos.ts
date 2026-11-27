@@ -68,13 +68,15 @@ export function tipoEntidadeDaAplicacao(a: string | null | undefined): TipoQualq
   }
 }
 
-export type BombaArvore = { bicos: number };
-export type IlhaArvore = { bombas: BombaArvore[] };
-export type PostoArvore = { ilhas: IlhaArvore[] };
+/** Itens de tipos novos que ficam DENTRO de um item (chave do tipo filho → itens), ex.: os andares de um prédio. */
+export type FilhosArvore = Record<string, ItemEscopo[]>;
+export type BombaArvore = { bicos: number; filhos?: FilhosArvore };
+export type IlhaArvore = { bombas: BombaArvore[]; filhos?: FilhosArvore };
+export type PostoArvore = { ilhas: IlhaArvore[]; filhos?: FilhosArvore };
 export type FrotaItemArvore = { modelo: string; quantidade: number; info?: string };
 
 /** Item de uma coleção independente (tanques, sondas). `nome` é a identificação opcional. */
-export type ItemEscopo = { nome?: string };
+export type ItemEscopo = { nome?: string; filhos?: FilhosArvore };
 
 /** Solução contratada escolhida no agendamento. */
 export type SolucaoEscopo = "ssg_frota" | "on_premise";
@@ -96,9 +98,8 @@ export type ChaveSugestao = string;
 
 /** Quantidade de cada item do escopo (base para sugerir formulários e quantidades). Tipos novos entram pela própria chave. */
 export function quantidadesDoEscopo(a: ArvoreEscopo): Record<ChaveSugestao, number> {
-  const extras = Object.fromEntries(Object.entries(a.extras ?? {}).map(([k, v]) => [k, v.length]));
   return {
-    ...extras,
+    ...contarItensExtras(a),
     pista: a.postos.length,
     comboio: a.comboios.length,
     tanque_lubrificante: (a.tanquesLubrificante ?? []).length,
@@ -225,7 +226,7 @@ export function rotuloSolucao(s: string | null | undefined): string | null {
 
 /** Comboio com seus tanques e bicos (como a bomba tem bicos). */
 /** `nome`: identificação opcional do comboio (ex.: "Frota 400"); vira o nome dele no documento quando o agente não a informa. */
-export type ComboioArvore = { tanques: number; bicos: number; nome?: string };
+export type ComboioArvore = { tanques: number; bicos: number; nome?: string; filhos?: FilhosArvore };
 
 export type ArvoreEscopo = {
   postos: PostoArvore[];
@@ -312,14 +313,24 @@ export function arvoreDeEntidades(
     entidades
       .filter((e) => e.tipo === tipo && e.parent_id === parent)
       .sort((a, b) => a.ordem - b.ordem);
+  // itens de tipos novos dentro de uma entidade (qualquer tipo que não é do sistema), agrupados por tipo
+  const filhosNovos = (parentId: string): { filhos?: FilhosArvore } => {
+    const por: FilhosArvore = {};
+    for (const e of entidades.filter((x) => x.parent_id === parentId && !ehTipoFixo(x.tipo)).sort((a, b) => a.ordem - b.ordem)) {
+      (por[e.tipo] ??= []).push(itemDe(e));
+    }
+    return Object.keys(por).length ? { filhos: por } : {};
+  };
+  const itemDe = (e: EntidadeEscopo): ItemEscopo => ({ ...(e.dados?.nome ? { nome: e.dados.nome } : {}), ...filhosNovos(e.id) });
   const postos = filhos(null, "posto").map((p) => ({
     ilhas: filhos(p.id, "ilha").map((i) => ({
-      bombas: filhos(i.id, "bomba").map((b) => ({ bicos: filhos(b.id, "bico").length })),
+      bombas: filhos(i.id, "bomba").map((b) => ({ bicos: filhos(b.id, "bico").length, ...filhosNovos(b.id) })),
+      ...filhosNovos(i.id),
     })),
+    ...filhosNovos(p.id),
   }));
-  const itens = (tipo: TipoQualquer): ItemEscopo[] =>
-    filhos(null, tipo).map((e) => (e.dados?.nome ? { nome: e.dados.nome } : {}));
-  // itens simples dos tipos novos (qualquer tipo da raiz que não é do sistema)
+  const itens = (tipo: TipoQualquer): ItemEscopo[] => filhos(null, tipo).map(itemDe);
+  // itens dos tipos novos que ficam na raiz do escopo
   const extras: Record<string, ItemEscopo[]> = {};
   for (const tipo of new Set(entidades.filter((e) => e.parent_id === null && !ehTipoFixo(e.tipo)).map((e) => e.tipo))) {
     const lista = itens(tipo);
@@ -331,6 +342,7 @@ export function arvoreDeEntidades(
       tanques: filhos(c.id, "tanque").length,
       bicos: filhos(c.id, "bico").length,
       ...(c.dados?.nome ? { nome: c.dados.nome } : {}),
+      ...filhosNovos(c.id),
     })),
     tanquesLubrificante: itens("tanque_lubrificante"),
     sondas: itens("sonda"),
@@ -340,14 +352,28 @@ export function arvoreDeEntidades(
   };
 }
 
-/** Itens dos tipos novos: só chaves válidas, listas vazias somem (a árvore lida do banco também não as tem). */
-function normalizarExtras(extras: ArvoreEscopo["extras"]): { extras?: Record<string, ItemEscopo[]> } {
-  const out: Record<string, ItemEscopo[]> = {};
-  for (const [chave, lista] of Object.entries(extras ?? {})) {
-    if (!ehChaveValida(chave) || !Array.isArray(lista) || !lista.length) continue;
-    out[chave] = lista.slice(0, LIMITES.extras).map((t) => ({ nome: t?.nome?.trim() || undefined }));
+/** Profundidade máxima de tipos novos aninhados (Prédio › Andar › Sala › …). */
+const PROFUNDIDADE_MAX = 8;
+
+/** Itens de tipos novos: só chaves válidas, listas vazias somem (a árvore lida do banco também não as tem). */
+function normalizarFilhos(filhos: FilhosArvore | undefined, nivel = 0): { filhos?: FilhosArvore } {
+  const out: FilhosArvore = {};
+  if (nivel < PROFUNDIDADE_MAX) {
+    for (const [chave, lista] of Object.entries(filhos ?? {})) {
+      if (!ehChaveValida(chave) || !Array.isArray(lista) || !lista.length) continue;
+      out[chave] = lista.slice(0, LIMITES.extras).map((t) => normalizarItem(t, nivel + 1));
+    }
   }
-  return Object.keys(out).length ? { extras: out } : {};
+  return Object.keys(out).length ? { filhos: out } : {};
+}
+
+function normalizarItem(t: ItemEscopo | undefined, nivel: number): ItemEscopo {
+  return { nome: t?.nome?.trim() || undefined, ...normalizarFilhos(t?.filhos, nivel) };
+}
+
+function normalizarExtras(extras: ArvoreEscopo["extras"]): { extras?: Record<string, ItemEscopo[]> } {
+  const { filhos } = normalizarFilhos(extras);
+  return filhos ? { extras: filhos } : {};
 }
 
 /** Normaliza (limites, inteiros ≥ 0) uma árvore vinda da interface. */
@@ -364,8 +390,11 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
       ilhas: (p.ilhas ?? []).slice(0, LIMITES.ilhas).map((i) => ({
         bombas: (i.bombas ?? []).slice(0, LIMITES.bombas).map((b) => ({
           bicos: n(b.bicos, LIMITES.bicos),
+          ...normalizarFilhos(b.filhos, 1),
         })),
+        ...normalizarFilhos(i.filhos, 1),
       })),
+      ...normalizarFilhos(p.filhos, 1),
     })),
     comboios: comboiosBrutos.slice(0, LIMITES.comboios).map((c) => {
       const nome = typeof c?.nome === "string" ? c.nome.trim() : "";
@@ -373,10 +402,11 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
         tanques: n(c?.tanques, LIMITES.comboioTanques),
         bicos: n(c?.bicos, LIMITES.comboioBicos),
         ...(nome ? { nome } : {}),
+        ...normalizarFilhos((c as { filhos?: FilhosArvore })?.filhos, 1),
       };
     }),
-    tanquesLubrificante: lub.slice(0, LIMITES.tanques).map((t) => ({ nome: t.nome?.trim() || undefined })),
-    sondas: (a.sondas ?? []).slice(0, LIMITES.sondas).map((t) => ({ nome: t.nome?.trim() || undefined })),
+    tanquesLubrificante: lub.slice(0, LIMITES.tanques).map((t) => normalizarItem(t, 1)),
+    sondas: (a.sondas ?? []).slice(0, LIMITES.sondas).map((t) => normalizarItem(t, 1)),
     ...normalizarExtras(a.extras),
     frota: {
       ativo: !!a.frota?.ativo,
@@ -390,6 +420,28 @@ export function normalizarArvore(a: ArvoreEscopo): ArvoreEscopo {
     },
     config: normalizarConfig(a.config),
   };
+}
+
+/** Quantos itens há de cada tipo novo, em todos os níveis (raiz e dentro de outros itens). */
+export function contarItensExtras(a: ArvoreEscopo): Record<string, number> {
+  const acc: Record<string, number> = {};
+  const filhos = (f: FilhosArvore | undefined) => {
+    for (const [tipo, lista] of Object.entries(f ?? {})) {
+      acc[tipo] = (acc[tipo] ?? 0) + lista.length;
+      for (const it of lista) filhos(it.filhos);
+    }
+  };
+  filhos(a.extras);
+  for (const it of [...(a.tanquesLubrificante ?? []), ...(a.sondas ?? [])]) filhos(it.filhos);
+  for (const c of a.comboios ?? []) filhos(c.filhos);
+  for (const p of a.postos ?? []) {
+    filhos(p.filhos);
+    for (const i of p.ilhas ?? []) {
+      filhos(i.filhos);
+      for (const b of i.bombas ?? []) filhos(b.filhos);
+    }
+  }
+  return acc;
 }
 
 export function resumoArvore(a: ArvoreEscopo) {
@@ -415,7 +467,7 @@ export function resumoArvore(a: ArvoreEscopo) {
     tanques: (a.tanquesLubrificante ?? []).length,
     sondas: (a.sondas ?? []).length,
     /** quantidade de itens de cada tipo novo */
-    extras: Object.fromEntries(Object.entries(a.extras ?? {}).map(([k, v]) => [k, v.length])) as Record<string, number>,
+    extras: contarItensExtras(a),
     frota: a.frota.ativo,
   };
 }
@@ -441,13 +493,22 @@ export function entidadesDesejadas(a: ArvoreEscopo, catalogo?: TipoCatalogo[] | 
     out.push({ chave, tipo, paiChave, ordem, rotulo: rotuloEntidade(tipo, ordem, nome, catalogo), nome: nome?.trim() || undefined });
     return chave;
   };
+  // itens de tipos novos dentro de um pai (recursivo: pai antes do filho)
+  const addFilhos = (paiChave: string | null, filhos: FilhosArvore | undefined) => {
+    for (const [tipo, lista] of Object.entries(filhos ?? {})) {
+      lista.forEach((t, i) => addFilhos(add(tipo, paiChave, i + 1, t.nome), t.filhos));
+    }
+  };
   a.postos.forEach((p, pi) => {
     const ck = add("posto", null, pi + 1);
+    addFilhos(ck, p.filhos);
     p.ilhas.forEach((il, ii) => {
       const ik = add("ilha", ck, ii + 1);
+      addFilhos(ik, il.filhos);
       il.bombas.forEach((b, bi) => {
         const bk = add("bomba", ik, bi + 1);
         for (let k = 1; k <= b.bicos; k++) add("bico", bk, k);
+        addFilhos(bk, b.filhos);
       });
     });
   });
@@ -455,10 +516,11 @@ export function entidadesDesejadas(a: ArvoreEscopo, catalogo?: TipoCatalogo[] | 
     const ck = add("comboio", null, ci + 1, c.nome);
     for (let t = 1; t <= c.tanques; t++) add("tanque", ck, t);
     for (let k = 1; k <= c.bicos; k++) add("bico", ck, k);
+    addFilhos(ck, c.filhos);
   });
-  (a.tanquesLubrificante ?? []).forEach((t, i) => add("tanque_lubrificante", null, i + 1, t.nome));
-  (a.sondas ?? []).forEach((t, i) => add("sonda", null, i + 1, t.nome));
-  for (const [tipo, lista] of Object.entries(a.extras ?? {})) lista.forEach((t, i) => add(tipo, null, i + 1, t.nome));
+  (a.tanquesLubrificante ?? []).forEach((t, i) => addFilhos(add("tanque_lubrificante", null, i + 1, t.nome), t.filhos));
+  (a.sondas ?? []).forEach((t, i) => addFilhos(add("sonda", null, i + 1, t.nome), t.filhos));
+  addFilhos(null, a.extras);
   if (a.frota.ativo) add("frota", null, 1);
   return out;
 }

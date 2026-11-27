@@ -13,9 +13,12 @@ const MAX_COLUNAS = 4;
 
 const minusculas = (t: string) => t.toLocaleLowerCase("pt-BR");
 
+/** "Prédio 01 › Andar 02" quando o item fica dentro de outro. */
+const nomeCompleto = (i: GrupoExtraCtx["itens"][number]) => (i.pai ? `${i.pai} › ${i.rotulo}` : i.rotulo);
+
 function frase(g: GrupoExtraCtx): string {
   const n = g.itens.length;
-  const nomes = g.itens.map((i) => i.rotulo).join(", ");
+  const nomes = g.itens.map(nomeCompleto).join(", ");
   return n === 1 ? `Foi mapeado 1 ${minusculas(g.rotulo)}: ${nomes}.` : `Foram mapeados ${n} ${minusculas(g.plural)}: ${nomes}.`;
 }
 
@@ -40,17 +43,18 @@ export function blocosItensExtras(entrada: { contexto: ContextoLaudo | null; id:
     const valorDe = (i: GrupoExtraCtx["itens"][number], pergunta: string) => i.respostas.find((r) => r.pergunta === pergunta)?.valor ?? "—";
 
     if (g.itens.length > 1 && perguntas.length <= MAX_COLUNAS) {
+      const comPai = g.itens.some((i) => i.pai);
       blocos.push({
         id: id("t"), chave: chave("tabela"), tipo: "table", titulo: null,
-        colunas: ["Item", ...perguntas],
-        linhas: g.itens.map((i) => ({ celulas: [i.rotulo, ...perguntas.map((p) => valorDe(i, p))] })),
+        colunas: ["Item", ...(comPai ? ["Dentro de"] : []), ...perguntas],
+        linhas: g.itens.map((i) => ({ celulas: [i.rotulo, ...(comPai ? [i.pai ?? "—"] : []), ...perguntas.map((p) => valorDe(i, p))] })),
         ...meta,
       } as BlocoLaudo);
       continue;
     }
     // poucas colunas não cabem: um bloco por item, com "Pergunta: resposta"
     for (const i of g.itens) {
-      if (g.itens.length > 1) blocos.push({ id: id("h"), chave: chave(`${i.id}:titulo`), tipo: "heading", numero: null, texto: i.rotulo, nivel: 3, ...meta } as BlocoLaudo);
+      if (g.itens.length > 1) blocos.push({ id: id("h"), chave: chave(`${i.id}:titulo`), tipo: "heading", numero: null, texto: nomeCompleto(i), nivel: 3, ...meta } as BlocoLaudo);
       if (i.respostas.length) blocos.push({ id: id("bl"), chave: chave(`${i.id}:respostas`), tipo: "bullets", itens: i.respostas.map((r) => `${r.pergunta}: ${r.valor}`), ...meta } as BlocoLaudo);
     }
   }

@@ -5,7 +5,7 @@
 //  - remover algo que já tem respostas exige confirmação explícita;
 //  - reexecutar com a mesma árvore não cria versão nem entidades (idempotente).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { CATALOGO_PADRAO, mesclarCatalogo, type TipoCatalogo } from "./catalogo-tipos";
+import { CATALOGO_PADRAO, lerLinhasCatalogo, mesclarCatalogo, type TipoCatalogo } from "./catalogo-tipos";
 import {
   arvoreDeEntidades,
   entidadesDesejadas,
@@ -22,7 +22,7 @@ const db = supabaseAdmin as any;
 /** Catálogo de tipos de item (nomes configurados). Sem a tabela (migration pendente) vale o padrão. */
 export async function carregarCatalogoTipos(): Promise<TipoCatalogo[]> {
   try {
-    const { data, error } = await db.from("escopo_tipos").select("chave, rotulo, plural, ativo, sistema, ordem");
+    const { data, error } = await lerLinhasCatalogo(db);
     if (error) throw error;
     return mesclarCatalogo(data);
   } catch (e) {

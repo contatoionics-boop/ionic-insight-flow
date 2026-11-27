@@ -6,7 +6,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Switch } from "@/components/ui/switch";
 import { parsearItemProposta } from "@/lib/laudo/produtos-proposta";
 import { useTiposEscopo } from "@/hooks/use-tipos-escopo";
-import { pluralDoTipo, rotuloDoTipo, tipoVisivel, tiposNovos } from "@/lib/escopo/catalogo-tipos";
+import { filhosDoTipo, pluralDoTipo, rotuloDoTipo, tipoVisivel, tiposNovos, tiposRaiz } from "@/lib/escopo/catalogo-tipos";
 import {
   CONEXOES_DADOS,
   LIMITES,
@@ -21,6 +21,7 @@ import {
   type ConfigEscopo,
   type IlhaArvore,
   type ItemEquipamento,
+  type FilhosArvore,
   type ItemEscopo,
   type PostoArvore,
 } from "@/lib/escopo/tipos";
@@ -49,7 +50,8 @@ export function EstruturaEscopo({
   const lab = (chave: string) => rotuloDoTipo(catalogo, chave);
   const plural = (chave: string) => pluralDoTipo(catalogo, chave).toLocaleLowerCase("pt-BR");
   // itens simples dos tipos novos que aparecem no escopo (ativos, ou que já têm itens cadastrados)
-  const tiposExtras = tiposNovos(catalogo).filter((t) => tipoVisivel(catalogo, t.chave, (value.extras?.[t.chave] ?? []).length));
+  const tiposExtras = tiposNovos(catalogo);
+  const tiposDaRaiz = tiposRaiz(catalogo);
 
   const redimensionar = <T,>(lista: T[], n: number, novo: () => T, max: number): T[] => {
     const alvo = Math.max(0, Math.min(max, n));
@@ -213,9 +215,17 @@ export function EstruturaEscopo({
                           disabled={disabled}
                           onChange={(n) =>
                             setPosto(pi, {
+                              ...posto,
                               ilhas: redimensionar(posto.ilhas, n, () => ({ bombas: [] }), LIMITES.ilhas),
                             })
                           }
+                        />
+                        <FilhosEditor
+                          tipos={filhosDoTipo(catalogo, "posto")}
+                          filhos={posto.filhos}
+                          catalogo={catalogo}
+                          disabled={disabled}
+                          onChange={(filhos) => setPosto(pi, { ...posto, filhos })}
                         />
                         {posto.ilhas.length > 0 && (
                           <Accordion type="multiple">
@@ -235,6 +245,7 @@ export function EstruturaEscopo({
                                     disabled={disabled}
                                     onChange={(nova) =>
                                       setPosto(pi, {
+                                        ...posto,
                                         ilhas: posto.ilhas.map((x, k) => (k === ii ? nova : x)),
                                       })
                                     }
@@ -282,6 +293,13 @@ export function EstruturaEscopo({
                         }
                       />
                     </div>
+                    <FilhosEditor
+                      tipos={filhosDoTipo(catalogo, "comboio")}
+                      filhos={c.filhos}
+                      catalogo={catalogo}
+                      disabled={disabled}
+                      onChange={(filhos) => set({ comboios: value.comboios.map((x, k) => (k === ci ? { ...x, filhos } : x)) })}
+                    />
                     <div className="grid gap-2 sm:grid-cols-2">
                       <QuantidadeField
                         label="Tanques"
@@ -331,18 +349,7 @@ export function EstruturaEscopo({
             onChange={(sondas) => set({ sondas })}
           />
           {/* Tipos criados em Configurações › Tipos de item (Prédio, Produto…): itens simples */}
-          {tiposExtras.map((t) => (
-            <ColecaoNomeada
-              key={t.chave}
-              titulo={t.chave}
-              tituloPlural={t.plural}
-              catalogo={catalogo}
-              itens={value.extras?.[t.chave] ?? []}
-              max={LIMITES.extras}
-              disabled={disabled}
-              onChange={(itens) => set({ extras: { ...(value.extras ?? {}), [t.chave]: itens } })}
-            />
-          ))}
+          <FilhosEditor tipos={tiposDaRaiz} filhos={value.extras} catalogo={catalogo} disabled={disabled} onChange={(extras) => set({ extras })} />
 
           {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
           <section className="rounded-md border border-border p-3">
@@ -706,14 +713,17 @@ export function EstruturaEscopo({
             {value.postos.map((p, pi) => (
               <li key={pi}>
                 {lab("posto")} {pad2(pi + 1)}
+                <ResumoFilhos filhos={p.filhos} catalogo={catalogo} />
                 <ul className="ml-3 border-l border-border pl-2">
                   {p.ilhas.map((il, ii) => (
                     <li key={ii}>
                       {lab("ilha")} {pad2(ii + 1)}
+                      <ResumoFilhos filhos={il.filhos} catalogo={catalogo} />
                       <ul className="ml-3 border-l border-border pl-2">
                         {il.bombas.map((b, bi) => (
                           <li key={bi}>
                             {lab("bomba")} {pad2(bi + 1)} — {b.bicos} bico(s)
+                            <ResumoFilhos filhos={b.filhos} catalogo={catalogo} />
                           </li>
                         ))}
                       </ul>
@@ -727,7 +737,10 @@ export function EstruturaEscopo({
                 {pluralDoTipo(catalogo, "tanque_lubrificante")}
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.tanquesLubrificante.map((t, i) => (
-                    <li key={i}>{rotuloEntidade("tanque_lubrificante", i + 1, t.nome, catalogo)}</li>
+                    <li key={i}>
+                      {rotuloEntidade("tanque_lubrificante", i + 1, t.nome, catalogo)}
+                      <ResumoFilhos filhos={t.filhos} catalogo={catalogo} />
+                    </li>
                   ))}
                 </ul>
               </li>
@@ -737,23 +750,15 @@ export function EstruturaEscopo({
                 {pluralDoTipo(catalogo, "sonda")}
                 <ul className="ml-3 border-l border-border pl-2">
                   {value.sondas.map((t, i) => (
-                    <li key={i}>{rotuloEntidade("sonda", i + 1, t.nome, catalogo)}</li>
+                    <li key={i}>
+                      {rotuloEntidade("sonda", i + 1, t.nome, catalogo)}
+                      <ResumoFilhos filhos={t.filhos} catalogo={catalogo} />
+                    </li>
                   ))}
                 </ul>
               </li>
             )}
-            {tiposExtras.map((tp) =>
-              (value.extras?.[tp.chave] ?? []).length > 0 ? (
-                <li key={tp.chave}>
-                  {tp.plural}
-                  <ul className="ml-3 border-l border-border pl-2">
-                    {(value.extras?.[tp.chave] ?? []).map((t, i) => (
-                      <li key={i}>{rotuloEntidade(tp.chave, i + 1, t.nome, catalogo)}</li>
-                    ))}
-                  </ul>
-                </li>
-              ) : null,
-            )}
+            <ResumoFilhos filhos={value.extras} catalogo={catalogo} />
             {value.comboios.length > 0 && (
               <li>
                 {pluralDoTipo(catalogo, "comboio")}
@@ -762,6 +767,7 @@ export function EstruturaEscopo({
                     <li key={i}>
                       {lab("comboio")} {pad2(i + 1)}
                       {c.nome?.trim() ? ` (${c.nome.trim()})` : ""} — {c.tanques} tanque(s), {c.bicos} bico(s)
+                      <ResumoFilhos filhos={c.filhos} catalogo={catalogo} />
                     </li>
                   ))}
                 </ul>
@@ -827,6 +833,7 @@ function ColecaoNomeada({
   disabled?: boolean;
 }) {
   if (oculta) return null;
+  const subtipos = catalogo ? filhosDoTipo(catalogo, titulo) : [];
   const redimensionar = (n: number) => {
     const alvo = Math.max(0, Math.min(max, n));
     onChange(alvo <= itens.length ? itens.slice(0, alvo) : [...itens, ...Array.from({ length: alvo - itens.length }, () => ({}))]);
@@ -843,14 +850,27 @@ function ColecaoNomeada({
       {itens.length > 0 && (
         <div className="mt-3 space-y-2">
           {itens.map((it, i) => (
-            <div key={i} className="grid grid-cols-[110px_1fr] items-center gap-2">
-              <span className="text-sm">{rotuloEntidade(titulo, i + 1, undefined, catalogo)}</span>
-              <Input
-                value={it.nome ?? ""}
-                disabled={disabled}
-                placeholder={titulo === "tanque_lubrificante" || titulo === "sonda" ? "Identificação (opcional). Ex.: Diesel S10" : "Identificação (opcional). Ex.: A"}
-                onChange={(e) => onChange(itens.map((x, k) => (k === i ? { nome: e.target.value } : x)))}
-              />
+            <div key={i}>
+              <div className="grid grid-cols-[110px_1fr] items-center gap-2">
+                <span className="text-sm">{rotuloEntidade(titulo, i + 1, undefined, catalogo)}</span>
+                <Input
+                  value={it.nome ?? ""}
+                  disabled={disabled}
+                  placeholder={titulo === "tanque_lubrificante" || titulo === "sonda" ? "Identificação (opcional). Ex.: Diesel S10" : "Identificação (opcional). Ex.: A"}
+                  onChange={(e) => onChange(itens.map((x, k) => (k === i ? { ...x, nome: e.target.value } : x)))}
+                />
+              </div>
+              {subtipos.length > 0 && (
+                <div className="ml-3 mt-2 space-y-2 border-l border-border pl-3">
+                  <FilhosEditor
+                    tipos={subtipos}
+                    filhos={it.filhos}
+                    catalogo={catalogo!}
+                    disabled={disabled}
+                    onChange={(filhos) => onChange(itens.map((x, k) => (k === i ? { ...x, filhos } : x)))}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -879,25 +899,106 @@ function IlhaEditor({
         max={LIMITES.bombas}
         disabled={disabled}
         onChange={(n) =>
-          onChange({ bombas: redimensionar(ilha.bombas, n, () => ({ bicos: 1 }), LIMITES.bombas) })
+          onChange({ ...ilha, bombas: redimensionar(ilha.bombas, n, () => ({ bicos: 1 }), LIMITES.bombas) })
         }
       />
+      <FilhosEditor
+        tipos={filhosDoTipo(catalogo, "ilha")}
+        filhos={ilha.filhos}
+        catalogo={catalogo}
+        disabled={disabled}
+        onChange={(filhos) => onChange({ ...ilha, filhos })}
+      />
       {ilha.bombas.map((b, bi) => (
-        <div key={bi} className="flex items-center justify-between gap-3 rounded border border-border px-3 py-2">
-          <span className="text-sm">{rotuloDoTipo(catalogo, "bomba")} {pad2(bi + 1)}</span>
-          <QuantidadeField
-            inline
-            label="Bicos"
-            value={b.bicos}
-            max={LIMITES.bicos}
+        <div key={bi} className="rounded border border-border px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">{rotuloDoTipo(catalogo, "bomba")} {pad2(bi + 1)}</span>
+            <QuantidadeField
+              inline
+              label="Bicos"
+              value={b.bicos}
+              max={LIMITES.bicos}
+              disabled={disabled}
+              onChange={(n) =>
+                onChange({ ...ilha, bombas: ilha.bombas.map((x, k) => (k === bi ? { ...x, bicos: n } : x)) })
+              }
+            />
+          </div>
+          <FilhosEditor
+            tipos={filhosDoTipo(catalogo, "bomba")}
+            filhos={b.filhos}
+            catalogo={catalogo}
             disabled={disabled}
-            onChange={(n) =>
-              onChange({ bombas: ilha.bombas.map((x, k) => (k === bi ? { bicos: n } : x)) })
-            }
+            onChange={(filhos) => onChange({ ...ilha, bombas: ilha.bombas.map((x, k) => (k === bi ? { ...x, filhos } : x)) })}
           />
         </div>
       ))}
     </>
+  );
+}
+
+/**
+ * Itens de tipos novos dentro de um pai (ou na raiz do escopo): uma coleção por tipo, com "Quantidade de …" e a
+ * identificação de cada item; cada item mostra os tipos que ficam dentro dele (recursivo). Tipo oculto e vazio some.
+ */
+function FilhosEditor({
+  tipos,
+  filhos,
+  catalogo,
+  disabled,
+  onChange,
+}: {
+  tipos: TipoCatalogo[];
+  filhos: FilhosArvore | undefined;
+  catalogo: TipoCatalogo[];
+  disabled?: boolean;
+  onChange: (filhos: FilhosArvore | undefined) => void;
+}) {
+  const visiveis = tipos.filter((t) => tipoVisivel(catalogo, t.chave, (filhos?.[t.chave] ?? []).length));
+  if (!visiveis.length) return null;
+  return (
+    <div className="mt-2 space-y-2">
+      {visiveis.map((t) => (
+        <ColecaoNomeada
+          key={t.chave}
+          titulo={t.chave}
+          tituloPlural={t.plural}
+          catalogo={catalogo}
+          itens={filhos?.[t.chave] ?? []}
+          max={LIMITES.extras}
+          disabled={disabled}
+          onChange={(itens) => {
+            const novo: FilhosArvore = { ...(filhos ?? {}) };
+            if (itens.length) novo[t.chave] = itens;
+            else delete novo[t.chave];
+            onChange(Object.keys(novo).length ? novo : undefined);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Resumo lateral: os itens de tipos novos de um pai, com o que há dentro de cada um. */
+function ResumoFilhos({ filhos, catalogo }: { filhos: FilhosArvore | undefined; catalogo: TipoCatalogo[] }) {
+  const tipos = Object.entries(filhos ?? {}).filter(([, l]) => l.length > 0);
+  if (!tipos.length) return null;
+  return (
+    <ul className="ml-3 border-l border-border pl-2">
+      {tipos.map(([tipo, lista]) => (
+        <li key={tipo}>
+          {pluralDoTipo(catalogo, tipo)}
+          <ul className="ml-3 border-l border-border pl-2">
+            {lista.map((it, i) => (
+              <li key={i}>
+                {rotuloEntidade(tipo, i + 1, it.nome, catalogo)}
+                <ResumoFilhos filhos={it.filhos} catalogo={catalogo} />
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }
 
