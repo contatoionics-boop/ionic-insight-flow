@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ export function EstruturaEscopo({
   disabled,
   itensDaProposta,
   idCampoSolucao,
+  noAgendamento = false,
 }: {
   value: ArvoreEscopo;
   onChange: (v: ArvoreEscopo) => void;
@@ -46,6 +47,7 @@ export function EstruturaEscopo({
   /** Itens textuais lidos da proposta (para "Importar da proposta"). */
   itensDaProposta?: string[];
   idCampoSolucao?: string;
+  noAgendamento?: boolean;
 }) {
   const set = (patch: Partial<ArvoreEscopo>) => onChange({ ...value, ...patch });
   // nomes dos tipos (configuráveis em Configurações › Tipos de item)
@@ -88,12 +90,12 @@ export function EstruturaEscopo({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-[1fr_280px]">
+      <div className={noAgendamento ? "min-w-0" : "grid gap-4 md:grid-cols-[1fr_280px]"}>
         <div className="space-y-4">
           {/* Solução contratada */}
           <section className="rounded-md border border-border p-3">
             <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
-              <span className="font-medium">Solução</span>
+              <span className="font-medium">Solução {noAgendamento && <span className="font-normal text-muted-foreground">(opcional)</span>}</span>
               <select
                 id={idCampoSolucao}
                 value={config.solucao ?? ""}
@@ -111,13 +113,13 @@ export function EstruturaEscopo({
             </label>
           </section>
 
-          {/* Equipamentos vendidos (proposta) */}
+          <GrupoNoAgendamento visivel={noAgendamento} titulo="Equipamentos contratados" detalhe={equipamentos.length ? equipamentos.length + (equipamentos.length === 1 ? " linha" : " linhas") : "Opcional"}>
           <section className="rounded-md border border-border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <span className="text-sm font-medium">Equipamentos vendidos (proposta)</span>
+                {!noAgendamento && <span className="text-sm font-medium">Equipamentos vendidos (proposta)</span>}
                 <p className="text-xs text-muted-foreground">
-                  Itens contratados. Aparecem para o agente e na tabela "Produtos IONICS" do documento.
+Estes itens aparecem para o agente e na tabela Produtos IONICS do laudo.
                 </p>
               </div>
               {(itensDaProposta?.length ?? 0) > 0 && (
@@ -186,6 +188,8 @@ export function EstruturaEscopo({
             </div>
           </section>
 
+          </GrupoNoAgendamento>
+          <GrupoNoAgendamento visivel={noAgendamento} titulo="Locais e itens a mapear" aberto>
           {/* Pista */}
           <SeVisivel mostrar={tipoVisivel(catalogo, "posto", value.postos.length)}>
           <section className="rounded-md border border-border p-3">
@@ -356,6 +360,8 @@ export function EstruturaEscopo({
           {/* Tipos criados em Configurações › Tipos de item (Prédio, Produto…): itens simples */}
           <FilhosEditor tipos={tiposDaRaiz} filhos={value.extras} catalogo={catalogo} disabled={disabled} onChange={(extras) => set({ extras })} />
 
+          </GrupoNoAgendamento>
+          <GrupoNoAgendamento visivel={noAgendamento} titulo="Conexão, frota e dispositivos" detalhe="Opcional">
           {/* Conexão de dados: posto e comboio podem usar modelos diferentes */}
           <section className="rounded-md border border-border p-3">
             <p className="mb-2 text-sm font-medium">Conexão de dados</p>
@@ -694,10 +700,10 @@ export function EstruturaEscopo({
               </Button>
             </div>
           </section>
+          </GrupoNoAgendamento>
         </div>
 
-        {/* Resumo vivo */}
-        <aside className="rounded-md border border-border bg-muted/30 p-3 text-xs">
+        {!noAgendamento && <aside className="rounded-md border border-border bg-muted/30 p-3 text-xs">
           <p className="mb-2 font-medium text-foreground">Resumo da estrutura</p>
           {config.solucao && (
             <p className="mb-1 text-foreground">
@@ -796,7 +802,7 @@ export function EstruturaEscopo({
               <li>Outros — {(config.outros ?? []).map((i) => `${i.quantidade}× ${i.nome || "?"}`).join(", ")}</li>
             )}
           </ul>
-        </aside>
+        </aside>}
       </div>
     </div>
   );
@@ -809,6 +815,27 @@ export function EstruturaEscopo({
       },
     });
   }
+}
+
+function GrupoNoAgendamento({ visivel, titulo, detalhe, aberto, children }: {
+  visivel: boolean;
+  titulo: string;
+  detalhe?: string;
+  aberto?: boolean;
+  children: React.ReactNode;
+}) {
+  if (!visivel) return <>{children}</>;
+  return (
+    <details open={aberto} className="group rounded-lg border border-border bg-card">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        {titulo}
+        <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+          {detalhe}<ChevronDown className="size-4 motion-safe:transition-transform group-open:rotate-180" aria-hidden="true" />
+        </span>
+      </summary>
+      <div className="space-y-3 border-t border-border p-3 sm:p-4">{children}</div>
+    </details>
+  );
 }
 
 /**
